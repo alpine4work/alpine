@@ -73,7 +73,7 @@ export class TaskCollectionModel {
      *
      * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
      */
-    public apply(action: TaskUpdateCollectionAction): TaskCollectionModel {
+    public applyAction(action: TaskUpdateCollectionAction): TaskCollectionModel {
         if (this.id !== action.collectionId) {
             throw new InternalError(
                 "Can only apply action for a collection with the same `TaskCollectionId`",

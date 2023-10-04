@@ -118,23 +118,54 @@ export type TaskClientStoreCollectionEntry =
     | {
           readonly collection: TaskCollectionModel;
           readonly actions: null;
+          readonly optimisticState: TaskClientStoreCollectionEntryOptimisticState | null;
+          readonly isAuthorized: boolean;
+          readonly authorizationEventNumber: number;
+      }
+    // Collection uninitialized and known unauthorized state:
+    | {
+          readonly collection: null;
+          readonly actions: ReadonlyArray<TaskClientStorePendingUpdateCollectionAction>;
+          readonly optimisticState:
+              | (TaskClientStoreCollectionEntryOptimisticState & {original: {collection: null}})
+              | null;
           readonly isAuthorized: boolean;
           readonly authorizationEventNumber: number;
       }
     // Collection uninitialized and unknown authorization state:
     | {
           readonly collection: null;
-          readonly actions: ReadonlyArray<TaskUpdateCollectionAction>;
+          readonly actions: ReadonlyArray<TaskClientStorePendingUpdateCollectionAction>;
+          readonly optimisticState:
+              | (TaskClientStoreCollectionEntryOptimisticState & {original: {collection: null}})
+              | null;
           readonly isAuthorized: null;
           readonly authorizationEventNumber: null;
-      }
-    // Collection uninitialized and known unauthorized state:
-    | {
-          readonly collection: null;
-          readonly actions: ReadonlyArray<TaskUpdateCollectionAction>;
-          readonly isAuthorized: false;
-          readonly authorizationEventNumber: number;
       };
+
+/**
+ * If the collection has some optimistic updates then this object will be
+ * populated with those updates until the server either accepts or rejects our
+ * actions.
+ *
+ * See `TaskClientStoreTaskEntryOptimisticState` for more info.
+ */
+export type TaskClientStoreCollectionEntryOptimisticState = {
+    readonly original:
+        | {
+              readonly collection: TaskCollectionModel;
+              readonly actions: null;
+          }
+        | {
+              readonly collection: null;
+              readonly actions: ReadonlyArray<TaskClientStorePendingUpdateCollectionAction>;
+          };
+    readonly actions: ReadonlyArray<
+        TaskClientStorePendingUpdateCollectionAction & {
+            readonly isOptimistic: boolean;
+        }
+    >;
+};
 
 type TaskClientStorePendingAction = {
     readonly action: TaskAction;
@@ -144,6 +175,10 @@ type TaskClientStorePendingAction = {
 type TaskClientStorePendingUpdateTaskAction = {
     readonly action: TaskUpdateTaskAction | TaskUpdateAccountNameAction;
     readonly getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
+};
+
+type TaskClientStorePendingUpdateCollectionAction = {
+    readonly action: TaskUpdateCollectionAction;
 };
 
 /**
@@ -845,22 +880,61 @@ export class TaskClientStoreInternal {
                 newCollectionEntryById.set(backfillCollection.id, {
                     collection: backfillCollection,
                     actions: null,
+                    optimisticState: null,
                     isAuthorized: true,
                     authorizationEventNumber: event.number,
                 });
                 continue;
             }
 
-            // If a collection is uninitialized we may have received some events for the
-            // collection before we received the collection itself.
+            // When backfilling the collection, we may have received actions out-of-order from
+            // the server or we may have some out-of-order optimistic actions. We need to
+            // apply actions we received (from the server and optimistic) to the collection.
+            // We also need to update our original collection in `optimisticState` so if we
+            // need to revert an optimistic action we preserve the backfilled collection.
             let newCollection: TaskCollectionModel;
+            let newOptimisticState: TaskClientStoreCollectionEntryOptimisticState | null;
             if (oldCollectionEntry.collection === null) {
-                newCollection = oldCollectionEntry.actions.reduce(
-                    (collection, action) => collection.apply(action),
-                    backfillCollection,
+                newCollection = backfillCollection;
+
+                newCollection = applyPendingTaskCollectionActions(
+                    newCollection,
+                    oldCollectionEntry.actions,
                 );
+
+                if (oldCollectionEntry.optimisticState === null) {
+                    newOptimisticState = null;
+                } else {
+                    newOptimisticState = {
+                        original: {
+                            collection: backfillCollection,
+                            actions: null,
+                        },
+                        actions: oldCollectionEntry.optimisticState.actions,
+                    };
+                }
             } else {
                 newCollection = oldCollectionEntry.collection.merge(backfillCollection);
+
+                if (oldCollectionEntry.optimisticState === null) {
+                    newOptimisticState = null;
+                } else {
+                    newOptimisticState = {
+                        original: {
+                            collection:
+                                oldCollectionEntry.optimisticState.original.collection === null
+                                    ? applyPendingTaskCollectionActions(
+                                          backfillCollection,
+                                          oldCollectionEntry.optimisticState.original.actions,
+                                      )
+                                    : oldCollectionEntry.optimisticState.original.collection.merge(
+                                          backfillCollection,
+                                      ),
+                            actions: null,
+                        },
+                        actions: oldCollectionEntry.optimisticState.actions,
+                    };
+                }
             }
 
             if (newCollection !== oldCollectionEntry.collection) {
@@ -874,6 +948,7 @@ export class TaskClientStoreInternal {
                 newCollectionEntryById.set(backfillCollection.id, {
                     collection: newCollection,
                     actions: null,
+                    optimisticState: newOptimisticState,
                     isAuthorized: true,
                     authorizationEventNumber: event.number,
                 });
@@ -884,13 +959,20 @@ export class TaskClientStoreInternal {
             // authorization event number.
             if (oldCollectionEntry.authorizationEventNumber >= event.number) {
                 // If nothing in our entry changed then don't update the collection.
-                if (newCollection === oldCollectionEntry.collection) continue;
+                if (
+                    newCollection === oldCollectionEntry.collection &&
+                    newOptimisticState?.original.collection ===
+                        oldCollectionEntry.optimisticState?.original.collection
+                ) {
+                    continue;
+                }
 
                 newCollectionEntryById.set(backfillCollection.id, {
                     // We update the collection even if it's unauthorized since we may receive
                     // events out-of-order.
                     collection: newCollection,
                     actions: null,
+                    optimisticState: newOptimisticState,
                     isAuthorized: oldCollectionEntry.isAuthorized,
                     authorizationEventNumber: oldCollectionEntry.authorizationEventNumber,
                 });
@@ -900,6 +982,7 @@ export class TaskClientStoreInternal {
             newCollectionEntryById.set(backfillCollection.id, {
                 collection: newCollection,
                 actions: null,
+                optimisticState: newOptimisticState,
                 isAuthorized: true,
                 authorizationEventNumber: event.number,
             });
@@ -917,6 +1000,7 @@ export class TaskClientStoreInternal {
                 newCollectionEntryById.set(backfillUnauthorizedCollectionId, {
                     collection: null,
                     actions: [],
+                    optimisticState: null,
                     isAuthorized: false,
                     authorizationEventNumber: event.number,
                 });
@@ -1112,7 +1196,8 @@ export class TaskClientStoreInternal {
                         if (action.collectionAction.type !== "Create") {
                             newCollectionEntryById.set(action.collectionId, {
                                 collection: null,
-                                actions: [action],
+                                actions: [{action}],
+                                optimisticState: null,
                                 isAuthorized: null,
                                 authorizationEventNumber: null,
                             });
@@ -1127,6 +1212,7 @@ export class TaskClientStoreInternal {
                             newCollectionEntryById.set(action.collectionId, {
                                 collection: newCollection,
                                 actions: null,
+                                optimisticState: null,
                                 // If we receive the create event for a collection we assume it to be
                                 // authorized. In practice when a collection is created we'll get a backfill
                                 // for the collection instead of the create action.
@@ -1141,7 +1227,16 @@ export class TaskClientStoreInternal {
                         if (action.collectionAction.type !== "Create") {
                             newCollectionEntryById.set(action.collectionId, {
                                 ...oldCollectionEntry,
-                                actions: [...oldCollectionEntry.actions, action],
+                                actions: [...oldCollectionEntry.actions, {action}],
+                                optimisticState: oldCollectionEntry.optimisticState
+                                    ? {
+                                          original: oldCollectionEntry.optimisticState.original,
+                                          actions: [
+                                              ...oldCollectionEntry.optimisticState.actions,
+                                              {isOptimistic: false, action},
+                                          ],
+                                      }
+                                    : null,
                             });
                             continue;
                         } else {
@@ -1154,14 +1249,23 @@ export class TaskClientStoreInternal {
 
                             // Apply any actions we received out-of-order now that the task has
                             // been created.
-                            newCollection = oldCollectionEntry.actions.reduce(
-                                (task, action) => task.apply(action),
+                            newCollection = applyPendingTaskCollectionActions(
                                 newCollection,
+                                oldCollectionEntry.actions,
                             );
 
                             newCollectionEntryById.set(action.collectionId, {
                                 collection: newCollection,
                                 actions: null,
+                                optimisticState: oldCollectionEntry.optimisticState
+                                    ? {
+                                          original: oldCollectionEntry.optimisticState.original,
+                                          actions: [
+                                              ...oldCollectionEntry.optimisticState.actions,
+                                              {isOptimistic: false, action},
+                                          ],
+                                      }
+                                    : null,
                                 // If we receive the create event for a collection we assume it to be
                                 // authorized. In practice when a collection is created we'll get a backfill
                                 // for the collection instead of the create action.
@@ -1173,7 +1277,7 @@ export class TaskClientStoreInternal {
                         }
                     }
 
-                    const newCollection = oldCollectionEntry.collection.apply(action);
+                    const newCollection = oldCollectionEntry.collection.applyAction(action);
 
                     // Optimization: If the collection didn't change then don't update our store.
                     if (newCollection === oldCollectionEntry.collection) continue;
@@ -1181,6 +1285,15 @@ export class TaskClientStoreInternal {
                     newCollectionEntryById.set(action.collectionId, {
                         collection: newCollection,
                         actions: null,
+                        optimisticState: oldCollectionEntry.optimisticState
+                            ? {
+                                  original: oldCollectionEntry.optimisticState.original,
+                                  actions: [
+                                      ...oldCollectionEntry.optimisticState.actions,
+                                      {isOptimistic: false, action},
+                                  ],
+                              }
+                            : null,
                         isAuthorized: oldCollectionEntry.isAuthorized,
                         authorizationEventNumber: oldCollectionEntry.authorizationEventNumber,
                     });
@@ -2036,7 +2149,149 @@ export class TaskClientStoreInternal {
                     continue;
                 }
                 case "UpdateCollection": {
-                    // NOCOMMIT: Optimistically update collections!
+                    const oldCollectionEntry =
+                        newCollectionEntryById.get(action.collectionId) ??
+                        this._collectionEntryStoreById
+                            .get(action.collectionId)
+                            ?.store.getSnapshot();
+
+                    // If we do not have a collection entry yet then let's create one.
+                    if (!oldCollectionEntry) {
+                        if (action.collectionAction.type !== "Create") {
+                            newCollectionEntryById.set(action.collectionId, {
+                                collection: null,
+                                actions: [{action}],
+                                optimisticState: {
+                                    original: {
+                                        collection: null,
+                                        actions: [],
+                                    },
+                                    actions: [
+                                        {
+                                            isOptimistic: true,
+                                            action,
+                                        },
+                                    ],
+                                },
+                                isAuthorized: null,
+                                authorizationEventNumber: null,
+                            });
+                            continue;
+                        } else {
+                            const newCollection = TaskCollectionModel.createFromAction(
+                                this.spaceId,
+                                action.collectionId,
+                                action.time,
+                                action.collectionAction,
+                            );
+
+                            newCollectionEntryById.set(action.collectionId, {
+                                collection: newCollection,
+                                actions: null,
+                                optimisticState: {
+                                    original: {
+                                        collection: null,
+                                        actions: [],
+                                    },
+                                    actions: [{isOptimistic: true, action}],
+                                },
+                                // If we receive an optimistic create action it's from our account (other
+                                // creates will be rejected by the backend) so the task is authorized.
+                                isAuthorized: true,
+                                // NOCOMMIT: Proper authorization event number!!
+                                authorizationEventNumber: 0,
+                            });
+                            continue;
+                        }
+                    }
+
+                    if (oldCollectionEntry.collection === null) {
+                        if (action.collectionAction.type !== "Create") {
+                            newCollectionEntryById.set(action.collectionId, {
+                                ...oldCollectionEntry,
+                                actions: [...oldCollectionEntry.actions, {action}],
+                                optimisticState: {
+                                    original: {
+                                        collection: null,
+                                        actions:
+                                            oldCollectionEntry.optimisticState?.original.actions ??
+                                            oldCollectionEntry.actions,
+                                    },
+                                    actions: [
+                                        ...(oldCollectionEntry.optimisticState?.actions ?? []),
+                                        {isOptimistic: true, action},
+                                    ],
+                                },
+                            });
+                            continue;
+                        } else {
+                            let newCollection = TaskCollectionModel.createFromAction(
+                                this.spaceId,
+                                action.collectionId,
+                                action.time,
+                                action.collectionAction,
+                            );
+
+                            // Apply any actions we received now that the task has been created.
+                            newCollection = applyPendingTaskCollectionActions(
+                                newCollection,
+                                oldCollectionEntry.actions,
+                            );
+
+                            // Apply any optimistic actions we received now that the task has been created.
+                            if (oldCollectionEntry.optimisticState) {
+                                newCollection = applyPendingTaskCollectionActions(
+                                    newCollection,
+                                    oldCollectionEntry.optimisticState.actions,
+                                );
+                            }
+
+                            newCollectionEntryById.set(action.collectionId, {
+                                collection: newCollection,
+                                actions: null,
+                                optimisticState: {
+                                    original: {
+                                        collection: null,
+                                        actions:
+                                            oldCollectionEntry.optimisticState?.original.actions ??
+                                            oldCollectionEntry.actions,
+                                    },
+                                    actions: [
+                                        ...(oldCollectionEntry.optimisticState?.actions ?? []),
+                                        {
+                                            isOptimistic: true,
+                                            action,
+                                        },
+                                    ],
+                                },
+                                // If we receive an optimistic create action it's from our account (other
+                                // creates will be rejected by the backend) so the task is authorized.
+                                isAuthorized: true,
+                                // NOCOMMIT: Proper authorization event number!!
+                                authorizationEventNumber: 0,
+                            });
+                            continue;
+                        }
+                    }
+
+                    const newCollection = oldCollectionEntry.collection.applyAction(action);
+
+                    newCollectionEntryById.set(action.collectionId, {
+                        collection: newCollection,
+                        actions: null,
+                        optimisticState: {
+                            original: oldCollectionEntry.optimisticState?.original ?? {
+                                collection: oldCollectionEntry.collection,
+                                actions: null,
+                            },
+                            actions: [
+                                ...(oldCollectionEntry.optimisticState?.actions ?? []),
+                                {isOptimistic: true, action},
+                            ],
+                        },
+                        isAuthorized: oldCollectionEntry.isAuthorized,
+                        authorizationEventNumber: oldCollectionEntry.authorizationEventNumber,
+                    });
                     continue;
                 }
                 case "UpdateNotepadPage": {
@@ -2292,7 +2547,180 @@ export class TaskClientStoreInternal {
                     continue;
                 }
                 case "UpdateCollection": {
-                    // NOCOMMIT: Optimistically update collections!
+                    const oldCollectionEntry =
+                        newCollectionEntryById.get(action.collectionId) ??
+                        this._collectionEntryStoreById
+                            .get(action.collectionId)
+                            ?.store.getSnapshot();
+
+                    // Entry has been garbage collected, ignore.
+                    if (!oldCollectionEntry) {
+                        continue;
+                    }
+
+                    // Entry has been recreated since we added our action to optimistic
+                    // state, ignore.
+                    if (!oldCollectionEntry.optimisticState) {
+                        continue;
+                    }
+
+                    let newOptimisticActions = oldCollectionEntry.optimisticState.actions.filter(
+                        optimisticAction => optimisticAction.action !== action,
+                    );
+
+                    // Optimistic action is not present in task entry's optimistic state. Maybe
+                    // entry has been recreated, ignore.
+                    if (
+                        newOptimisticActions.length ===
+                        oldCollectionEntry.optimisticState.actions.length
+                    ) {
+                        continue;
+                    }
+
+                    // Remove any `isOptimistic: false` actions from the start of the optimistic
+                    // actions array. These are actions we'd need to re-apply on top of
+                    // `originalTask` to revert an optimistic action. Since there are no optimistic
+                    // actions that come before we won't need to reapply these.
+                    const firstActuallyOptimisticActionIndex = newOptimisticActions.findIndex(
+                        optimisticAction => optimisticAction.isOptimistic,
+                    );
+                    let removedNonOptimisticActions: Array<TaskClientStorePendingUpdateCollectionAction>;
+                    if (firstActuallyOptimisticActionIndex === -1) {
+                        removedNonOptimisticActions = newOptimisticActions;
+                        newOptimisticActions = [];
+                    } else {
+                        removedNonOptimisticActions = newOptimisticActions.slice(
+                            0,
+                            firstActuallyOptimisticActionIndex,
+                        );
+                        newOptimisticActions = newOptimisticActions.slice(
+                            firstActuallyOptimisticActionIndex,
+                        );
+                    }
+
+                    // Our task is caught up! There's no more optimistic state for the task.
+                    if (newOptimisticActions.length === 0) {
+                        newCollectionEntryById.set(action.collectionId, {
+                            ...oldCollectionEntry,
+                            optimisticState: null,
+                        });
+                        continue;
+                    }
+
+                    // Update `original` to include the committed action and any non-optimistic
+                    // actions we don't need to keep anymore.
+                    if (oldCollectionEntry.collection === null) {
+                        // If there was a create action then `oldTaskEntry.task` should be non-null.
+                        assert(
+                            removedNonOptimisticActions.every(
+                                ({action}) =>
+                                    action.type !== "UpdateCollection" ||
+                                    action.collectionAction.type !== "Create",
+                            ),
+                        );
+
+                        const newOriginal = {
+                            collection: null,
+                            actions: [
+                                ...oldCollectionEntry.optimisticState.original.actions,
+                                {action, getActionReferencedSortableAccount},
+                                ...removedNonOptimisticActions,
+                            ],
+                        };
+
+                        newCollectionEntryById.set(action.collectionId, {
+                            ...oldCollectionEntry,
+                            optimisticState: {
+                                original: newOriginal,
+                                actions: newOptimisticActions,
+                            },
+                        });
+                        continue;
+                    }
+
+                    let newOriginal = oldCollectionEntry.optimisticState.original;
+
+                    if (
+                        action.collectionAction.type === "Create" &&
+                        newOriginal.collection === null
+                    ) {
+                        newOriginal = {
+                            collection: applyPendingTaskCollectionActions(
+                                TaskCollectionModel.createFromAction(
+                                    this.spaceId,
+                                    action.collectionId,
+                                    action.time,
+                                    action.collectionAction,
+                                ),
+                                newOriginal.actions,
+                            ),
+                            actions: null,
+                        };
+                    } else {
+                        newOriginal =
+                            newOriginal.collection !== null
+                                ? {
+                                      collection: newOriginal.collection.applyAction(action),
+                                      actions: null,
+                                  }
+                                : {
+                                      collection: null,
+                                      actions: [...newOriginal.actions, {action}],
+                                  };
+                    }
+
+                    if (newOriginal.collection !== null) {
+                        newOriginal = {
+                            collection: applyPendingTaskCollectionActions(
+                                newOriginal.collection,
+                                removedNonOptimisticActions,
+                            ),
+                            actions: null,
+                        };
+                    } else {
+                        const nonOptimisticCreateAction = removedNonOptimisticActions.find(
+                            (
+                                pendingAction,
+                            ): pendingAction is TaskClientStorePendingAction & {
+                                action: TaskUpdateCollectionAction & {
+                                    collectionAction: {type: "Create"};
+                                };
+                            } =>
+                                pendingAction.action.type === "UpdateCollection" &&
+                                pendingAction.action.collectionAction.type === "Create",
+                        );
+
+                        if (!nonOptimisticCreateAction) {
+                            newOriginal = {
+                                collection: null,
+                                actions: [...newOriginal.actions, ...removedNonOptimisticActions],
+                            };
+                        } else {
+                            newOriginal = {
+                                collection: applyPendingTaskCollectionActions(
+                                    applyPendingTaskCollectionActions(
+                                        TaskCollectionModel.createFromAction(
+                                            this.spaceId,
+                                            nonOptimisticCreateAction.action.collectionId,
+                                            nonOptimisticCreateAction.action.time,
+                                            nonOptimisticCreateAction.action.collectionAction,
+                                        ),
+                                        newOriginal.actions,
+                                    ),
+                                    removedNonOptimisticActions,
+                                ),
+                                actions: null,
+                            };
+                        }
+                    }
+
+                    newCollectionEntryById.set(action.collectionId, {
+                        ...oldCollectionEntry,
+                        optimisticState: {
+                            original: newOriginal,
+                            actions: newOptimisticActions,
+                        },
+                    });
                     continue;
                 }
                 case "UpdateNotepadPage": {
@@ -2534,7 +2962,223 @@ export class TaskClientStoreInternal {
                     continue;
                 }
                 case "UpdateCollection": {
-                    // NOCOMMIT: Optimistically update collections!
+                    const oldCollectionEntry =
+                        newCollectionEntryById.get(action.collectionId) ??
+                        this._collectionEntryStoreById
+                            .get(action.collectionId)
+                            ?.store.getSnapshot();
+
+                    // Entry has been garbage collected, ignore.
+                    if (!oldCollectionEntry) {
+                        continue;
+                    }
+
+                    // Entry has been recreated since we added our action to optimistic
+                    // state, ignore.
+                    if (!oldCollectionEntry.optimisticState) {
+                        continue;
+                    }
+
+                    let newOptimisticActions = oldCollectionEntry.optimisticState.actions.filter(
+                        optimisticAction => optimisticAction.action !== action,
+                    );
+
+                    // Optimistic action is not present in task entry's optimistic state. Maybe
+                    // entry has been recreated, ignore.
+                    if (
+                        newOptimisticActions.length ===
+                        oldCollectionEntry.optimisticState.actions.length
+                    ) {
+                        continue;
+                    }
+
+                    // Remove any `isOptimistic: false` actions from the start of the optimistic
+                    // actions array. These are actions we'd need to re-apply on top of
+                    // `originalTask` to revert an optimistic action.
+                    //
+                    // We'll apply these to the original task now and won't need them for future
+                    // optimistic actions.
+                    const firstActuallyOptimisticActionIndex = newOptimisticActions.findIndex(
+                        optimisticAction => optimisticAction.isOptimistic,
+                    );
+                    let removedNonOptimisticActions: Array<TaskClientStorePendingUpdateCollectionAction>;
+                    if (firstActuallyOptimisticActionIndex === -1) {
+                        removedNonOptimisticActions = newOptimisticActions;
+                        newOptimisticActions = [];
+                    } else {
+                        removedNonOptimisticActions = newOptimisticActions.slice(
+                            0,
+                            firstActuallyOptimisticActionIndex,
+                        );
+                        newOptimisticActions = newOptimisticActions.slice(
+                            firstActuallyOptimisticActionIndex,
+                        );
+                    }
+
+                    if (
+                        oldCollectionEntry.collection !== null &&
+                        oldCollectionEntry.optimisticState.original.collection !== null
+                    ) {
+                        const newOriginal = {
+                            collection: applyPendingTaskCollectionActions(
+                                oldCollectionEntry.optimisticState.original.collection,
+                                removedNonOptimisticActions,
+                            ),
+                            actions: null,
+                        };
+
+                        newCollectionEntryById.set(action.collectionId, {
+                            ...oldCollectionEntry,
+                            // Reset `task` and `actions` in the task entry so it doesn't include the
+                            // rejected action.
+                            collection: applyPendingTaskCollectionActions(
+                                newOriginal.collection,
+                                newOptimisticActions,
+                            ),
+                            actions: null,
+                            optimisticState:
+                                newOptimisticActions.length > 0
+                                    ? {
+                                          original: newOriginal,
+                                          actions: newOptimisticActions,
+                                      }
+                                    : null,
+                        });
+                        continue;
+                    }
+
+                    const nonOptimisticCreateAction = removedNonOptimisticActions.find(
+                        (
+                            action,
+                        ): action is TaskClientStorePendingUpdateCollectionAction & {
+                            action: {
+                                type: "UpdateCollection";
+                                collectionAction: {type: "Create"};
+                            };
+                        } =>
+                            action.action.type === "UpdateCollection" &&
+                            action.action.collectionAction.type === "Create",
+                    );
+
+                    let newOriginal: TaskClientStoreCollectionEntryOptimisticState["original"];
+                    if (!nonOptimisticCreateAction) {
+                        newOriginal = {
+                            collection: null,
+                            actions: [
+                                ...oldCollectionEntry.optimisticState.original.actions!,
+                                ...removedNonOptimisticActions,
+                            ],
+                        };
+                    } else {
+                        newOriginal = {
+                            collection: applyPendingTaskCollectionActions(
+                                applyPendingTaskCollectionActions(
+                                    TaskCollectionModel.createFromAction(
+                                        this.spaceId,
+                                        nonOptimisticCreateAction.action.collectionId,
+                                        nonOptimisticCreateAction.action.time,
+                                        nonOptimisticCreateAction.action.collectionAction,
+                                    ),
+                                    oldCollectionEntry.optimisticState.original.actions!,
+                                ),
+                                removedNonOptimisticActions,
+                            ),
+                            actions: null,
+                        };
+                    }
+
+                    if (newOriginal.collection !== null) {
+                        // If our new original task is non-null because there was a non-optimistic
+                        // create action then the task entry as a whole should also have a
+                        // non-null task.
+                        assert(oldCollectionEntry.collection !== null);
+
+                        newCollectionEntryById.set(action.collectionId, {
+                            ...oldCollectionEntry,
+                            // Reset `task` and `actions` in the task entry so it doesn't include the
+                            // rejected action.
+                            collection: applyPendingTaskCollectionActions(
+                                newOriginal.collection,
+                                newOptimisticActions,
+                            ),
+                            actions: null,
+                            optimisticState:
+                                newOptimisticActions.length > 0
+                                    ? {
+                                          original: newOriginal,
+                                          actions: newOptimisticActions,
+                                      }
+                                    : null,
+                        });
+                        continue;
+                    }
+
+                    const optimisticCreateAction = newOptimisticActions.find(
+                        (
+                            action,
+                        ): action is TaskClientStorePendingUpdateCollectionAction & {
+                            isOptimistic: boolean;
+                            action: {
+                                type: "UpdateCollection";
+                                collectionAction: {type: "Create"};
+                            };
+                        } =>
+                            action.action.type === "UpdateCollection" &&
+                            action.action.collectionAction.type === "Create",
+                    );
+
+                    if (!optimisticCreateAction) {
+                        newCollectionEntryById.set(action.collectionId, {
+                            ...oldCollectionEntry,
+                            // Reset `task` and `actions` in the task entry so it doesn't include the
+                            // rejected action.
+                            collection: null,
+                            actions: [
+                                ...newOriginal.actions,
+                                ...newOptimisticActions.map(({action}) => ({
+                                    action,
+                                })),
+                            ],
+                            optimisticState:
+                                newOptimisticActions.length > 0
+                                    ? {
+                                          original: newOriginal,
+                                          actions: newOptimisticActions,
+                                      }
+                                    : null,
+                        });
+                    } else {
+                        newCollectionEntryById.set(action.collectionId, {
+                            // Reset `task` and `actions` in the task entry so it doesn't include the
+                            // rejected action.
+                            collection: applyPendingTaskCollectionActions(
+                                applyPendingTaskCollectionActions(
+                                    TaskCollectionModel.createFromAction(
+                                        this.spaceId,
+                                        optimisticCreateAction.action.collectionId,
+                                        optimisticCreateAction.action.time,
+                                        optimisticCreateAction.action.collectionAction,
+                                    ),
+                                    newOptimisticActions,
+                                ),
+                                newOriginal.actions,
+                            ),
+                            actions: null,
+                            optimisticState:
+                                newOptimisticActions.length > 0
+                                    ? {
+                                          original: newOriginal,
+                                          actions: newOptimisticActions,
+                                      }
+                                    : null,
+                            // If we receive an optimistic create action it's from our account (other
+                            // creates will be rejected by the backend) so the task is authorized.
+                            isAuthorized: oldCollectionEntry.isAuthorized ?? true,
+                            // NOCOMMIT: Proper authorization event number!!
+                            authorizationEventNumber:
+                                oldCollectionEntry.authorizationEventNumber ?? 0,
+                        });
+                    }
                     continue;
                 }
                 case "UpdateNotepadPage": {
@@ -3450,6 +4094,7 @@ export class TaskClientStoreInternal {
                 store: new ValueStore<TaskClientStoreCollectionEntry>({
                     collection: null,
                     actions: [],
+                    optimisticState: null,
                     isAuthorized: null,
                     authorizationEventNumber: null,
                 }),
@@ -3562,4 +4207,13 @@ function applyPendingTaskActions(
             return task.applyUpdateAccountNameAction(action);
         }
     }, task);
+}
+
+function applyPendingTaskCollectionActions(
+    collection: TaskCollectionModel,
+    actions: ReadonlyArray<TaskClientStorePendingUpdateCollectionAction>,
+) {
+    return actions.reduce((collection, {action}) => {
+        return collection.applyAction(action);
+    }, collection);
 }

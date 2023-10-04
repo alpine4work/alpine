@@ -1,10 +1,10 @@
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
+    TaskClientStore,
     TaskClientStoreCollectionEntry,
     TaskClientStoreInternal,
 } from "~/client/tasks/task_client_store.js";
-import {TaskClientTaskReferencesSubscriptionBase} from "~/client/tasks/task_client_task_references_subscription_base.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 
@@ -14,8 +14,9 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
  * collection for the collection view separately in case there are no tasks in
  * the collection's query.
  */
-export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSubscriptionBase {
+export class TaskClientCollectionSubscription {
     private readonly _store: TaskClientStoreInternal;
+    public readonly store: TaskClientStore;
     public readonly collectionId: TaskCollectionId;
     private readonly _collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
 
@@ -38,8 +39,8 @@ export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSu
         collectionId: TaskCollectionId,
         collectionEntryStore: Store<TaskClientStoreCollectionEntry>,
     ) {
-        super();
         this._store = store;
+        this.store = store.external;
         this.collectionId = collectionId;
         this._collectionEntryStore = collectionEntryStore;
 
@@ -51,10 +52,6 @@ export class TaskClientCollectionSubscription extends TaskClientTaskReferencesSu
                 return collectionEntry;
             },
         );
-    }
-
-    protected override _getStore() {
-        return this._store;
     }
 
     /**

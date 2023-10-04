@@ -1,5 +1,6 @@
 import {CalendarDate} from "@internationalized/date";
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
+import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {
     TaskClientStore,
     setShouldDisableCommitTaskActionTransactionMutexForTest,
@@ -14,11 +15,13 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {TestRpcContextModule} from "~/shared/rpc/test_rpc_context_module.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionCreateAction} from "~/shared/tasks/actions/task_collection_action.js";
 import {TaskCreateAction} from "~/shared/tasks/actions/task_task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 // We disable the `commitTaskActionTransaction()` mutex in this file so commits
@@ -102,7 +105,45 @@ function getTaskEntryIfExists(store: TaskClientStore, taskId: TaskId) {
     }));
 }
 
+const collectionEntryCache = new WeakMap();
+
+function getCollectionEntryIfExists(store: TaskClientStore, collectionId: TaskCollectionId) {
+    const collectionEntry = store.getCollectionEntryStoreIfExists(collectionId)?.getSnapshot();
+    if (!collectionEntry) return null;
+
+    // This test was written before we added `actionReferencedAccountStoreById` to
+    // collection entries. Discard `actionReferencedAccountStoreById` so we can avoid
+    // rewriting tests.
+
+    // Use a `WeakMap` to make sure we maintain referential equality if the collection
+    // entry doesn't change.
+    return getOrSetDefaultMapValue(collectionEntryCache, collectionEntry, () => ({
+        ...collectionEntry,
+        actions: collectionEntry.actions?.map(({action}) => action) ?? null,
+        optimisticState: collectionEntry.optimisticState
+            ? {
+                  ...collectionEntry.optimisticState,
+                  original: !collectionEntry.optimisticState.original.collection
+                      ? {
+                            ...collectionEntry.optimisticState.original,
+                            actions: collectionEntry.optimisticState.original.actions.map(
+                                ({action}) => action,
+                            ),
+                        }
+                      : collectionEntry.optimisticState.original,
+                  actions: collectionEntry.optimisticState.actions.map(
+                      ({isOptimistic, action}) => ({
+                          isOptimistic,
+                          action,
+                      }),
+                  ),
+              }
+            : null,
+    }));
+}
+
 let taskSubscriptions: Array<TaskClientTaskSubscription> = [];
+let collectionSubscriptions: Array<TaskClientCollectionSubscription> = [];
 let errors: Array<unknown> = [];
 
 const handleError = ({error}: {error: unknown}) => {
@@ -117,15 +158,23 @@ afterEach(() => {
         throw InternalError.from(previousErrors[0]!, "Received error");
     }
 
-    const taskSubscriptionStores = new Set<TaskClientStore>();
+    const stores = new Set<TaskClientStore>();
+
     const previousTaskSubscriptions = taskSubscriptions;
     taskSubscriptions = [];
     for (const subscription of previousTaskSubscriptions) {
-        taskSubscriptionStores.add(subscription.store);
+        stores.add(subscription.store);
         subscription.release();
     }
 
-    for (const store of taskSubscriptionStores) {
+    const previousCollectionSubscriptions = collectionSubscriptions;
+    collectionSubscriptions = [];
+    for (const subscription of previousCollectionSubscriptions) {
+        stores.add(subscription.store);
+        subscription.release();
+    }
+
+    for (const store of stores) {
         assert(store.getTaskCountForTest() === 0, "Expected all tasks to be released");
         assert(store.getCollectionCountForTest() === 0, "Expected all collections to be released");
     }
@@ -139,8 +188,9 @@ function createAutoRetainStore() {
     });
 
     const taskIdsWithSubscription = new Set<TaskId>();
+    const collectionIdsWithSubscription = new Set<TaskCollectionId>();
 
-    store.subscribeToBatchUpdate(({taskEntryUpdateById}) => {
+    store.subscribeToBatchUpdate(({taskEntryUpdateById, updatedCollectionIds}) => {
         for (const taskId of taskEntryUpdateById.keys()) {
             if (taskIdsWithSubscription.has(taskId)) continue;
             taskIdsWithSubscription.add(taskId);
@@ -148,6 +198,15 @@ function createAutoRetainStore() {
             // Create a subscription to every `TaskId` we see updated so our tests don't
             // have to worry about retaining task entries.
             taskSubscriptions.push(store.createAndRetainTaskSubscription(taskId));
+        }
+
+        for (const collectionId of updatedCollectionIds) {
+            if (collectionIdsWithSubscription.has(collectionId)) continue;
+            collectionIdsWithSubscription.add(collectionId);
+
+            // Create a subscription to every `TaskId` we see updated so our tests don't
+            // have to worry about retaining task entries.
+            collectionSubscriptions.push(store.createAndRetainCollectionSubscription(collectionId));
         }
     });
 
@@ -171,6 +230,28 @@ function createTask(
     } = {},
 ) {
     return TaskModel.createFromAction(store.spaceId, id, time, taskAction, getSortableAccount);
+}
+
+function createCollection(
+    store: TaskClientStore,
+    {
+        id = generateId<TaskCollectionId>(),
+        time = store.clock.now(),
+        collectionAction = {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    }: {
+        id?: TaskCollectionId;
+        time?: HybridLogicalTime;
+        collectionAction?: TaskCollectionCreateAction;
+    } = {},
+) {
+    return TaskCollectionModel.createFromAction(store.spaceId, id, time, collectionAction);
 }
 
 test("backfills an authorized task", () => {
@@ -2242,7 +2323,7 @@ test("can create then update tasks optimistically out of order with more non-cre
     });
 });
 
-test("resolving optimistic update after garbage collection is ok", async () => {
+test("resolving task optimistic update after garbage collection is ok", async () => {
     const store = createAutoRetainStore();
 
     const action1 = {
@@ -2354,7 +2435,7 @@ test("resolving optimistic update after garbage collection is ok", async () => {
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 });
 
-test("regular actions are added to optimistic state", async () => {
+test("regular task actions are added to optimistic state", async () => {
     const store = createAutoRetainStore();
 
     const task = createTask(store);
@@ -2462,7 +2543,7 @@ test("regular actions are added to optimistic state", async () => {
     });
 });
 
-test("regular actions are added to optimistic state with multiple actions", async () => {
+test("regular task actions are added to optimistic state with multiple actions", async () => {
     const store = createAutoRetainStore();
 
     const task = createTask(store);
@@ -2628,7 +2709,7 @@ test("regular actions are added to optimistic state with multiple actions", asyn
     });
 });
 
-test("regular actions are added to optimistic state with multiple actions that are committed out of order", async () => {
+test("regular task actions are added to optimistic state with multiple actions that are committed out of order", async () => {
     const store = createAutoRetainStore();
 
     const task = createTask(store);
@@ -4270,7 +4351,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
     });
 });
 
-test("applies commit action calls optimistically (rejected)", async () => {
+test("applies task commit action calls optimistically (rejected)", async () => {
     const store = createAutoRetainStore();
 
     const task = createTask(store);
@@ -5107,7 +5188,7 @@ test("can create then update tasks optimistically out of order with more non-cre
     errors = [];
 });
 
-test("resolving optimistic update after garbage collection is ok (rejected)", async () => {
+test("resolving task optimistic update after garbage collection is ok (rejected)", async () => {
     const store = createAutoRetainStore();
 
     const action1 = {
@@ -5219,7 +5300,7 @@ test("resolving optimistic update after garbage collection is ok (rejected)", as
     errors = [];
 });
 
-test("regular actions are added to optimistic state (rejected)", async () => {
+test("regular task actions are added to optimistic state (rejected)", async () => {
     const store = createAutoRetainStore();
 
     const task = createTask(store);
@@ -5325,7 +5406,7 @@ test("regular actions are added to optimistic state (rejected)", async () => {
     errors = [];
 });
 
-test("regular actions are added to optimistic state with multiple actions (rejected)", async () => {
+test("regular task actions are added to optimistic state with multiple actions (rejected)", async () => {
     const store = createAutoRetainStore();
 
     const task = createTask(store);
@@ -5482,7 +5563,7 @@ test("regular actions are added to optimistic state with multiple actions (rejec
     errors = [];
 });
 
-test("regular actions are added to optimistic state with multiple actions that are committed out of order (rejected)", async () => {
+test("regular task actions are added to optimistic state with multiple actions that are committed out of order (rejected)", async () => {
     const store = createAutoRetainStore();
 
     const task = createTask(store);
@@ -7619,6 +7700,6123 @@ test("create task applied after optimistic updates that are resolved out of orde
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("can create then update collections optimistically", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: createCollection(store, {
+                    id: action1.collectionId,
+                    time: action1.time,
+                    collectionAction: action1.collectionAction,
+                }),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+});
+
+test("can create then update collections optimistically and resolve commits out of order", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action2],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+});
+
+test("can create then update collections optimistically after an action from the server", async () => {
+    const store = createAutoRetainStore();
+
+    const action2Time = store.clock.now();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: action2Time,
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action2.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action1],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        }).applyAction(action1),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: createCollection(store, {
+                    id: action2.collectionId,
+                    time: action2.time,
+                    collectionAction: action2.collectionAction,
+                }).applyAction(action1),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action3}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+});
+
+test("can create then update collections optimistically our of order", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: true, action: action1},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action2],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+});
+
+test("can create then update collections optimistically out of order after an action from the server", async () => {
+    const store = createAutoRetainStore();
+
+    const action2Time = store.clock.now();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: action2Time,
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action2.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action1],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [{isOptimistic: true, action: action3}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1, action3],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+});
+
+test("can create then update collections optimistically out of order with more non-create collections", async () => {
+    const store = createAutoRetainStore();
+
+    const action2Time = store.clock.now();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: action2Time,
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action2.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1, action3],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+});
+
+test("resolving collection optimistic update after garbage collection is ok", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: createCollection(store, {
+                    id: action1.collectionId,
+                    time: action1.time,
+                    collectionAction: action1.collectionAction,
+                }),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    const previousCollectionSubscriptions = collectionSubscriptions;
+    collectionSubscriptions = [];
+    for (const subscription of previousCollectionSubscriptions) {
+        subscription.release();
+    }
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+});
+
+test("regular collection actions are added to optimistic state", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+});
+
+test("regular collection actions are added to optimistic state with multiple actions", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action2).applyAction(action3),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action4}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+});
+
+test("regular collection actions are added to optimistic state with multiple actions that are committed out of order", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action4),
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+});
+
+test("regular actions are added to optimistic state when collection is not backfilled", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+});
+
+test("regular actions are added to optimistic state with multiple actions when collection is not backfilled", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action2, action3],
+            },
+            actions: [{isOptimistic: true, action: action4}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+});
+
+test("regular actions are added to optimistic state with multiple actions that are committed out of order when collection is not backfilled", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action4],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+});
+
+test("regular actions are added to optimistic state when collection is created optimistically", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+});
+
+test("regular actions are added to optimistic state with multiple actions when collection is created optimistically", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action2).applyAction(action3),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action4}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+});
+
+test("regular actions are added to optimistic state with multiple actions that are committed out of order when collection is created optimistically", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action4),
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+});
+
+test("three optimistic actions when collection is not backfilled", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action2],
+            },
+            actions: [
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action2, action3],
+            },
+            actions: [{isOptimistic: true, action: action4}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+});
+
+test("backfilling a collection when none exists and there are optimistic actions works", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+});
+
+test("backfilling a collection when one is already backfilled and there are optimistic actions works", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection.applyAction(action3)],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action3),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+
+    await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+});
+
+test("backfilling a collection when there are optimistic actions but no previously backfilled collection works", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action3],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action3],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection.applyAction(action4)],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action4).applyAction(action3).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action4).applyAction(action3),
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action4).applyAction(action3).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection
+                    .applyAction(action4)
+                    .applyAction(action3)
+                    .applyAction(action1),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action4).applyAction(action3).applyAction(action2),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+});
+
+test("applies collection commit action calls optimistically (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    const action = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    store.commitTaskActionTransaction(context, [action]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    expect(errors.length).toEqual(1);
+    errors = [];
+});
+
+test("can create collections optimistically (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: null,
+        actions: [],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(1);
+    errors = [];
+});
+
+test("can create then update collections optimistically (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: null,
+        actions: [],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("can create then update collections optimistically and resolve commits out of order (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: null,
+        actions: [],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("can create then update collections optimistically after an action from the server (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action2Time = store.clock.now();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: action2Time,
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action2.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action1],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        }).applyAction(action1),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [{isOptimistic: true, action: action3}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("can create then update collections optimistically our of order (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: true, action: action1},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: null,
+        actions: [],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("can create then update collections optimistically out of order after an action from the server (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action2Time = store.clock.now();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: action2Time,
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action2.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action1],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [{isOptimistic: true, action: action3}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        }).applyAction(action1),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action1],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("can create then update collections optimistically out of order with more non-create collections (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action2Time = store.clock.now();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: action2Time,
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action2.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [action1, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        })
+            .applyAction(action1)
+            .applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        }).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action2.collectionId,
+            time: action2.time,
+            collectionAction: action2.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+
+    expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
+        collection: null,
+        actions: [],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(3);
+    errors = [];
+});
+
+test("resolving collection optimistic update after garbage collection is ok (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: action1.collectionId,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
+        collection: createCollection(store, {
+            id: action1.collectionId,
+            time: action1.time,
+            collectionAction: action1.collectionAction,
+        }).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: createCollection(store, {
+                    id: action1.collectionId,
+                    time: action1.time,
+                    collectionAction: action1.collectionAction,
+                }),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    const previousCollectionSubscriptions = collectionSubscriptions;
+    collectionSubscriptions = [];
+    for (const subscription of previousCollectionSubscriptions) {
+        subscription.release();
+    }
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
+
+    expect(errors.length).toEqual(1);
+    errors = [];
+});
+
+test("regular collection actions are added to optimistic state (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    expect(errors.length).toEqual(1);
+    errors = [];
+});
+
+test("regular collection actions are added to optimistic state with multiple actions (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action3),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action4}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("regular collection actions are added to optimistic state with multiple actions that are committed out of order (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("regular actions are added to optimistic state when collection is not backfilled (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    expect(errors.length).toEqual(1);
+    errors = [];
+});
+
+test("regular actions are added to optimistic state with multiple actions when collection is not backfilled (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action3],
+            },
+            actions: [{isOptimistic: true, action: action4}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("regular actions are added to optimistic state with multiple actions that are committed out of order when collection is not backfilled (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("regular actions are added to optimistic state when collection is created optimistically (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("regular actions are added to optimistic state with multiple actions when collection is created optimistically (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action3],
+            },
+            actions: [{isOptimistic: true, action: action4}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(3);
+    errors = [];
+});
+
+test("regular actions are added to optimistic state with multiple actions that are committed out of order when collection is created optimistically (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3],
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    expect(errors.length).toEqual(3);
+    errors = [];
+});
+
+test("three optimistic actions when collection is not backfilled (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action4]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3, action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action3},
+                {isOptimistic: true, action: action4},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action4],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action4}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    expect(errors.length).toEqual(3);
+    errors = [];
+});
+
+test("backfilling a collection when none exists and there are optimistic actions works (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2, action3],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection,
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    expect(errors.length).toEqual(1);
+    errors = [];
+});
+
+test("backfilling a collection when one is already backfilled and there are optimistic actions works (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const collection = createCollection(store);
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection.applyAction(action3)],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action3),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+
+    await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+
+    expect(errors.length).toEqual(1);
+    errors = [];
+});
+
+test("backfilling a collection when there are optimistic actions but no previously backfilled collection works (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    const action4 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 3",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [action3],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action3],
+        optimisticState: null,
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.commitTaskActionTransaction(context, [action1]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action3],
+            },
+            actions: [{isOptimistic: true, action: action1}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action3],
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 0,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 2,
+        actions: [],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [collection.applyAction(action4)],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action4).applyAction(action3).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action4).applyAction(action3),
+                actions: null,
+            },
+            actions: [
+                {isOptimistic: true, action: action1},
+                {isOptimistic: true, action: action2},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action4).applyAction(action3).applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action4).applyAction(action3),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action4).applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 2,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("create collection applied after optimistic updates", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action1],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [account1],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection.applyAction(action2),
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action3}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+});
+
+test("create collection applied after optimistic updates that are resolved out of order", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action1],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [account1],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [action3],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
+        extraActions: [],
+        referencedAccounts: [],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+});
+
+test("create collection applied after optimistic updates (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action1],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [account1],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: collection,
+                actions: null,
+            },
+            actions: [{isOptimistic: true, action: action3}],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection,
+        actions: null,
+        optimisticState: null,
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    expect(errors.length).toEqual(2);
+    errors = [];
+});
+
+test("create collection applied after optimistic updates that are resolved out of order (rejected)", async () => {
+    const store = createAutoRetainStore();
+
+    const action1 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: generateId(),
+        collectionAction: {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    } satisfies TaskAction;
+
+    const collection = createCollection(store, {
+        id: action1.collectionId,
+        time: action1.time,
+        collectionAction: action1.collectionAction,
+    });
+
+    const action2 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateName",
+            name: "Test 2",
+        },
+    } satisfies TaskAction;
+
+    const action3 = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateColor",
+            color: "red",
+        },
+    } satisfies TaskAction;
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
+
+    store.commitTaskActionTransaction(context, [action2]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: null,
+        actions: [action2],
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [{isOptimistic: true, action: action2}],
+        },
+        isAuthorized: null,
+        authorizationEventNumber: null,
+    });
+
+    store.applyUpdateEvent({
+        type: "Update",
+        number: 1,
+        actions: [action1],
+        backfillAuthorizedTasks: [],
+        backfillUnauthorizedTaskIds: [],
+        backfillAuthorizedCollections: [],
+        backfillUnauthorizedCollectionIds: [],
+        referencedAccounts: [account1],
+    });
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    store.commitTaskActionTransaction(context, [action3]);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2).applyAction(action3),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+                {isOptimistic: true, action: action3},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection.applyAction(action2),
+        actions: null,
+        optimisticState: {
+            original: {
+                collection: null,
+                actions: [],
+            },
+            actions: [
+                {isOptimistic: true, action: action2},
+                {isOptimistic: false, action: action1},
+            ],
+        },
+        isAuthorized: true,
+        authorizationEventNumber: 1,
+    });
+
+    await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
+
+    expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
+        collection: collection,
         actions: null,
         optimisticState: null,
         isAuthorized: true,
