@@ -1,26 +1,9 @@
-import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
-import {Node} from "@react-types/shared";
-import {Lock, MagnifyingGlass, Plus} from "phosphor-react";
-import {
-    KeyboardEvent,
-    ReactNode,
-    RefObject,
-    cloneElement,
-    createRef,
-    isValidElement,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
-import {
-    AriaListBoxOptions,
-    mergeProps,
-    useComboBox,
-    useHover,
-    useListBox,
-    useOption,
-} from "react-aria";
-import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
+import {getInteractionModality} from "@react-aria/interactions";
+import {Lock, Plus, SpinnerGap} from "phosphor-react";
+import {KeyboardEvent, createRef, useMemo, useRef, useState} from "react";
+import {useComboBox} from "react-aria";
+import {ComboBoxStateOptions, useComboBoxState} from "react-stately";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
@@ -51,31 +34,25 @@ import {
     renderTaskCollectionComboBoxItem,
     useTaskCollectionComboBoxSearchState,
 } from "~/client/tasks/internal/task_collection_combo_box_base.js";
-import {TaskCollectionOption} from "~/client/tasks/internal/task_collection_option.js";
-import {TaskCollectionComboBoxCreateCollectionOption} from "~/client/tasks/internal/task_collection_combo_box_create_collection_option.js";
-import {TaskCollectionComboBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collection_combo_box_instructional_placeholder.js";
 import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
-import {TaskClientTaskReferencesSubscriptionBase} from "~/client/tasks/task_client_task_references_subscription_base.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {ThemeColor, themeColors} from "~/shared/design/theme_colors.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {randomInteger} from "~/shared/helpers/number/random_integer.js";
+import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     greyElevated2ClassName,
     inputPlaceholderStyles,
+    spinAnimationClassName,
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
-import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
-import {useAppContext} from "~/client/context/app_context.js";
 
 type TaskDetailCollectionsFieldInputState =
     | {
@@ -570,9 +547,41 @@ export function TaskCollectionsInput({
                                 assertExists(inputRef.current).focus({preventScroll: true});
                             }
                         }}
-                        createCollectionAndAddToTask={collection => {
+                        onConfirm={inputValue => {
+                            const collectionId = generateId<TaskCollectionId>();
+
+                            store.commitTaskActionTransaction(context, [
+                                {
+                                    type: "UpdateCollection",
+                                    time: store.clock.now(),
+                                    collectionId,
+                                    collectionAction: {
+                                        type: "Create",
+                                        name: inputValue,
+                                        accessPolicy: {
+                                            accountGrantById: new Map([
+                                                [currentAccount.id, {level: "Manage"}],
+                                            ]),
+                                            defaultGrant: null,
+                                        },
+                                    },
+                                },
+                                {
+                                    type: "UpdateTask",
+                                    time: store.clock.now(),
+                                    taskId,
+                                    taskAction: {
+                                        type: "AddCollection",
+                                        collectionId,
+                                        orderKey: generateOrderKeyBetween(
+                                            collections.getLastOrderKey(),
+                                            null,
+                                        ),
+                                    },
+                                },
+                            ]);
+
                             setCreateCollectionInputState({isVisible: false});
-                            createCollectionAndAddToTask(collection);
 
                             if (
                                 createCollectionInputState.shouldReturnFocusToInput &&
@@ -617,89 +626,101 @@ export function TaskCollectionsInput({
                     </Box>
                 }
             >
-                <Box
-                    position="relative"
-                    zIndex="0"
-                    maxWidth="full"
-                    overflow="hidden"
-                    // The width of this element is determined by nested text boxes when `inline`.
-                    // The `<input>` then uses the parent width as its own width.
-                    display="inline-block"
-                    onKeyDown={event => {
-                        if (event.key === "Escape") {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            event.target.blur();
-                            return;
-                        }
-                    }}
-                >
+                <Box maxWidth="full" overflow="hidden" display="flex" alignItems="center" gap="2">
                     <Box
                         position="relative"
-                        zIndex="-10"
-                        display="flex"
-                        alignItems="center"
-                        gap={shouldShowPrivatePlaceholder ? "1" : undefined}
-                        pointerEvents="none"
-                        // This is accessible through `aria-placeholder` on the `<input>`.
-                        aria-hidden={true}
-                        style={{
-                            ...inputPlaceholderStyles,
-                            opacity: inputState.value.length === 0 ? 1 : 0,
+                        zIndex="0"
+                        maxWidth="full"
+                        overflow="hidden"
+                        // The width of this element is determined by nested text boxes when `inline`.
+                        // The `<input>` then uses the parent width as its own width.
+                        //
+                        // We don't use `<InputWithAutoGrowingWidth>` because we want to render a custom
+                        // icon with the placeholder. Though our implementation here should closely
+                        // follow `<InputWithAutoGrowingWidth>`.
+                        display="inline-block"
+                        onKeyDown={event => {
+                            if (event.key === "Escape") {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                event.target.blur();
+                                return;
+                            }
                         }}
                     >
-                        {shouldShowPrivatePlaceholder ? (
-                            <Lock size={spacing["4"]} />
-                        ) : (
-                            <Box paddingRight="0.5">
-                                <Plus size={spacing["3"]} />
-                            </Box>
-                        )}
-                        <Box>{inputPlaceholder}</Box>
-                    </Box>
-                    <Box
-                        height="0"
-                        opacity="0"
-                        pointerEvents="none"
-                        aria-hidden={true}
-                        // Leading and trailing spaces should contribute to width.
-                        style={{whiteSpace: "pre"}}
-                    >
-                        {inputState.value}
-                    </Box>
-                    <FocusRing>
-                        <input
-                            {...inputProps}
-                            ref={inputRef}
-                            type="text"
-                            className={sprinkles({
-                                position: "absolute",
-                                inset: "0",
-                                display: "inline-block",
-                                backgroundColor: "transparent",
-                                paddingLeft:
-                                    inputState.value.length === 0 && shouldShowPrivatePlaceholder
-                                        ? "5"
-                                        : undefined,
-                            })}
-                            // By default `<input>` elements have a `min-width` determined by the `size`
-                            // property. We want our `<input>`s `min-width` to be determined by our CSS
-                            // so set it to a small value as not to matter.
-                            // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
-                            size={1}
-                            // Use `aria-placeholder` since the placeholder text is rendered by another DOM
-                            // element with an icon.
-                            aria-placeholder={inputPlaceholder}
-                            // Make sure the combobox is always open when the user clicks on the collection
-                            // input. We've observed some bugs where `react-aria` doesn't happen to open
-                            // the combobox consistently on focus.
-                            onPointerDown={() => {
-                                if (!isReadOnly) {
-                                    comboBoxState.open();
-                                }
+                        <Box
+                            position="relative"
+                            zIndex="-10"
+                            display="flex"
+                            alignItems="center"
+                            gap={shouldShowPrivatePlaceholder ? "1" : undefined}
+                            pointerEvents="none"
+                            // This is accessible through `aria-placeholder` on the `<input>`.
+                            aria-hidden={true}
+                            style={{
+                                ...inputPlaceholderStyles,
+                                opacity: inputState.value.length === 0 ? 1 : 0,
                             }}
-                        />
-                    </FocusRing>
+                        >
+                            {shouldShowPrivatePlaceholder ? (
+                                <Lock size={spacing["4"]} />
+                            ) : (
+                                <Box paddingRight="0.5">
+                                    <Plus size={spacing["3"]} />
+                                </Box>
+                            )}
+                            <Box>{inputPlaceholder}</Box>
+                        </Box>
+                        <Box
+                            height="0"
+                            opacity="0"
+                            pointerEvents="none"
+                            aria-hidden={true}
+                            // Leading and trailing spaces should contribute to width.
+                            style={{whiteSpace: "pre"}}
+                        >
+                            {inputState.value}
+                        </Box>
+                        <FocusRing>
+                            <input
+                                {...inputProps}
+                                ref={inputRef}
+                                type="text"
+                                className={sprinkles({
+                                    position: "absolute",
+                                    inset: "0",
+                                    display: "inline-block",
+                                    backgroundColor: "transparent",
+                                    paddingLeft:
+                                        inputState.value.length === 0 &&
+                                        shouldShowPrivatePlaceholder
+                                            ? "5"
+                                            : undefined,
+                                })}
+                                // By default `<input>` elements have a `min-width` determined by the `size`
+                                // property. We want our `<input>`s `min-width` to be determined by our CSS
+                                // so set it to a small value as not to matter.
+                                // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
+                                size={1}
+                                // Use `aria-placeholder` since the placeholder text is rendered by another DOM
+                                // element with an icon.
+                                aria-placeholder={inputPlaceholder}
+                                // Make sure the combobox is always open when the user clicks on the collection
+                                // input. We've observed some bugs where `react-aria` doesn't happen to open
+                                // the combobox consistently on focus.
+                                onPointerDown={() => {
+                                    if (!isReadOnly) {
+                                        comboBoxState.open();
+                                    }
+                                }}
+                            />
+                        </FocusRing>
+                    </Box>
+                    {shouldShowSearchLoadingIndicator && (
+                        <Box flexShrink="0">
+                            <SpinnerGap className={spinAnimationClassName} size={spacing["3"]} />
+                        </Box>
+                    )}
                 </Box>
             </OverlayAnimated>
         </Box>
@@ -708,14 +729,10 @@ export function TaskCollectionsInput({
 
 function TaskCollectionInputCreateCollectionInput({
     onCancel,
-    createCollectionAndAddToTask,
+    onConfirm,
 }: {
     onCancel: () => void;
-    createCollectionAndAddToTask: (collection: {
-        id: LocalTaskCollectionId;
-        name: string;
-        color: ThemeColor;
-    }) => void;
+    onConfirm: (inputValue: string) => void;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const inputPlaceholder = "Name";
@@ -741,11 +758,7 @@ function TaskCollectionInputCreateCollectionInput({
             return;
         }
 
-        createCollectionAndAddToTask({
-            id: generateId(),
-            name: inputValue,
-            color,
-        });
+        onConfirm(inputValue);
     };
 
     return (

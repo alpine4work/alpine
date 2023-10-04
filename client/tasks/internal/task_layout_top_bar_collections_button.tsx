@@ -190,7 +190,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
         // We use multiple selection, there is never one selected key.
         selectedKey: null as any,
         selectedItem: null as any,
-        setSelectedKey: key => selectionManager.select(key),
+        setSelectedKey: key => selectionManager.select(key as any),
 
         collection,
         selectionManager,
