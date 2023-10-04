@@ -39,6 +39,9 @@ export function TaskCollectionViewHeader({
     collectionId: TaskCollectionId;
     // If `collectionSubscription` is null, that means we are creating a
     // new collection.
+    //
+    // TODO(calebmer): If the collection is deleted, everything in the header
+    // should be read-only.
     collectionSubscription: TaskClientCollectionSubscription | null;
     createCollection: (name: string) => Promise<void>;
 }) {
@@ -203,7 +206,16 @@ export function TaskCollectionViewHeader({
                             {
                                 label: "Delete",
                                 onPress: () => {
-                                    // NOCOMMIT
+                                    store.commitTaskActionTransaction(context, [
+                                        {
+                                            type: "UpdateCollection",
+                                            time: store.clock.now(),
+                                            collectionId,
+                                            collectionAction: {type: "Delete"},
+                                        },
+                                    ]);
+
+                                    void navigate(-1);
                                 },
                             },
                         ],

@@ -15,6 +15,8 @@ import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {computeStore} from "~/client/helpers/store/compute_store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -101,7 +103,18 @@ export function TaskCollectionsInput({
 
     const [shouldLoadItems, setShouldLoadItems] = useState(false);
 
-    const collectionsArray = collections.getArray();
+    const collectionsArray = useStore(
+        useMemo(() => {
+            return computeStore(get => {
+                return collections.getArray().filter(({collectionId}) => {
+                    const {collection} = get(
+                        referencesSubscription.getReferencedCollectionEntryStore(collectionId),
+                    );
+                    return collection && !collection.isDeleted();
+                });
+            });
+        }, [collections, referencesSubscription]),
+    );
 
     const [inputState, setInputState] = useState<TaskDetailCollectionsFieldInputState>({
         type: "Unfocused",
