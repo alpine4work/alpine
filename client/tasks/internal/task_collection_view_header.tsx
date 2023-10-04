@@ -17,7 +17,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
@@ -47,6 +49,7 @@ export function TaskCollectionViewHeader({
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
+    const {space} = useSpaceContext();
 
     // Reset `isEditingName` if `collectionSubscription` changes. e.g. If it goes
     // from `null` to a non-null value when we create a collection.
@@ -164,8 +167,13 @@ export function TaskCollectionViewHeader({
                         [
                             {
                                 label: "Copy link",
-                                onPress: () => {
-                                    // NOCOMMIT
+                                pressErrorTitle: "Couldn’t copy collection link",
+                                onPress: async () => {
+                                    const url = new URL(
+                                        `/s/${space.id}/tasks/collections/${collectionId}`,
+                                        window.location.href,
+                                    );
+                                    await writeTextToClipboard(url.toString());
                                 },
                             },
                         ],
