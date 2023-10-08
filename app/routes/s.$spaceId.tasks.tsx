@@ -18,10 +18,18 @@ export default function TasksLayoutRoute() {
     let isNotepadTabActive = false;
     let isCollectionsTabActive = false;
     const isViewsTabActive = false;
+    let withoutBorderBottom = false;
+
     for (const match of dataRouterStateContext.matches) {
-        if (match.route.id === "routes/s.$spaceId.tasks._index") isNotepadTabActive = true;
-        if (match.route.id === "routes/s.$spaceId.tasks.collections.$collectionId")
+        if (match.route.id === "routes/s.$spaceId.tasks._index") {
+            isNotepadTabActive = true;
+            withoutBorderBottom = true;
+        }
+
+        if (match.route.id === "routes/s.$spaceId.tasks.collections.$collectionId") {
             isCollectionsTabActive = true;
+            withoutBorderBottom = true;
+        }
     }
 
     return (
@@ -43,6 +51,7 @@ export default function TasksLayoutRoute() {
                 isNotepadTabActive={isNotepadTabActive}
                 isCollectionsTabActive={isCollectionsTabActive}
                 isViewsTabActive={isViewsTabActive}
+                withoutBorderBottom={withoutBorderBottom}
             />
             {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
         </Box>

@@ -20,7 +20,15 @@ import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
+import {
+    taskRowViewCollectionsColumnWidth,
+    taskRowViewColumnPaddingX,
+    taskRowViewColumnWidth,
+    taskRowViewFirstColumnPaddingLeft,
+    taskRowViewFirstColumnWidth,
+    taskRowViewLastColumnPaddingRight,
+    taskRowViewMinHeight,
+} from "~/client/tasks/task_row_shared_styles.js";
 import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
@@ -80,6 +88,7 @@ export function useTaskGridViewVirtualizedList({
     viewRef,
     getMoveTaskToQueryActions: _getMoveTaskToQueryActions,
     getMaybeRemoveTaskFromQueryActions: _getMaybeRemoveTaskFromQueryActions,
+    withColumnHeaderBorderTop = false,
 }: {
     capabilities: TaskGridViewCapabilities;
     query: TaskClientQuery;
@@ -91,10 +100,12 @@ export function useTaskGridViewVirtualizedList({
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
+    withColumnHeaderBorderTop?: boolean;
 }): {
     itemCount: number;
     renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
     onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => void;
+    alwaysRenderAdditionalItemIndexes: Memo<ReadonlyArray<number>>;
     modals: ReactNode;
     focusStart: Memo<() => void>;
     focusEnd: Memo<() => void>;
@@ -196,10 +207,13 @@ export function useTaskGridViewVirtualizedList({
 
     const listItemCount = list.getItemCount();
 
+    const itemCountBeforeList = capabilities.hasColumns ? 1 : 0;
+
     const itemCount =
-        loadedState !== "FullyLoaded"
+        itemCountBeforeList +
+        (loadedState !== "FullyLoaded"
             ? listItemCount + 1
-            : Math.max(listItemCount + (!capabilities.isReadOnly ? 1 : 0), 3);
+            : Math.max(listItemCount + (!capabilities.isReadOnly ? 1 : 0), 3));
 
     const tryLoadingMoreData = useEvent(
         (renderedRange: {startIndex: number; endIndex: number} | null) => {
@@ -209,7 +223,7 @@ export function useTaskGridViewVirtualizedList({
                 // If we are rendering the `MoreUnloadedTasks` item then load more tasks into
                 // our query.
                 if (loadedState !== "FullyLoaded") {
-                    const moreUnloadedTasksIndex = list.getItemCount();
+                    const moreUnloadedTasksIndex = list.getItemCount() + itemCountBeforeList;
 
                     if (
                         renderedRange.startIndex <= moreUnloadedTasksIndex &&
@@ -226,11 +240,11 @@ export function useTaskGridViewVirtualizedList({
                 const parentTaskIdsToLoad = new Set<TaskId>();
 
                 for (
-                    let i = renderedRange.startIndex;
-                    i < Math.min(renderedRange.endIndex, listItemCount);
+                    let i = Math.max(renderedRange.startIndex, itemCountBeforeList);
+                    i < Math.min(renderedRange.endIndex, listItemCount + itemCountBeforeList);
                     i++
                 ) {
-                    const item = list.getItem(i);
+                    const item = list.getItem(i - itemCountBeforeList);
 
                     if (item.type === "UnloadedChildTask") {
                         parentTaskIdsToLoad.add(
@@ -542,10 +556,196 @@ export function useTaskGridViewVirtualizedList({
                 }
             };
 
+            // If this item is above our task list then render it.
+            if (itemIndex < itemCountBeforeList) {
+                const minHeight = "1.25rem";
+
+                return {
+                    key: "ColumnHeader",
+                    minHeight,
+                    withManualLayout: true,
+                    render: ({ref, offset, height, shouldRenderWithRelativePositioning}) => (
+                        <>
+                            {withColumnHeaderBorderTop && (
+                                // `grey-10` top border that replaces `<TaskLayoutTopBar>` border when column
+                                // header is not overlaying tasks. You should configure `<TaskLayoutTopBar>` to
+                                // not have a bottom border and this will render instead.
+                                //
+                                // It's notable that we use this `position: sticky` strategy for border
+                                // replacement so browsers can synchronously render the border replacement off
+                                // the main thread without requiring blocking JavaScript code in the scroll hot
+                                // path.
+                                //
+                                // See this explainer on scroll-linked effects:
+                                // https://firefox-source-docs.mozilla.org/performance/scroll-linked_effects.html
+                                <Box
+                                    position="absolute"
+                                    left="0"
+                                    right="0"
+                                    top="0"
+                                    style={{height: offset}}
+                                    zIndex="10"
+                                    pointerEvents="none"
+                                >
+                                    <Box
+                                        position="sticky"
+                                        top="0"
+                                        left="0"
+                                        right="0"
+                                        borderBottom="grey-10"
+                                    />
+                                </Box>
+                            )}
+                            {withColumnHeaderBorderTop && (
+                                // `grey-5` top border that replaces `<TaskLayoutTopBar>` border when column
+                                // header overlays tasks to make it feel like column header is part of the
+                                // same material as the header.
+                                <Box
+                                    position="absolute"
+                                    left="0"
+                                    right="0"
+                                    bottom="0"
+                                    style={{top: offset}}
+                                    zIndex="30"
+                                    pointerEvents="none"
+                                >
+                                    <Box
+                                        position="sticky"
+                                        top="0"
+                                        left="0"
+                                        right="0"
+                                        zIndex="10"
+                                        borderBottom="grey-5"
+                                    />
+                                    {offset > 0 && (
+                                        <Box
+                                            position="absolute"
+                                            top="0"
+                                            left="0"
+                                            right="0"
+                                            zIndex="20"
+                                            borderBottom="grey-0"
+                                        />
+                                    )}
+                                </Box>
+                            )}
+                            <Box
+                                // `grey-10` bottom border of column header that slides in when the column
+                                // header overlays tasks.
+                                position="absolute"
+                                left="0"
+                                right="0"
+                                bottom="0"
+                                style={{top: offset - 1}}
+                                zIndex="10"
+                                pointerEvents="none"
+                            >
+                                <Box
+                                    position="sticky"
+                                    top="0"
+                                    left="0"
+                                    right="0"
+                                    borderBottom="grey-10"
+                                    style={{height}}
+                                />
+                            </Box>
+                            <Box
+                                style={{
+                                    minHeight,
+                                    ...(shouldRenderWithRelativePositioning
+                                        ? {position: "relative"}
+                                        : {
+                                              position: "absolute",
+                                              top: offset,
+                                              left: 0,
+                                              right: 0,
+                                              bottom: 0,
+                                          }),
+                                }}
+                                zIndex="20"
+                                pointerEvents="none"
+                            >
+                                <Box ref={ref} position="sticky" top="0" pointerEvents="auto">
+                                    <Box
+                                        zIndex="-10"
+                                        position="absolute"
+                                        top="0"
+                                        left="0"
+                                        right="0"
+                                        // Render background color with an absolute positioned `<div>` so we don't
+                                        // cover the border rendered by `<TaskRowView>` (or our separate sticky div).
+                                        style={{bottom: 1}}
+                                        backgroundColor="grey-0"
+                                    />
+                                    <Box paddingTop="0.5" display="flex">
+                                        <Box
+                                            flexShrink="0"
+                                            width="32"
+                                            paddingLeft="5"
+                                            paddingBottom="1"
+                                            color="grey-50"
+                                            fontSize="50"
+                                        >
+                                            Name
+                                        </Box>
+                                        <Box flexGrow="1" />
+                                        <Box
+                                            flexShrink="0"
+                                            style={{
+                                                width: taskRowViewFirstColumnWidth,
+                                                paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                                            }}
+                                            paddingX={taskRowViewColumnPaddingX}
+                                            paddingBottom="1"
+                                            color="grey-50"
+                                            fontSize="50"
+                                        >
+                                            Assignee
+                                        </Box>
+                                        <Box
+                                            flexShrink="0"
+                                            width={taskRowViewColumnWidth}
+                                            paddingX={taskRowViewColumnPaddingX}
+                                            paddingBottom="1"
+                                            color="grey-50"
+                                            fontSize="50"
+                                        >
+                                            Priority
+                                        </Box>
+                                        <Box
+                                            flexShrink="0"
+                                            width={taskRowViewColumnWidth}
+                                            paddingX={taskRowViewColumnPaddingX}
+                                            paddingBottom="1"
+                                            color="grey-50"
+                                            fontSize="50"
+                                        >
+                                            Due date
+                                        </Box>
+                                        <Box
+                                            flexShrink="0"
+                                            width={taskRowViewCollectionsColumnWidth}
+                                            paddingLeft={taskRowViewColumnPaddingX}
+                                            paddingRight={taskRowViewLastColumnPaddingRight}
+                                            paddingBottom="1"
+                                            color="grey-50"
+                                            fontSize="50"
+                                        >
+                                            Collections
+                                        </Box>
+                                        <Box flexShrink="0" width="5" />
+                                    </Box>
+                                </Box>
+                            </Box>
+                        </>
+                    ),
+                };
+            }
+
             // If this item is below our task list then render either a ghost row or empty
             // decorative rows.
-            if (itemIndex >= listItemCount) {
-                let relativeItemIndex = itemIndex - listItemCount;
+            if (itemIndex >= itemCountBeforeList + listItemCount) {
+                let relativeItemIndex = itemIndex - listItemCount - itemCountBeforeList;
 
                 if (loadedState !== "FullyLoaded") {
                     return {
@@ -682,7 +882,7 @@ export function useTaskGridViewVirtualizedList({
                 };
             }
 
-            const item = list.getItem(itemIndex);
+            const item = list.getItem(itemIndex - itemCountBeforeList);
 
             if (item.type === "Task") {
                 const taskId = getTaskQuerySortCursorTaskId(item.cursor);
@@ -760,7 +960,7 @@ export function useTaskGridViewVirtualizedList({
                     ) {
                         const indentation = item.parents.length;
 
-                        const previousItem = list.getItem(previousItemIndex);
+                        const previousItem = list.getItem(previousItemIndex - itemCountBeforeList);
                         const previousIndentation = previousItem.parents.length;
 
                         if (previousIndentation > indentation) continue;
@@ -1008,8 +1208,8 @@ export function useTaskGridViewVirtualizedList({
                         // Lazily computed with a function to not mess with the
                         // `list.getItem(index + 1)` iterator optimization.
                         getNextIndentation={() =>
-                            itemIndex + 1 < listItemCount
-                                ? list.getItem(itemIndex + 1).parents.length
+                            itemIndex + 1 < itemCountBeforeList + listItemCount
+                                ? list.getItem(itemIndex - itemCountBeforeList + 1).parents.length
                                 : 0
                         }
                         areChildTasksExpandedStore={getAreChildTasksExpandedStore(taskPath)}
@@ -1080,12 +1280,14 @@ export function useTaskGridViewVirtualizedList({
         events,
         getAreChildTasksExpandedStore,
         itemCount,
+        itemCountBeforeList,
         list,
         listItemCount,
         loadedState,
         query,
         toggleAreChildTasksExpanded,
         viewRef,
+        withColumnHeaderBorderTop,
     ]);
 
     return {
@@ -1101,6 +1303,10 @@ export function useTaskGridViewVirtualizedList({
                 callback(renderedRange);
             }
         },
+        alwaysRenderAdditionalItemIndexes: useMemo(
+            () => (capabilities.hasColumns ? [0] : emptyArray),
+            [capabilities.hasColumns],
+        ),
         modals: taskDeleteConfirmationState && (
             <TaskDeleteConfirmationModalDialog
                 store={query.store}

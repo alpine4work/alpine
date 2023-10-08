@@ -1390,6 +1390,7 @@ export class VirtualizedScrollViewState {
             renderAdditionalItemIndexes?: ReadonlyArray<number>;
             render: (props: VirtualizedScrollViewStateRenderItemProps) => ReactNode;
         };
+        alwaysRenderAdditionalItemIndexes?: ReadonlyArray<number>;
     }): {
         state: VirtualizedScrollViewState;
         children: ReactNode;
@@ -1407,6 +1408,7 @@ export class VirtualizedScrollViewState {
         {
             itemCount,
             getItem,
+            alwaysRenderAdditionalItemIndexes,
         }: {
             itemCount: number;
             getItem: (index: number) => {
@@ -1415,6 +1417,7 @@ export class VirtualizedScrollViewState {
                 renderAdditionalItemIndexes?: ReadonlyArray<number>;
                 render: (props: VirtualizedScrollViewStateRenderItemProps) => ReactNode;
             };
+            alwaysRenderAdditionalItemIndexes?: ReadonlyArray<number>;
         },
     ): {
         state: VirtualizedScrollViewState;
@@ -1535,13 +1538,158 @@ export class VirtualizedScrollViewState {
 
         const children: Array<ReactNode> = [];
 
-        const iterator = state._entryByOrderKey.find(state._renderedRange.startOrderKey);
+        let iterator = state._entryByOrderKey.find(state._renderedRange.startOrderKey);
         assert(iterator.node, "Could not find rendered range start order key");
-        const bufferedHeightBeforeChildren = state._getPreviousContentHeight(iterator);
         const startIndex = state._getPreviousItemCount(iterator);
         let endIndex = startIndex;
-        let offset = bufferedHeightBeforeChildren;
         const renderAdditionalItemIndexes = new Set<number>();
+
+        const renderAdditionalItemIndex = (index: number) => {
+            const item = getItem(index);
+            const {iterator, nodeIndex} = state._getNodeAtIndex(index);
+            const node = assertExists(iterator.node);
+            const nodeOffset = state._getPreviousContentHeight(iterator);
+
+            let offset: number;
+            let height: number;
+
+            if (node.value.type === "Item") {
+                assert(nodeIndex === 0);
+
+                const itemHeight =
+                    node.value.key === item.key
+                        ? node.value.height
+                        : originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
+                // If the item key changed from what we have in state then we need to set a new
+                // entry in our state with a new key and new height.
+                if (node.value.key !== item.key) {
+                    state = VirtualizedScrollViewState._setEntry(
+                        state,
+                        node.key,
+                        {
+                            type: "Item",
+                            key: item.key,
+                            height: itemHeight,
+                        },
+                        getItem,
+                    );
+                }
+
+                offset = nodeOffset;
+                height = itemHeight;
+            }
+            // If the index is in a buffer, we need to split the buffer in half to add an
+            // entry for the additional item we're rendering.
+            else {
+                const newBufferedItemCountBefore = nodeIndex;
+                const newBufferedItemCountAfter = node.value.itemCount - nodeIndex - 1;
+
+                let previousNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null = null;
+                let nextNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null = null;
+
+                if (iterator.hasPrev) {
+                    iterator.prev();
+                    previousNode = iterator.node;
+                    iterator.next();
+                }
+
+                if (iterator.hasNext) {
+                    iterator.next();
+                    nextNode = iterator.node;
+                }
+
+                const itemHeight = originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
+                state = VirtualizedScrollViewState._setEntry(
+                    state,
+                    node.key,
+                    {
+                        type: "Item",
+                        key: item.key,
+                        height: itemHeight,
+                    },
+                    getItem,
+                );
+
+                if (newBufferedItemCountBefore > 0) {
+                    state = VirtualizedScrollViewState._setEntry(
+                        state,
+                        generateOrderKeyBetween(previousNode?.key ?? null, node.key),
+                        {
+                            type: "Buffer",
+                            itemCount: newBufferedItemCountBefore,
+                        },
+                        getItem,
+                    );
+                }
+
+                if (newBufferedItemCountAfter > 0) {
+                    state = VirtualizedScrollViewState._setEntry(
+                        state,
+                        generateOrderKeyBetween(node.key, nextNode?.key ?? null),
+                        {
+                            type: "Buffer",
+                            itemCount: newBufferedItemCountAfter,
+                        },
+                        getItem,
+                    );
+                }
+
+                offset = nodeOffset + newBufferedItemCountBefore * state._bufferedItemHeight;
+                height = itemHeight;
+            }
+
+            const currentState = state;
+
+            const renderedItem = item.render({
+                offset,
+                height,
+                getPositionByIndex: searchIndex => {
+                    // NOTE(calebmer): We do not allow this because we are not done laying out items
+                    // after this one. We could implement this by laying out all items first then
+                    // calling `render()`.
+                    if (searchIndex > index)
+                        throw new UnimplementedError(
+                            "Can not get the offset for an index after the item index",
+                        );
+
+                    return currentState.getPositionByIndex(searchIndex);
+                },
+                viewHeight: originalState.getViewHeight(),
+                originalContentHeight: originalState.getContentHeight(),
+            });
+
+            children.push(renderedItem);
+        };
+
+        let hasRenderedAdditionalItemIndexesBeforeRenderedRange = false;
+
+        if (alwaysRenderAdditionalItemIndexes) {
+            for (const index of Array.from(new Set(alwaysRenderAdditionalItemIndexes)).sort(
+                (index1, index2) => index1 - index2,
+            )) {
+                // We only render items here before our rendered range (since it changes the
+                // offset of items in our rendered range).
+                if (index >= startIndex) {
+                    renderAdditionalItemIndexes.add(index);
+                    continue;
+                }
+
+                hasRenderedAdditionalItemIndexesBeforeRenderedRange = true;
+                renderAdditionalItemIndex(index);
+            }
+        }
+
+        // If we rendered some items before the rendered range, we should update
+        // `iterator` to make sure it references the latest tree.
+        if (hasRenderedAdditionalItemIndexesBeforeRenderedRange) {
+            iterator = state._entryByOrderKey.find(state._renderedRange.startOrderKey);
+            assert(iterator.node, "Could not find rendered range start order key");
+        }
+
+        const bufferedHeightBeforeChildren = state._getPreviousContentHeight(iterator);
+        let offset = bufferedHeightBeforeChildren;
 
         while (iterator.node && iterator.node.key <= state._renderedRange!.endOrderKey) {
             const node = iterator.node;
@@ -1604,7 +1752,7 @@ export class VirtualizedScrollViewState {
                 // If the index was in our rendered range, we don't need to render it again.
                 if (startIndex <= index && index < endIndex) continue;
 
-                // NOTE(calebmer): Rendering items above the rendered range would change would
+                // NOTE(calebmer): Rendering items above the rendered range would
                 // change the offsets of the children we already rendered. It also means we
                 // can't rely on one `bufferedHeightBeforeChildren` to push down relatively
                 // positioned children and would need multiple spacer elements.
@@ -1618,124 +1766,7 @@ export class VirtualizedScrollViewState {
                     );
                 }
 
-                const item = getItem(index);
-                const {iterator, nodeIndex} = state._getNodeAtIndex(index);
-                const node = assertExists(iterator.node);
-                const nodeOffset = state._getPreviousContentHeight(iterator);
-
-                let offset: number;
-                let height: number;
-
-                if (node.value.type === "Item") {
-                    assert(nodeIndex === 0);
-
-                    const itemHeight =
-                        node.value.key === item.key
-                            ? node.value.height
-                            : originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
-
-                    // If the item key changed from what we have in state then we need to set a new
-                    // entry in our state with a new key and new height.
-                    if (node.value.key !== item.key) {
-                        state = VirtualizedScrollViewState._setEntry(
-                            state,
-                            node.key,
-                            {
-                                type: "Item",
-                                key: item.key,
-                                height: itemHeight,
-                            },
-                            getItem,
-                        );
-                    }
-
-                    offset = nodeOffset;
-                    height = itemHeight;
-                }
-                // If the index is in a buffer, we need to split the buffer in half to add an
-                // entry for the additional item we're rendering.
-                else {
-                    const newBufferedItemCountBefore = nodeIndex;
-                    const newBufferedItemCountAfter = node.value.itemCount - nodeIndex - 1;
-
-                    let previousNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null =
-                        null;
-                    let nextNode: TreeNode<OrderKey, VirtualizedScrollViewStateEntry> | null = null;
-
-                    if (iterator.hasPrev) {
-                        iterator.prev();
-                        previousNode = iterator.node;
-                        iterator.next();
-                    }
-
-                    if (iterator.hasNext) {
-                        iterator.next();
-                        nextNode = iterator.node;
-                    }
-
-                    const itemHeight =
-                        originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
-
-                    state = VirtualizedScrollViewState._setEntry(
-                        state,
-                        node.key,
-                        {
-                            type: "Item",
-                            key: item.key,
-                            height: itemHeight,
-                        },
-                        getItem,
-                    );
-
-                    if (newBufferedItemCountBefore > 0) {
-                        state = VirtualizedScrollViewState._setEntry(
-                            state,
-                            generateOrderKeyBetween(previousNode?.key ?? null, node.key),
-                            {
-                                type: "Buffer",
-                                itemCount: newBufferedItemCountBefore,
-                            },
-                            getItem,
-                        );
-                    }
-
-                    if (newBufferedItemCountAfter > 0) {
-                        state = VirtualizedScrollViewState._setEntry(
-                            state,
-                            generateOrderKeyBetween(node.key, nextNode?.key ?? null),
-                            {
-                                type: "Buffer",
-                                itemCount: newBufferedItemCountAfter,
-                            },
-                            getItem,
-                        );
-                    }
-
-                    offset = nodeOffset + newBufferedItemCountBefore * state._bufferedItemHeight;
-                    height = itemHeight;
-                }
-
-                const currentState = state;
-
-                const renderedItem = item.render({
-                    offset,
-                    height,
-                    getPositionByIndex: searchIndex => {
-                        // NOTE(calebmer): We do not allow this because we are not done laying out items
-                        // after this one. We could implement this by laying out all items first then
-                        // calling `render()`.
-                        if (searchIndex > index)
-                            throw new UnimplementedError(
-                                "Can not get the offset for an index after the item index",
-                            );
-
-                        return currentState.getPositionByIndex(searchIndex);
-                    },
-                    viewHeight: originalState.getViewHeight(),
-                    originalContentHeight: originalState.getContentHeight(),
-                });
-
-                children.push(renderedItem);
+                renderAdditionalItemIndex(index);
             }
         }
 

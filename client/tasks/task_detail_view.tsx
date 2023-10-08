@@ -194,6 +194,7 @@ export function TaskDetailView({
         itemCount: childrenGridViewItemCount,
         renderItem: renderChildrenGridViewItem,
         onRenderedRangeChange: onChildrenGridViewRenderedRangeChange,
+        alwaysRenderAdditionalItemIndexes: alwaysRenderChildrenGridViewItemIndexes,
         focusStart: focusChildrenGridViewStart,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
@@ -256,6 +257,10 @@ export function TaskDetailView({
                 ref={viewRef}
                 bufferedItemHeight={spacing[taskRowViewMinHeight]}
                 itemCount={hasSubtasks ? childrenGridViewItemCount + 1 : 1}
+                alwaysRenderAdditionalItemIndexes={useMemo(
+                    () => alwaysRenderChildrenGridViewItemIndexes.map(index => index + 1),
+                    [alwaysRenderChildrenGridViewItemIndexes],
+                )}
                 renderItem={useCallback(
                     index => {
                         if (index === 0) {

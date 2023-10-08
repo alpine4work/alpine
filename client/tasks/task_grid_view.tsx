@@ -95,7 +95,15 @@ export function TaskGridView({
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const {modals, itemCount, renderItem, onRenderedRangeChange} = useTaskGridViewVirtualizedList({
+    // NOCOMMIT: This should become notepad view?
+    const {
+        modals,
+        itemCount,
+        renderItem,
+        onRenderedRangeChange,
+        alwaysRenderAdditionalItemIndexes,
+    } = useTaskGridViewVirtualizedList({
+        withColumnHeaderBorderTop: true,
         capabilities,
         query,
         initialExpansionState,
@@ -114,6 +122,7 @@ export function TaskGridView({
                 bufferedItemHeight={spacing[taskRowViewMinHeight]}
                 renderItem={renderItem}
                 onRenderedRangeChange={onRenderedRangeChange}
+                alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalItemIndexes}
             />
         </TaskGridViewDndContext>
     );

@@ -5,6 +5,8 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/internal/task_layout_top_bar_collections_button.js";
+import {spacing} from "~/shared/design/spacing.js";
+import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
@@ -12,10 +14,12 @@ export function TaskLayoutTopBar({
     isNotepadTabActive,
     isCollectionsTabActive,
     isViewsTabActive,
+    withoutBorderBottom,
 }: {
     isNotepadTabActive: boolean;
     isCollectionsTabActive: boolean;
     isViewsTabActive: boolean;
+    withoutBorderBottom: boolean;
 }) {
     const navigate = useNavigate();
     const {space} = useSpaceContext();
@@ -23,15 +27,18 @@ export function TaskLayoutTopBar({
     return (
         <Box
             flexShrink="0"
-            height="10"
             backgroundColor="grey-0"
-            borderBottom="grey-10"
             position="relative"
             zIndex="10"
             display="flex"
             alignItems="center"
             gap="4"
             paddingX="2"
+            style={{
+                height: !withoutBorderBottom ? spacing["10"] : `calc(${spacing["10"]} - 1px)`,
+                borderBottomWidth: !withoutBorderBottom ? 1 : 0,
+                borderBottomColor: colorSchemeVars["grey-10"],
+            }}
         >
             <Button
                 variant={isNotepadTabActive ? "quiet-on" : "quieter"}

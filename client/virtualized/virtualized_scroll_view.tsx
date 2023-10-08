@@ -1,4 +1,3 @@
-import classNames from "classnames";
 import {
     Key,
     Memo,
@@ -97,6 +96,7 @@ type VirtualizedScrollViewItemBase = {
      * but the key should provided a stable identifier for the item.
      */
     readonly key: Key;
+
     /**
      * The minimum height of the item. Must be greater than zero. We use this when
      * we don't know the real height of the item to determine how many items we
@@ -111,6 +111,7 @@ type VirtualizedScrollViewItemBase = {
      * May be measured in pixels or REM units.
      */
     readonly minHeight: number | RemLength;
+
     /**
      * If this item is rendered then we will also render the items at the indexes
      * provided in this array even if they are not in the virtualized window.
@@ -382,6 +383,7 @@ function VirtualizedScrollView(
         initialViewHeight,
         onRenderedRangeChange: _onRenderedRangeChange,
         onScroll,
+        alwaysRenderAdditionalItemIndexes,
         extraChildren,
     }: {
         /**
@@ -443,6 +445,12 @@ function VirtualizedScrollView(
          * scroll position.
          */
         onScroll?: (scrollOffset: number) => void;
+
+        /**
+         * Item indexes that we always render regardless of where our virtualized
+         * window is. Useful for sticky headers.
+         */
+        alwaysRenderAdditionalItemIndexes?: ReadonlyArray<number>;
 
         /**
          * Extra children to always render in our virtualized scroll view. Useful if
@@ -645,6 +653,7 @@ function VirtualizedScrollView(
         renderedRange,
     } = state.render({
         itemCount,
+        alwaysRenderAdditionalItemIndexes,
         getItem: (index: number) => {
             const item = getItemWithoutRender(index);
 

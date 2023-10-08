@@ -137,8 +137,10 @@ export function TaskCollectionView({
         itemCount: gridViewItemCount,
         renderItem: renderGridViewItem,
         onRenderedRangeChange: onGridViewRenderedRangeChange,
+        alwaysRenderAdditionalItemIndexes: alwaysRenderGridViewItemIndexes,
         focusEnd: focusGridViewEnd,
     } = useTaskGridViewVirtualizedList({
+        withColumnHeaderBorderTop: true,
         capabilities: useMemo(
             () => ({
                 isReadOnly,
@@ -236,6 +238,10 @@ export function TaskCollectionView({
                     ref={viewRef}
                     bufferedItemHeight={spacing[taskRowViewMinHeight]}
                     itemCount={gridViewItemCount + 1}
+                    alwaysRenderAdditionalItemIndexes={useMemo(
+                        () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
+                        [alwaysRenderGridViewItemIndexes],
+                    )}
                     renderItem={useCallback(
                         index => {
                             if (index === 0) {
