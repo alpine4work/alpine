@@ -2,12 +2,13 @@ import {Link, ShouldRevalidateFunction, useParams} from "@remix-run/react";
 import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {useButton} from "react-aria";
+import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
 import {useUrlSearchParamState} from "~/client/remix/use_url_search_param_state.js";
 import {getEmailTemplatePreviewBySlug} from "~/server/emails/get_email_template_preview_by_slug.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -108,6 +109,7 @@ export default function EmailPreviewPage() {
                 flexShrink="0"
                 width="64"
                 height="full"
+                backgroundColor="grey-0"
                 borderRight="grey-10"
                 display="flex"
                 flexDirection="column"
@@ -130,7 +132,7 @@ export default function EmailPreviewPage() {
                     <EnvelopeSimple />
                     Email Templates
                 </h1>
-                <Box flexGrow="1" overflowY="scroll">
+                <Box ref={useScrollbar()} flexGrow="1" overflowY="auto" position="relative">
                     {emailPreviewLinks.map(emailPreviewLink => (
                         <FocusRing key={emailPreviewLink.slug} offset="inset">
                             <Link
@@ -205,8 +207,7 @@ export default function EmailPreviewPage() {
                 <Box
                     flexGrow="1"
                     width="full"
-                    overflowX="hidden"
-                    overflowY="scroll"
+                    overflow="hidden"
                     display="flex"
                     justifyContent="center"
                 >
@@ -238,21 +239,7 @@ export default function EmailPreviewPage() {
                                     })}
                                 />
                             ),
-                            html: (
-                                <FocusRing offset="inset">
-                                    <pre
-                                        className={sprinkles({
-                                            width: "full",
-                                            padding: "4",
-                                            overflowX: "scroll",
-                                            userSelect: "text",
-                                        })}
-                                        tabIndex={0}
-                                    >
-                                        <code>{emailPreviewResult.value.html}</code>
-                                    </pre>
-                                </FocusRing>
-                            ),
+                            html: <EmailHtmlPreview html={emailPreviewResult.value.html} />,
                         }[view]
                     ) : (
                         <Box width="full" maxWidth="128" paddingX="4" paddingY="16">
@@ -308,5 +295,25 @@ function ViewSwitcherButton({
                 </button>
             </FocusRing>
         </Tooltip>
+    );
+}
+
+function EmailHtmlPreview({html}: {html: string}) {
+    return (
+        <FocusRing offset="inset">
+            <pre
+                ref={useScrollbar()}
+                className={sprinkles({
+                    width: "full",
+                    padding: "4",
+                    overflow: "auto",
+                    userSelect: "text",
+                    position: "relative",
+                })}
+                tabIndex={0}
+            >
+                <code>{html}</code>
+            </pre>
+        </FocusRing>
     );
 }

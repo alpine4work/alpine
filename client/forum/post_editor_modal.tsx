@@ -6,6 +6,7 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {Modal} from "~/client/design/modal.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {PostContentViewHeader} from "~/client/forum/post_content_view_header.js";
 import {postViewMaxWidth} from "~/client/forum/post_list_view.js";
@@ -115,7 +116,7 @@ export function PostEditorModal({
                             Edit post
                         </h2>
                     </Box>
-                    <Box flexGrow="1" overflowY="auto">
+                    <Box ref={useScrollbar()} flexGrow="1" overflowY="auto" position="relative">
                         <Box>
                             <Box paddingTop="5" paddingX="5">
                                 <PostContentViewHeader post={post} shouldShowChannel={true} />

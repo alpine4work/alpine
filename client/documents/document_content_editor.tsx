@@ -9,6 +9,7 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
@@ -34,6 +35,7 @@ import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
@@ -718,13 +720,13 @@ function DocumentContentEditorStateful({
                 flexGrow="1"
                 position="relative"
                 zIndex="0"
-                overflowX="hidden"
+                overflow="hidden"
                 display="flex"
                 flexDirection="column"
                 backgroundColor="grey-0"
             >
                 <Box
-                    ref={editorContainerRef}
+                    ref={useMergedRefs(editorContainerRef, useScrollbar())}
                     id={editorContainerId}
                     data-testid="DocumentContentEditorMain"
                     flexGrow="1"

@@ -3,7 +3,7 @@ import {linkClassName, mentionClassName} from "~/shared/styles/internal/content_
 import {backgroundFontSizePercentage} from "~/shared/styles/internal/fonts.css.js";
 
 export const containerClassName = style({
-    height: "100%",
+    minHeight: "100%",
 });
 
 export const hideSelectionWhileUnfocusedClassName = style({

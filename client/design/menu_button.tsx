@@ -22,6 +22,7 @@ import {
     OverlayTriggerButtonChildrenProps,
     OverlayTriggerButtonState,
 } from "~/client/design/overlay_trigger_button.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
@@ -426,7 +427,7 @@ export const Menu = forwardRef(function Menu(
 
     return (
         <div
-            ref={useMergedRefs(ref, menuRef)}
+            ref={useMergedRefs(useMergedRefs(ref, menuRef), useScrollbar())}
             role="menu"
             // The menu container has `tabindex` set to -1 or 0 and
             // `aria-activedescendant` set to the ID of the focused item.
@@ -436,6 +437,7 @@ export const Menu = forwardRef(function Menu(
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({
+                    position: "relative",
                     minWidth: width,
                     maxHeight: maxHeight,
                     overflowX: "hidden",

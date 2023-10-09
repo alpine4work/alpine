@@ -60,7 +60,7 @@ export default function VirtualizedScrollViewDesignPlaygroundPage() {
                     </select>
                 </label>
             </Box>
-            <Box flexGrow="1" position="relative" zIndex="0" overflowY="hidden">
+            <Box flexGrow="1" position="relative" zIndex="0" overflow="hidden">
                 <VirtualizedScrollView
                     itemCount={itemCount}
                     renderItem={useCallback(

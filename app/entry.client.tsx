@@ -3,6 +3,7 @@ import {startTransition} from "react";
 import {hydrateRoot} from "react-dom/client";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
+import {installScrollbarAuditorInDev} from "~/client/design/scrollbar.js";
 import {attachDevConsoleNotInProduction} from "~/client/dev/dev_console.js";
 import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module.js";
 import {createClientTracer} from "~/client/tracer/client_tracer.js";
@@ -92,6 +93,12 @@ async function main() {
                 },
             },
         );
+
+        // Install our scrollbar auditor after React has finished hydrating. (Ideally
+        // we'd install after `isInitialAppRender` goes to false.)
+        if (process.env.NODE_ENV !== "production") {
+            installScrollbarAuditorInDev();
+        }
     });
 
     attachDevConsoleNotInProduction();

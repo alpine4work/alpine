@@ -31,7 +31,9 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -637,7 +639,7 @@ function ChatAccountPickerListBox({
     return (
         <ul
             {...listBoxProps}
-            ref={listBoxRef}
+            ref={useMergedRefs(listBoxRef, useScrollbar())}
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({
@@ -649,6 +651,7 @@ function ChatAccountPickerListBox({
                     maxHeight: "64",
                     overflowX: "hidden",
                     overflowY: "auto",
+                    position: "relative",
                 }),
             )}
         >

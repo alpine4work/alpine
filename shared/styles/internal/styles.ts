@@ -19,12 +19,12 @@ export * as contentSchemaStyles from "~/shared/styles/internal/content_schema.cs
 export * as contentViewStyles from "~/shared/styles/internal/content_view.css.js";
 export * as documentBlobsStyles from "~/shared/styles/internal/document_blobs.css.js";
 export * from "~/shared/styles/internal/fonts.css.js";
-export * from "~/shared/styles/internal/hide_scrollbar.css.js";
 export * from "~/shared/styles/internal/input_placeholder.css.js";
 export * as modalStyles from "~/shared/styles/internal/modal.css.js";
 export * from "~/shared/styles/internal/overlay_animated.css.js";
 export * from "~/shared/styles/internal/peek.css.js";
 export * from "~/shared/styles/internal/press_opacity_overlay.css.js";
+export * from "~/shared/styles/internal/scrollbar.css.js";
 export * from "~/shared/styles/internal/sprinkles.css.js";
 export * as tasksStyles from "~/shared/styles/internal/tasks.css.js";
 export * as toastStyles from "~/shared/styles/internal/toast.css.js";

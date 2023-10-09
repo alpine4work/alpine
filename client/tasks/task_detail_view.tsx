@@ -195,6 +195,7 @@ export function TaskDetailView({
         renderItem: renderChildrenGridViewItem,
         onRenderedRangeChange: onChildrenGridViewRenderedRangeChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderChildrenGridViewItemIndexes,
+        insetScrollbarItemIndex: insetScrollbarChildrenGridViewItemIndex,
         focusStart: focusChildrenGridViewStart,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
@@ -261,6 +262,11 @@ export function TaskDetailView({
                     () => alwaysRenderChildrenGridViewItemIndexes.map(index => index + 1),
                     [alwaysRenderChildrenGridViewItemIndexes],
                 )}
+                insetScrollbarItemIndex={
+                    insetScrollbarChildrenGridViewItemIndex !== undefined
+                        ? insetScrollbarChildrenGridViewItemIndex + 1
+                        : undefined
+                }
                 renderItem={useCallback(
                     index => {
                         if (index === 0) {

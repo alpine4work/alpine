@@ -15,12 +15,14 @@ import {
 } from "react";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
@@ -384,6 +386,7 @@ function VirtualizedScrollView(
         onRenderedRangeChange: _onRenderedRangeChange,
         onScroll,
         alwaysRenderAdditionalItemIndexes,
+        insetScrollbarItemIndex,
         extraChildren,
     }: {
         /**
@@ -451,6 +454,12 @@ function VirtualizedScrollView(
          * window is. Useful for sticky headers.
          */
         alwaysRenderAdditionalItemIndexes?: ReadonlyArray<number>;
+
+        /**
+         * Inset the scrollbar after this item index. Throws an error if the index is
+         * out of range.
+         */
+        insetScrollbarItemIndex?: number;
 
         /**
          * Extra children to always render in our virtualized scroll view. Useful if
@@ -1317,10 +1326,21 @@ function VirtualizedScrollView(
         [],
     );
 
+    let scrollbarInsetTop: number | undefined;
+    if (insetScrollbarItemIndex !== undefined) {
+        const {offset, height} = state.getPositionByIndex(insetScrollbarItemIndex);
+        scrollbarInsetTop = offset + height;
+    }
+
     return (
         <>
             <div
-                ref={scrollRef}
+                ref={useMergedRefs(
+                    scrollRef,
+                    useScrollbar(
+                        scrollbarInsetTop !== undefined ? {insetTop: scrollbarInsetTop} : undefined,
+                    ),
+                )}
                 className={sprinkles({
                     flexGrow: "1",
                     position: "relative",

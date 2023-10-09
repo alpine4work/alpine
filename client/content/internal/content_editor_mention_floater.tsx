@@ -25,9 +25,11 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useExpensivelyLoadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
@@ -70,6 +72,7 @@ export function ContentEditorMentionFloater({
 }) {
     const overlayRef = useRef<OverlayRef>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const mergedMenuRef = useMergedRefs(menuRef, useScrollbar());
 
     const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
     const onCloseWithAnimation = useEvent(_onCloseWithAnimation);
@@ -335,7 +338,7 @@ export function ContentEditorMentionFloater({
                 // time we add a proper search backend for mentions?
                 <Box
                     data-testid="ContentEditorMentionFloater"
-                    ref={menuRef}
+                    ref={mergedMenuRef}
                     position="relative"
                     width="48"
                     maxHeight="64"

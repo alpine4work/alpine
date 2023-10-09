@@ -50,7 +50,7 @@ const overlayFadeOutRightKeyframes = keyframes({
 export const overlayFadeInAnimationDurationMs = 100;
 export const overlayFadeOutAnimationDurationMs = 200;
 
-const overlayFadeInOutTimingFunction = "cubic-bezier(0.4, 0, 0.2, 1)";
+export const overlayFadeInOutTimingFunction = "cubic-bezier(0.4, 0, 0.2, 1)";
 
 // We use this instead of `overlayClassName` for other overlays that want to
 // use the animation. If this becomes a common animation, we should figure out

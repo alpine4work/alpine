@@ -124,14 +124,14 @@ export function PostEditorInline({
                     position="relative"
                     display="flex"
                     alignItems="center"
-                    overflowX="hidden"
+                    overflow="hidden"
                 >
                     <ContentEditor
                         ref={editorRef}
                         aria-label="New post"
                         state={state}
                         placeholder="Share your ideas…"
-                        containerClassName={sprinkles({flexGrow: "1", overflowX: "hidden"})}
+                        containerClassName={sprinkles({flexGrow: "1", overflow: "hidden"})}
                         className={sprinkles({paddingX: "3", paddingY: "4"})}
                         onChange={(state, transaction) => {
                             // Don't change content while we are pending...
@@ -167,7 +167,7 @@ export function PostEditorInline({
                             top="0"
                             left="0"
                             maxWidth="full"
-                            overflowX="hidden"
+                            overflow="hidden"
                             display="inline-block"
                             aria-hidden="true"
                             style={{opacity: 0, pointerEvents: "none"}}

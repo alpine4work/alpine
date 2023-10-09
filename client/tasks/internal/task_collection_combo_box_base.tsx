@@ -15,8 +15,10 @@ import {AriaListBoxOptions, mergeProps, useHover, useListBox, useOption} from "r
 import {ComboBoxState, Item} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
@@ -334,8 +336,9 @@ export function TaskCollectionComboBoxListBox({
         <Box flexGrow="1" overflow="hidden" display="flex" flexDirection="column">
             <ul
                 {...listBoxProps}
-                ref={listBoxRef}
+                ref={useMergedRefs(listBoxRef, useScrollbar())}
                 className={sprinkles({
+                    position: "relative",
                     flexGrow: "1",
                     padding: "1",
                     overflowX: "hidden",

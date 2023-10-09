@@ -102,6 +102,7 @@ export function TaskGridView({
         renderItem,
         onRenderedRangeChange,
         alwaysRenderAdditionalItemIndexes,
+        insetScrollbarItemIndex,
     } = useTaskGridViewVirtualizedList({
         withColumnHeaderBorderTop: true,
         capabilities,
@@ -123,6 +124,7 @@ export function TaskGridView({
                 renderItem={renderItem}
                 onRenderedRangeChange={onRenderedRangeChange}
                 alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalItemIndexes}
+                insetScrollbarItemIndex={insetScrollbarItemIndex}
             />
         </TaskGridViewDndContext>
     );

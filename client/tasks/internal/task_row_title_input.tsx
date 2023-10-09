@@ -32,7 +32,6 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {
     contentSchemaStyles,
-    hideScrollbarClassName,
     inputPlaceholderStyles,
     sprinkles,
     tasksStyles,
@@ -70,7 +69,7 @@ const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     paddingY: "2",
     backgroundColor: "transparent",
     userSelect: "text",
-})} ${hideScrollbarClassName}`;
+})}`;
 
 const taskRowTitleInputSingleLineStyle: CSSProperties = {
     ...contentSchemaStyles.paragraphFontSize,
@@ -390,6 +389,9 @@ function TaskRowTitleInput(
                 : taskRowTitleInputSingleLineStyle,
         );
 
+        // Don't render a scrollbar with our row title input.
+        view.dom.dataset.scrollbar = "false";
+
         const updateFullyScrolledState = () => {
             setIsFullyScrolledLeft(view.dom.scrollLeft === 0);
             setIsFullyScrolledRight(
@@ -623,6 +625,7 @@ function TaskRowTitleInput(
                                 ? taskRowTitleInputMultilineStyle
                                 : taskRowTitleInputSingleLineStyle
                         }
+                        data-scrollbar="false"
                         aria-label={taskRowTitleInputAriaLabel}
                         aria-placeholder={placeholder}
                         // See why we set this attribute on `EditorView`.

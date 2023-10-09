@@ -1,6 +1,7 @@
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 
 /**
  * Routes that render under `/s/$spaceId` should generally render
@@ -11,7 +12,14 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
  */
 export function SpaceRouteScrollView({children}: {children: ReactNode}) {
     return (
-        <Box flexGrow="1" overflowX="hidden" overflowY="auto" position="relative" zIndex="0">
+        <Box
+            ref={useScrollbar()}
+            flexGrow="1"
+            overflowX="hidden"
+            overflowY="auto"
+            position="relative"
+            zIndex="0"
+        >
             <OverlayScopeContextProvider>{children}</OverlayScopeContextProvider>
         </Box>
     );

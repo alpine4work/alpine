@@ -138,6 +138,7 @@ export function TaskCollectionView({
         renderItem: renderGridViewItem,
         onRenderedRangeChange: onGridViewRenderedRangeChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderGridViewItemIndexes,
+        insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
         focusEnd: focusGridViewEnd,
     } = useTaskGridViewVirtualizedList({
         withColumnHeaderBorderTop: true,
@@ -242,6 +243,11 @@ export function TaskCollectionView({
                         () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
                         [alwaysRenderGridViewItemIndexes],
                     )}
+                    insetScrollbarItemIndex={
+                        insetScrollbarGridViewItemIndex !== undefined
+                            ? insetScrollbarGridViewItemIndex + 1
+                            : undefined
+                    }
                     renderItem={useCallback(
                         index => {
                             if (index === 0) {

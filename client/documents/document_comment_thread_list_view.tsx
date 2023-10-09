@@ -858,7 +858,7 @@ function DocumentCommentThreadListView(
                                                 width: "full",
                                                 display: "flex",
                                                 justifyContent: "center",
-                                                overflowX: "hidden",
+                                                overflow: "hidden",
                                                 paddingX: !withMobileLayout
                                                     ? documentCommentThreadListViewMarginX
                                                     : undefined,
@@ -901,7 +901,7 @@ function DocumentCommentThreadListView(
                                                 <div
                                                     className={sprinkles({
                                                         flexGrow: "1",
-                                                        overflowX: "hidden",
+                                                        overflow: "hidden",
                                                         // Full-width border will be hidden under this background.
                                                         backgroundColor: "grey-0",
                                                         borderBottomRadius: !withMobileLayout
@@ -930,7 +930,7 @@ function DocumentCommentThreadListView(
                                                     paddingX: !withMobileLayout
                                                         ? documentCommentThreadListViewMarginX
                                                         : undefined,
-                                                    overflowX: "hidden",
+                                                    overflow: "hidden",
                                                 })}
                                                 style={{
                                                     top: `calc(${
@@ -1002,7 +1002,7 @@ function DocumentCommentThreadListView(
                                                         paddingX: !withMobileLayout
                                                             ? documentCommentThreadListViewMarginX
                                                             : undefined,
-                                                        overflowX: "hidden",
+                                                        overflow: "hidden",
                                                     })}
                                                 >
                                                     <div

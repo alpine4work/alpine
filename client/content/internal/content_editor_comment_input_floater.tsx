@@ -16,6 +16,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -211,7 +212,7 @@ function ContentEditorCommentInput({
                 paddingX="3"
                 paddingY="2"
                 display="flex"
-                overflowX="hidden"
+                overflow="hidden"
                 color="grey-text"
                 backgroundColor="grey-0"
                 borderRadius="xl"
@@ -240,13 +241,22 @@ function ContentEditorCommentInput({
                 <FocusRing isVisibleWhenFocusWithin={true}>
                     <Box
                         flexGrow="1"
-                        overflowX="hidden"
+                        overflow="hidden"
                         marginX="2"
                         marginY="0.5"
                         backgroundColor="grey-5"
                         borderRadius={messageViewBubbleBorderRadius}
                     >
-                        <Box maxHeight="64" overflowX="hidden" overflowY="auto">
+                        <Box
+                            ref={useScrollbar({
+                                insetY: spacing["1.5"],
+                                insetRight: spacing["0.5"],
+                            })}
+                            maxHeight="64"
+                            position="relative"
+                            overflowX="hidden"
+                            overflowY="auto"
+                        >
                             <ContentEditor
                                 ref={editorRef}
                                 state={commentState}

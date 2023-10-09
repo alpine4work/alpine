@@ -1,5 +1,4 @@
 import {Ref, RefObject, useCallback, useImperativeHandle} from "react";
-import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageInput} from "~/client/messaging/message_input.js";
@@ -7,6 +6,7 @@ import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
+import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {Spacing} from "~/shared/design/spacing.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {PostRealtimeEvent, PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";

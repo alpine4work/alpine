@@ -106,6 +106,7 @@ export function useTaskGridViewVirtualizedList({
     renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
     onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => void;
     alwaysRenderAdditionalItemIndexes: Memo<ReadonlyArray<number>>;
+    insetScrollbarItemIndex: number | undefined;
     modals: ReactNode;
     focusStart: Memo<() => void>;
     focusEnd: Memo<() => void>;
@@ -1307,6 +1308,7 @@ export function useTaskGridViewVirtualizedList({
             () => (capabilities.hasColumns ? [0] : emptyArray),
             [capabilities.hasColumns],
         ),
+        insetScrollbarItemIndex: capabilities.hasColumns ? 0 : undefined,
         modals: taskDeleteConfirmationState && (
             <TaskDeleteConfirmationModalDialog
                 store={query.store}

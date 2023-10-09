@@ -9,6 +9,7 @@ import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -410,7 +411,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                         </Box>
                     );
                 })()}
-            <Box overflowX="hidden" display="flex" paddingX={marginX}>
+            <Box overflow="hidden" display="flex" paddingX={marginX}>
                 <Box display="flex" alignItems="flex-end">
                     <Box paddingY="0.5">
                         <AccountAvatar account={currentAccount} size="7" />
@@ -419,12 +420,21 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 <FocusRing isVisibleWhenFocusWithin={true}>
                     <Box
                         flexGrow="1"
-                        overflowX="hidden"
+                        overflow="hidden"
                         marginX="2"
                         backgroundColor="grey-5"
                         borderRadius={messageViewBubbleBorderRadius}
                     >
-                        <Box maxHeight="96" overflowX="hidden" overflowY="auto">
+                        <Box
+                            ref={useScrollbar({
+                                insetY: spacing["1.5"],
+                                insetRight: spacing["0.5"],
+                            })}
+                            maxHeight="96"
+                            position="relative"
+                            overflowX="hidden"
+                            overflowY="auto"
+                        >
                             <ContentEditor
                                 ref={editorRef}
                                 state={state}

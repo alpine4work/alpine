@@ -649,7 +649,7 @@ function PostListView(
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        overflowX: "hidden",
+                                        overflow: "hidden",
                                         paddingX: hasMargin ? postListViewMarginX : undefined,
                                         paddingTop: postListViewMarginY,
                                         paddingBottom:
@@ -718,7 +718,7 @@ function PostListView(
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        overflowX: "hidden",
+                                        overflow: "hidden",
                                         paddingX: hasMargin ? postListViewMarginX : undefined,
                                         paddingTop: marginTop,
                                         paddingBottom: marginBottom,
@@ -1142,7 +1142,7 @@ function PostListView(
                                                 <div
                                                     className={sprinkles({
                                                         width: "full",
-                                                        overflowX: "hidden",
+                                                        overflow: "hidden",
                                                         paddingX: hasMargin
                                                             ? postListViewMarginX
                                                             : undefined,
@@ -1217,7 +1217,7 @@ function PostListView(
                                             }}
                                             className={sprinkles({
                                                 width: "full",
-                                                overflowX: "hidden",
+                                                overflow: "hidden",
                                                 display: "flex",
                                                 justifyContent: "center",
                                             })}
@@ -1225,7 +1225,7 @@ function PostListView(
                                             <div
                                                 className={sprinkles({
                                                     width: "full",
-                                                    overflowX: "hidden",
+                                                    overflow: "hidden",
                                                     paddingX: hasMargin
                                                         ? postListViewMarginX
                                                         : undefined,
@@ -1270,7 +1270,7 @@ function PostListView(
                                                     <div
                                                         className={sprinkles({
                                                             flexGrow: "1",
-                                                            overflowX: "hidden",
+                                                            overflow: "hidden",
                                                             // Full-width border will be hidden under this background.
                                                             backgroundColor: "grey-0",
                                                             borderBottomRadius: hasMargin
@@ -1335,7 +1335,7 @@ function PostListView(
                                                         paddingX: hasMargin
                                                             ? postListViewMarginX
                                                             : undefined,
-                                                        overflowX: "hidden",
+                                                        overflow: "hidden",
                                                     })}
                                                     style={{
                                                         maxWidth: postViewMaxWidthWithMarginXRem,
@@ -1387,7 +1387,7 @@ function PostListView(
                                                     }}
                                                     className={sprinkles({
                                                         width: "full",
-                                                        overflowX: "hidden",
+                                                        overflow: "hidden",
                                                         display: "flex",
                                                         justifyContent: "center",
                                                         paddingBottom: marginBottom,
@@ -1399,7 +1399,7 @@ function PostListView(
                                                             paddingX: hasMargin
                                                                 ? postListViewMarginX
                                                                 : undefined,
-                                                            overflowX: "hidden",
+                                                            overflow: "hidden",
                                                         })}
                                                         style={{
                                                             maxWidth:
@@ -1453,7 +1453,7 @@ function PostListView(
                                 <div
                                     className={sprinkles({
                                         width: "full",
-                                        overflowX: "hidden",
+                                        overflow: "hidden",
                                         paddingX: hasMargin ? postListViewMarginX : undefined,
                                         paddingTop: postListViewMarginTop,
                                     })}
@@ -1631,7 +1631,7 @@ function PostListView(
                                         className={sprinkles({
                                             width: "full",
                                             paddingX: postListViewMarginX,
-                                            overflowX: "hidden",
+                                            overflow: "hidden",
                                         })}
                                         style={{
                                             maxWidth: postViewMaxWidthWithMarginXRem,
