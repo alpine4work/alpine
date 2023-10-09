@@ -340,15 +340,6 @@ function TaskRowTitleInput(
 
             attributes: {
                 // Title row inputs are focusable but are not a part of the tab order.
-                //
-                // TODO(calebmer): Figure out a paradigm for focusing the tasks view. When the
-                // user tabs into `<TasksView>` focus should go to the last focused task? If
-                // we're using a virtualized scroll view, though, and the last focused task is
-                // offscreen it's unclear whether we should scroll to it or focus a visible
-                // task or what.
-                //
-                // Once focus is in a single task the user can navigate it entirely with
-                // the keyboard.
                 tabindex: "-1",
 
                 // Native spellcheck is often more distracting then it's worth. It puts a red

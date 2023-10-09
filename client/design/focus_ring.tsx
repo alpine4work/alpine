@@ -12,14 +12,14 @@ import {
     useState,
 } from "react";
 import {Box} from "~/client/design/box.js";
-import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {Overlay} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {assignRef} from "~/client/helpers/refs/assign_ref.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
-import {Spacing} from "~/shared/design/spacing.js";
+import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Sprinkles} from "~/shared/styles/styles.js";
@@ -77,7 +77,7 @@ function FocusRing(
          * This will be subtracted from `offset`. So the true offset on the bottom is
          * `offset - insetBottom`.
          */
-        insetBottom?: Spacing;
+        insetBottom?: Spacing | "border";
 
         /**
          * Is the focus ring always visible regardless of whether the target
@@ -353,16 +353,23 @@ export function FocusRingBox({
 }: {
     offset?: Spacing | "border" | "inset";
     insetX?: Spacing;
-    insetBottom?: Spacing;
+    insetBottom?: Spacing | "border";
     targetRef: RefObject<HTMLElement | null>;
 }) {
     const ringRef = useRef<HTMLDivElement>(null);
 
     const ringWidthPx = 2;
 
+    const remPx = useRemPx();
+
     // Overlay must be focused to render so we know we're on the client and
     // `window` should exist.
-    let ringOffsetBasePx = useSpacingPx(offset !== "border" && offset !== "inset" ? offset : "0");
+    let ringOffsetBasePx =
+        offset === "border"
+            ? -1
+            : offset === "inset"
+            ? -ringWidthPx
+            : convertRemLengthToPx(spacing[offset], remPx);
 
     // If we are using a border ring offset, we want the focus ring to render on
     // top of the element's 1px border.
@@ -372,8 +379,9 @@ export function FocusRingBox({
     // inside the element.
     if (offset === "inset") ringOffsetBasePx = -ringWidthPx;
 
-    const ringInsetXPx = useSpacingPx(insetX);
-    const ringInsetBottomPx = useSpacingPx(insetBottom);
+    const ringInsetXPx = convertRemLengthToPx(spacing[insetX], remPx);
+    const ringInsetBottomPx =
+        insetBottom === "border" ? 1 : convertRemLengthToPx(spacing[insetBottom], remPx);
 
     const ringOffsetXPx = ringOffsetBasePx - ringInsetXPx;
     const ringOffsetTopPx = ringOffsetBasePx;

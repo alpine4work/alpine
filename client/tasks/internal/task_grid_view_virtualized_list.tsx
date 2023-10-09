@@ -16,7 +16,11 @@ import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_c
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {TaskGridViewVirtualizedTaskList} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
 import {TaskRowShimmer} from "~/client/tasks/internal/task_row_shimmer.js";
-import {TaskRowView, TaskRowViewRef} from "~/client/tasks/internal/task_row_view.js";
+import {
+    TaskGridViewColumn,
+    TaskRowView,
+    TaskRowViewRef,
+} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -80,6 +84,12 @@ export type TaskGridViewVirtualizedListViewRef = {
 // have other stuff besides tasks so a modified ref object may be passed in.
 assertAssignableTypes<VirtualizedScrollViewRef, TaskGridViewVirtualizedListViewRef>();
 
+/**
+ * Encapsulates the ability to render a virtualized list of tasks. You are
+ * responsible for using ALL of the returned props in a
+ * `<VirtualizedScrollView>` component. If you don't use one of the props in
+ * the documented way your grid view may be broken.
+ */
 export function useTaskGridViewVirtualizedList({
     capabilities,
     query,
@@ -102,13 +112,48 @@ export function useTaskGridViewVirtualizedList({
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     withColumnHeaderBorderTop?: boolean;
 }): {
+    /**
+     * The number of items. Should be passed to `<VirtualizedScrollView>`.
+     */
     itemCount: number;
+
+    /**
+     * Render an item. Should be passed to `<VirtualizedScrollView>`.
+     */
     renderItem: Memo<(index: number) => VirtualizedScrollViewItem>;
+
+    /**
+     * Should be called when the rendered range changes. Should be passed to
+     * `<VirtualizedScrollView>`.
+     */
     onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => void;
+
+    /**
+     * Item indexes to always render regardless of the rendered range. Should be
+     * passed to `<VirtualizedScrollView>`.
+     */
     alwaysRenderAdditionalItemIndexes: Memo<ReadonlyArray<number>>;
+
+    /**
+     * Item index the scrollbar should be inset after. Should be passed to
+     * `<VirtualizedScrollView>`.
+     */
     insetScrollbarItemIndex: number | undefined;
+
+    /**
+     * Modals opened during operation of the grid view (e.g. delete confirmation
+     * modal). Should be rendered unconditionally alongside the grid view.
+     */
     modals: ReactNode;
+
+    /**
+     * (Optional.) Focuses the start of the grid view.
+     */
     focusStart: Memo<() => void>;
+
+    /**
+     * (Optional.) Focuses the end of the grid view.
+     */
     focusEnd: Memo<() => void>;
 } {
     const context = useAppContext();
@@ -537,6 +582,26 @@ export function useTaskGridViewVirtualizedList({
                 };
             };
 
+            const focusNextTaskCell = (column: TaskGridViewColumn) => {
+                for (let index = itemIndex + 1; index < itemCount; index++) {
+                    const taskRow = taskRowByItemIndexRef.current.get(index);
+                    if (!taskRow) continue;
+
+                    taskRow.focusCell(column);
+                    break;
+                }
+            };
+
+            const focusPreviousTaskCell = (column: TaskGridViewColumn) => {
+                for (let index = itemIndex - 1; index >= 0; index--) {
+                    const taskRow = taskRowByItemIndexRef.current.get(index);
+                    if (!taskRow) continue;
+
+                    taskRow.focusCell(column);
+                    break;
+                }
+            };
+
             const focusPreviousTaskTitleEnd = () => {
                 for (let index = itemIndex - 1; index >= 0; index--) {
                     const taskRow = taskRowByItemIndexRef.current.get(index);
@@ -831,6 +896,7 @@ export function useTaskGridViewVirtualizedList({
                                     setBottomGhostTaskId(generateId<TaskId>())
                                 }
                                 parents={emptyArray}
+                                isFirstRow={listItemCount === 0}
                                 // NOCOMMIT: Ghost row placeholder sequence!
                                 titlePlaceholder={
                                     !capabilities.isReadOnly ? "Add a task…" : undefined
@@ -856,6 +922,8 @@ export function useTaskGridViewVirtualizedList({
                                 focusTaskTitleStart={focusTaskTitleStart}
                                 focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                                 focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                                focusNextTaskCell={focusNextTaskCell}
+                                focusPreviousTaskCell={focusPreviousTaskCell}
                                 preserveLastTaskTitleArrowNavigationCoord={
                                     preserveLastTaskTitleArrowNavigationCoord
                                 }
@@ -1206,6 +1274,7 @@ export function useTaskGridViewVirtualizedList({
                         query={item.query}
                         cursor={item.cursor}
                         parents={item.parents}
+                        isFirstRow={itemIndex - itemCountBeforeList === 0}
                         // Lazily computed with a function to not mess with the
                         // `list.getItem(index + 1)` iterator optimization.
                         getNextIndentation={() =>
@@ -1231,6 +1300,8 @@ export function useTaskGridViewVirtualizedList({
                         focusTaskTitleStart={focusTaskTitleStart}
                         focusNextTaskTitleCoord={focusNextTaskTitleCoord}
                         focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                        focusNextTaskCell={focusNextTaskCell}
+                        focusPreviousTaskCell={focusPreviousTaskCell}
                         preserveLastTaskTitleArrowNavigationCoord={
                             preserveLastTaskTitleArrowNavigationCoord
                         }

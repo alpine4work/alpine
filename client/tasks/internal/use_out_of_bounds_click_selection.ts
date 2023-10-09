@@ -27,6 +27,27 @@ export function useOutOfBoundsClickSelection({
     const lastDoubleClickTimeRef = useRef<number | null>(null);
 
     return {
+        onMouseDown: event => {
+            if (isDisabled) return;
+            if (!accept(event)) return;
+
+            if (
+                lastDoubleClickTimeRef.current === null ||
+                Date.now() - lastDoubleClickTimeRef.current > doubleClickDelayMs
+            ) {
+                // If we are the child of a focusable element, don't focus our parent
+                // after `mousedown`.
+                event.preventDefault();
+
+                onSelect();
+            } else {
+                // `mousedown` will unfocus whatever is focused. If the user is actively
+                // double, triple, whatever clicking don't unfocus.
+                event.preventDefault();
+
+                lastDoubleClickTimeRef.current = Date.now();
+            }
+        },
         onClick: event => {
             if (isDisabled) return;
             if (!accept(event)) return;
@@ -52,19 +73,6 @@ export function useOutOfBoundsClickSelection({
             }
 
             lastDoubleClickTimeRef.current = Date.now();
-        },
-        onMouseDown: event => {
-            if (isDisabled) return;
-            if (!accept(event)) return;
-
-            // `mousedown` will unfocus whatever is focused. If the user is actively
-            // double, triple, whatever clicking don't unfocus.
-            if (
-                lastDoubleClickTimeRef.current !== null &&
-                Date.now() - lastDoubleClickTimeRef.current <= doubleClickDelayMs
-            ) {
-                event.preventDefault();
-            }
         },
         // When the user right-clicks, focus the text input. Just like clicking on the
         // area would. This also will make sure we open up the context menu when the

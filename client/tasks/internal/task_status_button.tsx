@@ -1,9 +1,10 @@
 import {CalendarDate} from "@internationalized/date";
 import {compareDesc} from "date-fns";
-import {useRef} from "react";
+import {Ref, forwardRef, useRef} from "react";
 import {useButton} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
@@ -62,23 +63,32 @@ export function compareTaskAssigneeActiveStatus(
     );
 }
 
-export function TaskStatusButton({
-    store,
-    task,
-    size = "4",
-    isDisabled = false,
-    isFocusable = true,
-}: {
-    store: TaskClientStore;
-    task: TaskModel;
-    size?: "4" | "5";
-    isDisabled?: boolean;
-    isFocusable?: boolean;
-}) {
+const TaskStatusButtonForwardRef = forwardRef(TaskStatusButton);
+export {TaskStatusButtonForwardRef as TaskStatusButton};
+
+function TaskStatusButton(
+    {
+        store,
+        task,
+        size = "4",
+        isDisabled = false,
+        isFocusable = true,
+        isTabbable = true,
+    }: {
+        store: TaskClientStore;
+        task: TaskModel;
+        size?: "4" | "5";
+        isDisabled?: boolean;
+        isFocusable?: boolean;
+        isTabbable?: boolean;
+    },
+    ref: Ref<HTMLElement>,
+) {
     const context = useAppContext();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
     const buttonRef = useRef<HTMLElement | null>(null);
+    const mergedButtonRef = useMergedRefs(ref, buttonRef);
 
     const {isPressed, buttonProps} = useButton(
         {
@@ -130,7 +140,8 @@ export function TaskStatusButton({
             {isFocusable ? (
                 <button
                     {...buttonProps}
-                    ref={element => (buttonRef.current = element)}
+                    ref={mergedButtonRef as any}
+                    tabIndex={!isTabbable ? -1 : undefined}
                     className={sprinkles({
                         display: "block",
                         width: size,
@@ -147,7 +158,7 @@ export function TaskStatusButton({
             ) : (
                 <div
                     {...buttonProps}
-                    ref={element => (buttonRef.current = element)}
+                    ref={mergedButtonRef as any}
                     // Remove `tabIndex` from button props if this button is not focusable.
                     tabIndex={undefined}
                     className={sprinkles({
