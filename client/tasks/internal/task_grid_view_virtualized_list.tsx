@@ -3,7 +3,7 @@ import {Selection} from "prosemirror-state";
 import {Key, Memo, ReactNode, RefObject, useEffect, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
@@ -157,6 +157,7 @@ export function useTaskGridViewVirtualizedList({
     focusEnd: Memo<() => void>;
 } {
     const context = useAppContext();
+    const remPx = useRemPx();
 
     const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
 
@@ -624,7 +625,11 @@ export function useTaskGridViewVirtualizedList({
 
             // If this item is above our task list then render it.
             if (itemIndex < itemCountBeforeList) {
-                const minHeight = "1.25rem";
+                const minHeight =
+                    convertRemLengthToPx("1.25rem", remPx) +
+                    // We add one extra pixel of bottom padding so the focus ring on the first row
+                    // is not covered by our header.
+                    1;
 
                 return {
                     key: "ColumnHeader",
@@ -650,7 +655,8 @@ export function useTaskGridViewVirtualizedList({
                                     right="0"
                                     top="0"
                                     style={{height: offset}}
-                                    zIndex="10"
+                                    // Render above overlays which are at `zIndex="50"`
+                                    zIndex="60"
                                     pointerEvents="none"
                                 >
                                     <Box
@@ -672,7 +678,8 @@ export function useTaskGridViewVirtualizedList({
                                     right="0"
                                     bottom="0"
                                     style={{top: offset}}
-                                    zIndex="30"
+                                    // Render above overlays which are at `zIndex="50"`
+                                    zIndex="80"
                                     pointerEvents="none"
                                 >
                                     <Box
@@ -703,7 +710,8 @@ export function useTaskGridViewVirtualizedList({
                                 right="0"
                                 bottom="0"
                                 style={{top: offset - 1}}
-                                zIndex="10"
+                                // Render above overlays which are at `zIndex="50"`
+                                zIndex="60"
                                 pointerEvents="none"
                             >
                                 <Box
@@ -712,7 +720,7 @@ export function useTaskGridViewVirtualizedList({
                                     left="0"
                                     right="0"
                                     borderBottom="grey-10"
-                                    style={{height}}
+                                    style={{height: height - 1}}
                                 />
                             </Box>
                             <Box
@@ -728,10 +736,21 @@ export function useTaskGridViewVirtualizedList({
                                               bottom: 0,
                                           }),
                                 }}
-                                zIndex="20"
+                                // Render above overlays which are at `zIndex="50"`
+                                zIndex="70"
                                 pointerEvents="none"
                             >
-                                <Box ref={ref} position="sticky" top="0" pointerEvents="auto">
+                                <Box
+                                    ref={ref}
+                                    position="sticky"
+                                    top="0"
+                                    pointerEvents="auto"
+                                    style={{
+                                        // One pixel of bottom padding so the focus ring on the first row is not covered
+                                        // by our header.
+                                        paddingBottom: 1,
+                                    }}
+                                >
                                     <Box
                                         zIndex="-10"
                                         position="absolute"
@@ -740,7 +759,7 @@ export function useTaskGridViewVirtualizedList({
                                         right="0"
                                         // Render background color with an absolute positioned `<div>` so we don't
                                         // cover the border rendered by `<TaskRowView>` (or our separate sticky div).
-                                        style={{bottom: 1}}
+                                        style={{bottom: 2}}
                                         backgroundColor="grey-0"
                                     />
                                     <Box paddingTop="0.5" display="flex">
@@ -1357,6 +1376,7 @@ export function useTaskGridViewVirtualizedList({
         listItemCount,
         loadedState,
         query,
+        remPx,
         toggleAreChildTasksExpanded,
         viewRef,
         withColumnHeaderBorderTop,
