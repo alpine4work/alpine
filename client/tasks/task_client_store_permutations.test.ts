@@ -128,6 +128,7 @@ testTaskActionPermutations({
                           }),
                       ]
                     : [],
+            originClientId: null,
         });
     },
     getTask: taskId => {

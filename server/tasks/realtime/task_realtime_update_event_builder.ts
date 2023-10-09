@@ -11,7 +11,13 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
 let number = 1;
@@ -27,6 +33,7 @@ export type TaskRealtimeUpdateEvent = {
     readonly backfillUnauthorizedTaskIds: ReadonlyArray<TaskId>;
     readonly backfillAuthorizedCollections: ReadonlyArray<TaskCollectionIndexDoc>;
     readonly backfillUnauthorizedCollectionIds: ReadonlyArray<TaskCollectionId>;
+    readonly originClientId: TaskRealtimeClientId | null;
 };
 
 export interface TaskRealtimeUpdateEventSender {
@@ -75,6 +82,7 @@ export const taskRealtimeStoreBeforeSendEventTestCheckpoint = new TestCheckpoint
  * to the client.
  */
 export class TaskRealtimeUpdateEventBuilder {
+    private readonly _originClientId: TaskRealtimeClientId | null;
     private readonly _number = generateTaskRealtimeUpdateEventNumber();
     private _isBuilding = true;
     private _isSending = false;
@@ -83,10 +91,13 @@ export class TaskRealtimeUpdateEventBuilder {
     private readonly _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null;
 
     constructor({
+        originClientId,
         actionReferencedAccountById,
     }: {
+        originClientId: TaskRealtimeClientId | null;
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null;
     }) {
+        this._originClientId = originClientId;
         this._actionReferencedAccountById = actionReferencedAccountById;
     }
 
@@ -182,6 +193,7 @@ export class TaskRealtimeUpdateEventBuilder {
                         backfillUnauthorizedCollectionIds: Array.from(
                             event.backfillUnauthorizedCollectionIds,
                         ),
+                        originClientId: this._originClientId,
                     },
                     this._actionReferencedAccountById,
                 );

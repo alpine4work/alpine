@@ -165,6 +165,7 @@ test("can't apply an action transaction as the wrong space", async () => {
             spaceId: session.space.id,
             committedTime: new Date(),
             actions: [],
+            clientId: null,
         }),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -172,6 +173,7 @@ test("can't apply an action transaction as the wrong space", async () => {
         spaceId: session.space.id,
         committedTime: new Date(),
         actions: [],
+        clientId: null,
     });
 });
 

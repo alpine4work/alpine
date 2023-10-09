@@ -107,6 +107,7 @@ export class TaskRealtimeCollectionSubscriptionInternal {
         // We construct an event builder just so we can wait out `waitUntil()`
         // promises.
         const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+            originClientId: null,
             actionReferencedAccountById: null,
         });
 

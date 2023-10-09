@@ -14,7 +14,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskRealtimeClientId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
@@ -84,6 +84,7 @@ export class TestTaskRealtimeServer {
                   spaceId: SpaceId;
                   committedTime: Date;
                   actions: ReadonlyArray<TaskAction>;
+                  clientId: TaskRealtimeClientId | null;
               }>;
           }
         | {
@@ -100,12 +101,13 @@ export class TestTaskRealtimeServer {
 
         const unsubscribe = assertExists(
             afterCommitTaskActionTransactionEventEmitterForTest,
-        ).subscribe(({spaceId, committedTime, actions}) => {
+        ).subscribe(({spaceId, committedTime, actions, clientId}) => {
             if (this._applyActionTransactionsPauseState.type === "Paused") {
                 this._applyActionTransactionsPauseState.actionTransactions.push({
                     spaceId,
                     committedTime,
                     actions,
+                    clientId,
                 });
             } else {
                 this._applyActionTransactionPromises.push(
@@ -113,6 +115,7 @@ export class TestTaskRealtimeServer {
                         spaceId,
                         committedTime,
                         actions,
+                        clientId,
                     }),
                 );
             }
@@ -141,13 +144,14 @@ export class TestTaskRealtimeServer {
     public unpauseApplyActionTransactions() {
         assert(this._applyActionTransactionsPauseState.type === "Paused");
 
-        for (const {spaceId, committedTime, actions} of this._applyActionTransactionsPauseState
-            .actionTransactions) {
+        for (const {spaceId, committedTime, actions, clientId} of this
+            ._applyActionTransactionsPauseState.actionTransactions) {
             this._applyActionTransactionPromises.push(
                 this.server.applyActionTransaction(this.context.systemAction(spaceId), {
                     spaceId,
                     committedTime,
                     actions,
+                    clientId,
                 }),
             );
         }
@@ -181,6 +185,7 @@ export class TestTaskRealtimeServer {
             spaceId,
             committedTime,
             actions,
+            clientId: null,
         });
     }
 

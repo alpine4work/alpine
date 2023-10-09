@@ -329,6 +329,7 @@ runService({
                                 spaceId,
                                 committedTime: actionTransaction.committedTime,
                                 actions: actionTransaction.actions,
+                                clientId: actionTransaction.clientId,
                             });
                         },
                     );

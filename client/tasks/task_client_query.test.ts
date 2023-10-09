@@ -306,6 +306,7 @@ test("task can be added to query through backfill", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -343,6 +344,7 @@ test("task can be added to query through previously backfilled tasks", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     const query = store.createAndRetainQuery({
@@ -435,6 +437,7 @@ test("task can be added to query through action", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
@@ -448,6 +451,7 @@ test("task can be added to query through action", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -519,6 +523,7 @@ test("task can be removed from a query through an action", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -534,6 +539,7 @@ test("task can be removed from a query through an action", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
@@ -627,6 +633,7 @@ test("task can be moved in query through an action", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -644,6 +651,7 @@ test("task can be moved in query through an action", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -738,6 +746,7 @@ test("task can be left alone through an action", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -755,6 +764,7 @@ test("task can be left alone through an action", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -994,6 +1004,7 @@ test("task references can be added to query through backfill", () => {
         backfillAuthorizedCollections: [collection1, collection2, collection3],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -1221,6 +1232,7 @@ test("task references can be added to query through previous backfill", () => {
         backfillAuthorizedCollections: [collection1, collection2, collection3],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     const query = store.createAndRetainQuery({
@@ -1486,6 +1498,7 @@ test("task references can be added to query through action", () => {
         backfillAuthorizedCollections: [collection2, collection3],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -1506,6 +1519,7 @@ test("task references can be added to query through action", () => {
         backfillAuthorizedCollections: [collection1],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -1527,6 +1541,7 @@ test("task references can be added to query through action", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -1801,6 +1816,7 @@ test("task references can be removed from query through actions", () => {
         backfillAuthorizedCollections: [collection1, collection2, collection3],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -1823,6 +1839,7 @@ test("task references can be removed from query through actions", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -1844,6 +1861,7 @@ test("task references can be removed from query through actions", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -1862,6 +1880,7 @@ test("task references can be removed from query through actions", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
@@ -2058,6 +2077,7 @@ test("references from optimistic task can be removed", async () => {
         backfillAuthorizedCollections: [collection1, collection2],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2126,6 +2146,7 @@ test("references from optimistic task can be removed", async () => {
         backfillAuthorizedCollections: [collection3],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2349,6 +2370,7 @@ test("task references can be added and removed through actions", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2367,6 +2389,7 @@ test("task references can be added and removed through actions", () => {
         backfillAuthorizedCollections: [collection2],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2385,6 +2408,7 @@ test("task references can be added and removed through actions", () => {
         backfillAuthorizedCollections: [collection3],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2403,6 +2427,7 @@ test("task references can be added and removed through actions", () => {
         backfillAuthorizedCollections: [collection1],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2423,6 +2448,7 @@ test("task references can be added and removed through actions", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2441,6 +2467,7 @@ test("task references can be added and removed through actions", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2651,6 +2678,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2669,6 +2697,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillAuthorizedCollections: [collection2],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2687,6 +2716,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillAuthorizedCollections: [collection3],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2705,6 +2735,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillAuthorizedCollections: [collection1],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2725,6 +2756,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2743,6 +2775,7 @@ test("task references can be added and removed through actions on a referenced t
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2966,6 +2999,7 @@ test("task references can be added and removed through actions on a task that's 
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -2985,6 +3019,7 @@ test("task references can be added and removed through actions on a task that's 
         backfillAuthorizedCollections: [collection2],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3004,6 +3039,7 @@ test("task references can be added and removed through actions on a task that's 
         backfillAuthorizedCollections: [collection3],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3023,6 +3059,7 @@ test("task references can be added and removed through actions on a task that's 
         backfillAuthorizedCollections: [collection1],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3044,6 +3081,7 @@ test("task references can be added and removed through actions on a task that's 
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3063,6 +3101,7 @@ test("task references can be added and removed through actions on a task that's 
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3184,6 +3223,7 @@ test("can handle a temporary cycle", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3202,6 +3242,7 @@ test("can handle a temporary cycle", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3220,6 +3261,7 @@ test("can handle a temporary cycle", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3355,6 +3397,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3373,6 +3416,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3391,6 +3435,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3429,6 +3474,7 @@ test("temporarily holds on to actions applied to task that wasn't backfilled", (
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(getTaskEntryIfExists(store, action.taskId)).toEqual({
@@ -3478,6 +3524,7 @@ test("temporarily holds on to actions applied to collection that wasn't backfill
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(store.getCollectionEntryStoreIfExists(action.collectionId)).not.toBeNull();
@@ -3573,6 +3620,7 @@ test("action removing from the query immediately releases task", async () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(store.getTaskCountForTest()).toEqual(1);
@@ -3589,6 +3637,7 @@ test("action removing from the query immediately releases task", async () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(store.getTaskCountForTest()).toEqual(0);
@@ -3675,6 +3724,7 @@ test("optimistic update retains task until resolved", async () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(store.getTaskCountForTest()).toEqual(1);
@@ -3776,6 +3826,7 @@ test("optimistic update retains task until rejected", async () => {
         backfillAuthorizedCollections: [],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [],
+        originClientId: null,
     });
 
     expect(store.getTaskCountForTest()).toEqual(1);
@@ -3932,6 +3983,7 @@ test("deleting task and all children when subscribed to task and its children", 
         backfillAuthorizedCollections: [collection],
         backfillUnauthorizedCollectionIds: [],
         referencedAccounts: [account1],
+        originClientId: null,
     });
 
     store.loadTasksIntoQuery(query1, {

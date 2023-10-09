@@ -21,7 +21,11 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
-import {SpaceId, TaskActionTransactionId} from "~/shared/id/types/id_types.js";
+import {
+    SpaceId,
+    TaskActionTransactionId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -148,6 +152,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         committedTime: Date;
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
+        clientId: TaskRealtimeClientId | null;
     }) {
         await runAllPromises([
             this._indexActionTransactionAssumingItsCommitted(actionTransaction),
@@ -165,6 +170,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         committedTime: Date;
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
+        clientId: TaskRealtimeClientId | null;
     }) {
         const [hosts, token] = await runAllPromises([
             this.router.getHosts(this._context, actionTransaction.spaceId),
@@ -178,6 +184,7 @@ export class TaskContextModule extends TaskContextModuleBase {
             TaskRealtimeApplyActionTransactionInputSchema.serialize({
                 committedTime: actionTransaction.committedTime,
                 actions: actionTransaction.actions,
+                clientId: actionTransaction.clientId,
             }),
         );
 

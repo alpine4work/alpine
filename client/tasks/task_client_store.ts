@@ -27,7 +27,14 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {generateId} from "~/shared/id/id.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     commitTaskActionTransaction,
@@ -363,6 +370,7 @@ export class TaskClientStoreInternal {
     private readonly _onError: (
         options: {display: true; title: string; error: unknown} | {display: false; error: unknown},
     ) => void;
+    private readonly _clientId = generateId<TaskRealtimeClientId>();
 
     /**
      * The clock we use on the client for assigning a time to actions. This clock
@@ -602,21 +610,7 @@ export class TaskClientStoreInternal {
             if (
                 taskEntryStore.referenceCount === 1 &&
                 taskEntry.task === null &&
-                taskEntry.actions.length > 0 &&
-                // TODO(calebmer): With `deleteTaskAndAllChildren()` when the server responds
-                // to the RPC we commit the delete releasing our tasks. Later the server will
-                // send us a realtime event with `Delete` actions. Since this is an expected
-                // scenario we don't log an error.
-                //
-                // This may cause some false negatives! We may get an out-of-order delete the
-                // client misses and we won't report a glitch afterwards. Accept this for now.
-                // If there's actually some out-of-order glitches happening it should fire on
-                // all kinds of actions, not just deletes.
-                !taskEntry.actions.every(
-                    action =>
-                        action.action.type === "UpdateTask" &&
-                        action.action.taskAction.type === "Delete",
-                )
+                taskEntry.actions.length > 0
             ) {
                 this._onError({
                     // We don't display the error in a toast to the user since while this error
@@ -700,6 +694,13 @@ export class TaskClientStoreInternal {
     }
 
     private _applyUpdateEvent<Value>(event: TaskRealtimeUpdateEvent, action: () => Value): Value {
+        // If this event originated from our client then ignore it! We've already
+        // applied the action or are in the process of applying it. (e.g. We're waiting
+        // on a `commitTaskActionTransaction()` request to finish.)
+        if (event.originClientId === this._clientId) {
+            return action();
+        }
+
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
 
@@ -1405,6 +1406,7 @@ export class TaskClientStoreInternal {
             commitTaskActionTransaction(context, {
                 spaceId: this.spaceId,
                 actions,
+                clientId: this._clientId,
             });
 
         const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
@@ -1437,6 +1439,8 @@ export class TaskClientStoreInternal {
                     backfillUnauthorizedCollectionIds: [],
                     backfillUnauthorizedTaskIds: [],
                     referencedAccounts: [],
+                    // Don't pass `this._clientId` in since we don't want to ignore this event.
+                    originClientId: null,
                 },
                 () => {
                     const optimisticExtraActions = this._getOptimisticExtraActions(actions);
@@ -1507,6 +1511,8 @@ export class TaskClientStoreInternal {
                             backfillAuthorizedCollections: [],
                             backfillUnauthorizedCollectionIds: [],
                             referencedAccounts,
+                            // Don't pass `this._clientId` in since we don't want to ignore this event.
+                            originClientId: null,
                         });
                     }
 
@@ -1736,6 +1742,7 @@ export class TaskClientStoreInternal {
                                 },
                             },
                         ],
+                        clientId: this._clientId,
                     });
 
                 const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
@@ -1814,6 +1821,7 @@ export class TaskClientStoreInternal {
             deleteTaskAndAllChildren(context, {
                 taskId,
                 actionTime,
+                clientId: this._clientId,
             });
 
         const deletePromise = shouldDisableCommitTaskActionTransactionMutexForTest
@@ -1935,6 +1943,8 @@ export class TaskClientStoreInternal {
                             backfillAuthorizedCollections: [],
                             backfillUnauthorizedCollectionIds: [],
                             referencedAccounts,
+                            // Don't pass `this._clientId` in since we don't want to ignore this event.
+                            originClientId: null,
                         });
                     }
 

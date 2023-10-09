@@ -513,6 +513,7 @@ export async function loadTaskRealtimeQueries(
             backfillAuthorizedCollections,
             backfillUnauthorizedCollectionIds: Array.from(backfillUnauthorizedCollectionIds),
             referencedAccounts,
+            originClientId: null,
         },
     };
 }

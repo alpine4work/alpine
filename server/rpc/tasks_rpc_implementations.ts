@@ -26,6 +26,7 @@ implementRpc(
             context.actor.authorizeSession(),
             input.spaceId,
             input.actions,
+            {clientId: input.clientId},
         );
 
         const accountIds = new Set<AccountId>();
@@ -53,6 +54,7 @@ implementRpc(
             context.actor.authorizeSession(),
             input.taskId,
             input.actionTime,
+            {clientId: input.clientId},
         );
 
         const accountIds = new Set<AccountId>();

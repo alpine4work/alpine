@@ -405,6 +405,7 @@ export class TaskRealtimeConnection {
                 this._spaceId,
                 async systemContext => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        originClientId: null,
                         actionReferencedAccountById: null,
                     });
 
@@ -447,6 +448,7 @@ export class TaskRealtimeConnection {
                 this._spaceId,
                 async context => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        originClientId: null,
                         actionReferencedAccountById: null,
                     });
 
@@ -481,6 +483,7 @@ export class TaskRealtimeConnection {
                 this._spaceId,
                 async systemContext => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        originClientId: null,
                         actionReferencedAccountById: null,
                     });
 
@@ -512,6 +515,7 @@ export class TaskRealtimeConnection {
                 this._spaceId,
                 async context => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        originClientId: null,
                         actionReferencedAccountById: null,
                     });
 
@@ -543,6 +547,7 @@ export class TaskRealtimeConnection {
                 this._spaceId,
                 async systemContext => {
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+                        originClientId: null,
                         actionReferencedAccountById: null,
                     });
 
@@ -748,6 +753,7 @@ export class TaskRealtimeConnection {
                 backfillAuthorizedCollections,
                 backfillUnauthorizedCollectionIds,
                 referencedAccounts,
+                originClientId: event.originClientId,
             });
         },
     };
@@ -1244,6 +1250,7 @@ export class TaskRealtimeConnection {
         context: TaskRealtimeSystemActionContext,
     ) {
         const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+            originClientId: null,
             actionReferencedAccountById: null,
         });
 

@@ -2,7 +2,13 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContentReferencedIdsSchema} from "~/shared/content/content_referenced_ids.js";
 import {ContentReferencesSchema} from "~/shared/content/content_references.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
-import {BrowserId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    BrowserId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -19,6 +25,7 @@ import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalize
 export const commitTaskActionTransaction = defineRpc({
     name: "commitTaskActionTransaction",
     input: {
+        clientId: Schema.id<TaskRealtimeClientId>(),
         spaceId: Schema.id<SpaceId>(),
         actions: Schema.array(TaskActionSchema),
     },
@@ -31,6 +38,7 @@ export const commitTaskActionTransaction = defineRpc({
 export const deleteTaskAndAllChildren = defineRpc({
     name: "deleteTaskAndAllChildren",
     input: {
+        clientId: Schema.id<TaskRealtimeClientId>(),
         taskId: Schema.id<TaskId>(),
         actionTime: HybridLogicalTimeSchema,
     },

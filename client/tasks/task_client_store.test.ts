@@ -263,6 +263,7 @@ test("backfills an authorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -299,6 +300,7 @@ test("backfills authorized tasks", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task1, task2],
@@ -329,6 +331,7 @@ test("backfills authorized tasks", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task3, task4],
@@ -395,6 +398,7 @@ test("backfill merges with existing authorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task1a],
@@ -414,6 +418,7 @@ test("backfill merges with existing authorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task1b],
@@ -456,6 +461,7 @@ test("backfill merges with existing unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task1a],
@@ -475,6 +481,7 @@ test("backfill merges with existing unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -494,6 +501,7 @@ test("backfill merges with existing unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 3,
         actions: [],
         backfillAuthorizedTasks: [task1b],
@@ -536,6 +544,7 @@ test("backfill merges behind existing unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task1a],
@@ -555,6 +564,7 @@ test("backfill merges behind existing unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 3,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -574,6 +584,7 @@ test("backfill merges behind existing unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task1b],
@@ -616,6 +627,7 @@ test("backfill adds task behind existing unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 3,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -635,6 +647,7 @@ test("backfill adds task behind existing unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task1b],
@@ -676,6 +689,7 @@ test("action is applied to authorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task1a],
@@ -695,6 +709,7 @@ test("action is applied to authorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action1a],
         backfillAuthorizedTasks: [],
@@ -732,6 +747,7 @@ test("action is applied to unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task1a],
@@ -751,6 +767,7 @@ test("action is applied to unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -770,6 +787,7 @@ test("action is applied to unauthorized task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 3,
         actions: [action1a],
         backfillAuthorizedTasks: [],
@@ -809,6 +827,7 @@ test("actions can be applied out of order", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1a],
         backfillAuthorizedTasks: [],
@@ -828,6 +847,7 @@ test("actions can be applied out of order", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task1a],
@@ -867,6 +887,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -886,6 +907,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action1a],
         backfillAuthorizedTasks: [],
@@ -905,6 +927,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 3,
         actions: [],
         backfillAuthorizedTasks: [task1a],
@@ -944,6 +967,7 @@ test("if nothing changes in the task entry after action it's left as same refere
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task1a],
@@ -963,6 +987,7 @@ test("if nothing changes in the task entry after action it's left as same refere
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action1a],
         backfillAuthorizedTasks: [],
@@ -986,6 +1011,7 @@ test("if nothing changes in the task entry after action it's left as same refere
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 3,
         actions: [action1a],
         backfillAuthorizedTasks: [],
@@ -1017,6 +1043,7 @@ test("if nothing changes in the task entry after backfill it's left as same refe
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task1a],
@@ -1036,6 +1063,7 @@ test("if nothing changes in the task entry after backfill it's left as same refe
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 3,
         actions: [action1a],
         backfillAuthorizedTasks: [],
@@ -1059,6 +1087,7 @@ test("if nothing changes in the task entry after backfill it's left as same refe
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task1a.applyAction(action1a, getSortableAccount)],
@@ -1090,6 +1119,7 @@ test("action can be applied then task can be marked unauthorized", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1a],
         backfillAuthorizedTasks: [],
@@ -1109,6 +1139,7 @@ test("action can be applied then task can be marked unauthorized", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -1146,6 +1177,7 @@ test("redundant unauthorized action doesn't change task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -1165,6 +1197,7 @@ test("redundant unauthorized action doesn't change task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 3,
         actions: [action1a],
         backfillAuthorizedTasks: [],
@@ -1186,6 +1219,7 @@ test("redundant unauthorized action doesn't change task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -1216,6 +1250,7 @@ test("create action will create a task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action],
         backfillAuthorizedTasks: [],
@@ -1266,6 +1301,7 @@ test("can receive create action out of order", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -1285,6 +1321,7 @@ test("can receive create action out of order", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action2],
         backfillAuthorizedTasks: [],
@@ -1335,6 +1372,7 @@ test("can receive create action with another action within a transaction", () =>
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1, action2],
         backfillAuthorizedTasks: [],
@@ -1385,6 +1423,7 @@ test("can receive create action out of order within a transaction", () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1, action2],
         backfillAuthorizedTasks: [],
@@ -1416,6 +1455,7 @@ test("applies commit action calls optimistically", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -1791,6 +1831,7 @@ test("can create then update tasks optimistically after an action from the serve
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -2048,6 +2089,7 @@ test("can create then update tasks optimistically out of order after an action f
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -2464,6 +2506,7 @@ test("regular task actions are added to optimistic state", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -2499,6 +2542,7 @@ test("regular task actions are added to optimistic state", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -2582,6 +2626,7 @@ test("regular task actions are added to optimistic state with multiple actions",
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -2617,6 +2662,7 @@ test("regular task actions are added to optimistic state with multiple actions",
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -2748,6 +2794,7 @@ test("regular task actions are added to optimistic state with multiple actions t
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -2783,6 +2830,7 @@ test("regular task actions are added to optimistic state with multiple actions t
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -2921,6 +2969,7 @@ test("regular actions are added to optimistic state when task is not backfilled"
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -3016,6 +3065,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -3150,6 +3200,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -3311,6 +3362,7 @@ test("regular actions are added to optimistic state when task is created optimis
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -3469,6 +3521,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -3678,6 +3731,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -3991,6 +4045,7 @@ test("backfilling a task when none exists and there are optimistic actions works
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -4019,6 +4074,7 @@ test("backfilling a task when none exists and there are optimistic actions works
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -4092,6 +4148,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -4127,6 +4184,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task.applyAction(action3, getSortableAccount)],
@@ -4222,6 +4280,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -4278,6 +4337,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task.applyAction(action4, getSortableAccount)],
@@ -4360,6 +4420,7 @@ test("applies task commit action calls optimistically (rejected)", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -4709,6 +4770,7 @@ test("can create then update tasks optimistically after an action from the serve
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -4940,6 +5002,7 @@ test("can create then update tasks optimistically out of order after an action f
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -5329,6 +5392,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -5364,6 +5428,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -5445,6 +5510,7 @@ test("regular task actions are added to optimistic state with multiple actions (
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -5480,6 +5546,7 @@ test("regular task actions are added to optimistic state with multiple actions (
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -5602,6 +5669,7 @@ test("regular task actions are added to optimistic state with multiple actions t
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -5637,6 +5705,7 @@ test("regular task actions are added to optimistic state with multiple actions t
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -5768,6 +5837,7 @@ test("regular actions are added to optimistic state when task is not backfilled 
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -5863,6 +5933,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -5994,6 +6065,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -6152,6 +6224,7 @@ test("regular actions are added to optimistic state when task is created optimis
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -6303,6 +6376,7 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -6495,6 +6569,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -6787,6 +6862,7 @@ test("backfilling a task when none exists and there are optimistic actions works
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -6815,6 +6891,7 @@ test("backfilling a task when none exists and there are optimistic actions works
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -6886,6 +6963,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [task],
@@ -6921,6 +6999,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task.applyAction(action3, getSortableAccount)],
@@ -7014,6 +7093,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -7070,6 +7150,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [task.applyAction(action4, getSortableAccount)],
@@ -7198,6 +7279,7 @@ test("create task applied after optimistic updates", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -7343,6 +7425,7 @@ test("create task applied after optimistic updates that are resolved out of orde
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -7491,6 +7574,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -7629,6 +7713,7 @@ test("create task applied after optimistic updates that are resolved out of orde
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -7983,6 +8068,7 @@ test("can create then update collections optimistically after an action from the
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -8246,6 +8332,7 @@ test("can create then update collections optimistically out of order after an ac
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -8668,6 +8755,7 @@ test("regular collection actions are added to optimistic state", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -8703,6 +8791,7 @@ test("regular collection actions are added to optimistic state", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -8782,6 +8871,7 @@ test("regular collection actions are added to optimistic state with multiple act
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -8817,6 +8907,7 @@ test("regular collection actions are added to optimistic state with multiple act
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -8935,6 +9026,7 @@ test("regular collection actions are added to optimistic state with multiple act
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -8970,6 +9062,7 @@ test("regular collection actions are added to optimistic state with multiple act
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -9097,6 +9190,7 @@ test("regular actions are added to optimistic state when collection is not backf
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -9192,6 +9286,7 @@ test("regular actions are added to optimistic state with multiple actions when c
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -9326,6 +9421,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -9490,6 +9586,7 @@ test("regular actions are added to optimistic state when collection is created o
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -9645,6 +9742,7 @@ test("regular actions are added to optimistic state with multiple actions when c
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -9841,6 +9939,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -10140,6 +10239,7 @@ test("backfilling a collection when none exists and there are optimistic actions
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -10168,6 +10268,7 @@ test("backfilling a collection when none exists and there are optimistic actions
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -10237,6 +10338,7 @@ test("backfilling a collection when one is already backfilled and there are opti
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -10272,6 +10374,7 @@ test("backfilling a collection when one is already backfilled and there are opti
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -10366,6 +10469,7 @@ test("backfilling a collection when there are optimistic actions but no previous
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -10420,6 +10524,7 @@ test("backfilling a collection when there are optimistic actions but no previous
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -10491,6 +10596,7 @@ test("applies collection commit action calls optimistically (rejected)", async (
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -10852,6 +10958,7 @@ test("can create then update collections optimistically after an action from the
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -11089,6 +11196,7 @@ test("can create then update collections optimistically out of order after an ac
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -11484,6 +11592,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -11519,6 +11628,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -11598,6 +11708,7 @@ test("regular collection actions are added to optimistic state with multiple act
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -11633,6 +11744,7 @@ test("regular collection actions are added to optimistic state with multiple act
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -11748,6 +11860,7 @@ test("regular collection actions are added to optimistic state with multiple act
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -11783,6 +11896,7 @@ test("regular collection actions are added to optimistic state with multiple act
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -11907,6 +12021,7 @@ test("regular actions are added to optimistic state when collection is not backf
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -12002,6 +12117,7 @@ test("regular actions are added to optimistic state with multiple actions when c
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -12133,6 +12249,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -12294,6 +12411,7 @@ test("regular actions are added to optimistic state when collection is created o
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -12446,6 +12564,7 @@ test("regular actions are added to optimistic state with multiple actions when c
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -12636,6 +12755,7 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -12923,6 +13043,7 @@ test("backfilling a collection when none exists and there are optimistic actions
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -12951,6 +13072,7 @@ test("backfilling a collection when none exists and there are optimistic actions
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -13020,6 +13142,7 @@ test("backfilling a collection when one is already backfilled and there are opti
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -13055,6 +13178,7 @@ test("backfilling a collection when one is already backfilled and there are opti
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -13149,6 +13273,7 @@ test("backfilling a collection when there are optimistic actions but no previous
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [action3],
         backfillAuthorizedTasks: [],
@@ -13203,6 +13328,7 @@ test("backfilling a collection when there are optimistic actions but no previous
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 2,
         actions: [],
         backfillAuthorizedTasks: [],
@@ -13322,6 +13448,7 @@ test("create collection applied after optimistic updates", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -13464,6 +13591,7 @@ test("create collection applied after optimistic updates that are resolved out o
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -13609,6 +13737,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],
@@ -13748,6 +13877,7 @@ test("create collection applied after optimistic updates that are resolved out o
 
     store.applyUpdateEvent({
         type: "Update",
+        originClientId: null,
         number: 1,
         actions: [action1],
         backfillAuthorizedTasks: [],

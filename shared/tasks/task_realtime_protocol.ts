@@ -3,6 +3,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     TaskCollectionId,
     TaskId,
+    TaskRealtimeClientId,
     TaskRealtimeCollectionSubscriptionId,
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
@@ -32,6 +33,7 @@ export const TaskRealtimeUpdateEventSchema = Schema.object({
     backfillAuthorizedCollections: Schema.array(TaskCollectionModel.schema),
     backfillUnauthorizedCollectionIds: Schema.array(Schema.id<TaskCollectionId>()),
     referencedAccounts: Schema.array(AccountModel.schema),
+    originClientId: Schema.id<TaskRealtimeClientId>().nullable(),
 });
 
 const TaskQuerySortCursorSchema = Schema.array(

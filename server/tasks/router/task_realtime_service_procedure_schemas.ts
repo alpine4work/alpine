@@ -1,4 +1,9 @@
-import {BrowserId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    BrowserId,
+    TaskCollectionId,
+    TaskId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -12,6 +17,7 @@ import {
 export const TaskRealtimeApplyActionTransactionInputSchema = Schema.object({
     committedTime: Schema.date,
     actions: Schema.array(TaskActionSchema),
+    clientId: Schema.id<TaskRealtimeClientId>().nullable(),
 });
 
 export const TaskRealtimeLoadQueriesInputSchema = Schema.object({

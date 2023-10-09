@@ -30,7 +30,13 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
@@ -414,6 +420,7 @@ export class TaskRealtimeServer {
             spaceId: SpaceId;
             committedTime: Date;
             actions: ReadonlyArray<TaskAction>;
+            clientId: TaskRealtimeClientId | null;
         },
     ) {
         // Must be a system actor since the action transaction doesn't include
@@ -453,11 +460,7 @@ export class TaskRealtimeServer {
         this._actionHistory.addActionTransaction(actionTransaction, referencedAccounts);
 
         const store = this._storeBySpaceId.get(actionTransaction.spaceId);
-        await store?.applyActionTransaction(
-            context,
-            actionTransaction.actions,
-            referencedAccountById,
-        );
+        await store?.applyActionTransaction(context, actionTransaction, referencedAccountById);
     }
 
     /**

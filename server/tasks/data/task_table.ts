@@ -63,6 +63,7 @@ import {
     TaskActionTransactionId,
     TaskCollectionId,
     TaskId,
+    TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
@@ -167,6 +168,11 @@ const TaskActionTable = DynamoTableSchema.new({
                          * processed so we can retry if necessary.
                          */
                         wasProcessed: Schema.boolean,
+
+                        /**
+                         * An optional identifier provided by the client who committed this action.
+                         */
+                        clientId: Schema.id<TaskRealtimeClientId>().nullable().default(null),
                     }),
                 },
             ],
@@ -595,6 +601,7 @@ export const afterCommitTaskActionTransactionEventEmitterForTest = import.meta.j
           spaceId: SpaceId;
           committedTime: Date;
           actions: ReadonlyArray<TaskAction>;
+          clientId: TaskRealtimeClientId | null;
           processPromise: Promise<void>;
       }>()
     : null;
@@ -621,6 +628,7 @@ export function commitTaskActionTransaction(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     actions: ReadonlyArray<TaskAction>,
+    options: {clientId?: TaskRealtimeClientId} = {},
 ): Promise<{extraActions: ReadonlyArray<TaskAction>}> {
     return context.tracer.withSpan("Commit task action transaction", async (context, span) => {
         span.addData({
@@ -634,6 +642,7 @@ export function commitTaskActionTransaction(
             context,
             spaceId,
             actions,
+            options,
         );
 
         span.addData({
@@ -739,6 +748,7 @@ function afterCommitTaskActionTransaction(
         spaceId: actionTransactionItem.spaceId,
         committedTime: actionTransactionItem.committedTime,
         actions: actionTransactionItem.actions,
+        clientId: actionTransactionItem.clientId,
         processPromise,
     });
 }
@@ -800,6 +810,7 @@ class TaskActionTransactionCommitState {
         context: ServerSessionActionContext,
         spaceId: SpaceId,
         actions: ReadonlyArray<TaskAction>,
+        {clientId}: {clientId?: TaskRealtimeClientId} = {},
     ): Promise<{
         actionTransactionItem: TaskActionTransactionItem;
         extraActions: ReadonlyArray<TaskAction>;
@@ -954,6 +965,7 @@ class TaskActionTransactionCommitState {
                 actionTransactionId: generateId<TaskActionTransactionId>(),
                 actions: [...actions, ...extraActions],
                 wasProcessed: false,
+                clientId: clientId ?? null,
             };
 
             if (transactionEntries.length > 0) {
@@ -2421,6 +2433,7 @@ export function deleteTaskAndAllChildren(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     taskId: TaskId,
     actionTime: HybridLogicalTime,
+    options?: {clientId?: TaskRealtimeClientId},
 ): Promise<{
     spaceId: SpaceId;
     actions: ReadonlyArray<TaskAction>;
@@ -2660,6 +2673,7 @@ export function deleteTaskAndAllChildren(
                     : []),
             ],
             wasProcessed: false,
+            clientId: options?.clientId ?? null,
         };
 
         transactionEntries.push(
@@ -2717,6 +2731,7 @@ export async function internalGetUpdateSessionActorAccountNameTaskTransactionEnt
                 },
             ],
             wasProcessed: false,
+            clientId: null,
         };
 
         return actionTransactionItem;

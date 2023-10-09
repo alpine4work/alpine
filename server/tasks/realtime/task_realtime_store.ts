@@ -44,7 +44,13 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    SpaceId,
+    TaskCollectionId,
+    TaskId,
+    TaskRealtimeClientId,
+} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -219,11 +225,18 @@ export class TaskRealtimeStore {
 
     public applyActionTransaction(
         context: TaskRealtimeSystemActionContext,
-        actions: ReadonlyArray<TaskAction>,
+        actionTransaction: {
+            actions: ReadonlyArray<TaskAction>;
+            clientId: TaskRealtimeClientId | null;
+        },
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
     ): Promise<void> {
         return this._withFatalErrorHandling(context, () =>
-            this._internal.applyActionTransaction(context, actions, actionReferencedAccountById),
+            this._internal.applyActionTransaction(
+                context,
+                actionTransaction,
+                actionReferencedAccountById,
+            ),
         );
     }
 
@@ -609,14 +622,20 @@ export class TaskRealtimeStoreInternal {
      */
     public applyActionTransaction(
         context: TaskRealtimeSystemActionContext,
-        actions: ReadonlyArray<TaskAction>,
+        actionTransaction: {
+            actions: ReadonlyArray<TaskAction>;
+            clientId: TaskRealtimeClientId | null;
+        },
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
     ): Promise<void> {
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder({actionReferencedAccountById});
+        const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+            originClientId: actionTransaction.clientId,
+            actionReferencedAccountById,
+        });
 
         const queriesByMaybeAddVisibleTaskIdToLoad = this._applyActionTransactionSync(
             context,
-            actions,
+            actionTransaction.actions,
             actionReferencedAccountById,
             eventBuilder,
         );
