@@ -16,6 +16,9 @@ patchedDependencies:
   '@cloudflare/workers-types@3.18.0':
     hash: hd2oz2xlphxbe5w65c4x3qmfrm
     path: admin/patches/@cloudflare__workers-types@3.18.0.patch
+  '@dnd-kit/utilities@3.2.1':
+    hash: di55vvis5paiupfudkzzxlvcfm
+    path: admin/patches/@dnd-kit__utilities@3.2.1.patch
   '@playwright/test@1.31.1':
     hash: 645z6zzf2yttz7gk24haek5rhi
     path: admin/patches/@playwright__test@1.31.1.patch
@@ -115,7 +118,7 @@ dependencies:
     specifier: ^3.18.0
     version: 3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)
   '@dnd-kit/core':
-    specifier: ^6.0.8
+    specifier: 6.0.8
     version: 6.0.8(react-dom@18.2.0)(react@18.2.0)
   '@dnd-kit/modifiers':
     specifier: ^6.0.1
@@ -123,6 +126,9 @@ dependencies:
   '@dnd-kit/sortable':
     specifier: ^7.0.2
     version: 7.0.2(@dnd-kit/core@6.0.8)(react@18.2.0)
+  '@dnd-kit/utilities':
+    specifier: 3.2.1
+    version: 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
   '@internationalized/date':
     specifier: ^3.5.0
     version: 3.5.0
@@ -2680,10 +2686,10 @@ packages:
       react-dom: '>=16.8.0 || 18'
     dependencies:
       '@dnd-kit/accessibility': 3.0.1(react@18.2.0)
-      '@dnd-kit/utilities': 3.2.1(react@18.2.0)
+      '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
-      tslib: 2.4.0
+      tslib: 2.5.0
     dev: false
 
   /@dnd-kit/modifiers@6.0.1(@dnd-kit/core@6.0.8)(react@18.2.0):
@@ -2693,7 +2699,7 @@ packages:
       react: '>=16.8.0 || 18'
     dependencies:
       '@dnd-kit/core': 6.0.8(react-dom@18.2.0)(react@18.2.0)
-      '@dnd-kit/utilities': 3.2.1(react@18.2.0)
+      '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.4.0
     dev: false
@@ -2705,12 +2711,12 @@ packages:
       react: '>=16.8.0 || 18'
     dependencies:
       '@dnd-kit/core': 6.0.8(react-dom@18.2.0)(react@18.2.0)
-      '@dnd-kit/utilities': 3.2.1(react@18.2.0)
+      '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.5.0
     dev: false
 
-  /@dnd-kit/utilities@3.2.1(react@18.2.0):
+  /@dnd-kit/utilities@3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0):
     resolution: {integrity: sha512-OOXqISfvBw/1REtkSK2N3Fi2EQiLMlWUlqnOK/UpOISqBZPWpE6TqL+jcPtMOkE8TqYGiURvRdPSI9hltNUjEA==}
     peerDependencies:
       react: '>=16.8.0 || 18'
@@ -2718,6 +2724,7 @@ packages:
       react: 18.2.0
       tslib: 2.5.0
     dev: false
+    patched: true
 
   /@emotion/hash@0.8.0:
     resolution: {integrity: sha512-kBJtf7PH6aWwZ6fka3zQ0p6SBYzx4fl1LoZXE2RrnYST9Xljm7WfKJrU4g/Xr3Beg72MLrp1AWNUmuYJTL7Cow==}
