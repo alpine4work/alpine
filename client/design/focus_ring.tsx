@@ -208,9 +208,9 @@ export function useIsFocusRingVisible({
                 return;
             }
 
-            const isActive = () => {
+            const isActive = (focusedElement: Element | null) => {
                 // If there is an element focused...
-                if (!document.activeElement) return false;
+                if (!focusedElement) return false;
 
                 // And there is not another element with a focus ring. This may happen when
                 // `isVisibleWhenFocusWithin` is true and we have a child with a `<FocusRing>`.
@@ -221,8 +221,8 @@ export function useIsFocusRingVisible({
                 // 1. We are the focused element
                 // 2. A child is focused and `isVisibleWhenFocusWithin` is true.
                 const isFocused =
-                    document.activeElement === targetElement ||
-                    (isVisibleWhenFocusWithin && targetElement.contains(document.activeElement));
+                    focusedElement === targetElement ||
+                    (isVisibleWhenFocusWithin && targetElement.contains(focusedElement));
 
                 if (!isFocused) return false;
 
@@ -244,7 +244,7 @@ export function useIsFocusRingVisible({
             const update = (event?: FocusEvent) => {
                 const focusedElement =
                     event?.type === "focusout"
-                        ? (event.relatedTarget as Node | null)
+                        ? (event.relatedTarget as Element | null)
                         : document.activeElement;
 
                 const nextIsFocused = isVisibleWhenFocusWithin
@@ -264,7 +264,7 @@ export function useIsFocusRingVisible({
                     // the visuals of an element in `onFocus` or `onBlur` we don't have a tear with
                     // the focus ring in a weird state.
                     runWithImmediatePriority(() => {
-                        if (isActive()) {
+                        if (isActive(focusedElement)) {
                             currentActiveElement = targetElement;
                             setIsActive(true);
                         } else {

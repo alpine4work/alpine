@@ -2,6 +2,7 @@ import {PressEvent} from "@react-types/shared";
 import {IconContext, SpinnerGap} from "phosphor-react";
 import {
     ButtonHTMLAttributes,
+    KeyboardEvent,
     PointerEvent,
     ReactNode,
     Ref,
@@ -168,6 +169,11 @@ function IconButton(
          * [1]: https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerleave_event
          */
         onPointerLeave?: (event: PointerEvent) => void;
+
+        /**
+         * `keydown` event fired during the capture phase.
+         */
+        onKeyDownCapture?: (event: KeyboardEvent) => void;
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -191,6 +197,7 @@ function IconButton(
         onHoverStart,
         onHoverEnd,
         onPointerLeave,
+        onKeyDownCapture,
     } = props;
     const localRef = useRef<HTMLButtonElement>(null);
     const showToast = useShowToast();
@@ -395,7 +402,7 @@ function IconButton(
                         cast<ButtonHTMLAttributes<HTMLButtonElement>>(
                             !isTabbable ? {tabIndex: -1} : {},
                         ),
-                        {onPointerLeave},
+                        {onPointerLeave, onKeyDownCapture},
                     )}
                     ref={useMergedRefs(foreignRef, localRef)}
                     className={sprinkles({

@@ -22,8 +22,8 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 export type TaskRowDueDateCellRef = {
     focusCell(): void;
-    focusInputStart(): void;
-    focusInputEnd(): void;
+    focusCellInputStart(): void;
+    focusCellInputEnd(): void;
 };
 
 const TaskRowDueDateCellForwardRef = forwardRef(TaskRowDueDateCell);
@@ -33,13 +33,13 @@ function TaskRowDueDateCell(
     {
         store,
         task,
-        onCellKeyDown,
+        onCellKeyDownCapture,
         focusPreviousCell,
         focusNextCell,
     }: {
         store: TaskClientStore;
         task: TaskModel | null;
-        onCellKeyDown: (event: KeyboardEvent) => void;
+        onCellKeyDownCapture: (event: KeyboardEvent) => void;
         focusPreviousCell: () => void;
         focusNextCell: () => void;
     },
@@ -58,12 +58,12 @@ function TaskRowDueDateCell(
         ref,
         () => ({
             focusCell: () => assertExists(cellRef.current).focus(),
-            focusInputStart: () => {
+            focusCellInputStart: () => {
                 getNextFocusableElementIfExists(null, {
                     withinElement: assertExists(inputContainerRef.current),
                 })?.focus();
             },
-            focusInputEnd: () => {
+            focusCellInputEnd: () => {
                 getLastFocusableElementIfExists({
                     withinElement: assertExists(inputContainerRef.current),
                 })?.focus();
@@ -73,7 +73,7 @@ function TaskRowDueDateCell(
     );
 
     return (
-        <FocusRing offset="0" insetBottom="border">
+        <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
             <Box
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 tabIndex={-1}
@@ -97,11 +97,7 @@ function TaskRowDueDateCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
-                onKeyDown={event => {
-                    if (event.target === event.currentTarget) {
-                        onCellKeyDown(event);
-                    }
-                }}
+                onKeyDownCapture={onCellKeyDownCapture}
             >
                 <Box
                     ref={inputContainerRef}
@@ -137,6 +133,8 @@ function TaskRowDueDateCell(
                                 },
                             ]);
                         }}
+                        // Keyboard navigation in grid view is not done with the tab key.
+                        isTabbable={false}
                         onArrowLeftLeaveKeyDown={focusPreviousCell}
                         onArrowRightLeaveKeyDown={focusNextCell}
                     />

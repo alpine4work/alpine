@@ -20,7 +20,10 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {TaskRowTitleChildTasksButton} from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
+import {
+    TaskRowTitleChildTasksButton,
+    TaskRowTitleChildTasksButtonRef,
+} from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
@@ -130,6 +133,8 @@ function TaskRowTitleInput(
         preserveLastTaskTitleArrowNavigationCoord,
         focusFirstVisibleTaskTitleStart,
         focusLastVisibleTaskTitleEnd,
+        focusNextCell,
+        focusPreviousCell,
     }: {
         capabilities: TaskGridViewCapabilities;
         title: TaskTitleModel;
@@ -152,8 +157,8 @@ function TaskRowTitleInput(
         preserveLastTaskTitleArrowNavigationCoord: () => void;
         focusFirstVisibleTaskTitleStart: () => void;
         focusLastVisibleTaskTitleEnd: () => void;
-        // NOCOMMIT:
-        // focusTaskNextCell: () => void;
+        focusNextCell: () => void;
+        focusPreviousCell: () => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
@@ -164,6 +169,7 @@ function TaskRowTitleInput(
         | {isReady: false; callbacks: Set<(view: EditorView) => void>}
         | {isReady: true; view: EditorView}
     >({isReady: false, callbacks: new Set()});
+    const childTasksButtonRef = useRef<TaskRowTitleChildTasksButtonRef>(null);
 
     const titleYDoc = useTaskTitleModelYDoc(title, onTitleChange);
 
@@ -272,16 +278,31 @@ function TaskRowTitleInput(
                 }
                 break;
             }
+            case "ArrowLeft": {
+                if (
+                    view.state.selection.from === view.state.selection.to &&
+                    view.state.selection.from === 0
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    focusPreviousCell();
+                }
+                break;
+            }
             case "ArrowRight": {
-                // NOCOMMIT:
-                // if (
-                //     view.state.selection.from === view.state.selection.to &&
-                //     view.state.selection.from === view.state.doc.nodeSize - 2
-                // ) {
-                //     event.preventDefault();
-                //     event.stopPropagation();
-                //     focusTaskNextCell();
-                // }
+                if (
+                    view.state.selection.from === view.state.selection.to &&
+                    view.state.selection.from === view.state.doc.nodeSize - 2
+                ) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (childTaskCount > 0) {
+                        assertExists(childTasksButtonRef.current).focus();
+                    } else {
+                        focusNextCell();
+                    }
+                }
                 break;
             }
             case "Tab": {
@@ -701,10 +722,29 @@ function TaskRowTitleInput(
                         )}
                     {childTaskCount > 0 && (
                         <TaskRowTitleChildTasksButton
+                            ref={childTasksButtonRef}
                             childTaskCount={childTaskCount}
                             closedChildTaskCount={closedChildTaskCount}
                             areChildTasksExpanded={areChildTasksExpanded}
                             onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
+                            onKeyDown={event => {
+                                switch (event.key) {
+                                    case "ArrowLeft": {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+
+                                        focusEnd();
+                                        break;
+                                    }
+                                    case "ArrowRight": {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+
+                                        focusNextCell();
+                                        break;
+                                    }
+                                }
+                            }}
                         />
                     )}
                 </div>

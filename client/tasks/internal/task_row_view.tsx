@@ -1,10 +1,12 @@
 import {useDraggable} from "@dnd-kit/core";
+import {setInteractionModality} from "@react-aria/interactions";
 import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
     KeyboardEvent,
     Ref,
     forwardRef,
+    useEffect,
     useId,
     useImperativeHandle,
     useMemo,
@@ -19,6 +21,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
+import {tooltipDelayMs} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
@@ -44,6 +47,10 @@ import {
     TaskRowAssigneeCellRef,
 } from "~/client/tasks/internal/task_row_assignee_cell.js";
 import {
+    TaskRowCollectionsCell,
+    TaskRowCollectionsCellRef,
+} from "~/client/tasks/internal/task_row_collections_cell.js";
+import {
     TaskRowDueDateCell,
     TaskRowDueDateCellRef,
 } from "~/client/tasks/internal/task_row_due_date_cell.js";
@@ -67,6 +74,7 @@ import {
 } from "~/client/tasks/task_row_shared_styles.js";
 import {Context} from "~/shared/context/context.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -367,7 +375,7 @@ function TaskRowView(
     const assigneeCellRef = useRef<TaskRowAssigneeCellRef>(null);
     const priorityCellRef = useRef<TaskRowPriorityCellRef>(null);
     const dueDateCellRef = useRef<TaskRowDueDateCellRef>(null);
-    const collectionsCellRef = useRef<HTMLDivElement>(null);
+    const collectionsCellRef = useRef<TaskRowCollectionsCellRef>(null);
 
     const {
         isTitleFocused,
@@ -438,7 +446,12 @@ function TaskRowView(
                 return;
             }
             case "Title": {
-                assertExists(titleCellRef.current).focus();
+                // If we have no columns then directly focus the title input.
+                if (!capabilities.hasColumns) {
+                    assertExists(titleInputRef.current).focusStart();
+                } else {
+                    assertExists(titleCellRef.current).focus();
+                }
                 return;
             }
             case "Assignee": {
@@ -454,7 +467,47 @@ function TaskRowView(
                 return;
             }
             case "Collections": {
-                assertExists(collectionsCellRef.current).focus();
+                assertExists(collectionsCellRef.current).focusCell();
+                return;
+            }
+            default:
+                throw exhaustive(column);
+        }
+    });
+
+    const focusCellInput = useEvent((column: TaskGridViewColumn) => {
+        // Noop if the column isn't rendered. This means it should be safe for us to
+        // assert that the ref for our column exists since it shouldn't be included in
+        // `columns` unless it's rendered.
+        if (!columns.includes(column)) return;
+
+        switch (column) {
+            case "ExpandButton": {
+                assertExists(expandButtonRef.current).focus();
+                return;
+            }
+            case "StatusButton": {
+                assertExists(statusButtonRef.current).focus();
+                return;
+            }
+            case "Title": {
+                assertExists(titleInputRef.current).focusAll();
+                return;
+            }
+            case "Assignee": {
+                assertExists(assigneeCellRef.current).focusCellInput();
+                return;
+            }
+            case "Priority": {
+                assertExists(priorityCellRef.current).focusCellInput();
+                return;
+            }
+            case "DueDate": {
+                assertExists(dueDateCellRef.current).focusCellInputStart();
+                return;
+            }
+            case "Collections": {
+                assertExists(collectionsCellRef.current).focusCellInputStart();
                 return;
             }
             default:
@@ -486,50 +539,141 @@ function TaskRowView(
         focusCell(previousColumn);
     };
 
-    const handleCellKeyDown = (column: TaskGridViewColumn, event: KeyboardEvent) => {
+    // We implement the ARIA grid keyboard shortcuts for our grid view cells. We do
+    // not implement the full grid spec at the moment since our virtualized list
+    // approach leads to flattening all our rows in the DOM.
+    //
+    // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
+    //
+    // Should be called in the capture phase of event handling.
+    const handleCellKeyDownCapture = (column: TaskGridViewColumn, event: KeyboardEvent) => {
         switch (event.key) {
+            // Moves focus one cell to the left. If focus is on the left-most cell in the
+            // row, focus does not move.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
             case "ArrowLeft": {
+                if (event.target !== event.currentTarget) break;
+
                 event.preventDefault();
                 event.stopPropagation();
 
                 focusPreviousCell(column);
                 break;
             }
+
+            // Moves focus one cell to the right. If focus is on the right-most cell in the
+            // row, focus does not move.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
             case "ArrowRight": {
+                if (event.target !== event.currentTarget) break;
+
                 event.preventDefault();
                 event.stopPropagation();
 
                 focusNextCell(column);
                 break;
             }
+
+            // Moves focus one cell up. If focus is on the top cell in the column, focus
+            // does not move.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
             case "ArrowUp": {
+                if (event.target !== event.currentTarget) break;
+
                 event.preventDefault();
                 event.stopPropagation();
 
                 focusPreviousTaskCell(column);
                 break;
             }
+
+            // Moves focus one cell down. If focus is on the bottom cell in the column,
+            // focus does not move.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
             case "ArrowDown": {
+                if (event.target !== event.currentTarget) break;
+
                 event.preventDefault();
                 event.stopPropagation();
 
                 focusNextTaskCell(column);
                 break;
             }
+
+            // Moves focus down an author-determined number of rows, typically scrolling so
+            // the bottom row in the currently visible set of rows becomes one of the first
+            // visible rows. If focus is in the last row of the grid, focus does not move.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
             case "PageDown": {
                 // NOCOMMIT
                 break;
             }
+
+            // Moves focus up an author-determined number of rows, typically scrolling so
+            // the top row in the currently visible set of rows becomes one of the last
+            // visible rows. If focus is in the first row of the grid, focus does not move.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
             case "PageUp": {
                 // NOCOMMIT
                 break;
             }
+
+            // Moves focus to the first cell in the row that contains focus.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
+            //
+            // (We don't implement Ctrl+Home since we haven't implemented jumping to the
+            // end of the grid and scrolling up.)
             case "Home": {
                 // NOCOMMIT
                 break;
             }
+
+            // Moves focus to the last cell in the row that contains focus.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
+            //
+            // (We don't implement Ctrl+Home since we haven't implemented jumping to the
+            // end of the grid and scrolling up.)
             case "End": {
                 // NOCOMMIT
+                break;
+            }
+
+            // `Enter`: Disables grid navigation and:
+            //
+            // - If the cell contains editable content, places focus in an input field,
+            //   such as a textbox. If the input is a single-line text field, a subsequent
+            //   press of `Enter` may either restore grid navigation functions or move
+            //   focus to an input field in a neighboring cell.
+            // - If the cell contains one or more widgets, places focus on the first
+            //   widget.
+            //
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
+            case "Enter": {
+                if (event.target !== event.currentTarget) break;
+
+                // Hitting enter on a button should activate the button.
+                if (event.target.tagName === "BUTTON" || event.target.role === "button") break;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                focusCellInput(column);
+                break;
+            }
+
+            // Restores grid navigation. If content was being edited, it may also undo edits.
+            // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
+            //
+            // Being in the `keydown` capture phase is essential. In case the cell input has
+            // an `Escape` handler that simply closes a dropdown or blurs the input.
+            case "Escape": {
+                // Only refocus the cell if we got this `keydown` from a child.
+                if (event.target === event.currentTarget) break;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                focusCell(column);
                 break;
             }
         }
@@ -894,9 +1038,6 @@ function TaskRowView(
                                             opacity={
                                                 isHovered || isExpandButtonFocused ? "100" : "0"
                                             }
-                                            onKeyDown={event =>
-                                                handleCellKeyDown("ExpandButton", event)
-                                            }
                                         >
                                             <IconButton
                                                 ref={expandButtonRef}
@@ -927,6 +1068,9 @@ function TaskRowView(
                                                     }
                                                 }}
                                                 onFocusChange={setIsExpandButtonFocused}
+                                                onKeyDownCapture={event =>
+                                                    handleCellKeyDownCapture("ExpandButton", event)
+                                                }
                                             >
                                                 <ArrowsOutSimple />
                                             </IconButton>
@@ -946,9 +1090,6 @@ function TaskRowView(
                                         className={
                                             tasksStyles.pointerEventsNoneNotInheritedClassName
                                         }
-                                        onKeyDown={event =>
-                                            handleCellKeyDown("StatusButton", event)
-                                        }
                                     >
                                         {hasTask ? (
                                             <TaskStatusButton
@@ -961,6 +1102,9 @@ function TaskRowView(
                                                 isFocusable={true}
                                                 isTabbable={false}
                                                 isDisabled={capabilities.isReadOnly}
+                                                onKeyDownCapture={event =>
+                                                    handleCellKeyDownCapture("StatusButton", event)
+                                                }
                                             />
                                         ) : (
                                             <Box
@@ -975,17 +1119,15 @@ function TaskRowView(
                                 </Box>
                             )}
                         </Box>
-                        <FocusRing offset="0" insetBottom="border">
+                        <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
                             <Box
                                 ref={titleCellRef}
-                                tabIndex={isFirstRow ? 0 : -1}
+                                tabIndex={
+                                    capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined
+                                }
                                 flexGrow="1"
                                 overflow="hidden"
-                                onKeyDown={event => {
-                                    if (event.target === event.currentTarget) {
-                                        handleCellKeyDown("Title", event);
-                                    }
-                                }}
+                                onKeyDownCapture={event => handleCellKeyDownCapture("Title", event)}
                             >
                                 <TaskRowTitleInput
                                     ref={titleInputRef}
@@ -1022,6 +1164,8 @@ function TaskRowView(
                                         focusFirstVisibleTaskTitleStart
                                     }
                                     focusLastVisibleTaskTitleEnd={focusLastVisibleTaskTitleEnd}
+                                    focusNextCell={() => focusNextCell("Title")}
+                                    focusPreviousCell={() => focusPreviousCell("Title")}
                                 />
                             </Box>
                         </FocusRing>
@@ -1031,7 +1175,9 @@ function TaskRowView(
                                     ref={assigneeCellRef}
                                     store={query.store}
                                     task={task}
-                                    onCellKeyDown={event => handleCellKeyDown("Assignee", event)}
+                                    onCellKeyDownCapture={event =>
+                                        handleCellKeyDownCapture("Assignee", event)
+                                    }
                                     focusNextCell={() => focusNextCell("Assignee")}
                                     focusPreviousCell={() => focusPreviousCell("Assignee")}
                                 />
@@ -1039,7 +1185,9 @@ function TaskRowView(
                                     ref={priorityCellRef}
                                     store={query.store}
                                     task={task}
-                                    onCellKeyDown={event => handleCellKeyDown("Priority", event)}
+                                    onCellKeyDownCapture={event =>
+                                        handleCellKeyDownCapture("Priority", event)
+                                    }
                                     focusNextCell={() => focusNextCell("Priority")}
                                     focusPreviousCell={() => focusPreviousCell("Priority")}
                                 />
@@ -1047,24 +1195,21 @@ function TaskRowView(
                                     ref={dueDateCellRef}
                                     store={query.store}
                                     task={task}
-                                    onCellKeyDown={event => handleCellKeyDown("DueDate", event)}
+                                    onCellKeyDownCapture={event =>
+                                        handleCellKeyDownCapture("DueDate", event)
+                                    }
                                     focusNextCell={() => focusNextCell("DueDate")}
                                     focusPreviousCell={() => focusPreviousCell("DueDate")}
                                 />
-                                <FocusRing offset="0" insetBottom="border">
-                                    <Box
-                                        ref={collectionsCellRef}
-                                        tabIndex={-1}
-                                        flexShrink="0"
-                                        width={taskRowViewCollectionsColumnWidth}
-                                        overflow="hidden"
-                                        onKeyDown={event => {
-                                            if (event.target === event.currentTarget) {
-                                                handleCellKeyDown("Collections", event);
-                                            }
-                                        }}
-                                    />
-                                </FocusRing>
+                                <TaskRowCollectionsCell
+                                    ref={collectionsCellRef}
+                                    query={query}
+                                    task={task}
+                                    onCellKeyDownCapture={event =>
+                                        handleCellKeyDownCapture("Collections", event)
+                                    }
+                                    focusPreviousCell={() => focusPreviousCell("Collections")}
+                                />
                             </>
                         )}
                         <Box
@@ -1077,13 +1222,13 @@ function TaskRowView(
                             // This is an affordance for mouse users, does not need to be usable
                             // by keyboard.
                             cursor={
-                                false && capabilities.hasColumns // NOCOMMIT
+                                capabilities.hasColumns
                                     ? undefined
                                     : !capabilities.isReadOnly
                                     ? "text"
                                     : undefined
                             }
-                            pointerEvents={false && capabilities.hasColumns ? "none" : undefined} // NOCOMMIT
+                            pointerEvents={capabilities.hasColumns ? "none" : undefined}
                             {...useOutOfBoundsClickSelection({
                                 isDisabled: capabilities.isReadOnly,
                                 onSelect: focusTitleEnd,

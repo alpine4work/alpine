@@ -58,7 +58,6 @@ import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {invertSelectionColorsClassName, sprinkles} from "~/shared/styles/styles.js";
 import {emptyTaskTitleModel, taskFallbackTitle} from "~/shared/tasks/model/task_title_model.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
-import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
@@ -703,8 +702,7 @@ function TaskDetailViewMain({
                         {({"aria-labelledby": ariaLabelledBy}) => (
                             <TaskCollectionsInput
                                 referencesSubscription={taskSubscription}
-                                taskId={taskId}
-                                collections={task?.getCollections() ?? TaskCollectionSet.empty}
+                                task={task}
                                 aria-labelledby={ariaLabelledBy}
                                 // NOCOMMIT: Test!
                                 isReadOnly={isReadOnly}

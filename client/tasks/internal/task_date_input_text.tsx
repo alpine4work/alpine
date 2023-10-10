@@ -31,6 +31,7 @@ export function TaskDateInputText({
     color,
     focusRingOffset,
     focusRingAroundText,
+    isTabbable,
     onArrowLeftLeaveKeyDown,
     onArrowRightLeaveKeyDown,
 }: {
@@ -49,6 +50,7 @@ export function TaskDateInputText({
     // By default the focus ring is around the full area of the input but if you
     // want it just around the text (excluding margins) you may set this to true.
     focusRingAroundText: boolean;
+    isTabbable: boolean;
     onArrowLeftLeaveKeyDown: (() => void) | undefined;
     onArrowRightLeaveKeyDown: (() => void) | undefined;
 }) {
@@ -195,6 +197,7 @@ export function TaskDateInputText({
                                 }
                                 isFirstSegment={index === 0}
                                 isLastSegment={index === state.segments.length - 1}
+                                isTabbable={isTabbable}
                                 onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
                                 onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}
                                 focusStart={focusStart}
@@ -261,6 +264,7 @@ function TaskDateInputTextSegment({
     isLastSegment,
     onArrowLeftLeaveKeyDown,
     onArrowRightLeaveKeyDown,
+    isTabbable,
     focusStart,
     focusEnd,
 }: {
@@ -272,6 +276,7 @@ function TaskDateInputTextSegment({
     paddingRight: "0" | "1" | "1.5" | undefined;
     isFirstSegment: boolean;
     isLastSegment: boolean;
+    isTabbable: boolean;
     onArrowLeftLeaveKeyDown: (() => void) | undefined;
     onArrowRightLeaveKeyDown: (() => void) | undefined;
     focusStart: () => void;
@@ -309,6 +314,7 @@ function TaskDateInputTextSegment({
             <Box
                 {...mergedSegmentProps}
                 ref={ref}
+                tabIndex={!isTabbable ? -1 : mergedSegmentProps.tabIndex}
                 className={tasksStyles.taskDateInputTextSegmentClassName}
                 backgroundColor={isFocused ? "theme-selection" : undefined}
                 // `react-aria`s click support for non-editable segments isn't super reliable.

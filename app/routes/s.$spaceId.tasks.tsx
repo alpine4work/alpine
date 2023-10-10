@@ -32,6 +32,9 @@ export default function TasksLayoutRoute() {
         }
     }
 
+    // If we're rendering an error instead of the route, show a border bottom.
+    if (error) withoutBorderBottom = false;
+
     return (
         // Strange format to override the `<SpaceLayoutTopBar>` bottom border with a
         // lighter color since our `<TasksLayoutRoute>` has a top bar of its own. We

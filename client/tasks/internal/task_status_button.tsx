@@ -1,7 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
 import {compareDesc} from "date-fns";
-import {Ref, forwardRef, useRef} from "react";
-import {useButton} from "react-aria";
+import {KeyboardEvent, Ref, forwardRef, useRef} from "react";
+import {mergeProps, useButton} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -74,6 +74,8 @@ function TaskStatusButton(
         isDisabled = false,
         isFocusable = true,
         isTabbable = true,
+        onKeyDown,
+        onKeyDownCapture,
     }: {
         store: TaskClientStore;
         task: TaskModel;
@@ -81,6 +83,8 @@ function TaskStatusButton(
         isDisabled?: boolean;
         isFocusable?: boolean;
         isTabbable?: boolean;
+        onKeyDown?: (event: KeyboardEvent) => void;
+        onKeyDownCapture?: (event: KeyboardEvent) => void;
     },
     ref: Ref<HTMLElement>,
 ) {
@@ -131,6 +135,7 @@ function TaskStatusButton(
                     ]);
                 }
             },
+            onKeyDown,
         },
         buttonRef,
     );
@@ -139,7 +144,7 @@ function TaskStatusButton(
         <FocusRing>
             {isFocusable ? (
                 <button
-                    {...buttonProps}
+                    {...mergeProps(buttonProps, {onKeyDownCapture})}
                     ref={mergedButtonRef as any}
                     tabIndex={!isTabbable ? -1 : undefined}
                     className={sprinkles({
@@ -157,7 +162,7 @@ function TaskStatusButton(
                 </button>
             ) : (
                 <div
-                    {...buttonProps}
+                    {...mergeProps(buttonProps, {onKeyDownCapture})}
                     ref={mergedButtonRef as any}
                     // Remove `tabIndex` from button props if this button is not focusable.
                     tabIndex={undefined}

@@ -37,6 +37,7 @@ export function TaskDateInput({
     overlayOffset = defaultTooltipOffset,
     focusRingOffset,
     focusRingAroundText = false,
+    isTabbable = true,
     onArrowLeftLeaveKeyDown,
     onArrowRightLeaveKeyDown,
 }: {
@@ -56,6 +57,7 @@ export function TaskDateInput({
     overlayOffset?: Spacing | `-${Spacing}` | RemLength;
     focusRingOffset?: "0";
     focusRingAroundText?: boolean;
+    isTabbable?: boolean;
     onArrowLeftLeaveKeyDown?: () => void;
     onArrowRightLeaveKeyDown?: () => void;
 }) {

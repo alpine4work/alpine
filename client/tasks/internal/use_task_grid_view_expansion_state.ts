@@ -1,4 +1,4 @@
-import {RefObject, useCallback, useEffect, useRef, useState} from "react";
+import {RefObject, useEffect, useRef, useState} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -38,8 +38,6 @@ function createTaskGridViewExpansionStateManager({
     sorts,
     initialState,
     broadcastChannelRef,
-    addRetainedQueryStore,
-    removeRetainedQueryStore,
 }: {
     getContext: () => AppContext;
     store: TaskClientStore;
@@ -48,8 +46,6 @@ function createTaskGridViewExpansionStateManager({
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     initialState: TaskGridViewExpansionState;
     broadcastChannelRef: RefObject<BroadcastChannel | null>;
-    addRetainedQueryStore: (queryStore: Store<TaskClientQuery | undefined>) => void;
-    removeRetainedQueryStore: (queryStore: Store<TaskClientQuery | undefined>) => void;
 }) {
     let state: TaskGridViewExpansionState = null;
     const areChildTasksExpandedStoreByTaskPath = new StoreMap<string, true>();
@@ -158,6 +154,90 @@ function createTaskGridViewExpansionStateManager({
         }
     };
 
+    const iterateExpandedTaskIds = (): Iterable<{
+        taskId: TaskId;
+        getTaskPath: () => Array<TaskId>;
+    }> =>
+        mapIterable(areChildTasksExpandedStoreByTaskPath.keysSnapshot(), taskPath => {
+            const lastTaskIdStartIndex = taskPath.lastIndexOf("-");
+            const taskId =
+                lastTaskIdStartIndex === -1
+                    ? (taskPath as TaskId)
+                    : (taskPath.slice(lastTaskIdStartIndex + 1) as TaskId);
+            return {taskId, getTaskPath: () => taskPath.split("-") as Array<TaskId>};
+        });
+
+    let isMounted = false;
+
+    const retainedQueryStores = new Map<
+        Store<TaskClientQuery | undefined>,
+        {referenceCount: number; unsubscribe: () => void}
+    >();
+
+    const addRetainedQueryStore = (queryStore: Store<TaskClientQuery | undefined>) => {
+        // We only hold onto retained queries while mounted.
+        if (!isMounted) return;
+
+        const retainedQueryStore = retainedQueryStores.get(queryStore);
+        if (retainedQueryStore) {
+            retainedQueryStore.referenceCount++;
+        } else {
+            let query = queryStore.getSnapshot();
+            query?.retain();
+
+            retainedQueryStores.set(queryStore, {
+                referenceCount: 1,
+                unsubscribe: queryStore.subscribe(() => {
+                    const newQuery = queryStore.getSnapshot();
+                    newQuery?.retain();
+                    query?.release();
+                    query = newQuery;
+                }),
+            });
+        }
+    };
+
+    const removeRetainedQueryStore = (queryStore: Store<TaskClientQuery | undefined>) => {
+        // We only hold onto retained queries while mounted.
+        if (!isMounted) return;
+
+        const retainedQueryStore = retainedQueryStores.get(queryStore);
+        assert(retainedQueryStore, "Query store is not retained");
+
+        retainedQueryStore.referenceCount--;
+
+        if (retainedQueryStore.referenceCount === 0) {
+            retainedQueryStores.delete(queryStore);
+            retainedQueryStore.unsubscribe();
+            queryStore.getSnapshot()?.release();
+        }
+    };
+
+    const mount = () => {
+        assert(!isMounted);
+        isMounted = true;
+
+        batchStoreUpdates(() => {
+            for (const {taskId} of iterateExpandedTaskIds()) {
+                addRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
+            }
+        });
+    };
+
+    const unmount = () => {
+        assert(isMounted);
+
+        batchStoreUpdates(() => {
+            for (const {taskId} of iterateExpandedTaskIds()) {
+                removeRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
+            }
+        });
+
+        isMounted = false;
+
+        assert(retainedQueryStores.size === 0, "Expected all retained queries to be released");
+    };
+
     // Update locally with our initial state. This will also update our stores.
     updateLocally(() => initialState);
 
@@ -168,6 +248,8 @@ function createTaskGridViewExpansionStateManager({
         sorts,
         update,
         updateLocally,
+        mount,
+        unmount,
 
         /**
          * Is the task at this path expanded? Should not be called during React render
@@ -191,15 +273,7 @@ function createTaskGridViewExpansionStateManager({
          * expanded multiple times in our grid view. To get the full (unique) path of
          * a task you may call `getTaskPath()`.
          */
-        iterateExpandedTaskIds: (): Iterable<{taskId: TaskId; getTaskPath: () => Array<TaskId>}> =>
-            mapIterable(areChildTasksExpandedStoreByTaskPath.keysSnapshot(), taskPath => {
-                const lastTaskIdStartIndex = taskPath.lastIndexOf("-");
-                const taskId =
-                    lastTaskIdStartIndex === -1
-                        ? (taskPath as TaskId)
-                        : (taskPath.slice(lastTaskIdStartIndex + 1) as TaskId);
-                return {taskId, getTaskPath: () => taskPath.split("-") as Array<TaskId>};
-            }),
+        iterateExpandedTaskIds,
 
         /**
          * Iterate all expanded `TaskId`s in our state under a certain path. Should not
@@ -269,54 +343,7 @@ export function useTaskGridViewExpansionState({
     const getContext = useEvent(() => context);
     const browserId = useBrowserId();
 
-    const isMountedRef = useRef(false);
     const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
-
-    const retainedQueryStoresRef = useRef<
-        Map<Store<TaskClientQuery | undefined>, {referenceCount: number; unsubscribe: () => void}>
-    >(new Map());
-
-    const addRetainedQueryStore = useCallback((queryStore: Store<TaskClientQuery | undefined>) => {
-        // We only hold onto retained queries while mounted.
-        if (!isMountedRef.current) return;
-
-        const retainedQueryStore = retainedQueryStoresRef.current.get(queryStore);
-        if (retainedQueryStore) {
-            retainedQueryStore.referenceCount++;
-        } else {
-            let query = queryStore.getSnapshot();
-            query?.retain();
-
-            retainedQueryStoresRef.current.set(queryStore, {
-                referenceCount: 1,
-                unsubscribe: queryStore.subscribe(() => {
-                    const newQuery = queryStore.getSnapshot();
-                    newQuery?.retain();
-                    query?.release();
-                    query = newQuery;
-                }),
-            });
-        }
-    }, []);
-
-    const removeRetainedQueryStore = useCallback(
-        (queryStore: Store<TaskClientQuery | undefined>) => {
-            // We only hold onto retained queries while mounted.
-            if (!isMountedRef.current) return;
-
-            const retainedQueryStore = retainedQueryStoresRef.current.get(queryStore);
-            assert(retainedQueryStore, "Query store is not retained");
-
-            retainedQueryStore.referenceCount--;
-
-            if (retainedQueryStore.referenceCount === 0) {
-                retainedQueryStoresRef.current.delete(queryStore);
-                retainedQueryStore.unsubscribe();
-                queryStore.getSnapshot()?.release();
-            }
-        },
-        [],
-    );
 
     const [stateManager, setStateManager] = useState(() =>
         createTaskGridViewExpansionStateManager({
@@ -327,8 +354,6 @@ export function useTaskGridViewExpansionState({
             sorts,
             initialState,
             broadcastChannelRef,
-            addRetainedQueryStore,
-            removeRetainedQueryStore,
         }),
     );
 
@@ -348,8 +373,6 @@ export function useTaskGridViewExpansionState({
                 sorts,
                 initialState,
                 broadcastChannelRef,
-                addRetainedQueryStore,
-                removeRetainedQueryStore,
             }),
         );
     }
@@ -361,38 +384,13 @@ export function useTaskGridViewExpansionState({
     // On initial load our server is responsible for preloading some child query
     // tasks so they'll be available for us in the store.
     useEffect(() => {
-        isMountedRef.current = true;
-
-        batchStoreUpdates(() => {
-            for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
-                addRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
-            }
-        });
-
-        return () => {
-            batchStoreUpdates(() => {
-                for (const {taskId} of stateManager.iterateExpandedTaskIds()) {
-                    removeRetainedQueryStore(store.getTaskChildrenQueryStore(taskId));
-                }
-            });
-
-            assert(
-                // eslint-disable-next-line react-hooks/exhaustive-deps
-                retainedQueryStoresRef.current.size === 0,
-                "Expected all retained queries to be released",
-            );
-
-            isMountedRef.current = false;
-        };
-    }, [addRetainedQueryStore, removeRetainedQueryStore, stateManager, store]);
+        stateManager.mount();
+        return () => stateManager.unmount();
+    }, [stateManager]);
 
     const toggleAreChildTasksExpanded = useEvent(
         (taskPath: ReadonlyArray<TaskId>, {onFinish}: {onFinish?: () => void} = {}) => {
             batchStoreUpdates(() => {
-                // Our mount effect manages our retain/release cycle. If we're unmounted then
-                // we shouldn't be retaining/releasing resources.
-                assert(isMountedRef.current);
-
                 assert(taskPath.length > 0);
                 const taskId = taskPath[taskPath.length - 1]!;
 

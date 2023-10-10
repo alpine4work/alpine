@@ -76,6 +76,7 @@ function TaskPriorityInput(
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         color = "grey-text",
+        isTabbable = true,
         onArrowLeftLeaveKeyDown,
         onArrowRightLeaveKeyDown,
     }: {
@@ -85,6 +86,7 @@ function TaskPriorityInput(
         "aria-label"?: string;
         "aria-labelledby"?: string;
         color?: "grey-text" | "grey-60";
+        isTabbable?: boolean;
         onArrowLeftLeaveKeyDown?: () => void;
         onArrowRightLeaveKeyDown?: () => void;
     },
@@ -337,6 +339,7 @@ function TaskPriorityInput(
                         <InputWithAutoGrowingWidth
                             {...inputProps}
                             ref={inputRef}
+                            tabIndex={!isTabbable ? -1 : undefined}
                             placeholder={priority ? selectionInputValue : getTaskPriorityName(null)}
                             className={sprinkles({color, height: "4"})}
                             style={{

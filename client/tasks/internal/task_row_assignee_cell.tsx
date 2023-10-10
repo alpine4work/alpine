@@ -25,7 +25,7 @@ import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 
 export type TaskRowAssigneeCellRef = {
     focusCell(): void;
-    focusInput(): void;
+    focusCellInput(): void;
 };
 
 const TaskRowAssigneeCellForwardRef = forwardRef(TaskRowAssigneeCell);
@@ -35,13 +35,13 @@ function TaskRowAssigneeCell(
     {
         store,
         task,
-        onCellKeyDown,
+        onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
     }: {
         store: TaskClientStore;
         task: TaskModel | null;
-        onCellKeyDown: (event: KeyboardEvent) => void;
+        onCellKeyDownCapture: (event: KeyboardEvent) => void;
         focusNextCell: () => void;
         focusPreviousCell: () => void;
     },
@@ -63,13 +63,13 @@ function TaskRowAssigneeCell(
         ref,
         () => ({
             focusCell: () => assertExists(cellRef.current).focus(),
-            focusInput: () => assertExists(inputRef.current).focus(),
+            focusCellInput: () => assertExists(inputRef.current).focus(),
         }),
         [],
     );
 
     return (
-        <FocusRing offset="0" insetBottom="border">
+        <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
             <Box
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 tabIndex={-1}
@@ -86,11 +86,7 @@ function TaskRowAssigneeCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
-                onKeyDown={event => {
-                    if (event.target === event.currentTarget) {
-                        onCellKeyDown(event);
-                    }
-                }}
+                onKeyDownCapture={onCellKeyDownCapture}
             >
                 <Box
                     height={taskRowViewMinHeight}
