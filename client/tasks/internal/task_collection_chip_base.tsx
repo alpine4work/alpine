@@ -77,7 +77,7 @@ function TaskCollectionChipBase(
                         borderRadius="sm"
                         // The user focuses the pill as a whole and hits the delete key to delete using
                         // the keyboard.
-                        disableKeyboardFocus={true}
+                        isTabbable={false}
                         description="Remove"
                         withoutTooltip={true}
                         onPress={onRemove}

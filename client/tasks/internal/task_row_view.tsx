@@ -40,6 +40,18 @@ import {TaskGridViewDraggableData} from "~/client/tasks/internal/task_grid_view_
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {
+    TaskRowAssigneeCell,
+    TaskRowAssigneeCellRef,
+} from "~/client/tasks/internal/task_row_assignee_cell.js";
+import {
+    TaskRowDueDateCell,
+    TaskRowDueDateCellRef,
+} from "~/client/tasks/internal/task_row_due_date_cell.js";
+import {
+    TaskRowPriorityCell,
+    TaskRowPriorityCellRef,
+} from "~/client/tasks/internal/task_row_priority_cell.js";
+import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
 } from "~/client/tasks/internal/task_row_title_input.js";
@@ -50,11 +62,7 @@ import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {
     taskRowViewCollectionsColumnWidth,
-    taskRowViewColumnPaddingX,
-    taskRowViewColumnWidth,
-    taskRowViewFirstColumnPaddingLeft,
-    taskRowViewFirstColumnWidth,
-    taskRowViewLastColumnPaddingRight,
+    taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {Context} from "~/shared/context/context.js";
@@ -84,30 +92,33 @@ import {
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
-export type TaskGridViewColumn = (typeof taskGridViewColumns)[number];
+export type TaskGridViewColumn =
+    | "ExpandButton"
+    | "StatusButton"
+    | "Title"
+    | "Assignee"
+    | "Priority"
+    | "DueDate"
+    | "Collections";
 
-const taskGridViewColumns = [
-    "ExpandButton",
-    "StatusButton",
-    "Title",
-    "Assignee",
-    "Priority",
-    "DueDate",
-    "Collections",
-] as const;
-
-function getNextTaskGridViewColumnIfExists(column: TaskGridViewColumn): TaskGridViewColumn | null {
-    const index = taskGridViewColumns.indexOf(column);
-    assert(index !== -1);
-    return index < taskGridViewColumns.length - 1 ? taskGridViewColumns[index + 1]! : null;
+function getNextTaskGridViewColumnIfExists(
+    columns: ReadonlyArray<TaskGridViewColumn>,
+    currentColumn: TaskGridViewColumn,
+): TaskGridViewColumn | null {
+    const index = columns.indexOf(currentColumn);
+    if (index === -1) return null;
+    if (index === columns.length - 1) return null;
+    return columns[index + 1]!;
 }
 
 function getPreviousTaskGridViewColumnIfExists(
-    column: TaskGridViewColumn,
+    columns: ReadonlyArray<TaskGridViewColumn>,
+    currentColumn: TaskGridViewColumn,
 ): TaskGridViewColumn | null {
-    const index = taskGridViewColumns.indexOf(column);
-    assert(index !== -1);
-    return index > 0 ? taskGridViewColumns[index - 1]! : null;
+    const index = columns.indexOf(currentColumn);
+    if (index === -1) return null;
+    if (index === 0) return null;
+    return columns[index - 1]!;
 }
 
 export type TaskRowViewRef = {
@@ -119,6 +130,12 @@ export type TaskRowViewRef = {
     focusTitleSelection(selection: Selection): void;
     focusCell(column: TaskGridViewColumn): void;
 };
+
+// NOCOMMIT: Check rendering performance and maybe hand write `<div>` instead
+// of `<Box>`? Look for other performance optimizations.
+//
+// For instance, we shouldn't re-render every row when pressing enter to add a
+// new row. This is taking a ridiculously long time right now.
 
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
 export {TaskRowViewForwardRef as TaskRowView};
@@ -347,11 +364,10 @@ function TaskRowView(
     const titleCellRef = useRef<HTMLDivElement>(null);
     const titleInputRef = useRef<TaskRowTitleInputRef>(null);
     const denseFieldsRef = useRef<TaskRowViewDenseFieldsRef>(null);
-    // NOCOMMIT:
-    // const assigneeCellRef = useRef<TaskRowAssigneeCellRef>(null);
-    // const priorityCellRef = useRef<TaskRowPriorityCellRef>(null);
-    // const dueDateCellRef = useRef<TaskRowDueDateCellRef>(null);
-    // const collectionsCellRef = useRef<TaskRowCollectionsCellRef>(null);
+    const assigneeCellRef = useRef<TaskRowAssigneeCellRef>(null);
+    const priorityCellRef = useRef<TaskRowPriorityCellRef>(null);
+    const dueDateCellRef = useRef<TaskRowDueDateCellRef>(null);
+    const collectionsCellRef = useRef<HTMLDivElement>(null);
 
     const {
         isTitleFocused,
@@ -384,19 +400,40 @@ function TaskRowView(
         [],
     );
 
+    const hasTask = !!task;
+
+    const columns = useMemo(() => {
+        const columns: Array<TaskGridViewColumn> = [];
+
+        if (hasTask) {
+            columns.push("ExpandButton");
+            columns.push("StatusButton");
+        }
+
+        columns.push("Title");
+
+        if (capabilities.hasColumns) {
+            columns.push("Assignee");
+            columns.push("Priority");
+            columns.push("DueDate");
+            columns.push("Collections");
+        }
+
+        return columns;
+    }, [capabilities.hasColumns, hasTask]);
+
     const focusCell = useEvent((column: TaskGridViewColumn) => {
+        // Noop if the column isn't rendered. This means it should be safe for us to
+        // assert that the ref for our column exists since it shouldn't be included in
+        // `columns` unless it's rendered.
+        if (!columns.includes(column)) return;
+
         switch (column) {
             case "ExpandButton": {
-                // If this is a ghost task then we won't have an expand button.
-                if (!task) return;
-
                 assertExists(expandButtonRef.current).focus();
                 return;
             }
             case "StatusButton": {
-                // If this is a ghost task then we won't have a status button.
-                if (!task) return;
-
                 assertExists(statusButtonRef.current).focus();
                 return;
             }
@@ -405,27 +442,19 @@ function TaskRowView(
                 return;
             }
             case "Assignee": {
-                // Noop if we aren't rendering columns.
-                if (!capabilities.hasColumns) return;
-
+                assertExists(assigneeCellRef.current).focusCell();
                 return;
             }
             case "Priority": {
-                // Noop if we aren't rendering columns.
-                if (!capabilities.hasColumns) return;
-
+                assertExists(priorityCellRef.current).focusCell();
                 return;
             }
             case "DueDate": {
-                // Noop if we aren't rendering columns.
-                if (!capabilities.hasColumns) return;
-
+                assertExists(dueDateCellRef.current).focusCell();
                 return;
             }
             case "Collections": {
-                // Noop if we aren't rendering columns.
-                if (!capabilities.hasColumns) return;
-
+                assertExists(collectionsCellRef.current).focus();
                 return;
             }
             default:
@@ -443,26 +472,34 @@ function TaskRowView(
         focusCell,
     }));
 
+    const focusNextCell = (column: TaskGridViewColumn) => {
+        const nextColumn = getNextTaskGridViewColumnIfExists(columns, column);
+        if (!nextColumn) return;
+
+        focusCell(nextColumn);
+    };
+
+    const focusPreviousCell = (column: TaskGridViewColumn) => {
+        const previousColumn = getPreviousTaskGridViewColumnIfExists(columns, column);
+        if (!previousColumn) return;
+
+        focusCell(previousColumn);
+    };
+
     const handleCellKeyDown = (column: TaskGridViewColumn, event: KeyboardEvent) => {
         switch (event.key) {
             case "ArrowLeft": {
                 event.preventDefault();
                 event.stopPropagation();
 
-                const previousColumn = getPreviousTaskGridViewColumnIfExists(column);
-                if (!previousColumn) break;
-
-                focusCell(previousColumn);
+                focusPreviousCell(column);
                 break;
             }
             case "ArrowRight": {
                 event.preventDefault();
                 event.stopPropagation();
 
-                const nextColumn = getNextTaskGridViewColumnIfExists(column);
-                if (!nextColumn) break;
-
-                focusCell(nextColumn);
+                focusNextCell(column);
                 break;
             }
             case "ArrowUp": {
@@ -796,7 +833,7 @@ function TaskRowView(
                                     height={taskRowViewMinHeight}
                                     className={tasksStyles.pointerEventsNoneNotInheritedClassName}
                                 >
-                                    {!capabilities.isReadOnly && task ? (
+                                    {!capabilities.isReadOnly && hasTask ? (
                                         <Box
                                             paddingRight="0.5"
                                             className={
@@ -847,7 +884,7 @@ function TaskRowView(
                                             }
                                         />
                                     )}
-                                    {task ? (
+                                    {hasTask ? (
                                         <Box
                                             width="5"
                                             paddingRight="1"
@@ -860,14 +897,15 @@ function TaskRowView(
                                             onKeyDown={event =>
                                                 handleCellKeyDown("ExpandButton", event)
                                             }
-                                            onFocus={() => setIsExpandButtonFocused(true)}
-                                            onBlur={() => setIsExpandButtonFocused(false)}
                                         >
                                             <IconButton
                                                 ref={expandButtonRef}
                                                 // Expand button is not tab focusable. Keyboard navigation within a task grid is
                                                 // not done with tab navigation.
-                                                disableKeyboardFocus={true}
+                                                isTabbable={false}
+                                                // Don't show the tooltip when focused through keyboard navigation. It's a
+                                                // little distracting to see it move as you arrow key up/down.
+                                                isTooltipVisibleWhenFocused={false}
                                                 size="xs"
                                                 description="Expand"
                                                 pressErrorTitle="Couldn’t expand task"
@@ -888,6 +926,7 @@ function TaskRowView(
                                                         );
                                                     }
                                                 }}
+                                                onFocusChange={setIsExpandButtonFocused}
                                             >
                                                 <ArrowsOutSimple />
                                             </IconButton>
@@ -911,7 +950,7 @@ function TaskRowView(
                                             handleCellKeyDown("StatusButton", event)
                                         }
                                     >
-                                        {task ? (
+                                        {hasTask ? (
                                             <TaskStatusButton
                                                 ref={statusButtonRef}
                                                 store={query.store}
@@ -955,6 +994,11 @@ function TaskRowView(
                                     onTitleChange={onTitleChange}
                                     placeholder={titlePlaceholder}
                                     indentation={parents.length}
+                                    paddingRight={
+                                        capabilities.hasColumns
+                                            ? taskRowViewFirstColumnExtraPaddingLeft
+                                            : undefined
+                                    }
                                     parentTaskEntryStore={parentTaskEntryStore}
                                     childTaskCount={task?.getChildTaskCount() ?? 0}
                                     closedChildTaskCount={task?.getClosedChildTaskCount() ?? 0}
@@ -983,91 +1027,46 @@ function TaskRowView(
                         </FocusRing>
                         {capabilities.hasColumns && (
                             <>
-                                <Box
-                                    tabIndex={-1}
-                                    flexShrink="0"
-                                    style={{
-                                        width: taskRowViewFirstColumnWidth,
-                                        paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                                    }}
-                                    paddingRight={taskRowViewColumnPaddingX}
-                                    overflow="hidden"
+                                <TaskRowAssigneeCell
+                                    ref={assigneeCellRef}
+                                    store={query.store}
+                                    task={task}
+                                    onCellKeyDown={event => handleCellKeyDown("Assignee", event)}
+                                    focusNextCell={() => focusNextCell("Assignee")}
+                                    focusPreviousCell={() => focusPreviousCell("Assignee")}
                                 />
-                                <Box
-                                    tabIndex={-1}
-                                    flexShrink="0"
-                                    width={taskRowViewColumnWidth}
-                                    paddingX={taskRowViewColumnPaddingX}
-                                    overflow="hidden"
+                                <TaskRowPriorityCell
+                                    ref={priorityCellRef}
+                                    store={query.store}
+                                    task={task}
+                                    onCellKeyDown={event => handleCellKeyDown("Priority", event)}
+                                    focusNextCell={() => focusNextCell("Priority")}
+                                    focusPreviousCell={() => focusPreviousCell("Priority")}
                                 />
-                                <Box
-                                    tabIndex={-1}
-                                    flexShrink="0"
-                                    width={taskRowViewColumnWidth}
-                                    paddingX={taskRowViewColumnPaddingX}
-                                    overflow="hidden"
+                                <TaskRowDueDateCell
+                                    ref={dueDateCellRef}
+                                    store={query.store}
+                                    task={task}
+                                    onCellKeyDown={event => handleCellKeyDown("DueDate", event)}
+                                    focusNextCell={() => focusNextCell("DueDate")}
+                                    focusPreviousCell={() => focusPreviousCell("DueDate")}
                                 />
-                                <Box
-                                    tabIndex={-1}
-                                    flexShrink="0"
-                                    width={taskRowViewCollectionsColumnWidth}
-                                    paddingLeft={taskRowViewColumnPaddingX}
-                                    paddingRight={taskRowViewLastColumnPaddingRight}
-                                    overflow="hidden"
-                                />
+                                <FocusRing offset="0" insetBottom="border">
+                                    <Box
+                                        ref={collectionsCellRef}
+                                        tabIndex={-1}
+                                        flexShrink="0"
+                                        width={taskRowViewCollectionsColumnWidth}
+                                        overflow="hidden"
+                                        onKeyDown={event => {
+                                            if (event.target === event.currentTarget) {
+                                                handleCellKeyDown("Collections", event);
+                                            }
+                                        }}
+                                    />
+                                </FocusRing>
                             </>
                         )}
-                        {/* NOCOMMIT: {capabilities.hasColumns && (
-                        <>
-                            <TaskRowAssigneeCell
-                                ref={assigneeCellRef}
-                                assignee={assignee}
-                                onAssigneeChange={onAssigneeChange}
-                                focusTaskPreviousCell={() => {
-                                    assertExists(titleInputRef.current).focusEnd();
-                                }}
-                                focusTaskNextCell={() => {
-                                    assertExists(priorityCellRef.current).focus();
-                                }}
-                            />
-                            <TaskRowPriorityCell
-                                ref={priorityCellRef}
-                                priority={priority}
-                                onPriorityChange={onPriorityChange}
-                                focusTaskPreviousCell={() => {
-                                    assertExists(assigneeCellRef.current).focus();
-                                }}
-                                focusTaskNextCell={() => {
-                                    assertExists(dueDateCellRef.current).focusStart();
-                                }}
-                            />
-                            <TaskRowDueDateCell
-                                ref={dueDateCellRef}
-                                dueDate={dueDate}
-                                onDueDateChange={onDueDateChange}
-                                focusTaskPreviousCell={() => {
-                                    assertExists(priorityCellRef.current).focus();
-                                }}
-                                focusTaskNextCell={() => {
-                                    assertExists(collectionsCellRef.current).focusStart();
-                                }}
-                            />
-                            <TaskRowCollectionsCell
-                                ref={collectionsCellRef}
-                                allCollections={allCollections}
-                                collections={collections}
-                                createCollectionAndAddToTask={createCollectionAndAddToTask}
-                                addCollectionToTask={addCollectionToTask}
-                                removeCollectionFromTask={removeCollectionFromTask}
-                                isEditing={isEditingCollections}
-                                onEditingChange={onEditingCollectionsChange}
-                                editingContainerRef={editingCollectionsContainerRef}
-                                focusTaskPreviousCell={() => {
-                                    assertExists(dueDateCellRef.current).focusEnd();
-                                }}
-                            />
-                        </>
-                    )} */}
                         <Box
                             flexShrink="0"
                             width="5"

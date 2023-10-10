@@ -128,11 +128,20 @@ function IconButton(
         tooltipContentOverride?: ReactNode;
 
         /**
+         * Is the tooltip visible when our `<IconButton>` is focused?
+         *
+         * Defaults to `true`.
+         */
+        isTooltipVisibleWhenFocused?: boolean;
+
+        /**
          * Disable focusing this button through sequential keyboard navigation using
          * the `Tab` button. This sets `tabindex="-1"` on the element. The element will
          * still be programmatically focusable.
+         *
+         * Defaults to `true`.
          */
-        disableKeyboardFocus?: boolean;
+        isTabbable?: boolean;
 
         /**
          * Disable the `overflow="hidden"` style.
@@ -176,7 +185,8 @@ function IconButton(
         tooltipPlacement = "bottom-start",
         tooltipOffset = defaultTooltipOffset,
         tooltipContentOverride,
-        disableKeyboardFocus = false,
+        isTooltipVisibleWhenFocused = true,
+        isTabbable = true,
         disableOverflowHidden = false,
         onHoverStart,
         onHoverEnd,
@@ -373,16 +383,17 @@ function IconButton(
                 ))
             }
             isDisabled={isDisabled || withoutTooltip || isPending}
+            isVisibleWhenFocused={isTooltipVisibleWhenFocused}
         >
             <FocusRing>
                 <button
                     {...mergeProps(
                         buttonProps,
                         hoverProps,
-                        // Only override `tabIndex` if `disableKeyboardFocus` is set. Otherwise let
+                        // Only override `tabIndex` if `isTabbable` is set. Otherwise let
                         // `react-aria` control `tabIndex`.
                         cast<ButtonHTMLAttributes<HTMLButtonElement>>(
-                            disableKeyboardFocus ? {tabIndex: -1} : {},
+                            !isTabbable ? {tabIndex: -1} : {},
                         ),
                         {onPointerLeave},
                     )}

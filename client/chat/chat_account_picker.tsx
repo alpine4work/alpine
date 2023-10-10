@@ -473,7 +473,7 @@ export function ChatAccountPicker({
                             variant="quiet-above-grey-5-background"
                             // The user focuses the pill as a whole and hits the delete key to delete using
                             // the keyboard.
-                            disableKeyboardFocus={true}
+                            isTabbable={false}
                             description="Remove"
                             withoutTooltip={true}
                             onPress={deleteAccount}

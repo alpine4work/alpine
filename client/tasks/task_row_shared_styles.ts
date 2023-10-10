@@ -6,7 +6,7 @@ export const taskRowViewColumnWidth: Spacing = "32";
 export const taskRowViewCollectionsColumnWidth: Spacing = "48";
 export const taskRowViewColumnPaddingX = "1.5" satisfies Spacing;
 
-const taskRowViewFirstColumnExtraPaddingLeft = spacing["6"];
+export const taskRowViewFirstColumnExtraPaddingLeft = spacing["6"];
 
 export const taskRowViewFirstColumnPaddingLeft: RemLength = addRemLengths(
     spacing[taskRowViewColumnPaddingX],

@@ -1,0 +1,142 @@
+import {KeyboardEvent, Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
+import {useAppContext} from "~/client/context/app_context.js";
+import {Box} from "~/client/design/box.js";
+import {FocusRing} from "~/client/design/focus_ring.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
+import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    TaskAssigneeInput,
+    TaskAssigneeInputRef,
+} from "~/client/tasks/internal/task_assignee_input.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {
+    taskRowViewColumnPaddingX,
+    taskRowViewColumnWidth,
+    taskRowViewMinHeight,
+} from "~/client/tasks/task_row_shared_styles.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {tasksStyles} from "~/shared/styles/styles.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+
+export type TaskRowAssigneeCellRef = {
+    focusCell(): void;
+    focusInput(): void;
+};
+
+const TaskRowAssigneeCellForwardRef = forwardRef(TaskRowAssigneeCell);
+export {TaskRowAssigneeCellForwardRef as TaskRowAssigneeCell};
+
+function TaskRowAssigneeCell(
+    {
+        store,
+        task,
+        onCellKeyDown,
+        focusNextCell,
+        focusPreviousCell,
+    }: {
+        store: TaskClientStore;
+        task: TaskModel | null;
+        onCellKeyDown: (event: KeyboardEvent) => void;
+        focusNextCell: () => void;
+        focusPreviousCell: () => void;
+    },
+    ref: Ref<TaskRowAssigneeCellRef>,
+) {
+    const context = useAppContext();
+    const {timeZone} = useClientInfo();
+    const {currentAccount} = useSpaceContext();
+
+    const assigneeAccountStore = task ? store.getTaskAssigneeAccountStore(task) : null;
+    const assigneeAccountData = useStore(assigneeAccountStore);
+
+    const cellRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<TaskAssigneeInputRef>(null);
+    const [isHovered, hoverRef] = useHoverWithOverlaySupport();
+    const [isFocusWithin, setIsFocusWithin] = useState(false);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focusCell: () => assertExists(cellRef.current).focus(),
+            focusInput: () => assertExists(inputRef.current).focus(),
+        }),
+        [],
+    );
+
+    return (
+        <FocusRing offset="0" insetBottom="border">
+            <Box
+                ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
+                tabIndex={-1}
+                flexShrink="0"
+                width={taskRowViewColumnWidth}
+                paddingX={taskRowViewColumnPaddingX}
+                overflow="hidden"
+                className={tasksStyles.textCursorNotInheritedClassName}
+                {...useOutOfBoundsClickSelection({
+                    onSelect: () => assertExists(inputRef.current).focus(),
+                    onSelectAll: () => assertExists(inputRef.current).focus(),
+                })}
+                onFocus={() => setIsFocusWithin(true)}
+                onBlur={event => {
+                    setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
+                }}
+                onKeyDown={event => {
+                    if (event.target === event.currentTarget) {
+                        onCellKeyDown(event);
+                    }
+                }}
+            >
+                <Box
+                    height={taskRowViewMinHeight}
+                    display="flex"
+                    alignItems="center"
+                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                    opacity={assigneeAccountData || isHovered || isFocusWithin ? "100" : "0"}
+                >
+                    <TaskAssigneeInput
+                        ref={inputRef}
+                        aria-label="Assignee"
+                        shouldDisplayShortName={true}
+                        assigneeAccountData={assigneeAccountData}
+                        onAssigneeAccountChange={assigneeAccount => {
+                            if (!task) return;
+
+                            const time = store.clock.now();
+
+                            store.commitTaskActionTransaction(context, [
+                                {
+                                    type: "UpdateTask",
+                                    time,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateAssignee",
+                                        assignee: assigneeAccount
+                                            ? {
+                                                  assigneeId: assigneeAccount.id,
+                                                  assignerId: currentAccount.id,
+                                                  assignedTime: new TaskFilterableTime({
+                                                      absoluteTime: time,
+                                                      setterTimeZone: timeZone,
+                                                  }),
+                                              }
+                                            : null,
+                                    },
+                                },
+                            ]);
+                        }}
+                        // Keyboard navigation in grid view is not done with the tab key.
+                        isTabbable={false}
+                        onArrowLeftLeaveKeyDown={focusPreviousCell}
+                        onArrowRightLeaveKeyDown={focusNextCell}
+                    />
+                </Box>
+            </Box>
+        </FocusRing>
+    );
+}

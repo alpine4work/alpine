@@ -324,7 +324,16 @@ export type TooltipProps = {
     offset?: Spacing;
 
     /**
+     * Do we show the tooltip if our target is focused?
+     *
+     * Defaults to `true`.
+     */
+    isVisibleWhenFocused?: boolean;
+
+    /**
      * Do we show the tooltip if a child has focus?
+     *
+     * If `isVisibleWhenFocused` is false then this prop has no effect.
      *
      * Defaults to `false`.
      */
@@ -375,6 +384,7 @@ function Tooltip(
         placement = "top",
         fallbackPlacements,
         offset = defaultTooltipOffset,
+        isVisibleWhenFocused = true,
         isVisibleWhenFocusWithin = false,
         isVisibleAfterPress = false,
         children: actualChildren,
@@ -706,6 +716,7 @@ function Tooltip(
             }
 
             function handleFocusIn(event: FocusEvent) {
+                if (!isVisibleWhenFocused) return;
                 if (!isVisibleWhenFocusWithin && event.target !== targetElement) return;
 
                 if (isFocusVisible()) {
@@ -735,6 +746,7 @@ function Tooltip(
             }
 
             function handleFocusOut(event: FocusEvent) {
+                if (!isVisibleWhenFocused) return;
                 if (!isVisibleWhenFocusWithin && event.target !== targetElement) return;
 
                 const updateState = ({isFadingOut}: {isFadingOut: boolean}) => {
@@ -828,6 +840,7 @@ function Tooltip(
             getHasActiveTooltipSymbol,
             tooltipSymbol,
             isVisibleAfterPress,
+            isVisibleWhenFocused,
             isVisibleWhenFocusWithin,
         ],
     );

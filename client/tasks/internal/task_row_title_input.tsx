@@ -25,7 +25,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
-import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -114,6 +114,7 @@ function TaskRowTitleInput(
         onTitleChange,
         placeholder,
         indentation,
+        paddingRight,
         parentTaskEntryStore,
         childTaskCount,
         closedChildTaskCount,
@@ -135,6 +136,7 @@ function TaskRowTitleInput(
         onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
         placeholder?: string;
         indentation: number;
+        paddingRight: RemLength | undefined;
         parentTaskEntryStore: Store<TaskClientStoreTaskEntry> | null;
         childTaskCount: number;
         closedChildTaskCount: number;
@@ -673,6 +675,7 @@ function TaskRowTitleInput(
                         alignSelf: "stretch",
                     }),
                 )}
+                style={{paddingRight}}
                 {...useOutOfBoundsClickSelection({
                     isDisabled: capabilities.isReadOnly,
                     onSelect: focusEnd,

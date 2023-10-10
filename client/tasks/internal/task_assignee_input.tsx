@@ -103,6 +103,7 @@ function TaskAssigneeInput(
         color = "grey-text",
         avatarSize = "5",
         shouldDisplayShortName,
+        isTabbable = true,
         onArrowLeftLeaveKeyDown,
         onArrowRightLeaveKeyDown,
     }: {
@@ -114,6 +115,7 @@ function TaskAssigneeInput(
         color?: "grey-text" | "grey-60";
         avatarSize?: "5" | "4";
         shouldDisplayShortName?: boolean;
+        isTabbable?: boolean;
         onArrowLeftLeaveKeyDown?: () => void;
         onArrowRightLeaveKeyDown?: () => void;
     },
@@ -451,6 +453,7 @@ function TaskAssigneeInput(
                         <InputWithAutoGrowingWidth
                             {...inputProps}
                             ref={inputRef}
+                            tabIndex={!isTabbable ? -1 : undefined}
                             placeholder={
                                 assigneeAccountData ? selectionInputValue : nullAssigneeLabel
                             }
