@@ -60,9 +60,9 @@ export class TestSpace {
         return this.context.systemAction(this.id);
     }
 
-    public async createSession(account?: TestAccount) {
-        if (!account) {
-            account = await TestAccount.create(this.context);
+    public async createSession(account?: TestAccount | {name?: string}) {
+        if (!account || !(account instanceof TestAccount)) {
+            account = await TestAccount.create(this.context, account);
         }
 
         const [session] = await runAllPromises([

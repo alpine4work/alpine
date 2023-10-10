@@ -32,7 +32,10 @@ import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_inte
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
+import {
+    HybridLogicalTimeSchema,
+    serializeHybridLogicalTime,
+} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {
     TaskDueDateRegister,
@@ -206,30 +209,24 @@ const TaskIndexCollectionsType = OpensearchIndexObjectType.new({
             ids: new OpensearchIndexArrayType(
                 new OpensearchIndexKeywordType({
                     isFilterable: true,
-                    isUsableInScripts: true,
                 }).validate<TaskCollectionId>(isId),
             ),
-            positionOrderTimes: new OpensearchIndexArrayType(SortableHybridLogicalTimeType),
-            positionOrderKeys: new OpensearchIndexArrayType(
-                new OpensearchIndexKeywordType({
-                    isSortable: true,
-                    isUsableInScripts: true,
-                }).validate(isOrderKey),
+            // Store a map of `TaskCollectionId` to `TaskPosition` in a string array. This
+            // is used by a script to sort tasks.
+            positions: new OpensearchIndexArrayType(
+                new OpensearchIndexKeywordType({isUsableInScripts: true}),
             ),
         },
         compute: ({raw: {collections, positionById}}) => ({
             ids: collections.getArray().map(({collectionId}) => collectionId),
-            positionOrderTimes: collections
-                .getArray()
-                .map(
-                    ({collectionId, version}) =>
-                        positionById.get(collectionId)?.orderTime ?? version,
-                ),
-            positionOrderKeys: collections
-                .getArray()
-                .map(
-                    ({collectionId}) => positionById.get(collectionId)?.orderKey ?? initialOrderKey,
-                ),
+            positions: collections.getArray().map(({collectionId, version}) => {
+                const position = positionById.get(collectionId);
+                const orderTime = position?.orderTime ?? version;
+                const orderKey = position?.orderKey ?? initialOrderKey;
+                return `${collectionId}:${serializeHybridLogicalTime(orderTime)
+                    .toString()
+                    .padStart(20, "0")}-${orderKey}`;
+            }),
         }),
     },
 });
@@ -259,24 +256,27 @@ const TaskIndexNotepadPagesType = OpensearchIndexObjectType.new({
             ids: new OpensearchIndexArrayType(
                 new OpensearchIndexKeywordType({
                     isFilterable: true,
-                    isUsableInScripts: true,
                 }).validate((value): value is `${AccountId}-${TaskNotepadPageId}` => {
                     const [value1 = "", value2 = ""] = value.split("-", 2);
                     return isId(value1) && !isNaN(parseInt(value2, 10));
                 }),
             ),
-            positionOrderTimes: new OpensearchIndexArrayType(SortableHybridLogicalTimeType),
-            positionOrderKeys: new OpensearchIndexArrayType(
-                new OpensearchIndexKeywordType({
-                    isSortable: true,
-                    isUsableInScripts: true,
-                }).validate(isOrderKey),
+            // Store a map of `${AccountId}-${TaskNotepadPageId}` to `TaskPosition` in a
+            // string array. This is used by a script to sort tasks.
+            positions: new OpensearchIndexArrayType(
+                new OpensearchIndexKeywordType({isUsableInScripts: true}),
             ),
         },
         compute: ({raw: {positionById}}) => ({
             ids: Array.from(positionById.keys()),
-            positionOrderTimes: Array.from(positionById.values(), ({orderTime}) => orderTime),
-            positionOrderKeys: Array.from(positionById.values(), ({orderKey}) => orderKey),
+            positions: Array.from(
+                positionById.entries(),
+                ([accountIdAndNotepadPageId, {orderTime, orderKey}]) => {
+                    return `${accountIdAndNotepadPageId}:${serializeHybridLogicalTime(orderTime)
+                        .toString()
+                        .padStart(20, "0")}-${orderKey}`;
+                },
+            ),
         }),
     },
 });

@@ -21,6 +21,7 @@ import {
     InternalError,
     UnknownError,
 } from "~/shared/error/error.js";
+import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -494,32 +495,66 @@ export class OpensearchClient implements OpensearchClientInterface {
                         );
                     }
 
-                    const putResponse = await fetchWithTracer(
-                        tracer,
-                        `${this._protocol}://${this._host}/${index.name}/_settings`,
-                        {
-                            spanRoute: `/${index.name}/_settings`,
-                            method: "PUT",
-                            headers: {"content-type": "application/json"},
+                    await runAllPromiseThunks(
+                        async () => {
+                            const putResponse = await fetchWithTracer(
+                                tracer,
+                                `${this._protocol}://${this._host}/${index.name}/_settings`,
+                                {
+                                    spanRoute: `/${index.name}/_settings`,
+                                    method: "PUT",
+                                    headers: {"content-type": "application/json"},
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                                    // float-64 size in settings. Ok to use native JSON stringifier instead of
+                                    // `json-bigint`.
+                                    body: JSON.stringify(
+                                        omitOpensearchStaticIndexConfig(index.config).settings,
+                                    ),
+                                },
+                            );
+
                             // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                            // float-64 size in settings. Ok to use native JSON stringifier instead of
+                            // float-64 size in settings. Ok to use native JSON parser instead of
                             // `json-bigint`.
-                            body: JSON.stringify(omitOpensearchStaticIndexConfig(index.config)),
+                            const putBody = await putResponse.json();
+
+                            if (!putResponse.ok) {
+                                throw new InternalError(
+                                    // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                                    // so it's ok to stringify with native JSON parser.
+                                    `Updating OpenSearch index failed: ${JSON.stringify(putBody)}`,
+                                );
+                            }
+                        },
+                        async () => {
+                            const putResponse = await fetchWithTracer(
+                                tracer,
+                                `${this._protocol}://${this._host}/${index.name}/_mappings`,
+                                {
+                                    spanRoute: `/${index.name}/_mappings`,
+                                    method: "PUT",
+                                    headers: {"content-type": "application/json"},
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                                    // float-64 size in settings. Ok to use native JSON stringifier instead of
+                                    // `json-bigint`.
+                                    body: JSON.stringify(index.config.mappings),
+                                },
+                            );
+
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                            // float-64 size in settings. Ok to use native JSON parser instead of
+                            // `json-bigint`.
+                            const putBody = await putResponse.json();
+
+                            if (!putResponse.ok) {
+                                throw new InternalError(
+                                    // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                                    // so it's ok to stringify with native JSON parser.
+                                    `Updating OpenSearch index failed: ${JSON.stringify(putBody)}`,
+                                );
+                            }
                         },
                     );
-
-                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                    // float-64 size in settings. Ok to use native JSON parser instead of
-                    // `json-bigint`.
-                    const putBody = await putResponse.json();
-
-                    if (!putResponse.ok) {
-                        throw new InternalError(
-                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                            // so it's ok to stringify with native JSON parser.
-                            `Updating OpenSearch index failed: ${JSON.stringify(putBody)}`,
-                        );
-                    }
                 }
             });
         });

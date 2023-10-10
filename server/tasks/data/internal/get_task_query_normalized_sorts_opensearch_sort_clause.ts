@@ -81,7 +81,7 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                                     // - Because we are using a string context we can also append the order key.
                                     //   Otherwise we'd need two sort contexts, one for the `orderTime` number and one
                                     //   for the `orderKey` string.
-                                    source: `int index = doc["collections.ids"].indexOf(params.collectionId); return index < 0 ? "${missingValue}" : String.format("%020d-%s", new def[] {doc["collections.positionOrderTimes"].get(index), doc["collections.positionOrderKeys"].get(index)});`,
+                                    source: `for (def position : doc["collections.positions"]) { if (position.startsWith(params.collectionId)) { return position.substring(params.collectionId.length() + 1); } } return "${missingValue}";`,
                                     params: {collectionId: sort.collectionId},
                                 },
                                 order: item.order,
@@ -116,7 +116,7 @@ export function getTaskQueryNormalizedSortsOpensearchSortClause(
                                     // - Because we are using a string context we can also append the order key.
                                     //   Otherwise we'd need two sort contexts, one for the `orderTime` number and one
                                     //   for the `orderKey` string.
-                                    source: `int index = doc["notepadPages.ids"].indexOf(params.accountIdAndNotepadPageId); return index < 0 ? "${missingValue}" : String.format("%020d-%s", new def[] {doc["notepadPages.positionOrderTimes"].get(index), doc["notepadPages.positionOrderKeys"].get(index)});`,
+                                    source: `for (def position : doc["notepadPages.positions"]) { if (position.startsWith(params.accountIdAndNotepadPageId)) { return position.substring(params.accountIdAndNotepadPageId.length() + 1); } } return "${missingValue}";`,
                                     params: {
                                         accountIdAndNotepadPageId: `${sort.accountId}-${sort.notepadPageId}`,
                                     },
@@ -322,9 +322,9 @@ export function convertTaskQuerySortCursorToOpensearchCursor(
                             typeof sortValue[2] === "string",
                     );
                     newCursor.push(
-                        `${String(
-                            serializeHybridLogicalTime([sortValue[0], sortValue[1]]),
-                        ).padStart(20, "0")}-${sortValue[2]}`,
+                        `${serializeHybridLogicalTime([sortValue[0], sortValue[1]])
+                            .toString()
+                            .padStart(20, "0")}-${sortValue[2]}`,
                     );
                 }
                 break;

@@ -770,9 +770,9 @@ test("sorts by assignee", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2, session3] = await runAllPromises([
-        space.createSession(),
-        space.createSession(),
-        space.createSession(),
+        space.createSession({name: "a"}),
+        space.createSession({name: "b"}),
+        space.createSession({name: "c"}),
     ]);
 
     const task1Id = generateId<TaskId>();
@@ -907,9 +907,9 @@ test("sorts by creator", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2, session3] = await runAllPromises([
-        space.createSession(),
-        space.createSession(),
-        space.createSession(),
+        space.createSession({name: "a"}),
+        space.createSession({name: "b"}),
+        space.createSession({name: "c"}),
     ]);
 
     const task1Id = generateId<TaskId>();
@@ -978,9 +978,9 @@ test("sorts by assigner", async () => {
     const space = await TestSpace.create(context);
 
     const [session1, session2, session3] = await runAllPromises([
-        space.createSession(),
-        space.createSession(),
-        space.createSession(),
+        space.createSession({name: "a"}),
+        space.createSession({name: "b"}),
+        space.createSession({name: "c"}),
     ]);
 
     const task1Id = generateId<TaskId>();

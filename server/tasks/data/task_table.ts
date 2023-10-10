@@ -4042,6 +4042,9 @@ export async function assembleTaskCollectionSearchResults(
                 collectionId,
             });
 
+            // Don't include deleted collections in results.
+            if (isTaskCollectionItemDeleted(collectionItem)) return null;
+
             // We need to double check that we have access to this collection. Since the
             // collection search index might be out of date.
             const hasAccess = await isTaskCollectionItemAccessAuthorized(
@@ -4196,6 +4199,9 @@ export async function getAffinitiveTaskCollections(
                     collectionId,
                 });
                 if (!collectionItem) return null;
+
+                // Don't include deleted collections in results.
+                if (isTaskCollectionItemDeleted(collectionItem)) return null;
 
                 // We need to double check that we have access to this collection. Since
                 // affinity scores might be out of date.
