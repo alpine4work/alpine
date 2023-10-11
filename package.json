@@ -25,9 +25,12 @@
         "@playwright/test": "^1.31.1",
         "@popperjs/core": "2.11.6",
         "@react-aria/datepicker": "3.8.0",
+        "@react-aria/i18n": "3.8.3",
         "@react-aria/interactions": "3.19.0",
+        "@react-aria/label": "3.7.1",
         "@react-aria/selection": "3.17.0",
         "@react-aria/ssr": "3.8.0",
+        "@react-aria/utils": "3.21.0",
         "@react-stately/collections": "3.10.2",
         "@react-types/shared": "3.21.0",
         "@remix-run/dev": "1.18.0",
@@ -219,7 +222,10 @@
             "@react-aria/selection@3.17.0": "admin/patches/@react-aria__selection@3.17.0.patch",
             "@react-aria/ssr@3.8.0": "admin/patches/@react-aria__ssr@3.8.0.patch",
             "@react-stately/collections@3.10.2": "admin/patches/@react-stately__collections@3.10.2.patch",
-            "@dnd-kit/utilities@3.2.1": "admin/patches/@dnd-kit__utilities@3.2.1.patch"
+            "@dnd-kit/utilities@3.2.1": "admin/patches/@dnd-kit__utilities@3.2.1.patch",
+            "@react-aria/i18n@3.8.3": "admin/patches/@react-aria__i18n@3.8.3.patch",
+            "@react-aria/utils@3.21.0": "admin/patches/@react-aria__utils@3.21.0.patch",
+            "@react-aria/label@3.7.1": "admin/patches/@react-aria__label@3.7.1.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

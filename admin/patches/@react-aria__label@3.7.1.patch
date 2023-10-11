@@ -1,0 +1,98 @@
+diff --git a/dist/import.mjs b/dist/import.mjs
+index 7146355d57da876567b98cb9b3d3bd72c49404d7..9ff542f059c5a6b8607caf49f84dfc7dfb91c194 100644
+--- a/dist/import.mjs
++++ b/dist/import.mjs
+@@ -59,18 +59,20 @@ function $d191a55c9702f145$export$8467354a121f1b9f(props) {
+ function $2baaea4c71418dea$export$294aa081a6c6f55d(props) {
+     let { description: description, errorMessage: errorMessage, isInvalid: isInvalid, validationState: validationState } = props;
+     let { labelProps: labelProps, fieldProps: fieldProps } = (0, $d191a55c9702f145$export$8467354a121f1b9f)(props);
++    // NOTE(calebmer): We patched `@react-aria/utils` to allow us to avoid
++    // re-renders when `description` and `errorMessage` are not provided.
+     let descriptionId = (0, $iD7q0$useSlotId)([
+         Boolean(description),
+         Boolean(errorMessage),
+         isInvalid,
+         validationState
+-    ]);
++    ], description === undefined);
+     let errorMessageId = (0, $iD7q0$useSlotId)([
+         Boolean(description),
+         Boolean(errorMessage),
+         isInvalid,
+         validationState
+-    ]);
++    ], errorMessage === undefined);
+     fieldProps = (0, $iD7q0$mergeProps)(fieldProps, {
+         "aria-describedby": [
+             descriptionId,
+diff --git a/dist/main.js b/dist/main.js
+index f78da7acaadd2f0c8dbba316dfafb94f547a9086..82d5b425ab4952694181c213fa123b975dd86018 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -65,18 +65,20 @@ function $ce7359c25a7dec1c$export$8467354a121f1b9f(props) {
+ function $50e2f39368b9c636$export$294aa081a6c6f55d(props) {
+     let { description: description, errorMessage: errorMessage, isInvalid: isInvalid, validationState: validationState } = props;
+     let { labelProps: labelProps, fieldProps: fieldProps } = (0, $ce7359c25a7dec1c$export$8467354a121f1b9f)(props);
++    // NOTE(calebmer): We patched `@react-aria/utils` to allow us to avoid
++    // re-renders when `description` and `errorMessage` are not provided.
+     let descriptionId = (0, $g2CPN$reactariautils.useSlotId)([
+         Boolean(description),
+         Boolean(errorMessage),
+         isInvalid,
+         validationState
+-    ]);
++    ], description === undefined);
+     let errorMessageId = (0, $g2CPN$reactariautils.useSlotId)([
+         Boolean(description),
+         Boolean(errorMessage),
+         isInvalid,
+         validationState
+-    ]);
++    ], errorMessage === undefined);
+     fieldProps = (0, $g2CPN$reactariautils.mergeProps)(fieldProps, {
+         "aria-describedby": [
+             descriptionId,
+diff --git a/dist/module.js b/dist/module.js
+index 7146355d57da876567b98cb9b3d3bd72c49404d7..9ff542f059c5a6b8607caf49f84dfc7dfb91c194 100644
+--- a/dist/module.js
++++ b/dist/module.js
+@@ -59,18 +59,20 @@ function $d191a55c9702f145$export$8467354a121f1b9f(props) {
+ function $2baaea4c71418dea$export$294aa081a6c6f55d(props) {
+     let { description: description, errorMessage: errorMessage, isInvalid: isInvalid, validationState: validationState } = props;
+     let { labelProps: labelProps, fieldProps: fieldProps } = (0, $d191a55c9702f145$export$8467354a121f1b9f)(props);
++    // NOTE(calebmer): We patched `@react-aria/utils` to allow us to avoid
++    // re-renders when `description` and `errorMessage` are not provided.
+     let descriptionId = (0, $iD7q0$useSlotId)([
+         Boolean(description),
+         Boolean(errorMessage),
+         isInvalid,
+         validationState
+-    ]);
++    ], description === undefined);
+     let errorMessageId = (0, $iD7q0$useSlotId)([
+         Boolean(description),
+         Boolean(errorMessage),
+         isInvalid,
+         validationState
+-    ]);
++    ], errorMessage === undefined);
+     fieldProps = (0, $iD7q0$mergeProps)(fieldProps, {
+         "aria-describedby": [
+             descriptionId,
+diff --git a/src/useField.ts b/src/useField.ts
+index 5cc1c338629ae2a5136a5803a5a0bb816a7fd9b0..1aaa10c9b7f8785aead782e30b6d6fad4b80fe22 100644
+--- a/src/useField.ts
++++ b/src/useField.ts
+@@ -32,8 +32,10 @@ export function useField(props: AriaFieldProps): FieldAria {
+   let {description, errorMessage, isInvalid, validationState} = props;
+   let {labelProps, fieldProps} = useLabel(props);
+ 
+-  let descriptionId = useSlotId([Boolean(description), Boolean(errorMessage), isInvalid, validationState]);
+-  let errorMessageId = useSlotId([Boolean(description), Boolean(errorMessage), isInvalid, validationState]);
++  // NOTE(calebmer): We patched `@react-aria/utils` to allow us to avoid
++  // re-renders when `description` and `errorMessage` are not provided.
++  let descriptionId = useSlotId([Boolean(description), Boolean(errorMessage), isInvalid, validationState], description === undefined);
++  let errorMessageId = useSlotId([Boolean(description), Boolean(errorMessage), isInvalid, validationState], errorMessage === undefined);
+ 
+   fieldProps = mergeProps(fieldProps, {
+     'aria-describedby': [

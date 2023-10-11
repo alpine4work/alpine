@@ -1,0 +1,229 @@
+diff --git a/dist/real-main.js b/dist/real-main.js
+index 7227c54cdac77c1baf3ad2ae11e241ac03dd1618..f40c0fffe969cb1d1e8572ca0ff306e22ccff4ca 100644
+--- a/dist/real-main.js
++++ b/dist/real-main.js
+@@ -135,6 +135,10 @@ function $2919bdec75484e64$var$updateLocale() {
+     $2919bdec75484e64$var$currentLocale = $2919bdec75484e64$export$f09106e7c6677ec5();
+     for (let listener of $2919bdec75484e64$var$listeners)listener($2919bdec75484e64$var$currentLocale);
+ }
++const ssrLocale = {
++    locale: 'en-US',
++    direction: 'ltr'
++};
+ function $2919bdec75484e64$export$188ec29ebc2bdc3a() {
+     let isSSR = (0, $87SwK$reactariassr.useIsSSR)();
+     let [defaultLocale, setDefaultLocale] = (0, $87SwK$react.useState)($2919bdec75484e64$var$currentLocale);
+@@ -148,10 +152,7 @@ function $2919bdec75484e64$export$188ec29ebc2bdc3a() {
+     }, []);
+     // We cannot determine the browser's language on the server, so default to
+     // en-US. This will be updated after hydration on the client to the correct value.
+-    if (isSSR) return {
+-        locale: "en-US",
+-        direction: "ltr"
+-    };
++    if (isSSR) return ssrLocale;
+     return defaultLocale;
+ }
+ 
+@@ -161,18 +162,20 @@ const $47fa5ec5ff482271$var$I18nContext = /*#__PURE__*/ (0, ($parcel$interopDefa
+ function $47fa5ec5ff482271$export$a54013f0d02a8f82(props) {
+     let { locale: locale, children: children } = props;
+     let defaultLocale = (0, $2919bdec75484e64$export$188ec29ebc2bdc3a)();
+-    let value = locale ? {
++    // NOTE(calebmer): Don't re-render i18n context consumers when this
++    // component re-renders.
++    let value = $87SwK$react.useMemo(() => locale ? {
+         locale: locale,
+         direction: (0, $4d65847630a056a8$export$702d680b21cbd764)(locale) ? "rtl" : "ltr"
+-    } : defaultLocale;
++    } : null, [locale]);
+     return /*#__PURE__*/ (0, ($parcel$interopDefault($87SwK$react))).createElement($47fa5ec5ff482271$var$I18nContext.Provider, {
+-        value: value
++        value: value || defaultLocale
+     }, children);
+ }
+ function $47fa5ec5ff482271$export$43bb16f9c6d9e3f7() {
+-    let defaultLocale = (0, $2919bdec75484e64$export$188ec29ebc2bdc3a)();
+     let context = (0, $87SwK$react.useContext)($47fa5ec5ff482271$var$I18nContext);
+-    return context || defaultLocale;
++    if (!context) throw new Error("Expected <I18nProvider>");
++    return context;
+ }
+ 
+ 
+diff --git a/dist/real-module.js b/dist/real-module.js
+index 99052094f3eced4abd12dad576d98528bd8ec66d..a3af7a1db64bdc058e85e92fa00d1e299f82f130 100644
+--- a/dist/real-module.js
++++ b/dist/real-module.js
+@@ -119,6 +119,10 @@ function $1e5a04cdaf7d1af8$var$updateLocale() {
+     $1e5a04cdaf7d1af8$var$currentLocale = $1e5a04cdaf7d1af8$export$f09106e7c6677ec5();
+     for (let listener of $1e5a04cdaf7d1af8$var$listeners)listener($1e5a04cdaf7d1af8$var$currentLocale);
+ }
++const ssrLocale = {
++    locale: 'en-US',
++    direction: 'ltr'
++};
+ function $1e5a04cdaf7d1af8$export$188ec29ebc2bdc3a() {
+     let isSSR = (0, $iFADg$useIsSSR)();
+     let [defaultLocale, setDefaultLocale] = (0, $iFADg$useState)($1e5a04cdaf7d1af8$var$currentLocale);
+@@ -132,10 +136,7 @@ function $1e5a04cdaf7d1af8$export$188ec29ebc2bdc3a() {
+     }, []);
+     // We cannot determine the browser's language on the server, so default to
+     // en-US. This will be updated after hydration on the client to the correct value.
+-    if (isSSR) return {
+-        locale: "en-US",
+-        direction: "ltr"
+-    };
++    if (isSSR) return ssrLocale;
+     return defaultLocale;
+ }
+ 
+@@ -145,18 +146,20 @@ const $18f2051aff69b9bf$var$I18nContext = /*#__PURE__*/ (0, $iFADg$react).create
+ function $18f2051aff69b9bf$export$a54013f0d02a8f82(props) {
+     let { locale: locale, children: children } = props;
+     let defaultLocale = (0, $1e5a04cdaf7d1af8$export$188ec29ebc2bdc3a)();
+-    let value = locale ? {
++    // NOTE(calebmer): Don't re-render i18n context consumers when this
++    // component re-renders.
++    let value = $iFADg$useMemo(() => locale ? {
+         locale: locale,
+         direction: (0, $148a7a147e38ea7f$export$702d680b21cbd764)(locale) ? "rtl" : "ltr"
+-    } : defaultLocale;
++    } : null, [locale]);
+     return /*#__PURE__*/ (0, $iFADg$react).createElement($18f2051aff69b9bf$var$I18nContext.Provider, {
+-        value: value
++        value: value || defaultLocale
+     }, children);
+ }
+ function $18f2051aff69b9bf$export$43bb16f9c6d9e3f7() {
+-    let defaultLocale = (0, $1e5a04cdaf7d1af8$export$188ec29ebc2bdc3a)();
+     let context = (0, $iFADg$useContext)($18f2051aff69b9bf$var$I18nContext);
+-    return context || defaultLocale;
++    if (!context) throw new Error('Expected <I18nProvider>');
++    return context;
+ }
+ 
+ 
+diff --git a/dist/real-module.mjs b/dist/real-module.mjs
+index 99052094f3eced4abd12dad576d98528bd8ec66d..a3af7a1db64bdc058e85e92fa00d1e299f82f130 100644
+--- a/dist/real-module.mjs
++++ b/dist/real-module.mjs
+@@ -119,6 +119,10 @@ function $1e5a04cdaf7d1af8$var$updateLocale() {
+     $1e5a04cdaf7d1af8$var$currentLocale = $1e5a04cdaf7d1af8$export$f09106e7c6677ec5();
+     for (let listener of $1e5a04cdaf7d1af8$var$listeners)listener($1e5a04cdaf7d1af8$var$currentLocale);
+ }
++const ssrLocale = {
++    locale: 'en-US',
++    direction: 'ltr'
++};
+ function $1e5a04cdaf7d1af8$export$188ec29ebc2bdc3a() {
+     let isSSR = (0, $iFADg$useIsSSR)();
+     let [defaultLocale, setDefaultLocale] = (0, $iFADg$useState)($1e5a04cdaf7d1af8$var$currentLocale);
+@@ -132,10 +136,7 @@ function $1e5a04cdaf7d1af8$export$188ec29ebc2bdc3a() {
+     }, []);
+     // We cannot determine the browser's language on the server, so default to
+     // en-US. This will be updated after hydration on the client to the correct value.
+-    if (isSSR) return {
+-        locale: "en-US",
+-        direction: "ltr"
+-    };
++    if (isSSR) return ssrLocale;
+     return defaultLocale;
+ }
+ 
+@@ -145,18 +146,20 @@ const $18f2051aff69b9bf$var$I18nContext = /*#__PURE__*/ (0, $iFADg$react).create
+ function $18f2051aff69b9bf$export$a54013f0d02a8f82(props) {
+     let { locale: locale, children: children } = props;
+     let defaultLocale = (0, $1e5a04cdaf7d1af8$export$188ec29ebc2bdc3a)();
+-    let value = locale ? {
++    // NOTE(calebmer): Don't re-render i18n context consumers when this
++    // component re-renders.
++    let value = $iFADg$useMemo(() => locale ? {
+         locale: locale,
+         direction: (0, $148a7a147e38ea7f$export$702d680b21cbd764)(locale) ? "rtl" : "ltr"
+-    } : defaultLocale;
++    } : null, [locale]);
+     return /*#__PURE__*/ (0, $iFADg$react).createElement($18f2051aff69b9bf$var$I18nContext.Provider, {
+-        value: value
++        value: value || defaultLocale
+     }, children);
+ }
+ function $18f2051aff69b9bf$export$43bb16f9c6d9e3f7() {
+-    let defaultLocale = (0, $1e5a04cdaf7d1af8$export$188ec29ebc2bdc3a)();
+     let context = (0, $iFADg$useContext)($18f2051aff69b9bf$var$I18nContext);
+-    return context || defaultLocale;
++    if (!context) throw new Error('Expected <I18nProvider>');
++    return context;
+ }
+ 
+ 
+diff --git a/src/context.tsx b/src/context.tsx
+index 1ef73a1db1ac2f6ad99aecedc85a22dd77ecfb1b..c20a45a2a3687cf7ea33e90fd4ad2f911e977f4a 100644
+--- a/src/context.tsx
++++ b/src/context.tsx
+@@ -12,7 +12,7 @@
+ 
+ import {isRTL} from './utils';
+ import {Locale, useDefaultLocale} from './useDefaultLocale';
+-import React, {ReactNode, useContext} from 'react';
++import React, {ReactNode, useContext, useMemo} from 'react';
+ 
+ export interface I18nProviderProps {
+   /** Contents that should have the locale applied. */
+@@ -30,13 +30,15 @@ export function I18nProvider(props: I18nProviderProps) {
+   let {locale, children} = props;
+   let defaultLocale = useDefaultLocale();
+ 
+-  let value: Locale = locale ? {
++  // NOTE(calebmer): Don't re-render i18n context consumers when this
++  // component re-renders.
++  let value: Locale = useMemo(() => locale ? {
+     locale,
+     direction: isRTL(locale) ? 'rtl' : 'ltr'
+-  } : defaultLocale;
++  } : null, [locale]);
+ 
+   return (
+-    <I18nContext.Provider value={value}>
++    <I18nContext.Provider value={value || defaultLocale}>
+       {children}
+     </I18nContext.Provider>
+   );
+@@ -46,7 +48,7 @@ export function I18nProvider(props: I18nProviderProps) {
+  * Returns the current locale and layout direction.
+  */
+ export function useLocale(): Locale {
+-  let defaultLocale = useDefaultLocale();
+   let context = useContext(I18nContext);
+-  return context || defaultLocale;
++  if (!context) throw new Error('Expected <I18nProvider>');
++  return context;
+ }
+diff --git a/src/useDefaultLocale.ts b/src/useDefaultLocale.ts
+index 40aae8a98fd17b6ae0bec768dfe244054cb67981..800d91e607a84591ef686ca6cb78969e36a78fb0 100644
+--- a/src/useDefaultLocale.ts
++++ b/src/useDefaultLocale.ts
+@@ -50,6 +50,11 @@ function updateLocale() {
+   }
+ }
+ 
++const ssrLocale = {
++  locale: 'en-US',
++  direction: 'ltr'
++};
++
+ /**
+  * Returns the current browser/system language, and updates when it changes.
+  */
+@@ -75,10 +80,7 @@ export function useDefaultLocale(): Locale {
+   // We cannot determine the browser's language on the server, so default to
+   // en-US. This will be updated after hydration on the client to the correct value.
+   if (isSSR) {
+-    return {
+-      locale: 'en-US',
+-      direction: 'ltr'
+-    };
++    return ssrLocale;
+   }
+ 
+   return defaultLocale;
