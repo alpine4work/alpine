@@ -1,5 +1,5 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..56b87b175a3ea901c682ec408601ce99d30051d1 100644
+index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e1865f7a6 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
 @@ -837,10 +837,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
@@ -39,7 +39,46 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..56b87b175a3ea901c682ec408601ce99
      });
  }
  
-@@ -1431,6 +1434,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+@@ -1130,22 +1133,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
+ 
+ 
+ 
++let displayNamesByLocale = null;
++
+ function $3aeceb3a64eb8358$export$d42c60378c8168f8() {
+     let { locale: locale } = (0, $cIPI0$useLocale)();
+-    return (0, $cIPI0$useMemo)(()=>{
++
++    displayNamesByLocale ||= new Map();
++
++    // NOTE(calebmer): Cache `DisplayNames` instances across components since I've
++    // found it's fairly expensive to construct! In one test, while scrolling a
++    // task grid view it took ~47ms to construct a `DisplayNames` instance.
++    let displayNames = displayNamesByLocale.get(locale);
++    if (!displayNames) {
+         // Try to use Intl.DisplayNames if possible. It may be supported in browsers, but not support the dateTimeField
+         // type as that was only added in v2. https://github.com/tc39/intl-displaynames-v2
+         try {
+             // @ts-ignore
+-            return new Intl.DisplayNames(locale, {
++            displayNames = new Intl.DisplayNames(locale, {
+                 type: "dateTimeField"
+             });
+         } catch (err) {
+-            return new $3aeceb3a64eb8358$var$DisplayNamesPolyfill(locale);
++            displayNames = new $3aeceb3a64eb8358$var$DisplayNamesPolyfill(locale);
+         }
+-    }, [
+-        locale
+-    ]);
++        displayNamesByLocale.set(locale, displayNames);
++    }
++
++    return displayNames;
+ }
+ class $3aeceb3a64eb8358$var$DisplayNamesPolyfill {
+     of(field) {
+@@ -1431,6 +1444,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
      // This is needed because VoiceOver on iOS does not announce groups.
      let name = segment.type === "literal" ? "" : displayNames.of(segment.type);
      let labelProps = (0, $cIPI0$useLabels)({
@@ -50,7 +89,7 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..56b87b175a3ea901c682ec408601ce99
          "aria-labelledby": ariaLabelledBy
      });
 diff --git a/dist/main.js b/dist/main.js
-index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..cf69f869c5c2a14c0ccb1fff22f72ba9f64bdeff 100644
+index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..3638e1ff92016c2a65636868568834fa6cf74a16 100644
 --- a/dist/main.js
 +++ b/dist/main.js
 @@ -847,10 +847,13 @@ function $715562ad3b4cced4$export$4a931266a3838b86(state, ref, disableArrowNavig
@@ -90,7 +129,46 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..cf69f869c5c2a14c0ccb1fff22f72ba9
      });
  }
  
-@@ -1441,6 +1444,9 @@ function $5c015c6316d1904d$export$1315d136e6f7581(segment, state, ref) {
+@@ -1140,22 +1143,32 @@ function $e90ae7c26a69c6b1$export$42df105a73306d51(props, state, ref) {
+ 
+ 
+ 
++let displayNamesByLocale = null;
++
+ function $934ac650a0aceb4b$export$d42c60378c8168f8() {
+     let { locale: locale } = (0, $IwcIq$reactariai18n.useLocale)();
+-    return (0, $IwcIq$react.useMemo)(()=>{
++
++    displayNamesByLocale ||= new Map();
++
++    // NOTE(calebmer): Cache `DisplayNames` instances across components since I've
++    // found it's fairly expensive to construct! In one test, while scrolling a
++    // task grid view it took ~47ms to construct a `DisplayNames` instance.
++    let displayNames = displayNamesByLocale.get(locale);
++    if (!displayNames) {
+         // Try to use Intl.DisplayNames if possible. It may be supported in browsers, but not support the dateTimeField
+         // type as that was only added in v2. https://github.com/tc39/intl-displaynames-v2
+         try {
+             // @ts-ignore
+-            return new Intl.DisplayNames(locale, {
++            displayNames = new Intl.DisplayNames(locale, {
+                 type: "dateTimeField"
+             });
+         } catch (err) {
+-            return new $934ac650a0aceb4b$var$DisplayNamesPolyfill(locale);
++            displayNames = new $934ac650a0aceb4b$var$DisplayNamesPolyfill(locale);
+         }
+-    }, [
+-        locale
+-    ]);
++        displayNamesByLocale.set(locale, displayNames);
++    }
++
++    return displayNames;
+ }
+ class $934ac650a0aceb4b$var$DisplayNamesPolyfill {
+     of(field) {
+@@ -1441,6 +1454,9 @@ function $5c015c6316d1904d$export$1315d136e6f7581(segment, state, ref) {
      // This is needed because VoiceOver on iOS does not announce groups.
      let name = segment.type === "literal" ? "" : displayNames.of(segment.type);
      let labelProps = (0, $IwcIq$reactariautils.useLabels)({
@@ -101,7 +179,7 @@ index 3764f4836ada2f3a3d0da8ba1872cbd92e67849b..cf69f869c5c2a14c0ccb1fff22f72ba9
          "aria-labelledby": ariaLabelledBy
      });
 diff --git a/dist/module.js b/dist/module.js
-index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..56b87b175a3ea901c682ec408601ce99d30051d1 100644
+index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..fb5ce3c6624951050018ee922af9c71e1865f7a6 100644
 --- a/dist/module.js
 +++ b/dist/module.js
 @@ -837,10 +837,13 @@ function $3dfb0f96be0d6a08$export$4a931266a3838b86(state, ref, disableArrowNavig
@@ -141,7 +219,46 @@ index 7356f5e6fffd016ed78399b1600792ef2a0a80e8..56b87b175a3ea901c682ec408601ce99
      });
  }
  
-@@ -1431,6 +1434,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
+@@ -1130,22 +1133,32 @@ function $6057a3d2a53a12fd$export$42df105a73306d51(props, state, ref) {
+ 
+ 
+ 
++let displayNamesByLocale = null;
++
+ function $3aeceb3a64eb8358$export$d42c60378c8168f8() {
+     let { locale: locale } = (0, $cIPI0$useLocale)();
+-    return (0, $cIPI0$useMemo)(()=>{
++
++    displayNamesByLocale ||= new Map();
++
++    // NOTE(calebmer): Cache `DisplayNames` instances across components since I've
++    // found it's fairly expensive to construct! In one test, while scrolling a
++    // task grid view it took ~47ms to construct a `DisplayNames` instance.
++    let displayNames = displayNamesByLocale.get(locale);
++    if (!displayNames) {
+         // Try to use Intl.DisplayNames if possible. It may be supported in browsers, but not support the dateTimeField
+         // type as that was only added in v2. https://github.com/tc39/intl-displaynames-v2
+         try {
+             // @ts-ignore
+-            return new Intl.DisplayNames(locale, {
++            displayNames = new Intl.DisplayNames(locale, {
+                 type: "dateTimeField"
+             });
+         } catch (err) {
+-            return new $3aeceb3a64eb8358$var$DisplayNamesPolyfill(locale);
++            displayNames = new $3aeceb3a64eb8358$var$DisplayNamesPolyfill(locale);
+         }
+-    }, [
+-        locale
+-    ]);
++        displayNamesByLocale.set(locale, displayNames);
++    }
++
++    return displayNames;
+ }
+ class $3aeceb3a64eb8358$var$DisplayNamesPolyfill {
+     of(field) {
+@@ -1431,6 +1444,9 @@ function $32489daedd52963e$export$1315d136e6f7581(segment, state, ref) {
      // This is needed because VoiceOver on iOS does not announce groups.
      let name = segment.type === "literal" ? "" : displayNames.of(segment.type);
      let labelProps = (0, $cIPI0$useLabels)({
@@ -209,3 +326,43 @@ index d11bd2761e75bd385bf0f37613f88aee06da6cf8..0c5a1fd84b410573866c418a73ccb217
      'aria-label': `${name}${ariaLabel ? `, ${ariaLabel}` : ''}${ariaLabelledBy ? ', ' : ''}`,
      'aria-labelledby': ariaLabelledBy
    });
+diff --git a/src/useDisplayNames.ts b/src/useDisplayNames.ts
+index e81694f0d9f51a9702a38cbb5146d651d098acda..068ad36d1ea0b63974569693ad99bf203b32ccfd 100644
+--- a/src/useDisplayNames.ts
++++ b/src/useDisplayNames.ts
+@@ -21,19 +21,31 @@ interface DisplayNames {
+   of(field: Field): string
+ }
+ 
++let displayNamesByLocale = null;
++
+ /** @private */
+ export function useDisplayNames(): DisplayNames {
+   let {locale} = useLocale();
+-  return useMemo(() => {
++
++  displayNamesByLocale ||= new Map();
++
++  // NOTE(calebmer): Cache `DisplayNames` instances across components since I've
++  // found it's fairly expensive to construct! In one test, while scrolling a
++  // task grid view it took ~47ms to construct a `DisplayNames` instance.
++  let displayNames = displayNamesByLocale.get(locale);
++  if (!displayNames) {
+     // Try to use Intl.DisplayNames if possible. It may be supported in browsers, but not support the dateTimeField
+     // type as that was only added in v2. https://github.com/tc39/intl-displaynames-v2
+     try {
+       // @ts-ignore
+-      return new Intl.DisplayNames(locale, {type: 'dateTimeField'});
++      displayNames = new Intl.DisplayNames(locale, {type: 'dateTimeField'});
+     } catch (err) {
+-      return new DisplayNamesPolyfill(locale);
++      displayNames = new DisplayNamesPolyfill(locale);
+     }
+-  }, [locale]);
++    displayNamesByLocale.set(locale, displayNames);
++  }
++
++  return displayNames;
+ }
+ 
+ class DisplayNamesPolyfill implements DisplayNames {
