@@ -406,14 +406,27 @@ function TaskRowTitleInput(
         // Don't render a scrollbar with our row title input.
         view.dom.dataset.scrollbar = "false";
 
-        const updateFullyScrolledState = () => {
-            setIsFullyScrolledLeft(view.dom.scrollLeft === 0);
-            setIsFullyScrolledRight(
-                Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) + 1 >= view.dom.scrollWidth,
-            );
+        const updateFullyScrolledState = (event: Event | null) => {
+            const isInitialUpdate = event === null;
+
+            const isFullyScrolledLeft = view.dom.scrollLeft === 0;
+            const isFullyScrolledRight =
+                Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) + 1 >= view.dom.scrollWidth;
+
+            // NOTE(calebmer): Unexpectedly, I've found avoiding setting state on the first
+            // render avoids unnecessary re-renders. I would have expected React to noop
+            // renders that don't change state. Maybe it behaves differently on the
+            // first render?
+            if (isInitialUpdate && !isFullyScrolledLeft) {
+                setIsFullyScrolledLeft(isFullyScrolledLeft);
+            }
+
+            if (isInitialUpdate && !isFullyScrolledRight) {
+                setIsFullyScrolledRight(isFullyScrolledRight);
+            }
         };
 
-        updateFullyScrolledState();
+        updateFullyScrolledState(null);
 
         view.dom.addEventListener("scroll", updateFullyScrolledState);
 
