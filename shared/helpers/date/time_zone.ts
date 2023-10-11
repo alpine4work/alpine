@@ -14,14 +14,22 @@ export type TimeZone = string & {readonly _TimeZone: never};
  */
 export const defaultTimeZone = "America/New_York" as TimeZone;
 
+let validTimeZones: Set<string> | null = null;
+
 /**
  * Is the provided string a valid time zone?
  */
 export function isTimeZone(string: string): string is TimeZone {
+    // Optimization: If we've already determined a `TimeZone` is valid we don't
+    // need to construct `Intl.DateTimeFormat` again.
+    validTimeZones ??= new Set();
+    if (validTimeZones.has(string)) return true;
+
     try {
         Intl.DateTimeFormat(undefined, {timeZone: string});
+        validTimeZones.add(string);
         return true;
-    } catch (ex) {
+    } catch (error) {
         return false;
     }
 }

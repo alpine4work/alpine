@@ -145,7 +145,7 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
         filters.createdDateFilter !== undefined &&
         !evaluateTaskQueryDateNormalizedFilter(
             filters.createdDateFilter,
-            task.getCreatedTime().setterDate,
+            task.getCreatedTime().getSetterDate(),
         )
     ) {
         return false;
@@ -155,7 +155,7 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
         filters.assignedDateFilter !== undefined &&
         !evaluateTaskQueryDateNormalizedFilter(
             filters.assignedDateFilter,
-            task.getAssignee()?.assignedTime.setterDate ?? null,
+            task.getAssignee()?.assignedTime.getSetterDate() ?? null,
         )
     ) {
         return false;
@@ -167,7 +167,7 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
         if (
             !evaluateTaskQueryDateNormalizedFilter(
                 filters.closedDateFilter,
-                status.type === "Closed" ? status.closedTime.setterDate : null,
+                status.type === "Closed" ? status.closedTime.getSetterDate() : null,
             )
         ) {
             return false;
@@ -180,7 +180,9 @@ export function evaluateTaskQueryNormalizedFiltersForModel(
         if (
             !evaluateTaskQueryDateNormalizedFilter(
                 filters.activatedDateFilter,
-                assigneeStatus.type === "Active" ? assigneeStatus.activatedTime.setterDate : null,
+                assigneeStatus.type === "Active"
+                    ? assigneeStatus.activatedTime.getSetterDate()
+                    : null,
             )
         ) {
             return false;

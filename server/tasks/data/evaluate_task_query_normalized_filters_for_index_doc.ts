@@ -147,7 +147,7 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
         filters.createdDateFilter !== undefined &&
         !evaluateTaskQueryDateNormalizedFilter(
             filters.createdDateFilter,
-            task.createdTime.setterDate,
+            task.createdTime.getSetterDate(),
         )
     ) {
         return false;
@@ -157,7 +157,7 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
         filters.assignedDateFilter !== undefined &&
         !evaluateTaskQueryDateNormalizedFilter(
             filters.assignedDateFilter,
-            task.assignee.value?.assignedTime.setterDate ?? null,
+            task.assignee.value?.assignedTime.getSetterDate() ?? null,
         )
     ) {
         return false;
@@ -167,7 +167,9 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
         filters.closedDateFilter !== undefined &&
         !evaluateTaskQueryDateNormalizedFilter(
             filters.closedDateFilter,
-            task.status.value.type === "Closed" ? task.status.value.closedTime.setterDate : null,
+            task.status.value.type === "Closed"
+                ? task.status.value.closedTime.getSetterDate()
+                : null,
         )
     ) {
         return false;
@@ -179,7 +181,9 @@ export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
         if (
             !evaluateTaskQueryDateNormalizedFilter(
                 filters.activatedDateFilter,
-                assigneeStatus.type === "Active" ? assigneeStatus.activatedTime.setterDate : null,
+                assigneeStatus.type === "Active"
+                    ? assigneeStatus.activatedTime.getSetterDate()
+                    : null,
             )
         ) {
             return false;

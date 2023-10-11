@@ -281,7 +281,7 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                         (!filters.closedDateFilter ||
                             evaluateTaskQueryDateNormalizedFilter(
                                 filters.closedDateFilter,
-                                action.status.closedTime.setterDate,
+                                action.status.closedTime.getSetterDate(),
                             ))
                     );
                 }
@@ -333,7 +333,7 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             const pass3 = filters.assignedDateFilter
                 ? evaluateTaskQueryDateNormalizedFilter(
                       filters.assignedDateFilter,
-                      action.assignee?.assignedTime.setterDate ?? null,
+                      action.assignee?.assignedTime.getSetterDate() ?? null,
                   )
                 : true;
 
@@ -375,7 +375,7 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
                         (!filters.activatedDateFilter ||
                             evaluateTaskQueryDateNormalizedFilter(
                                 filters.activatedDateFilter,
-                                action.assigneeStatus.activatedTime.setterDate,
+                                action.assigneeStatus.activatedTime.getSetterDate(),
                             ))
                     );
                 }

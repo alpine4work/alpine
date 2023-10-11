@@ -66,7 +66,7 @@ export class TaskFilterableTime {
      * This is used for filtering but not sorting. `absoluteTime` is used for
      * sorting. See the documentation comment on this class for why.
      */
-    public readonly setterDate: CalendarDate;
+    private _setterDate: CalendarDate | null = null;
 
     constructor({
         absoluteTime,
@@ -77,7 +77,6 @@ export class TaskFilterableTime {
     }) {
         this.absoluteTime = absoluteTime;
         this.setterTimeZone = setterTimeZone;
-        this.setterDate = getTaskFilterableTimeSetterDate(absoluteTime, setterTimeZone);
     }
 
     public static readonly schema = Schema.object({
@@ -95,6 +94,16 @@ export class TaskFilterableTime {
     public static test(absoluteTime: HybridLogicalTime) {
         assert(process.env.NODE_ENV === "test");
         return new TaskFilterableTime({absoluteTime, setterTimeZone: defaultTimeZone});
+    }
+
+    public getSetterDate(): CalendarDate {
+        if (this._setterDate === null) {
+            this._setterDate = getTaskFilterableTimeSetterDate(
+                this.absoluteTime,
+                this.setterTimeZone,
+            );
+        }
+        return this._setterDate;
     }
 
     public merge(other: TaskFilterableTime): TaskFilterableTime {

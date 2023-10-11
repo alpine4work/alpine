@@ -1,9 +1,8 @@
 import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {prosemirrorToYXmlFragment, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {Schema, SchemaDeserializationError} from "~/shared/schema/schema.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 export const TaskTitleProsemirrorSchema = new ProsemirrorSchema({
     nodes: {
@@ -59,7 +58,10 @@ export const TaskTitleProsemirrorSchema = new ProsemirrorSchema({
  */
 export type TaskTitle = Uint8Array & TaskTitleUpdate & {readonly _TaskTitle: never};
 
-function isTaskTitle(title: Uint8Array): title is TaskTitle {
+/**
+ * Checks if a `Uint8Array` is a valid `TaskTitle`.
+ */
+export function isTaskTitle(title: Uint8Array): title is TaskTitle {
     try {
         const doc = new Y.Doc();
         Y.applyUpdateV2(doc, title);
@@ -70,18 +72,11 @@ function isTaskTitle(title: Uint8Array): title is TaskTitle {
     }
 }
 
-export const TaskTitleSchema = Schema.bytes.transform<TaskTitle>({
-    serialize: title => {
-        assert(isTaskTitle(title), "Expected a `TaskTitle` Y.js update");
-        return title;
-    },
-    deserialize: title => {
-        if (!isTaskTitle(title))
-            throw new SchemaDeserializationError("Expected a `TaskTitle` Y.js update");
-
-        return title;
-    },
-});
+// We don't validate the task title bytes since the `isTaskTitle()` function is
+// actually quite expensive.
+//
+// Y.js is designed for scenarios where every client is trusted.
+export const TaskTitleSchema = Schema.bytes as any as Schema<TaskTitle>;
 
 export const emptyTaskTitleProsemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, []);
 
@@ -119,10 +114,7 @@ export function getTaskTitleText(title: TaskTitle): string {
  */
 export type TaskTitleUpdate = Uint8Array & {readonly _TaskTitleUpdate: never};
 
-export const TaskTitleUpdateSchema = Schema.bytes.transform<TaskTitleUpdate>({
-    serialize: update => update,
-    deserialize: update => update as TaskTitleUpdate,
-});
+export const TaskTitleUpdateSchema = Schema.bytes as any as Schema<TaskTitleUpdate>;
 
 export function applyTaskTitleUpdate(title: TaskTitle, titleUpdate: TaskTitleUpdate): TaskTitle {
     return Y.mergeUpdatesV2([title, titleUpdate]) as TaskTitle;
