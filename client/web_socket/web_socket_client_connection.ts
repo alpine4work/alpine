@@ -205,7 +205,7 @@ export class WebSocketClientConnection<Protocol extends WebSocketProtocolBase> {
                           }${!event.wasClean ? " (did not close cleanly)" : ""}`,
                           {
                               displayMessage: wasConnecting
-                                  ? errorDisplayMessage`Could not connect to the internet. Make sure you are online and try again.`
+                                  ? errorDisplayMessage`Couldn’t connect to the internet. Make sure you’re online and try again.`
                                   : wasOpen
                                   ? errorDisplayMessage`Your connection to our servers was ended unexpectedly. Please try again.`
                                   : undefined,

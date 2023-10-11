@@ -26,7 +26,7 @@ patchedDependencies:
     hash: tltraktq5mjexvnyazyo6z5vd4
     path: admin/patches/@popperjs__core@2.11.6.patch
   '@react-aria/datepicker@3.8.0':
-    hash: 3ouay7v7wgawbvgepqhafmokvm
+    hash: 2f27w34l6xc34ow7wlews7dwa4
     path: admin/patches/@react-aria__datepicker@3.8.0.patch
   '@react-aria/i18n@3.8.3':
     hash: 5flxrjclbjek3cdjexecq7u2by
@@ -155,7 +155,7 @@ dependencies:
     version: 2.11.6(patch_hash=tltraktq5mjexvnyazyo6z5vd4)
   '@react-aria/datepicker':
     specifier: 3.8.0
-    version: 3.8.0(patch_hash=3ouay7v7wgawbvgepqhafmokvm)(react-dom@18.2.0)(react@18.2.0)
+    version: 3.8.0(patch_hash=2f27w34l6xc34ow7wlews7dwa4)(react-dom@18.2.0)(react@18.2.0)
   '@react-aria/i18n':
     specifier: 3.8.3
     version: 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
@@ -3991,7 +3991,7 @@ packages:
       react-dom: 18.2.0(react@18.2.0)
     dev: false
 
-  /@react-aria/datepicker@3.8.0(patch_hash=3ouay7v7wgawbvgepqhafmokvm)(react-dom@18.2.0)(react@18.2.0):
+  /@react-aria/datepicker@3.8.0(patch_hash=2f27w34l6xc34ow7wlews7dwa4)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-JCzzlGbOI46IEkEgD5RPZRzpZBzgVYQnjhGw592zyl/5C68/jmNqyblF3mQxeD7qq4lFwrsNYXRCu23RiDIoSA==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
@@ -13266,7 +13266,7 @@ packages:
       '@react-aria/calendar': 3.5.1(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/checkbox': 3.11.1(react@18.2.0)
       '@react-aria/combobox': 3.7.0(react-dom@18.2.0)(react@18.2.0)
-      '@react-aria/datepicker': 3.8.0(patch_hash=3ouay7v7wgawbvgepqhafmokvm)(react-dom@18.2.0)(react@18.2.0)
+      '@react-aria/datepicker': 3.8.0(patch_hash=2f27w34l6xc34ow7wlews7dwa4)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/dialog': 3.5.6(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/dnd': 3.4.2(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/focus': 3.14.2(react@18.2.0)
