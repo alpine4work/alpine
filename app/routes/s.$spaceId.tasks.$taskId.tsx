@@ -25,6 +25,7 @@ import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_ex
 import {TaskNotesContentWithReferencesSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskRealtimeUpdateEventBackfillTask} from "~/shared/tasks/task_realtime_protocol.js";
 
 const LoaderSchema = Schema.object({
     initialMetaTitleText: Schema.string,
@@ -88,13 +89,18 @@ export async function loader({params, context: _context}: LoaderArgs) {
             getTaskNotesContent(context, taskId),
         ]);
 
-    const task = updateEvent.backfillAuthorizedTasks.find(task => task.id === taskId);
+    const backfillTask = updateEvent.backfillTasks.find(
+        (
+            backfillTask,
+        ): backfillTask is TaskRealtimeUpdateEventBackfillTask & {type: "Authorized"} =>
+            backfillTask.type === "Authorized" && backfillTask.task.id === taskId,
+    );
     const childrenQueryOutput = assertExists(queries[0]);
 
     return jsonWithSchema(
         LoaderSchema,
         {
-            initialMetaTitleText: task?.getTitle().getText() ?? "",
+            initialMetaTitleText: backfillTask?.task.getTitle().getText() ?? "",
             childrenGridViewExpansionState: childrenQueryOutput.gridViewExpansionState,
             initialBottomGhostTaskId: generateId<TaskId>(),
             notesVersion,

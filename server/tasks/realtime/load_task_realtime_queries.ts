@@ -17,13 +17,15 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
-import {generateTaskRealtimeUpdateEventNumber} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {
     AccountId,
     BrowserId,
@@ -41,6 +43,8 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 import {
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
+    TaskRealtimeUpdateEventBackfillCollection,
+    TaskRealtimeUpdateEventBackfillTask,
 } from "~/shared/tasks/task_realtime_protocol.js";
 
 /**
@@ -108,8 +112,7 @@ export async function loadTaskRealtimeQueries(
 }> {
     const accountId = context.actor.getAccountId();
 
-    // Important that we generate this event number before any asynchronous work.
-    const eventNumber = generateTaskRealtimeUpdateEventNumber();
+    const defaultAuthorizationStateVersion: HybridLogicalTime = [Date.now(), 0];
 
     const backfillAuthorizedTaskSet = new Set<TaskIndexDoc>();
     const backfillUnauthorizedTaskIds = new Set<TaskId>();
@@ -483,19 +486,26 @@ export async function loadTaskRealtimeQueries(
 
     if (hasError) throw error;
 
-    const backfillAuthorizedTasks = Array.from(backfillAuthorizedTaskSet, task =>
-        prepareTaskForClient(accountId, task),
-    );
-
-    const backfillAuthorizedCollections = Array.from(backfillAuthorizedCollectionSet, collection =>
-        prepareTaskCollectionForClient(collection),
-    );
-
     const accountIds = new Set<AccountId>();
 
-    for (const task of backfillAuthorizedTasks) {
-        collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
-    }
+    const backfillTasks = Array.from(
+        concatIterables<TaskRealtimeUpdateEventBackfillTask>(
+            mapIterable(backfillAuthorizedTaskSet, task => {
+                const taskModel = prepareTaskForClient(accountId, task);
+
+                collectReferencedAccountIdsFromTaskModelData(accountIds, taskModel.rawData);
+
+                return {
+                    type: "Authorized",
+                    task: taskModel,
+                };
+            }),
+            mapIterable(backfillUnauthorizedTaskIds, taskId => ({
+                type: "Unauthorized",
+                taskId,
+            })),
+        ),
+    );
 
     const referencedAccounts = await runAllPromises(
         Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
@@ -506,12 +516,21 @@ export async function loadTaskRealtimeQueries(
         extraQueries: extraQueries.filter(isNonNullable),
         updateEvent: {
             type: "Update",
-            number: eventNumber,
             actions: [],
-            backfillAuthorizedTasks,
-            backfillUnauthorizedTaskIds: Array.from(backfillUnauthorizedTaskIds),
-            backfillAuthorizedCollections,
-            backfillUnauthorizedCollectionIds: Array.from(backfillUnauthorizedCollectionIds),
+            backfillTasks,
+            backfillCollections: Array.from(
+                concatIterables<TaskRealtimeUpdateEventBackfillCollection>(
+                    mapIterable(backfillAuthorizedCollectionSet, collection => ({
+                        type: "Authorized",
+                        collection: prepareTaskCollectionForClient(collection),
+                    })),
+                    mapIterable(backfillUnauthorizedCollectionIds, collectionId => ({
+                        type: "Unauthorized",
+                        collectionId,
+                    })),
+                ),
+            ),
+            defaultAuthorizationStateVersion: defaultAuthorizationStateVersion,
             referencedAccounts,
             originClientId: null,
         },

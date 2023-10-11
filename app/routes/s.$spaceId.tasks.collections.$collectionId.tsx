@@ -43,6 +43,7 @@ import {
     assertNonEmptyReadonlyMap,
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {TaskRealtimeUpdateEventBackfillCollection} from "~/shared/tasks/task_realtime_protocol.js";
 
 const LoaderSchema = Schema.object({
     collectionState: Schema.union({
@@ -170,8 +171,12 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
         collectionIds: [collectionId],
     });
 
-    const collection = updateEvent.backfillAuthorizedCollections.find(
-        collection => collection.id === collectionId,
+    const backfillCollection = updateEvent.backfillCollections.find(
+        (
+            backfillCollection,
+        ): backfillCollection is TaskRealtimeUpdateEventBackfillCollection & {type: "Authorized"} =>
+            backfillCollection.type === "Authorized" &&
+            backfillCollection.collection.id === collectionId,
     );
     const queryOutput = assertExists(queries[0]);
 
@@ -180,7 +185,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
         {
             collectionState: {
                 type: "Exists",
-                initialMetaTitleText: collection?.getName() ?? "",
+                initialMetaTitleText: backfillCollection?.collection.getName() ?? "",
                 gridViewExpansionState: queryOutput.gridViewExpansionState,
             },
             initialBottomGhostTaskId: generateId<TaskId>(),

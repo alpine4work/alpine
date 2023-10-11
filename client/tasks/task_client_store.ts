@@ -18,10 +18,12 @@ import {
     HybridLogicalClock,
     HybridLogicalTime,
     maxHybridLogicalTime,
+    zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -53,6 +55,7 @@ import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_f
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 import {
+    TaskAuthorizationStateRegister,
     TaskRealtimeQueryLoadedState,
     TaskRealtimeUpdateEvent,
 } from "~/shared/tasks/task_realtime_protocol.js";
@@ -65,8 +68,7 @@ export type TaskClientStoreTaskEntry =
           readonly task: TaskModel;
           readonly actions: null;
           readonly optimisticState: TaskClientStoreTaskEntryOptimisticState | null;
-          readonly isAuthorized: boolean;
-          readonly authorizationEventNumber: number;
+          readonly authorizationState: TaskAuthorizationStateRegister;
       }
     // Task uninitialized and known authorization state:
     | {
@@ -75,8 +77,7 @@ export type TaskClientStoreTaskEntry =
           readonly optimisticState:
               | (TaskClientStoreTaskEntryOptimisticState & {original: {task: null}})
               | null;
-          readonly isAuthorized: boolean;
-          readonly authorizationEventNumber: number;
+          readonly authorizationState: TaskAuthorizationStateRegister;
       }
     // Task uninitialized and unknown authorization state:
     | {
@@ -85,8 +86,7 @@ export type TaskClientStoreTaskEntry =
           readonly optimisticState:
               | (TaskClientStoreTaskEntryOptimisticState & {original: {task: null}})
               | null;
-          readonly isAuthorized: null;
-          readonly authorizationEventNumber: null;
+          readonly authorizationState: null;
       };
 
 /**
@@ -126,8 +126,7 @@ export type TaskClientStoreCollectionEntry =
           readonly collection: TaskCollectionModel;
           readonly actions: null;
           readonly optimisticState: TaskClientStoreCollectionEntryOptimisticState | null;
-          readonly isAuthorized: boolean;
-          readonly authorizationEventNumber: number;
+          readonly authorizationState: TaskAuthorizationStateRegister;
       }
     // Collection uninitialized and known unauthorized state:
     | {
@@ -136,8 +135,7 @@ export type TaskClientStoreCollectionEntry =
           readonly optimisticState:
               | (TaskClientStoreCollectionEntryOptimisticState & {original: {collection: null}})
               | null;
-          readonly isAuthorized: boolean;
-          readonly authorizationEventNumber: number;
+          readonly authorizationState: TaskAuthorizationStateRegister;
       }
     // Collection uninitialized and unknown authorization state:
     | {
@@ -146,8 +144,7 @@ export type TaskClientStoreCollectionEntry =
           readonly optimisticState:
               | (TaskClientStoreCollectionEntryOptimisticState & {original: {collection: null}})
               | null;
-          readonly isAuthorized: null;
-          readonly authorizationEventNumber: null;
+          readonly authorizationState: null;
       };
 
 /**
@@ -709,325 +706,344 @@ export class TaskClientStoreInternal {
             this.accountStore.getAndImmediatelyUpdateStore(account);
         }
 
-        // Backfill authorized tasks:
-        for (const backfillTask of event.backfillAuthorizedTasks) {
-            const oldTaskEntry =
-                newTaskEntryById.get(backfillTask.id) ??
-                this._taskEntryStoreById.get(backfillTask.id)?.store.getSnapshot();
+        // Backfill tasks:
+        for (const backfillTask of event.backfillTasks) {
+            const authorizationStateVersion =
+                backfillTask.authorizationStateVersion ?? event.defaultAuthorizationStateVersion;
 
-            if (!oldTaskEntry) {
-                // This backfill introduced new data. Make sure our logical clock's time is
-                // beyond any times used in this object.
-                backfillTask.tick(this.clock);
+            this.clock.tick(authorizationStateVersion);
 
-                newTaskEntryById.set(backfillTask.id, {
-                    task: backfillTask,
-                    actions: null,
-                    optimisticState: null,
-                    isAuthorized: true,
-                    authorizationEventNumber: event.number,
-                });
-                continue;
-            }
+            if (backfillTask.type === "Authorized") {
+                const oldTaskEntry =
+                    newTaskEntryById.get(backfillTask.task.id) ??
+                    this._taskEntryStoreById.get(backfillTask.task.id)?.store.getSnapshot();
 
-            // When backfilling the task, we may have received actions out-of-order from
-            // the server or we may have some out-of-order optimistic actions. We need to
-            // apply actions we received (from the server and optimistic) to the task. We
-            // also need to update our original task in `optimisticState` so if we need to
-            // revert an optimistic action we preserve the backfilled task.
-            let newTask: TaskModel;
-            let newOptimisticState: TaskClientStoreTaskEntryOptimisticState | null;
-            if (oldTaskEntry.task === null) {
-                newTask = backfillTask;
+                if (!oldTaskEntry) {
+                    // This backfill introduced new data. Make sure our logical clock's time is
+                    // beyond any times used in this object.
+                    backfillTask.task.tick(this.clock);
 
-                newTask = applyPendingTaskActions(newTask, oldTaskEntry.actions);
-
-                if (oldTaskEntry.optimisticState === null) {
-                    newOptimisticState = null;
-                } else {
-                    newOptimisticState = {
-                        original: {
-                            task: backfillTask,
-                            actions: null,
-                        },
-                        actions: oldTaskEntry.optimisticState.actions,
-                    };
+                    newTaskEntryById.set(backfillTask.task.id, {
+                        task: backfillTask.task,
+                        actions: null,
+                        optimisticState: null,
+                        authorizationState: new TaskAuthorizationStateRegister(
+                            "Authorized",
+                            authorizationStateVersion,
+                        ),
+                    });
+                    continue;
                 }
-            } else {
-                newTask = oldTaskEntry.task.merge(backfillTask);
 
-                if (oldTaskEntry.optimisticState === null) {
-                    newOptimisticState = null;
+                // When backfilling the task, we may have received actions out-of-order from
+                // the server or we may have some out-of-order optimistic actions. We need to
+                // apply actions we received (from the server and optimistic) to the task. We
+                // also need to update our original task in `optimisticState` so if we need to
+                // revert an optimistic action we preserve the backfilled task.
+                let newTask: TaskModel;
+                let newOptimisticState: TaskClientStoreTaskEntryOptimisticState | null;
+                if (oldTaskEntry.task === null) {
+                    newTask = backfillTask.task;
+
+                    newTask = applyPendingTaskActions(newTask, oldTaskEntry.actions);
+
+                    if (oldTaskEntry.optimisticState === null) {
+                        newOptimisticState = null;
+                    } else {
+                        newOptimisticState = {
+                            original: {
+                                task: backfillTask.task,
+                                actions: null,
+                            },
+                            actions: oldTaskEntry.optimisticState.actions,
+                        };
+                    }
                 } else {
-                    newOptimisticState = {
-                        original: {
-                            task:
-                                oldTaskEntry.optimisticState.original.task === null
-                                    ? applyPendingTaskActions(
-                                          backfillTask,
-                                          oldTaskEntry.optimisticState.original.actions,
-                                      )
-                                    : oldTaskEntry.optimisticState.original.task.merge(
-                                          backfillTask,
-                                      ),
-                            actions: null,
-                        },
-                        actions: oldTaskEntry.optimisticState.actions,
-                    };
+                    newTask = oldTaskEntry.task.merge(backfillTask.task);
+
+                    if (oldTaskEntry.optimisticState === null) {
+                        newOptimisticState = null;
+                    } else {
+                        newOptimisticState = {
+                            original: {
+                                task:
+                                    oldTaskEntry.optimisticState.original.task === null
+                                        ? applyPendingTaskActions(
+                                              backfillTask.task,
+                                              oldTaskEntry.optimisticState.original.actions,
+                                          )
+                                        : oldTaskEntry.optimisticState.original.task.merge(
+                                              backfillTask.task,
+                                          ),
+                                actions: null,
+                            },
+                            actions: oldTaskEntry.optimisticState.actions,
+                        };
+                    }
                 }
-            }
 
-            if (newTask !== oldTaskEntry.task) {
-                // This backfill introduced new data. Make sure our logical clock's time is
-                // beyond any times used in this object.
-                newTask.tick(this.clock);
-            }
+                if (newTask !== oldTaskEntry.task) {
+                    // This backfill introduced new data. Make sure our logical clock's time is
+                    // beyond any times used in this object.
+                    newTask.tick(this.clock);
+                }
 
-            // Authorization state is unknown, mark the task as authorized.
-            if (oldTaskEntry.isAuthorized === null) {
-                newTaskEntryById.set(backfillTask.id, {
-                    task: newTask,
-                    actions: null,
-                    optimisticState: newOptimisticState,
-                    isAuthorized: true,
-                    authorizationEventNumber: event.number,
+                // Authorization state is unknown, mark the task as authorized.
+                if (oldTaskEntry.authorizationState === null) {
+                    newTaskEntryById.set(backfillTask.task.id, {
+                        task: newTask,
+                        actions: null,
+                        optimisticState: newOptimisticState,
+                        authorizationState: new TaskAuthorizationStateRegister(
+                            "Authorized",
+                            authorizationStateVersion,
+                        ),
+                    });
+                    continue;
+                }
+
+                const newAuthorizationState = oldTaskEntry.authorizationState.apply({
+                    value: "Authorized",
+                    version: authorizationStateVersion,
                 });
-                continue;
-            }
 
-            // The authorization status in our store wins, use that instead of updating the
-            // authorization event number.
-            if (oldTaskEntry.authorizationEventNumber >= event.number) {
                 // If nothing in our entry changed then don't update the task.
                 if (
                     newTask === oldTaskEntry.task &&
                     newOptimisticState?.original.task ===
-                        oldTaskEntry.optimisticState?.original.task
+                        oldTaskEntry.optimisticState?.original.task &&
+                    newAuthorizationState === oldTaskEntry.authorizationState
                 ) {
                     continue;
                 }
 
-                newTaskEntryById.set(backfillTask.id, {
-                    // We update the task even if it's unauthorized since we may receive events
-                    // out-of-order.
+                newTaskEntryById.set(backfillTask.task.id, {
                     task: newTask,
                     actions: null,
                     optimisticState: newOptimisticState,
-                    isAuthorized: oldTaskEntry.isAuthorized,
-                    authorizationEventNumber: oldTaskEntry.authorizationEventNumber,
+                    authorizationState: newAuthorizationState,
                 });
-                continue;
-            }
-
-            newTaskEntryById.set(backfillTask.id, {
-                task: newTask,
-                actions: null,
-                optimisticState: newOptimisticState,
-                isAuthorized: true,
-                authorizationEventNumber: event.number,
-            });
-        }
-
-        // Backfill unauthorized tasks:
-        for (const backfillUnauthorizedTaskId of event.backfillUnauthorizedTaskIds) {
-            const oldTaskEntry =
-                newTaskEntryById.get(backfillUnauthorizedTaskId) ??
-                this._taskEntryStoreById.get(backfillUnauthorizedTaskId)?.store.getSnapshot();
-
-            if (!oldTaskEntry) {
-                newTaskEntryById.set(backfillUnauthorizedTaskId, {
-                    task: null,
-                    actions: [],
-                    optimisticState: null,
-                    isAuthorized: false,
-                    authorizationEventNumber: event.number,
-                });
-                continue;
-            }
-
-            // Authorization state is unknown, mark the task as unauthorized.
-            if (oldTaskEntry.isAuthorized === null) {
-                newTaskEntryById.set(backfillUnauthorizedTaskId, {
-                    ...oldTaskEntry,
-                    isAuthorized: false,
-                    authorizationEventNumber: event.number,
-                });
-                continue;
-            }
-
-            // Authorization state in the store wins. We may be applying events
-            // out-of-order. We return a referentially identical entry to avoid updating
-            // the map.
-            if (oldTaskEntry.authorizationEventNumber >= event.number) continue;
-
-            newTaskEntryById.set(backfillUnauthorizedTaskId, {
-                ...oldTaskEntry,
-                isAuthorized: false,
-                authorizationEventNumber: event.number,
-            });
-        }
-
-        // Backfill authorized collections:
-        for (const backfillCollection of event.backfillAuthorizedCollections) {
-            const oldCollectionEntry =
-                newCollectionEntryById.get(backfillCollection.id) ??
-                this._collectionEntryStoreById.get(backfillCollection.id)?.store.getSnapshot();
-
-            if (!oldCollectionEntry) {
-                // This backfill introduced new data. Make sure our logical clock's time is
-                // beyond any times used in this object.
-                backfillCollection.tick(this.clock);
-
-                newCollectionEntryById.set(backfillCollection.id, {
-                    collection: backfillCollection,
-                    actions: null,
-                    optimisticState: null,
-                    isAuthorized: true,
-                    authorizationEventNumber: event.number,
-                });
-                continue;
-            }
-
-            // When backfilling the collection, we may have received actions out-of-order from
-            // the server or we may have some out-of-order optimistic actions. We need to
-            // apply actions we received (from the server and optimistic) to the collection.
-            // We also need to update our original collection in `optimisticState` so if we
-            // need to revert an optimistic action we preserve the backfilled collection.
-            let newCollection: TaskCollectionModel;
-            let newOptimisticState: TaskClientStoreCollectionEntryOptimisticState | null;
-            if (oldCollectionEntry.collection === null) {
-                newCollection = backfillCollection;
-
-                newCollection = applyPendingTaskCollectionActions(
-                    newCollection,
-                    oldCollectionEntry.actions,
-                );
-
-                if (oldCollectionEntry.optimisticState === null) {
-                    newOptimisticState = null;
-                } else {
-                    newOptimisticState = {
-                        original: {
-                            collection: backfillCollection,
-                            actions: null,
-                        },
-                        actions: oldCollectionEntry.optimisticState.actions,
-                    };
-                }
             } else {
-                newCollection = oldCollectionEntry.collection.merge(backfillCollection);
+                cast<"Unauthorized">(backfillTask.type);
 
-                if (oldCollectionEntry.optimisticState === null) {
-                    newOptimisticState = null;
-                } else {
-                    newOptimisticState = {
-                        original: {
-                            collection:
-                                oldCollectionEntry.optimisticState.original.collection === null
-                                    ? applyPendingTaskCollectionActions(
-                                          backfillCollection,
-                                          oldCollectionEntry.optimisticState.original.actions,
-                                      )
-                                    : oldCollectionEntry.optimisticState.original.collection.merge(
-                                          backfillCollection,
-                                      ),
-                            actions: null,
-                        },
-                        actions: oldCollectionEntry.optimisticState.actions,
-                    };
+                const oldTaskEntry =
+                    newTaskEntryById.get(backfillTask.taskId) ??
+                    this._taskEntryStoreById.get(backfillTask.taskId)?.store.getSnapshot();
+
+                if (!oldTaskEntry) {
+                    newTaskEntryById.set(backfillTask.taskId, {
+                        task: null,
+                        actions: [],
+                        optimisticState: null,
+                        authorizationState: new TaskAuthorizationStateRegister(
+                            "Unauthorized",
+                            authorizationStateVersion,
+                        ),
+                    });
+                    continue;
                 }
-            }
 
-            if (newCollection !== oldCollectionEntry.collection) {
-                // This backfill introduced new data. Make sure our logical clock's time is
-                // beyond any times used in this object.
-                newCollection.tick(this.clock);
-            }
+                // Authorization state is unknown, mark the task as unauthorized.
+                if (oldTaskEntry.authorizationState === null) {
+                    newTaskEntryById.set(backfillTask.taskId, {
+                        ...oldTaskEntry,
+                        authorizationState: new TaskAuthorizationStateRegister(
+                            "Unauthorized",
+                            authorizationStateVersion,
+                        ),
+                    });
+                    continue;
+                }
 
-            // Authorization state is unknown, mark the collection as authorized.
-            if (oldCollectionEntry.isAuthorized === null) {
-                newCollectionEntryById.set(backfillCollection.id, {
-                    collection: newCollection,
-                    actions: null,
-                    optimisticState: newOptimisticState,
-                    isAuthorized: true,
-                    authorizationEventNumber: event.number,
+                const newAuthorizationState = oldTaskEntry.authorizationState.apply({
+                    value: "Unauthorized",
+                    version: authorizationStateVersion,
                 });
-                continue;
-            }
 
-            // The authorization status in our store wins, use that instead of updating the
-            // authorization event number.
-            if (oldCollectionEntry.authorizationEventNumber >= event.number) {
+                // Authorization state in the store wins. We may be applying events
+                // out-of-order. We return a referentially identical entry to avoid updating
+                // the map.
+                if (oldTaskEntry.authorizationState === newAuthorizationState) continue;
+
+                newTaskEntryById.set(backfillTask.taskId, {
+                    ...oldTaskEntry,
+                    authorizationState: newAuthorizationState,
+                });
+            }
+        }
+
+        // Backfill collections:
+        for (const backfillCollection of event.backfillCollections) {
+            const authorizationStateVersion =
+                backfillCollection.authorizationStateVersion ??
+                event.defaultAuthorizationStateVersion;
+
+            this.clock.tick(authorizationStateVersion);
+
+            if (backfillCollection.type === "Authorized") {
+                const oldCollectionEntry =
+                    newCollectionEntryById.get(backfillCollection.collection.id) ??
+                    this._collectionEntryStoreById
+                        .get(backfillCollection.collection.id)
+                        ?.store.getSnapshot();
+
+                if (!oldCollectionEntry) {
+                    // This backfill introduced new data. Make sure our logical clock's time is
+                    // beyond any times used in this object.
+                    backfillCollection.collection.tick(this.clock);
+
+                    newCollectionEntryById.set(backfillCollection.collection.id, {
+                        collection: backfillCollection.collection,
+                        actions: null,
+                        optimisticState: null,
+                        authorizationState: new TaskAuthorizationStateRegister(
+                            "Authorized",
+                            authorizationStateVersion,
+                        ),
+                    });
+                    continue;
+                }
+
+                // When backfilling the collection, we may have received actions out-of-order from
+                // the server or we may have some out-of-order optimistic actions. We need to
+                // apply actions we received (from the server and optimistic) to the collection.
+                // We also need to update our original collection in `optimisticState` so if we
+                // need to revert an optimistic action we preserve the backfilled collection.
+                let newCollection: TaskCollectionModel;
+                let newOptimisticState: TaskClientStoreCollectionEntryOptimisticState | null;
+                if (oldCollectionEntry.collection === null) {
+                    newCollection = backfillCollection.collection;
+
+                    newCollection = applyPendingTaskCollectionActions(
+                        newCollection,
+                        oldCollectionEntry.actions,
+                    );
+
+                    if (oldCollectionEntry.optimisticState === null) {
+                        newOptimisticState = null;
+                    } else {
+                        newOptimisticState = {
+                            original: {
+                                collection: backfillCollection.collection,
+                                actions: null,
+                            },
+                            actions: oldCollectionEntry.optimisticState.actions,
+                        };
+                    }
+                } else {
+                    newCollection = oldCollectionEntry.collection.merge(
+                        backfillCollection.collection,
+                    );
+
+                    if (oldCollectionEntry.optimisticState === null) {
+                        newOptimisticState = null;
+                    } else {
+                        newOptimisticState = {
+                            original: {
+                                collection:
+                                    oldCollectionEntry.optimisticState.original.collection === null
+                                        ? applyPendingTaskCollectionActions(
+                                              backfillCollection.collection,
+                                              oldCollectionEntry.optimisticState.original.actions,
+                                          )
+                                        : oldCollectionEntry.optimisticState.original.collection.merge(
+                                              backfillCollection.collection,
+                                          ),
+                                actions: null,
+                            },
+                            actions: oldCollectionEntry.optimisticState.actions,
+                        };
+                    }
+                }
+
+                if (newCollection !== oldCollectionEntry.collection) {
+                    // This backfill introduced new data. Make sure our logical clock's time is
+                    // beyond any times used in this object.
+                    newCollection.tick(this.clock);
+                }
+
+                // Authorization state is unknown, mark the collection as authorized.
+                if (oldCollectionEntry.authorizationState === null) {
+                    newCollectionEntryById.set(backfillCollection.collection.id, {
+                        collection: newCollection,
+                        actions: null,
+                        optimisticState: newOptimisticState,
+                        authorizationState: new TaskAuthorizationStateRegister(
+                            "Authorized",
+                            authorizationStateVersion,
+                        ),
+                    });
+                    continue;
+                }
+
+                const newAuthorizationState = oldCollectionEntry.authorizationState.apply({
+                    value: "Authorized",
+                    version: authorizationStateVersion,
+                });
+
                 // If nothing in our entry changed then don't update the collection.
                 if (
                     newCollection === oldCollectionEntry.collection &&
                     newOptimisticState?.original.collection ===
-                        oldCollectionEntry.optimisticState?.original.collection
+                        oldCollectionEntry.optimisticState?.original.collection &&
+                    newAuthorizationState === oldCollectionEntry.authorizationState
                 ) {
                     continue;
                 }
 
-                newCollectionEntryById.set(backfillCollection.id, {
-                    // We update the collection even if it's unauthorized since we may receive
-                    // events out-of-order.
+                newCollectionEntryById.set(backfillCollection.collection.id, {
                     collection: newCollection,
                     actions: null,
                     optimisticState: newOptimisticState,
-                    isAuthorized: oldCollectionEntry.isAuthorized,
-                    authorizationEventNumber: oldCollectionEntry.authorizationEventNumber,
+                    authorizationState: newAuthorizationState,
                 });
-                continue;
-            }
+            } else {
+                const oldCollectionEntry =
+                    newCollectionEntryById.get(backfillCollection.collectionId) ??
+                    this._collectionEntryStoreById
+                        .get(backfillCollection.collectionId)
+                        ?.store.getSnapshot();
 
-            newCollectionEntryById.set(backfillCollection.id, {
-                collection: newCollection,
-                actions: null,
-                optimisticState: newOptimisticState,
-                isAuthorized: true,
-                authorizationEventNumber: event.number,
-            });
-        }
+                if (!oldCollectionEntry) {
+                    newCollectionEntryById.set(backfillCollection.collectionId, {
+                        collection: null,
+                        actions: [],
+                        optimisticState: null,
+                        authorizationState: new TaskAuthorizationStateRegister(
+                            "Unauthorized",
+                            authorizationStateVersion,
+                        ),
+                    });
+                    continue;
+                }
 
-        // Backfill unauthorized collections:
-        for (const backfillUnauthorizedCollectionId of event.backfillUnauthorizedCollectionIds) {
-            const oldCollectionEntry =
-                newCollectionEntryById.get(backfillUnauthorizedCollectionId) ??
-                this._collectionEntryStoreById
-                    .get(backfillUnauthorizedCollectionId)
-                    ?.store.getSnapshot();
+                // Authorization state is unknown, mark the collection as unauthorized.
+                if (oldCollectionEntry.authorizationState === null) {
+                    newCollectionEntryById.set(backfillCollection.collectionId, {
+                        ...oldCollectionEntry,
+                        authorizationState: new TaskAuthorizationStateRegister(
+                            "Unauthorized",
+                            authorizationStateVersion,
+                        ),
+                    });
+                    continue;
+                }
 
-            if (!oldCollectionEntry) {
-                newCollectionEntryById.set(backfillUnauthorizedCollectionId, {
-                    collection: null,
-                    actions: [],
-                    optimisticState: null,
-                    isAuthorized: false,
-                    authorizationEventNumber: event.number,
+                const newAuthorizationState = oldCollectionEntry.authorizationState.apply({
+                    value: "Unauthorized",
+                    version: authorizationStateVersion,
                 });
-                continue;
-            }
 
-            // Authorization state is unknown, mark the collection as unauthorized.
-            if (oldCollectionEntry.isAuthorized === null) {
-                newCollectionEntryById.set(backfillUnauthorizedCollectionId, {
+                // Authorization state in the store wins. We may be applying events
+                // out-of-order. We return a referentially identical entry to avoid updating
+                // the map.
+                if (oldCollectionEntry.authorizationState === newAuthorizationState) continue;
+
+                newCollectionEntryById.set(backfillCollection.collectionId, {
                     ...oldCollectionEntry,
-                    isAuthorized: false,
-                    authorizationEventNumber: event.number,
+                    authorizationState: newAuthorizationState,
                 });
-                continue;
             }
-
-            // Authorization state in the store wins. We may be applying events
-            // out-of-order. We return a referentially identical entry to avoid updating
-            // the map.
-            if (oldCollectionEntry.authorizationEventNumber >= event.number) continue;
-
-            newCollectionEntryById.set(backfillUnauthorizedCollectionId, {
-                ...oldCollectionEntry,
-                isAuthorized: false,
-                authorizationEventNumber: event.number,
-            });
         }
 
         const updateAccountNameActions: Array<{
@@ -1058,8 +1074,7 @@ export class TaskClientStoreInternal {
                                 task: null,
                                 actions: [{action, getActionReferencedSortableAccount}],
                                 optimisticState: null,
-                                isAuthorized: null,
-                                authorizationEventNumber: null,
+                                authorizationState: null,
                             });
                         } else {
                             const newTask = TaskModel.createFromAction(
@@ -1077,8 +1092,10 @@ export class TaskClientStoreInternal {
                                 // If we receive the create event for a task we assume it to be
                                 // authorized. In practice when a task is created we'll get a backfill for the
                                 // task instead of the create action.
-                                isAuthorized: true,
-                                authorizationEventNumber: event.number,
+                                authorizationState: new TaskAuthorizationStateRegister(
+                                    "Authorized",
+                                    event.defaultAuthorizationStateVersion,
+                                ),
                             });
                         }
                         continue;
@@ -1146,9 +1163,12 @@ export class TaskClientStoreInternal {
                                 // If we receive the create event for a task we assume it to be
                                 // authorized. In practice when a task is created we'll get a backfill for the
                                 // task instead of the create action.
-                                isAuthorized: oldTaskEntry.isAuthorized ?? true,
-                                authorizationEventNumber:
-                                    oldTaskEntry.authorizationEventNumber ?? event.number,
+                                authorizationState:
+                                    oldTaskEntry.authorizationState ??
+                                    new TaskAuthorizationStateRegister(
+                                        "Authorized",
+                                        event.defaultAuthorizationStateVersion,
+                                    ),
                             });
                             continue;
                         }
@@ -1181,8 +1201,7 @@ export class TaskClientStoreInternal {
                                   ],
                               }
                             : null,
-                        isAuthorized: oldTaskEntry.isAuthorized,
-                        authorizationEventNumber: oldTaskEntry.authorizationEventNumber,
+                        authorizationState: oldTaskEntry.authorizationState,
                     });
                     continue;
                 }
@@ -1199,8 +1218,7 @@ export class TaskClientStoreInternal {
                                 collection: null,
                                 actions: [{action}],
                                 optimisticState: null,
-                                isAuthorized: null,
-                                authorizationEventNumber: null,
+                                authorizationState: null,
                             });
                         } else {
                             const newCollection = TaskCollectionModel.createFromAction(
@@ -1217,8 +1235,10 @@ export class TaskClientStoreInternal {
                                 // If we receive the create event for a collection we assume it to be
                                 // authorized. In practice when a collection is created we'll get a backfill
                                 // for the collection instead of the create action.
-                                isAuthorized: true,
-                                authorizationEventNumber: event.number,
+                                authorizationState: new TaskAuthorizationStateRegister(
+                                    "Authorized",
+                                    event.defaultAuthorizationStateVersion,
+                                ),
                             });
                         }
                         continue;
@@ -1270,9 +1290,12 @@ export class TaskClientStoreInternal {
                                 // If we receive the create event for a collection we assume it to be
                                 // authorized. In practice when a collection is created we'll get a backfill
                                 // for the collection instead of the create action.
-                                isAuthorized: oldCollectionEntry.isAuthorized ?? true,
-                                authorizationEventNumber:
-                                    oldCollectionEntry.authorizationEventNumber ?? event.number,
+                                authorizationState:
+                                    oldCollectionEntry.authorizationState ??
+                                    new TaskAuthorizationStateRegister(
+                                        "Authorized",
+                                        event.defaultAuthorizationStateVersion,
+                                    ),
                             });
                             continue;
                         }
@@ -1295,8 +1318,7 @@ export class TaskClientStoreInternal {
                                   ],
                               }
                             : null,
-                        isAuthorized: oldCollectionEntry.isAuthorized,
-                        authorizationEventNumber: oldCollectionEntry.authorizationEventNumber,
+                        authorizationState: oldCollectionEntry.authorizationState,
                     });
                     continue;
                 }
@@ -1354,8 +1376,7 @@ export class TaskClientStoreInternal {
                               ],
                           }
                         : null,
-                    isAuthorized: oldTaskEntry.isAuthorized,
-                    authorizationEventNumber: oldTaskEntry.authorizationEventNumber,
+                    authorizationState: oldTaskEntry.authorizationState,
                 });
             };
 
@@ -1431,13 +1452,14 @@ export class TaskClientStoreInternal {
             return this._applyUpdateEvent(
                 {
                     type: "Update",
-                    // NOCOMMIT: Real number
-                    number: 0,
                     actions: [],
-                    backfillAuthorizedTasks: [],
-                    backfillAuthorizedCollections: referencedCollections,
-                    backfillUnauthorizedCollectionIds: [],
-                    backfillUnauthorizedTaskIds: [],
+                    backfillTasks: [],
+                    backfillCollections: referencedCollections.map(collection => ({
+                        type: "Authorized",
+                        collection,
+                    })),
+                    // Any authorization state change from the server should override us.
+                    defaultAuthorizationStateVersion: zeroHybridLogicalTime,
                     referencedAccounts: [],
                     // Don't pass `this._clientId` in since we don't want to ignore this event.
                     originClientId: null,
@@ -1503,13 +1525,11 @@ export class TaskClientStoreInternal {
                     if (extraActions.length > 0) {
                         this.applyUpdateEvent({
                             type: "Update",
-                            // NOCOMMIT: Proper event number?
-                            number: 0,
                             actions: extraActions,
-                            backfillAuthorizedTasks: [],
-                            backfillUnauthorizedTaskIds: [],
-                            backfillAuthorizedCollections: [],
-                            backfillUnauthorizedCollectionIds: [],
+                            backfillTasks: [],
+                            backfillCollections: [],
+                            // Any authorization state change from the server should override us.
+                            defaultAuthorizationStateVersion: zeroHybridLogicalTime,
                             referencedAccounts,
                             // Don't pass `this._clientId` in since we don't want to ignore this event.
                             originClientId: null,
@@ -1935,13 +1955,11 @@ export class TaskClientStoreInternal {
                     if (newActions.length > 0) {
                         this.applyUpdateEvent({
                             type: "Update",
-                            // NOCOMMIT: Proper event number?
-                            number: 0,
                             actions,
-                            backfillAuthorizedTasks: [],
-                            backfillUnauthorizedTaskIds: [],
-                            backfillAuthorizedCollections: [],
-                            backfillUnauthorizedCollectionIds: [],
+                            backfillTasks: [],
+                            backfillCollections: [],
+                            // Any authorization state change from the server should override us.
+                            defaultAuthorizationStateVersion: zeroHybridLogicalTime,
                             referencedAccounts,
                             // Don't pass `this._clientId` in since we don't want to ignore this event.
                             originClientId: null,
@@ -2021,8 +2039,7 @@ export class TaskClientStoreInternal {
                                         },
                                     ],
                                 },
-                                isAuthorized: null,
-                                authorizationEventNumber: null,
+                                authorizationState: null,
                             });
                             continue;
                         } else {
@@ -2052,9 +2069,11 @@ export class TaskClientStoreInternal {
                                 },
                                 // If we receive an optimistic create action it's from our account (other
                                 // creates will be rejected by the backend) so the task is authorized.
-                                isAuthorized: true,
-                                // NOCOMMIT: Proper authorization event number!!
-                                authorizationEventNumber: 0,
+                                authorizationState: new TaskAuthorizationStateRegister(
+                                    "Authorized",
+                                    // Any authorization state change from the server should override us.
+                                    zeroHybridLogicalTime,
+                                ),
                             });
                             continue;
                         }
@@ -2127,9 +2146,11 @@ export class TaskClientStoreInternal {
                                 },
                                 // If we receive an optimistic create action it's from our account (other
                                 // creates will be rejected by the backend) so the task is authorized.
-                                isAuthorized: true,
-                                // NOCOMMIT: Proper authorization event number!!
-                                authorizationEventNumber: 0,
+                                authorizationState: new TaskAuthorizationStateRegister(
+                                    "Authorized",
+                                    // Any authorization state change from the server should override us.
+                                    zeroHybridLogicalTime,
+                                ),
                             });
                             continue;
                         }
@@ -2153,8 +2174,7 @@ export class TaskClientStoreInternal {
                                 {isOptimistic: true, action, getActionReferencedSortableAccount},
                             ],
                         },
-                        isAuthorized: oldTaskEntry.isAuthorized,
-                        authorizationEventNumber: oldTaskEntry.authorizationEventNumber,
+                        authorizationState: oldTaskEntry.authorizationState,
                     });
                     continue;
                 }
@@ -2183,8 +2203,7 @@ export class TaskClientStoreInternal {
                                         },
                                     ],
                                 },
-                                isAuthorized: null,
-                                authorizationEventNumber: null,
+                                authorizationState: null,
                             });
                             continue;
                         } else {
@@ -2207,9 +2226,11 @@ export class TaskClientStoreInternal {
                                 },
                                 // If we receive an optimistic create action it's from our account (other
                                 // creates will be rejected by the backend) so the task is authorized.
-                                isAuthorized: true,
-                                // NOCOMMIT: Proper authorization event number!!
-                                authorizationEventNumber: 0,
+                                authorizationState: new TaskAuthorizationStateRegister(
+                                    "Authorized",
+                                    // Any authorization state change from the server should override us.
+                                    zeroHybridLogicalTime,
+                                ),
                             });
                             continue;
                         }
@@ -2276,9 +2297,11 @@ export class TaskClientStoreInternal {
                                 },
                                 // If we receive an optimistic create action it's from our account (other
                                 // creates will be rejected by the backend) so the task is authorized.
-                                isAuthorized: true,
-                                // NOCOMMIT: Proper authorization event number!!
-                                authorizationEventNumber: 0,
+                                authorizationState: new TaskAuthorizationStateRegister(
+                                    "Authorized",
+                                    // Any authorization state change from the server should override us.
+                                    zeroHybridLogicalTime,
+                                ),
                             });
                             continue;
                         }
@@ -2299,8 +2322,7 @@ export class TaskClientStoreInternal {
                                 {isOptimistic: true, action},
                             ],
                         },
-                        isAuthorized: oldCollectionEntry.isAuthorized,
-                        authorizationEventNumber: oldCollectionEntry.authorizationEventNumber,
+                        authorizationState: oldCollectionEntry.authorizationState,
                     });
                     continue;
                 }
@@ -2964,9 +2986,13 @@ export class TaskClientStoreInternal {
                                     : null,
                             // If we receive an optimistic create action it's from our account (other
                             // creates will be rejected by the backend) so the task is authorized.
-                            isAuthorized: oldTaskEntry.isAuthorized ?? true,
-                            // NOCOMMIT: Proper authorization event number!!
-                            authorizationEventNumber: oldTaskEntry.authorizationEventNumber ?? 0,
+                            authorizationState:
+                                oldTaskEntry.authorizationState ??
+                                new TaskAuthorizationStateRegister(
+                                    "Authorized",
+                                    // Any authorization state change from the server should override us.
+                                    zeroHybridLogicalTime,
+                                ),
                         });
                     }
                     continue;
@@ -3183,10 +3209,13 @@ export class TaskClientStoreInternal {
                                     : null,
                             // If we receive an optimistic create action it's from our account (other
                             // creates will be rejected by the backend) so the task is authorized.
-                            isAuthorized: oldCollectionEntry.isAuthorized ?? true,
-                            // NOCOMMIT: Proper authorization event number!!
-                            authorizationEventNumber:
-                                oldCollectionEntry.authorizationEventNumber ?? 0,
+                            authorizationState:
+                                oldCollectionEntry.authorizationState ??
+                                new TaskAuthorizationStateRegister(
+                                    "Authorized",
+                                    // Any authorization state change from the server should override us.
+                                    zeroHybridLogicalTime,
+                                ),
                         });
                     }
                     continue;
@@ -3941,7 +3970,7 @@ export class TaskClientStoreInternal {
                 const taskEntry = taskEntryStore?.getSnapshot();
 
                 // The server only includes tasks in `previouslyBackfilledTaskIds` that it has
-                // previously backfilled in our client in the `backfillAuthorizedTasks`
+                // previously backfilled in our client in the `backfillTasks`
                 // property of a `TaskRealtimeUpdateEvent` event and is actively keeping the
                 // task up-to-date in realtime. If the server sends a task the server hasn't
                 // backfilled then the server is broken.
@@ -4027,8 +4056,7 @@ export class TaskClientStoreInternal {
                 task: null,
                 actions: [],
                 optimisticState: null,
-                isAuthorized: null,
-                authorizationEventNumber: null,
+                authorizationState: null,
             };
 
             this._updateReferencedAccountStores(null, taskEntry);
@@ -4105,8 +4133,7 @@ export class TaskClientStoreInternal {
                     collection: null,
                     actions: [],
                     optimisticState: null,
-                    isAuthorized: null,
-                    authorizationEventNumber: null,
+                    authorizationState: null,
                 }),
             }),
         );

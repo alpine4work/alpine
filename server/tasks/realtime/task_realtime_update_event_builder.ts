@@ -9,6 +9,11 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+    isHybridLogicalTimeLessThan,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {
@@ -20,23 +25,41 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 
-let number = 1;
+export type TaskRealtimeUpdateEventBackfillTask =
+    | {
+          readonly type: "Authorized";
+          readonly task: TaskIndexDoc;
+          readonly authorizationStateVersion: HybridLogicalTime | undefined;
+      }
+    | {
+          readonly type: "Unauthorized";
+          readonly taskId: TaskId;
+          readonly authorizationStateVersion: HybridLogicalTime | undefined;
+      };
 
-export function generateTaskRealtimeUpdateEventNumber() {
-    return number++;
-}
+export type TaskRealtimeUpdateEventBackfillCollection =
+    | {
+          readonly type: "Authorized";
+          readonly collection: TaskCollectionIndexDoc;
+          readonly authorizationStateVersion: HybridLogicalTime | undefined;
+      }
+    | {
+          readonly type: "Unauthorized";
+          readonly collectionId: TaskCollectionId;
+          readonly authorizationStateVersion: HybridLogicalTime | undefined;
+      };
 
 export type TaskRealtimeUpdateEvent = {
-    readonly number: number;
     readonly actions: ReadonlyArray<TaskAction>;
-    readonly backfillAuthorizedTasks: ReadonlyArray<TaskIndexDoc>;
-    readonly backfillUnauthorizedTaskIds: ReadonlyArray<TaskId>;
-    readonly backfillAuthorizedCollections: ReadonlyArray<TaskCollectionIndexDoc>;
-    readonly backfillUnauthorizedCollectionIds: ReadonlyArray<TaskCollectionId>;
+    readonly backfillTasks: ReadonlyArray<TaskRealtimeUpdateEventBackfillTask>;
+    readonly backfillCollections: ReadonlyArray<TaskRealtimeUpdateEventBackfillCollection>;
+    readonly defaultAuthorizationStateVersion: HybridLogicalTime;
     readonly originClientId: TaskRealtimeClientId | null;
 };
 
 export interface TaskRealtimeUpdateEventSender {
+    clock: HybridLogicalClock;
+
     send(
         context: Context<
             ServerProcessContextModules & {
@@ -50,11 +73,11 @@ export interface TaskRealtimeUpdateEventSender {
 }
 
 type TaskRealtimeWorkingUpdateEvent = {
+    defaultAuthorizationStateVersion: HybridLogicalTime;
     actions: Set<TaskAction>;
-    backfillAuthorizedTasks: Set<TaskIndexDoc>;
-    backfillUnauthorizedTaskIds: Set<TaskId>;
-    backfillAuthorizedCollections: Set<TaskCollectionIndexDoc>;
-    backfillUnauthorizedCollectionIds: Set<TaskCollectionId>;
+    backfillTasks: Array<TaskRealtimeUpdateEventBackfillTask>;
+    backfillAuthorizedTaskIds: Set<TaskId>;
+    backfillCollections: Array<TaskRealtimeUpdateEventBackfillCollection>;
 };
 
 export const taskRealtimeStoreBeforeSendEventTestCheckpoint = new TestCheckpoint<SpaceId>();
@@ -83,7 +106,6 @@ export const taskRealtimeStoreBeforeSendEventTestCheckpoint = new TestCheckpoint
  */
 export class TaskRealtimeUpdateEventBuilder {
     private readonly _originClientId: TaskRealtimeClientId | null;
-    private readonly _number = generateTaskRealtimeUpdateEventNumber();
     private _isBuilding = true;
     private _isSending = false;
     private _promises: Array<PromiseLike<unknown>> = [];
@@ -104,12 +126,12 @@ export class TaskRealtimeUpdateEventBuilder {
     private readonly _eventBySender = new DefaultMap<
         TaskRealtimeUpdateEventSender,
         TaskRealtimeWorkingUpdateEvent
-    >(() => ({
+    >(sender => ({
+        defaultAuthorizationStateVersion: sender.clock.now(),
         actions: new Set(),
-        backfillAuthorizedTasks: new Set(),
-        backfillUnauthorizedTaskIds: new Set(),
-        backfillAuthorizedCollections: new Set(),
-        backfillUnauthorizedCollectionIds: new Set(),
+        backfillTasks: [],
+        backfillAuthorizedTaskIds: new Set(),
+        backfillCollections: [],
     }));
 
     /**
@@ -169,30 +191,22 @@ export class TaskRealtimeUpdateEventBuilder {
 
         await runAllPromises(
             Array.from(this._eventBySender, async ([sender, event]) => {
-                const backfillAuthorizedTasks: Array<TaskIndexDoc> = [];
-                const backfillAuthorizedCollections: Array<TaskCollectionIndexDoc> = [];
-
-                for (const task of event.backfillAuthorizedTasks) {
-                    if (event.backfillUnauthorizedTaskIds.has(task.id)) continue;
-                    backfillAuthorizedTasks.push(task);
-                }
-
-                for (const collection of event.backfillAuthorizedCollections) {
-                    if (event.backfillUnauthorizedCollectionIds.has(collection.id)) continue;
-                    backfillAuthorizedCollections.push(collection);
+                // If there were no changes in this event then don't send.
+                if (
+                    event.actions.size === 0 &&
+                    event.backfillTasks.length === 0 &&
+                    event.backfillCollections.length === 0
+                ) {
+                    return;
                 }
 
                 await sender.send(
                     context,
                     {
-                        number: this._number,
                         actions: Array.from(event.actions),
-                        backfillAuthorizedTasks,
-                        backfillUnauthorizedTaskIds: Array.from(event.backfillUnauthorizedTaskIds),
-                        backfillAuthorizedCollections,
-                        backfillUnauthorizedCollectionIds: Array.from(
-                            event.backfillUnauthorizedCollectionIds,
-                        ),
+                        backfillTasks: event.backfillTasks,
+                        backfillCollections: event.backfillCollections,
+                        defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
                         originClientId: this._originClientId,
                     },
                     this._actionReferencedAccountById,
@@ -266,6 +280,31 @@ export class TaskRealtimeUpdateEventBuilder {
     }
 
     /**
+     * Get the default authorization register version.
+     */
+    public getDefaultAuthorizationStateVersion(
+        sender: TaskRealtimeUpdateEventSender,
+    ): HybridLogicalTime {
+        const event = this._eventBySender.getOrSetDefault(sender);
+        return event.defaultAuthorizationStateVersion;
+    }
+
+    /**
+     * Get a version after `previousVersion`. If our default authorization state
+     * version is after `previousVersion` then we use that.
+     */
+    public tickAuthorizationStateVersion(
+        sender: TaskRealtimeUpdateEventSender,
+        previousVersion: HybridLogicalTime,
+    ): HybridLogicalTime {
+        let version = this.getDefaultAuthorizationStateVersion(sender);
+        if (!isHybridLogicalTimeLessThan(previousVersion, version)) {
+            version = sender.clock.tickNow(previousVersion);
+        }
+        return version;
+    }
+
+    /**
      * Add some actions that clients will apply to the event.
      */
     public addActions(sender: TaskRealtimeUpdateEventSender, actions: ReadonlyArray<TaskAction>) {
@@ -283,26 +322,48 @@ export class TaskRealtimeUpdateEventBuilder {
      * sending the client actions for a task but the task now needs to be displayed
      * (maybe the task was hidden by filters but now is visible).
      */
-    public addAuthorizedTaskBackfill(sender: TaskRealtimeUpdateEventSender, task: TaskIndexDoc) {
+    public addAuthorizedTaskBackfill(
+        sender: TaskRealtimeUpdateEventSender,
+        task: TaskIndexDoc,
+        authorizationStateVersion: HybridLogicalTime,
+    ) {
         assert(this._isBuilding);
 
         const event = this._eventBySender.getOrSetDefault(sender);
-        event.backfillAuthorizedTasks.add(task);
-        event.backfillUnauthorizedTaskIds.delete(task.id);
+
+        event.backfillTasks.push({
+            type: "Authorized",
+            task,
+            authorizationStateVersion:
+                event.defaultAuthorizationStateVersion !== authorizationStateVersion
+                    ? authorizationStateVersion
+                    : undefined,
+        });
+
+        event.backfillAuthorizedTaskIds.add(task.id);
     }
 
     /**
      * Mark a task as unauthorized on the client. Clients should not expect any
      * realtime updates on this task.
      */
-    public addUnauthorizedTaskBackfill(sender: TaskRealtimeUpdateEventSender, taskId: TaskId) {
+    public addUnauthorizedTaskBackfill(
+        sender: TaskRealtimeUpdateEventSender,
+        taskId: TaskId,
+        authorizationStateVersion: HybridLogicalTime,
+    ) {
         assert(this._isBuilding);
 
-        this._eventBySender.getOrSetDefault(sender).backfillUnauthorizedTaskIds.add(taskId);
+        const event = this._eventBySender.getOrSetDefault(sender);
 
-        // Logically, this should remove a backfilled authorized task. However we don't
-        // have a way to address authorized tasks by `TaskId` during the event building
-        // phase. So we remove conflicting tasks in the event finalization phase.
+        event.backfillTasks.push({
+            type: "Unauthorized",
+            taskId,
+            authorizationStateVersion:
+                event.defaultAuthorizationStateVersion !== authorizationStateVersion
+                    ? authorizationStateVersion
+                    : undefined,
+        });
     }
 
     /**
@@ -314,12 +375,20 @@ export class TaskRealtimeUpdateEventBuilder {
     public addAuthorizedCollectionBackfill(
         sender: TaskRealtimeUpdateEventSender,
         collection: TaskCollectionIndexDoc,
+        authorizationStateVersion: HybridLogicalTime,
     ) {
         assert(this._isBuilding);
 
         const event = this._eventBySender.getOrSetDefault(sender);
-        event.backfillAuthorizedCollections.add(collection);
-        event.backfillUnauthorizedCollectionIds.delete(collection.id);
+
+        event.backfillCollections.push({
+            type: "Authorized",
+            collection,
+            authorizationStateVersion:
+                event.defaultAuthorizationStateVersion !== authorizationStateVersion
+                    ? authorizationStateVersion
+                    : undefined,
+        });
     }
 
     /**
@@ -329,17 +398,20 @@ export class TaskRealtimeUpdateEventBuilder {
     public addUnauthorizedCollectionBackfill(
         sender: TaskRealtimeUpdateEventSender,
         collectionId: TaskCollectionId,
+        authorizationStateVersion: HybridLogicalTime,
     ) {
         assert(this._isBuilding);
 
-        this._eventBySender
-            .getOrSetDefault(sender)
-            .backfillUnauthorizedCollectionIds.add(collectionId);
+        const event = this._eventBySender.getOrSetDefault(sender);
 
-        // Logically, this should remove a backfilled authorized collection. However we
-        // don't have a way to address authorized collections by `TaskCollectionId`
-        // during the event building phase. So we remove conflicting tasks in the event
-        // finalization phase.
+        event.backfillCollections.push({
+            type: "Unauthorized",
+            collectionId,
+            authorizationStateVersion:
+                event.defaultAuthorizationStateVersion !== authorizationStateVersion
+                    ? authorizationStateVersion
+                    : undefined,
+        });
     }
 
     /**
@@ -352,14 +424,6 @@ export class TaskRealtimeUpdateEventBuilder {
 
         const event = this._eventBySender.get(sender);
         if (!event) return new Set();
-
-        const taskIds = new Set<TaskId>();
-
-        for (const task of event.backfillAuthorizedTasks) {
-            if (event.backfillUnauthorizedTaskIds.has(task.id)) continue;
-            taskIds.add(task.id);
-        }
-
-        return taskIds;
+        return event.backfillAuthorizedTaskIds;
     }
 }

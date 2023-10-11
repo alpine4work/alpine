@@ -42,6 +42,11 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
@@ -61,6 +66,7 @@ import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
+    TaskAuthorizationState,
     TaskRealtimeEvent,
     TaskRealtimeProtocol,
     TaskRealtimeQueryLoadedState,
@@ -75,6 +81,8 @@ export class TaskRealtimeConnection {
     private readonly _server: TaskRealtimeServer;
     private readonly _spaceId: SpaceId;
     private readonly _accountId: AccountId;
+
+    private readonly _clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
     private readonly _dangerouslyEscalateToSystemContext: <Value>(
         context: Context<{
@@ -404,6 +412,9 @@ export class TaskRealtimeConnection {
                 sessionContext,
                 this._spaceId,
                 async systemContext => {
+                    // Make sure our clock is ahead of the client's clock.
+                    this._clock.tick(input.clientTime);
+
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
                         originClientId: null,
                         actionReferencedAccountById: null,
@@ -436,8 +447,11 @@ export class TaskRealtimeConnection {
             await this._unsubscribeFromQuery(context, querySubscriptionId);
             return {};
         },
-        loadMoreQueryTasks: (context, {querySubscriptionId, limit}) => {
-            const querySubscription = this._querySubscriptionById.get(querySubscriptionId);
+        loadMoreQueryTasks: (context, input) => {
+            // Make sure our clock is ahead of the client's clock.
+            this._clock.tick(input.clientTime);
+
+            const querySubscription = this._querySubscriptionById.get(input.querySubscriptionId);
             if (!querySubscription) throw new NotFoundError("Query subscription not found");
 
             // It's safe to escalate because in order to create a subscription we authorize
@@ -455,7 +469,7 @@ export class TaskRealtimeConnection {
                     const {loadedState, tasks} = await querySubscription.loadMoreTasks(
                         context,
                         eventBuilder,
-                        limit,
+                        input.limit,
                     );
 
                     await eventBuilder.send(context, this._spaceId);
@@ -482,6 +496,9 @@ export class TaskRealtimeConnection {
                 sessionContext,
                 this._spaceId,
                 async systemContext => {
+                    // Make sure our clock is ahead of the client's clock.
+                    this._clock.tick(input.clientTime);
+
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
                         originClientId: null,
                         actionReferencedAccountById: null,
@@ -514,6 +531,9 @@ export class TaskRealtimeConnection {
                 sessionContext,
                 this._spaceId,
                 async context => {
+                    // Make sure our clock is ahead of the client's clock.
+                    this._clock.tick(input.clientTime);
+
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
                         originClientId: null,
                         actionReferencedAccountById: null,
@@ -546,6 +566,9 @@ export class TaskRealtimeConnection {
                 sessionContext,
                 this._spaceId,
                 async systemContext => {
+                    // Make sure our clock is ahead of the client's clock.
+                    this._clock.tick(input.clientTime);
+
                     const eventBuilder = new TaskRealtimeUpdateEventBuilder({
                         originClientId: null,
                         actionReferencedAccountById: null,
@@ -699,6 +722,8 @@ export class TaskRealtimeConnection {
     };
 
     public readonly _sender: TaskRealtimeUpdateEventSender = {
+        clock: this._clock,
+
         // Before we actually send an update event to the client we need to clean up
         // our actions and tasks, removing any last private data. We also need to load
         // the `AccountModel`s for any referenced accounts so we can render them on the
@@ -706,29 +731,39 @@ export class TaskRealtimeConnection {
         //
         // Finally, once all that is done we can send the event to the client!
         send: async (context, event, actionReferencedAccountById) => {
+            const accountIds = new Set<AccountId>();
+
             const actions = filterMapArray(event.actions, action =>
                 prepareTaskActionForClient(this._accountId, action),
             );
 
-            const backfillAuthorizedTasks = event.backfillAuthorizedTasks.map(task =>
-                prepareTaskForClient(this._accountId, task),
-            );
-            const backfillUnauthorizedTaskIds = event.backfillUnauthorizedTaskIds;
-
-            const backfillAuthorizedCollections = event.backfillAuthorizedCollections.map(
-                collection => prepareTaskCollectionForClient(collection),
-            );
-            const backfillUnauthorizedCollectionIds = event.backfillUnauthorizedCollectionIds;
-
-            const accountIds = new Set<AccountId>();
-
-            for (const task of backfillAuthorizedTasks) {
-                collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
-            }
-
             for (const action of actions) {
                 collectReferencedAccountIdsFromTaskAction(accountIds, action);
             }
+
+            const backfillTasks = event.backfillTasks.map(backfillTask => {
+                if (backfillTask.type === "Unauthorized") return backfillTask;
+
+                const task = prepareTaskForClient(this._accountId, backfillTask.task);
+
+                collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
+
+                return {
+                    type: "Authorized" as const,
+                    task,
+                    authorizationStateVersion: backfillTask.authorizationStateVersion,
+                };
+            });
+
+            const backfillCollections = event.backfillCollections.map(backfillCollection => {
+                if (backfillCollection.type === "Unauthorized") return backfillCollection;
+
+                return {
+                    type: "Authorized" as const,
+                    collection: prepareTaskCollectionForClient(backfillCollection.collection),
+                    authorizationStateVersion: backfillCollection.authorizationStateVersion,
+                };
+            });
 
             // It's important that accounts referenced by `actions` are read with a
             // `Strong` read consistency so we don't read stale account data after the
@@ -746,12 +781,10 @@ export class TaskRealtimeConnection {
 
             this._sendEvent(context, {
                 type: "Update",
-                number: event.number,
                 actions,
-                backfillAuthorizedTasks,
-                backfillUnauthorizedTaskIds,
-                backfillAuthorizedCollections,
-                backfillUnauthorizedCollectionIds,
+                backfillTasks,
+                backfillCollections,
+                defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
                 referencedAccounts,
                 originClientId: event.originClientId,
             });
@@ -768,7 +801,10 @@ export class TaskRealtimeConnection {
      * positive integer. If a task is in this map that implies it has a non-zero
      * positive reference count.
      */
-    private readonly _directlySubscribedTaskReferenceCountById = new Map<TaskId, number>();
+    private readonly _directlySubscribedTaskById = new Map<
+        TaskId,
+        {referenceCount: number; authorizationStateVersion: HybridLogicalTime}
+    >();
 
     /**
      * All collections loaded by a collection subscription in our connection. If a
@@ -780,9 +816,9 @@ export class TaskRealtimeConnection {
      * integer. If a task is in this map that implies it has a non-zero positive
      * reference count.
      */
-    private readonly _directlySubscribedCollectionReferenceCountById = new Map<
+    private readonly _directlySubscribedCollectionById = new Map<
         TaskCollectionId,
-        number
+        {referenceCount: number; authorizationStateVersion: HybridLogicalTime}
     >();
 
     private readonly _referencedTaskStateById = new Map<
@@ -790,7 +826,8 @@ export class TaskRealtimeConnection {
         {
             referenceCount: number;
             task: TaskIndexDoc;
-            isAccessAuthorizedPromise: Promise<boolean>;
+            authorizationStateVersion: HybridLogicalTime;
+            authorizationStatePromise: Promise<TaskAuthorizationState>;
             // We keep track of the previous task object our subscription saw while testing
             // so we can check if we've missed any updates. We run this validation in
             // `development` and `test` since maintaining task update state correctly is a
@@ -804,7 +841,8 @@ export class TaskRealtimeConnection {
         {
             referenceCount: number;
             collection: TaskCollectionIndexDoc;
-            isAccessAuthorizedPromise: Promise<boolean>;
+            authorizationStateVersion: HybridLogicalTime;
+            authorizationStatePromise: Promise<TaskAuthorizationState>;
             // We keep track of the previous collection object our subscription saw while
             // testing so we can check if we've missed any updates. We run this validation
             // in `development` and `test` since maintaining collection update state
@@ -819,20 +857,28 @@ export class TaskRealtimeConnection {
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         newTask: TaskIndexDoc,
     ) {
-        const directlySubscribedTaskReferenceCount =
-            this._directlySubscribedTaskReferenceCountById.get(newTask.id);
+        const directlySubscribedTask = this._directlySubscribedTaskById.get(newTask.id);
         const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
 
-        if (directlySubscribedTaskReferenceCount !== undefined) {
-            this._directlySubscribedTaskReferenceCountById.set(
-                newTask.id,
-                directlySubscribedTaskReferenceCount + 1,
-            );
+        if (directlySubscribedTask !== undefined) {
+            directlySubscribedTask.referenceCount++;
         } else {
             // This is the first time our connection has seen the task, backfill it.
             if (referencedTaskState === undefined) {
-                eventBuilder.addAuthorizedTaskBackfill(this._sender, newTask);
-                this._directlySubscribedTaskReferenceCountById.set(newTask.id, 1);
+                const authorizationStateVersion = eventBuilder.getDefaultAuthorizationStateVersion(
+                    this._sender,
+                );
+
+                eventBuilder.addAuthorizedTaskBackfill(
+                    this._sender,
+                    newTask,
+                    authorizationStateVersion,
+                );
+
+                this._directlySubscribedTaskById.set(newTask.id, {
+                    referenceCount: 1,
+                    authorizationStateVersion,
+                });
             }
             // Query subscription and task subscription tasks are always authorized because
             // we authorized the subscription. If the task is referenced but was not
@@ -840,19 +886,40 @@ export class TaskRealtimeConnection {
             //
             // If the task was previously unauthorized then we need to backfill it.
             else {
-                const promise = referencedTaskState.isAccessAuthorizedPromise.then(
-                    isAccessAuthorized => {
-                        if (isAccessAuthorized) return isAccessAuthorized;
+                const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
+                    this._sender,
+                    referencedTaskState.authorizationStateVersion,
+                );
 
-                        eventBuilder.addAuthorizedTaskBackfill(this._sender, newTask);
-                        return true;
+                // While we know the task is definitely authorized at this point, we may not
+                // know the task's previous authorization state. Only backfill the task if it
+                // was previously unauthorized.
+                const promise = referencedTaskState.authorizationStatePromise.then(
+                    authorizationState => {
+                        // If the task continues to be authorized, we don't send the new
+                        // `authorizationStateVersion` to the client. This should be fine since future
+                        // authorization state versions will be after `authorizationStateVersion`
+                        // because our clock was ticked past `authorizationStateVersion`.
+                        if (authorizationState === "Authorized") return authorizationState;
+
+                        eventBuilder.addAuthorizedTaskBackfill(
+                            this._sender,
+                            newTask,
+                            authorizationStateVersion,
+                        );
+                        return "Authorized";
                     },
                 );
 
                 eventBuilder.waitUntil(context, promise);
 
-                referencedTaskState.isAccessAuthorizedPromise = promise;
-                this._directlySubscribedTaskReferenceCountById.set(newTask.id, 1);
+                referencedTaskState.authorizationStateVersion = authorizationStateVersion;
+                referencedTaskState.authorizationStatePromise = promise;
+
+                this._directlySubscribedTaskById.set(newTask.id, {
+                    referenceCount: 1,
+                    authorizationStateVersion,
+                });
             }
         }
     }
@@ -861,17 +928,13 @@ export class TaskRealtimeConnection {
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldTask: TaskIndexDoc,
     ) {
-        const directlySubscribedTaskReferenceCount =
-            this._directlySubscribedTaskReferenceCountById.get(oldTask.id);
-        assert(directlySubscribedTaskReferenceCount !== undefined);
+        const directlySubscribedTask = this._directlySubscribedTaskById.get(oldTask.id);
+        assert(directlySubscribedTask !== undefined);
 
-        if (directlySubscribedTaskReferenceCount > 1) {
-            this._directlySubscribedTaskReferenceCountById.set(
-                oldTask.id,
-                directlySubscribedTaskReferenceCount - 1,
-            );
+        if (directlySubscribedTask.referenceCount > 1) {
+            directlySubscribedTask.referenceCount--;
         } else {
-            this._directlySubscribedTaskReferenceCountById.delete(oldTask.id);
+            this._directlySubscribedTaskById.delete(oldTask.id);
 
             // If a loaded task is removed from our connection that means the client may
             // have lost authorization access as well. When we reauthorize referenced tasks
@@ -884,20 +947,30 @@ export class TaskRealtimeConnection {
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         newCollection: TaskCollectionIndexDoc,
     ) {
-        const directlySubscribedCollectionReferenceCount =
-            this._directlySubscribedCollectionReferenceCountById.get(newCollection.id);
+        const directlySubscribedCollection = this._directlySubscribedCollectionById.get(
+            newCollection.id,
+        );
         const referencedCollectionState = this._referencedCollectionStateById.get(newCollection.id);
 
-        if (directlySubscribedCollectionReferenceCount !== undefined) {
-            this._directlySubscribedCollectionReferenceCountById.set(
-                newCollection.id,
-                directlySubscribedCollectionReferenceCount + 1,
-            );
+        if (directlySubscribedCollection !== undefined) {
+            directlySubscribedCollection.referenceCount++;
         } else {
             // This is the first time our connection has seen the collection, backfill it.
             if (referencedCollectionState === undefined) {
-                eventBuilder.addAuthorizedCollectionBackfill(this._sender, newCollection);
-                this._directlySubscribedCollectionReferenceCountById.set(newCollection.id, 1);
+                const authorizationStateVersion = eventBuilder.getDefaultAuthorizationStateVersion(
+                    this._sender,
+                );
+
+                eventBuilder.addAuthorizedCollectionBackfill(
+                    this._sender,
+                    newCollection,
+                    authorizationStateVersion,
+                );
+
+                this._directlySubscribedCollectionById.set(newCollection.id, {
+                    referenceCount: 1,
+                    authorizationStateVersion,
+                });
             }
             // Collections from subscriptions are always authorized because we authorized
             // the subscription. If the collection is referenced but was not directly
@@ -905,19 +978,40 @@ export class TaskRealtimeConnection {
             //
             // If the collection was previously unauthorized then we need to backfill it.
             else {
-                const promise = referencedCollectionState.isAccessAuthorizedPromise.then(
-                    isAccessAuthorized => {
-                        if (isAccessAuthorized) return isAccessAuthorized;
+                const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
+                    this._sender,
+                    referencedCollectionState.authorizationStateVersion,
+                );
 
-                        eventBuilder.addAuthorizedCollectionBackfill(this._sender, newCollection);
-                        return true;
+                // While we know the collection is definitely authorized at this point, we may
+                // not know the collection's previous authorization state. Only backfill the
+                // collection if it was previously unauthorized.
+                const promise = referencedCollectionState.authorizationStatePromise.then(
+                    authorizationState => {
+                        // If the collection continues to be authorized, we don't send the new
+                        // `authorizationStateVersion` to the client. This should be fine since future
+                        // authorization state versions will be after `authorizationStateVersion`
+                        // because our clock was ticked past `authorizationStateVersion`.
+                        if (authorizationState === "Authorized") return authorizationState;
+
+                        eventBuilder.addAuthorizedCollectionBackfill(
+                            this._sender,
+                            newCollection,
+                            authorizationStateVersion,
+                        );
+                        return "Authorized";
                     },
                 );
 
                 eventBuilder.waitUntil(context, promise);
 
-                referencedCollectionState.isAccessAuthorizedPromise = promise;
-                this._directlySubscribedCollectionReferenceCountById.set(newCollection.id, 1);
+                referencedCollectionState.authorizationStateVersion = authorizationStateVersion;
+                referencedCollectionState.authorizationStatePromise = promise;
+
+                this._directlySubscribedCollectionById.set(newCollection.id, {
+                    referenceCount: 1,
+                    authorizationStateVersion,
+                });
             }
         }
     }
@@ -926,17 +1020,15 @@ export class TaskRealtimeConnection {
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         oldCollection: TaskCollectionIndexDoc,
     ) {
-        const directlySubscribedCollectionReferenceCount =
-            this._directlySubscribedCollectionReferenceCountById.get(oldCollection.id);
-        assert(directlySubscribedCollectionReferenceCount !== undefined);
+        const directlySubscribedCollection = this._directlySubscribedCollectionById.get(
+            oldCollection.id,
+        );
+        assert(directlySubscribedCollection !== undefined);
 
-        if (directlySubscribedCollectionReferenceCount > 1) {
-            this._directlySubscribedCollectionReferenceCountById.set(
-                oldCollection.id,
-                directlySubscribedCollectionReferenceCount - 1,
-            );
+        if (directlySubscribedCollection.referenceCount > 1) {
+            directlySubscribedCollection.referenceCount--;
         } else {
-            this._directlySubscribedCollectionReferenceCountById.delete(oldCollection.id);
+            this._directlySubscribedCollectionById.delete(oldCollection.id);
 
             // If a loaded collection is removed from our connection that means the client
             // may have lost authorization access as well. When we reauthorize referenced
@@ -1000,8 +1092,7 @@ export class TaskRealtimeConnection {
             eventBuilder.addActions(this._sender, actions);
         },
         onReferencedTaskAdd: (context, eventBuilder, newTask) => {
-            const directlySubscribedTaskReferenceCount =
-                this._directlySubscribedTaskReferenceCountById.get(newTask.id);
+            const directlySubscribedTask = this._directlySubscribedTaskById.get(newTask.id);
             const referencedTaskState = this._referencedTaskStateById.get(newTask.id);
 
             if (referencedTaskState !== undefined) {
@@ -1019,14 +1110,18 @@ export class TaskRealtimeConnection {
             } else {
                 // If the task is directly subscribed then it is also automatically authorized
                 // since the subscription the task is in is authorized.
-                if (directlySubscribedTaskReferenceCount !== undefined) {
+                if (directlySubscribedTask !== undefined) {
                     this._referencedTaskStateById.set(newTask.id, {
                         referenceCount: 1,
                         task: newTask,
-                        isAccessAuthorizedPromise: Promise.resolve(true),
+                        authorizationStateVersion: directlySubscribedTask.authorizationStateVersion,
+                        authorizationStatePromise: Promise.resolve("Authorized"),
                         previousTaskForTest: null,
                     });
                 } else {
+                    const authorizationStateVersion =
+                        eventBuilder.getDefaultAuthorizationStateVersion(this._sender);
+
                     const promise = isTaskIndexDocAccessAuthorized(
                         context,
                         this._accountId,
@@ -1038,14 +1133,22 @@ export class TaskRealtimeConnection {
                             getCollectionIndexDoc: collectionId =>
                                 this._server.getCollection(context, this._spaceId, collectionId),
                         },
-                    ).then(isAccessAuthorized => {
-                        if (!isAccessAuthorized) {
-                            eventBuilder.addUnauthorizedTaskBackfill(this._sender, newTask.id);
+                    ).then(isAuthorized => {
+                        if (!isAuthorized) {
+                            eventBuilder.addUnauthorizedTaskBackfill(
+                                this._sender,
+                                newTask.id,
+                                authorizationStateVersion,
+                            );
                         } else {
-                            eventBuilder.addAuthorizedTaskBackfill(this._sender, newTask);
+                            eventBuilder.addAuthorizedTaskBackfill(
+                                this._sender,
+                                newTask,
+                                authorizationStateVersion,
+                            );
                         }
 
-                        return isAccessAuthorized;
+                        return isAuthorized ? "Authorized" : "Unauthorized";
                     });
 
                     eventBuilder.waitUntil(context, promise);
@@ -1053,7 +1156,8 @@ export class TaskRealtimeConnection {
                     this._referencedTaskStateById.set(newTask.id, {
                         referenceCount: 1,
                         task: newTask,
-                        isAccessAuthorizedPromise: promise,
+                        authorizationStateVersion,
+                        authorizationStatePromise: promise,
                         previousTaskForTest: null,
                     });
                 }
@@ -1089,8 +1193,8 @@ export class TaskRealtimeConnection {
             // is authorized.
             eventBuilder.waitUntil(
                 context,
-                referencedTaskState.isAccessAuthorizedPromise.then(isAccessAuthorized => {
-                    if (!isAccessAuthorized) return;
+                referencedTaskState.authorizationStatePromise.then(authorizationState => {
+                    if (authorizationState !== "Authorized") return;
                     eventBuilder.addActions(this._sender, actions);
                 }),
             );
@@ -1115,8 +1219,9 @@ export class TaskRealtimeConnection {
             }
         },
         onReferencedCollectionAdd: (context, eventBuilder, newCollection) => {
-            const directlySubscribedCollectionReferenceCount =
-                this._directlySubscribedCollectionReferenceCountById.get(newCollection.id);
+            const directlySubscribedCollection = this._directlySubscribedCollectionById.get(
+                newCollection.id,
+            );
             const referencedCollectionState = this._referencedCollectionStateById.get(
                 newCollection.id,
             );
@@ -1137,33 +1242,40 @@ export class TaskRealtimeConnection {
             } else {
                 // If the collection is directly subscribed then it is also automatically
                 // authorized since the subscription the collection is in is authorized.
-                if (directlySubscribedCollectionReferenceCount !== undefined) {
+                if (directlySubscribedCollection !== undefined) {
                     this._referencedCollectionStateById.set(newCollection.id, {
                         referenceCount: 1,
                         collection: newCollection,
-                        isAccessAuthorizedPromise: Promise.resolve(true),
+                        authorizationStateVersion:
+                            directlySubscribedCollection.authorizationStateVersion,
+                        authorizationStatePromise: Promise.resolve("Authorized"),
                         previousCollectionForTest: null,
                     });
                 } else {
+                    const authorizationStateVersion =
+                        eventBuilder.getDefaultAuthorizationStateVersion(this._sender);
+
                     const promise = isTaskCollectionIndexDocAccessAuthorized(
                         context,
                         this._accountId,
                         newCollection,
                         "View",
-                    ).then(isAccessAuthorized => {
-                        if (!isAccessAuthorized) {
+                    ).then(isAuthorized => {
+                        if (!isAuthorized) {
                             eventBuilder.addUnauthorizedCollectionBackfill(
                                 this._sender,
                                 newCollection.id,
+                                authorizationStateVersion,
                             );
                         } else {
                             eventBuilder.addAuthorizedCollectionBackfill(
                                 this._sender,
                                 newCollection,
+                                authorizationStateVersion,
                             );
                         }
 
-                        return isAccessAuthorized;
+                        return isAuthorized ? "Authorized" : "Unauthorized";
                     });
 
                     eventBuilder.waitUntil(context, promise);
@@ -1171,7 +1283,8 @@ export class TaskRealtimeConnection {
                     this._referencedCollectionStateById.set(newCollection.id, {
                         referenceCount: 1,
                         collection: newCollection,
-                        isAccessAuthorizedPromise: promise,
+                        authorizationStateVersion,
+                        authorizationStatePromise: promise,
                         previousCollectionForTest: null,
                     });
                 }
@@ -1217,8 +1330,8 @@ export class TaskRealtimeConnection {
             // collection is authorized.
             eventBuilder.waitUntil(
                 context,
-                referencedCollectionState.isAccessAuthorizedPromise.then(isAccessAuthorized => {
-                    if (!isAccessAuthorized) return;
+                referencedCollectionState.authorizationStatePromise.then(authorizationState => {
+                    if (authorizationState !== "Authorized") return;
                     eventBuilder.addActions(this._sender, actions);
                 }),
             );
@@ -1271,9 +1384,9 @@ export class TaskRealtimeConnection {
 
                     // If the task is directly referenced then it's considered authorized. This
                     // should have already been handled when we added/removed the direct reference.
-                    if (this._directlySubscribedTaskReferenceCountById.has(task.id)) return;
+                    if (this._directlySubscribedTaskById.has(task.id)) return;
 
-                    const newIsAccessAuthorizedPromise = isTaskIndexDocAccessAuthorized(
+                    const newAuthorizationStatePromise = isTaskIndexDocAccessAuthorized(
                         context,
                         this._accountId,
                         task,
@@ -1284,22 +1397,36 @@ export class TaskRealtimeConnection {
                             getCollectionIndexDoc: collectionId =>
                                 this._server.getCollection(context, this._spaceId, collectionId),
                         },
+                    ).then(isAuthorized => (isAuthorized ? "Authorized" : "Unauthorized"));
+
+                    const oldAuthorizationStatePromise = referencedTask.authorizationStatePromise;
+
+                    const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
+                        this._sender,
+                        referencedTask.authorizationStateVersion,
                     );
 
-                    const oldIsAccessAuthorizedPromise = referencedTask.isAccessAuthorizedPromise;
+                    referencedTask.authorizationStateVersion = authorizationStateVersion;
+                    referencedTask.authorizationStatePromise = newAuthorizationStatePromise;
 
-                    referencedTask.isAccessAuthorizedPromise = newIsAccessAuthorizedPromise;
-
-                    const [oldIsAccessAuthorized, newIsAccessAuthorized] = await runAllPromises([
-                        oldIsAccessAuthorizedPromise,
-                        newIsAccessAuthorizedPromise,
+                    const [oldAuthorizationState, newAuthorizationState] = await runAllPromises([
+                        oldAuthorizationStatePromise,
+                        newAuthorizationStatePromise,
                     ]);
 
-                    if (oldIsAccessAuthorized !== newIsAccessAuthorized) {
-                        if (!newIsAccessAuthorized) {
-                            eventBuilder.addUnauthorizedTaskBackfill(this._sender, task.id);
+                    if (oldAuthorizationState !== newAuthorizationState) {
+                        if (newAuthorizationState === "Unauthorized") {
+                            eventBuilder.addUnauthorizedTaskBackfill(
+                                this._sender,
+                                task.id,
+                                authorizationStateVersion,
+                            );
                         } else {
-                            eventBuilder.addAuthorizedTaskBackfill(this._sender, task);
+                            eventBuilder.addAuthorizedTaskBackfill(
+                                this._sender,
+                                task,
+                                authorizationStateVersion,
+                            );
                         }
                     }
                 }),
@@ -1311,34 +1438,44 @@ export class TaskRealtimeConnection {
                     // If the collection is directly referenced then it's considered authorized.
                     // This should have already been handled when we added/removed the direct
                     // reference.
-                    if (this._directlySubscribedCollectionReferenceCountById.has(collection.id))
-                        return;
+                    if (this._directlySubscribedCollectionById.has(collection.id)) return;
 
-                    const newIsAccessAuthorizedPromise = isTaskCollectionIndexDocAccessAuthorized(
+                    const newAuthorizationStatePromise = isTaskCollectionIndexDocAccessAuthorized(
                         context,
                         this._accountId,
                         collection,
                         "View",
-                    );
+                    ).then(isAuthorized => (isAuthorized ? "Authorized" : "Unauthorized"));
 
                     const oldAuthorizationStatePromise =
-                        referencedCollection.isAccessAuthorizedPromise;
+                        referencedCollection.authorizationStatePromise;
 
-                    referencedCollection.isAccessAuthorizedPromise = newIsAccessAuthorizedPromise;
+                    const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
+                        this._sender,
+                        referencedCollection.authorizationStateVersion,
+                    );
 
-                    const [oldIsAccessAuthorized, newIsAccessAuthorized] = await runAllPromises([
+                    referencedCollection.authorizationStateVersion = authorizationStateVersion;
+                    referencedCollection.authorizationStatePromise = newAuthorizationStatePromise;
+
+                    const [oldAuthorizationState, newAuthorizationState] = await runAllPromises([
                         oldAuthorizationStatePromise,
-                        newIsAccessAuthorizedPromise,
+                        newAuthorizationStatePromise,
                     ]);
 
-                    if (oldIsAccessAuthorized !== newIsAccessAuthorized) {
-                        if (!newIsAccessAuthorized) {
+                    if (oldAuthorizationState !== newAuthorizationState) {
+                        if (newAuthorizationState === "Unauthorized") {
                             eventBuilder.addUnauthorizedCollectionBackfill(
                                 this._sender,
                                 collection.id,
+                                authorizationStateVersion,
                             );
                         } else {
-                            eventBuilder.addAuthorizedCollectionBackfill(this._sender, collection);
+                            eventBuilder.addAuthorizedCollectionBackfill(
+                                this._sender,
+                                collection,
+                                authorizationStateVersion,
+                            );
                         }
                     }
                 }),

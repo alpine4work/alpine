@@ -231,6 +231,7 @@ export function TaskDateInput({
                         color={color}
                         focusRingOffset={focusRingOffset}
                         focusRingAroundText={focusRingAroundText}
+                        isTabbable={isTabbable}
                         onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
                         onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}
                     />

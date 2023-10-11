@@ -27,12 +27,16 @@ import {
 } from "~/shared/error/error.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {
+    HybridLogicalTime,
+    compareHybridLogicalTimes,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
@@ -102,6 +106,7 @@ function query(
         limit?: number;
     },
 ): {
+    clientTime: HybridLogicalTime;
     filters: TaskQueryNormalizedFilters;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     limit: number;
@@ -122,10 +127,39 @@ function query(
     assert(filters.type !== "Impossible");
 
     return {
+        clientTime: testClock.nowLogical(),
         filters: filters.normalizedFilters,
         sorts: normalizeTaskQuerySorts(options?.sorts ?? []),
         limit: options?.limit ?? 100,
     };
+}
+
+function expectAuthorizedTask(taskId: TaskId) {
+    return expect.objectContaining({
+        type: "Authorized",
+        task: expect.objectContaining({id: taskId}),
+    });
+}
+
+function expectUnauthorizedTask(taskId: TaskId) {
+    return expect.objectContaining({
+        type: "Unauthorized",
+        taskId,
+    });
+}
+
+function expectAuthorizedCollection(collectionId: TaskCollectionId) {
+    return expect.objectContaining({
+        type: "Authorized",
+        collection: expect.objectContaining({id: collectionId}),
+    });
+}
+
+function expectUnauthorizedCollection(collectionId: TaskCollectionId) {
+    return expect.objectContaining({
+        type: "Unauthorized",
+        collectionId,
+    });
 }
 
 test("can't load a query with no filters", async () => {
@@ -212,16 +246,15 @@ test("can load a query with some tasks", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -268,22 +301,22 @@ test("can paginate a query with many tasks", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
 
     expect(
         await connection.procedures.loadMoreQueryTasks({
+            clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -295,22 +328,22 @@ test("can paginate a query with many tasks", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: task6.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task6.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
 
     expect(
         await connection.procedures.loadMoreQueryTasks({
+            clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -322,15 +355,11 @@ test("can paginate a query with many tasks", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task7.id}),
-                expect.objectContaining({id: task8.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task7.id), expectAuthorizedTask(task8.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -385,16 +414,15 @@ test("can load a query with filters", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -423,15 +451,11 @@ test("can load a query with filters", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task4.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task4.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -483,18 +507,17 @@ test("can load a query with sorts", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -558,18 +581,17 @@ test("two subscriptions with identical queries use the same underlying query", a
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -598,16 +620,15 @@ test("two subscriptions with identical queries use the same underlying query", a
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -616,6 +637,7 @@ test("two subscriptions with identical queries use the same underlying query", a
 
     expect(
         await connection1.procedures.loadMoreQueryTasks({
+            clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -629,15 +651,11 @@ test("two subscriptions with identical queries use the same underlying query", a
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task4.id), expectAuthorizedTask(task5.id)],
+            backfillCollections: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -707,16 +725,15 @@ test("two subscriptions with different queries load different queries", async ()
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -748,15 +765,11 @@ test("two subscriptions with different queries load different queries", async ()
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task4.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection2.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task4.id)],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -814,16 +827,15 @@ test("will send actions for updated tasks in the subscription's loaded range", a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -834,7 +846,8 @@ test("will send actions for updated tasks in the subscription's loaded range", a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -846,10 +859,8 @@ test("will send actions for updated tasks in the subscription's loaded range", a
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -865,7 +876,8 @@ test("will send actions for updated tasks in the subscription's loaded range", a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -877,10 +889,8 @@ test("will send actions for updated tasks in the subscription's loaded range", a
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -936,16 +946,15 @@ test("will send actions for removed tasks in the subscription's loaded range", a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -956,7 +965,8 @@ test("will send actions for removed tasks in the subscription's loaded range", a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -968,10 +978,8 @@ test("will send actions for removed tasks in the subscription's loaded range", a
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -982,7 +990,8 @@ test("will send actions for removed tasks in the subscription's loaded range", a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -994,10 +1003,8 @@ test("will send actions for removed tasks in the subscription's loaded range", a
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1058,16 +1065,15 @@ test("will backfill added tasks in the subscription's loaded range", async () =>
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -1083,12 +1089,11 @@ test("will backfill added tasks in the subscription's loaded range", async () =>
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task2.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -1099,7 +1104,8 @@ test("will backfill added tasks in the subscription's loaded range", async () =>
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1111,10 +1117,8 @@ test("will backfill added tasks in the subscription's loaded range", async () =>
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1265,20 +1269,19 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -1286,20 +1289,19 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -1307,20 +1309,19 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -1328,30 +1329,28 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection4.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task5.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task5.id)],
+            backfillCollections: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -1362,7 +1361,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1374,10 +1374,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1385,7 +1383,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1397,10 +1396,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1408,7 +1405,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1420,10 +1418,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1431,7 +1427,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection4.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1443,10 +1440,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1457,7 +1452,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1469,10 +1465,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1484,7 +1478,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection4.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1496,10 +1491,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1512,7 +1505,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1524,10 +1518,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1535,7 +1527,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1547,10 +1540,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1558,7 +1549,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
     expect(connection4.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1570,10 +1562,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1724,20 +1714,19 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -1745,20 +1734,19 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -1766,20 +1754,19 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -1787,30 +1774,28 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection4.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task5.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task5.id)],
+            backfillCollections: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -1821,7 +1806,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1833,10 +1819,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1844,7 +1828,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1856,10 +1841,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1867,7 +1850,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1879,10 +1863,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1890,7 +1872,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection4.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1902,10 +1885,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1916,7 +1897,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1928,10 +1910,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1943,7 +1923,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection4.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1955,10 +1936,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -1969,12 +1948,11 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task5.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task5.id)],
+            backfillCollections: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -1982,7 +1960,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -1995,10 +1974,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2006,7 +1983,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2019,10 +1997,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2030,7 +2006,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection4.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2043,10 +2020,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2057,7 +2032,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2069,10 +2045,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2080,7 +2054,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2092,10 +2067,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2103,7 +2076,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2115,10 +2089,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2126,7 +2098,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
     expect(connection4.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2138,10 +2111,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2238,16 +2209,15 @@ test("visible task added out of loaded range ignored", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2257,17 +2227,16 @@ test("visible task added out of loaded range ignored", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2282,12 +2251,11 @@ test("visible task added out of loaded range ignored", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task4.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task4.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2385,16 +2353,15 @@ test("visible task updated out of loaded range ignored", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2404,18 +2371,17 @@ test("visible task updated out of loaded range ignored", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2430,7 +2396,8 @@ test("visible task updated out of loaded range ignored", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2442,10 +2409,8 @@ test("visible task updated out of loaded range ignored", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2543,16 +2508,15 @@ test("visible task removed out of loaded range ignored", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2562,18 +2526,17 @@ test("visible task removed out of loaded range ignored", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2588,7 +2551,8 @@ test("visible task removed out of loaded range ignored", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2600,10 +2564,8 @@ test("visible task removed out of loaded range ignored", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2710,16 +2672,15 @@ test("visible task moved into loaded range", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2729,18 +2690,17 @@ test("visible task moved into loaded range", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2751,12 +2711,11 @@ test("visible task moved into loaded range", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task4.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task4.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2766,7 +2725,8 @@ test("visible task moved into loaded range", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2778,10 +2738,8 @@ test("visible task moved into loaded range", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2888,16 +2846,15 @@ test("visible task moved out of loaded range", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2907,18 +2864,17 @@ test("visible task moved out of loaded range", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -2929,7 +2885,8 @@ test("visible task moved out of loaded range", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2941,10 +2898,8 @@ test("visible task moved out of loaded range", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -2954,7 +2909,8 @@ test("visible task moved out of loaded range", async () => {
     expect(connection3.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -2966,10 +2922,8 @@ test("visible task moved out of loaded range", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3035,18 +2989,17 @@ test("unsubscribe stops sending actions to connection", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -3054,18 +3007,17 @@ test("unsubscribe stops sending actions to connection", async () => {
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -3076,7 +3028,8 @@ test("unsubscribe stops sending actions to connection", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -3088,10 +3041,8 @@ test("unsubscribe stops sending actions to connection", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3099,7 +3050,8 @@ test("unsubscribe stops sending actions to connection", async () => {
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -3111,10 +3063,8 @@ test("unsubscribe stops sending actions to connection", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3129,7 +3079,8 @@ test("unsubscribe stops sending actions to connection", async () => {
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -3141,10 +3092,8 @@ test("unsubscribe stops sending actions to connection", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3189,6 +3138,7 @@ test("loading tasks with zero limit is fine", async () => {
 
     expect(
         await connection.procedures.loadMoreQueryTasks({
+            clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 0,
         }),
@@ -3233,6 +3183,7 @@ test("loading tasks with zero limit when there are no tasks", async () => {
 
     expect(
         await connection.procedures.loadMoreQueryTasks({
+            clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 0,
         }),
@@ -3325,29 +3276,29 @@ test("all referenced collections will be backfilled in the query when loaded", a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1a.id}),
-                expect.objectContaining({id: collection1b.id}),
-                expect.objectContaining({id: collection2a.id}),
-                expect.objectContaining({id: collection2b.id}),
-                expect.objectContaining({id: collection3a.id}),
-                expect.objectContaining({id: collection3b.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1a.id),
+                expectAuthorizedCollection(collection1b.id),
+                expectAuthorizedCollection(collection2a.id),
+                expectAuthorizedCollection(collection2b.id),
+                expectAuthorizedCollection(collection3a.id),
+                expectAuthorizedCollection(collection3b.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
 
     expect(
         await connection.procedures.loadMoreQueryTasks({
+            clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -3359,20 +3310,16 @@ test("all referenced collections will be backfilled in the query when loaded", a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [expectAuthorizedTask(task4.id), expectAuthorizedTask(task5.id)],
+            backfillCollections: [
+                expectAuthorizedCollection(collection4a.id),
+                expectAuthorizedCollection(collection4b.id),
+                expectAuthorizedCollection(collection5a.id),
+                expectAuthorizedCollection(collection5b.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection4a.id}),
-                expect.objectContaining({id: collection4b.id}),
-                expect.objectContaining({id: collection5a.id}),
-                expect.objectContaining({id: collection5b.id}),
-            ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -3460,23 +3407,22 @@ test("all referenced collections will be backfilled in the query when added", as
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1a.id}),
-                expect.objectContaining({id: collection1b.id}),
-                expect.objectContaining({id: collection2a.id}),
-                expect.objectContaining({id: collection2b.id}),
-                expect.objectContaining({id: collection4a.id}),
-                expect.objectContaining({id: collection4b.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1a.id),
+                expectAuthorizedCollection(collection1b.id),
+                expectAuthorizedCollection(collection2a.id),
+                expectAuthorizedCollection(collection2b.id),
+                expectAuthorizedCollection(collection4a.id),
+                expectAuthorizedCollection(collection4b.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -3487,15 +3433,14 @@ test("all referenced collections will be backfilled in the query when added", as
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task3.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection3a.id}),
-                expect.objectContaining({id: collection3b.id}),
+            backfillTasks: [expectAuthorizedTask(task3.id)],
+            backfillCollections: [
+                expectAuthorizedCollection(collection3a.id),
+                expectAuthorizedCollection(collection3b.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -3506,7 +3451,8 @@ test("all referenced collections will be backfilled in the query when added", as
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -3518,10 +3464,8 @@ test("all referenced collections will be backfilled in the query when added", as
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3599,25 +3543,24 @@ test("when a collection is added it will be backfilled", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1a.id}),
-                expect.objectContaining({id: collection1b.id}),
-                expect.objectContaining({id: collection2a.id}),
-                expect.objectContaining({id: collection2b.id}),
-                expect.objectContaining({id: collection3a.id}),
-                expect.objectContaining({id: collection4a.id}),
-                expect.objectContaining({id: collection4b.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1a.id),
+                expectAuthorizedCollection(collection1b.id),
+                expectAuthorizedCollection(collection2a.id),
+                expectAuthorizedCollection(collection2b.id),
+                expectAuthorizedCollection(collection3a.id),
+                expectAuthorizedCollection(collection4a.id),
+                expectAuthorizedCollection(collection4b.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -3628,7 +3571,8 @@ test("when a collection is added it will be backfilled", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -3641,10 +3585,8 @@ test("when a collection is added it will be backfilled", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection3b.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [expectAuthorizedCollection(collection3b.id)],
             referencedAccounts: [],
         },
     ]);
@@ -3655,7 +3597,8 @@ test("when a collection is added it will be backfilled", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -3667,10 +3610,8 @@ test("when a collection is added it will be backfilled", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3726,20 +3667,19 @@ test("if a collection is referenced then the connection will receive actions for
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection3.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection3.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -3750,7 +3690,8 @@ test("if a collection is referenced then the connection will receive actions for
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -3762,10 +3703,8 @@ test("if a collection is referenced then the connection will receive actions for
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3792,7 +3731,8 @@ test("if a collection is referenced then the connection will receive actions for
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -3804,10 +3744,8 @@ test("if a collection is referenced then the connection will receive actions for
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3860,17 +3798,16 @@ test("if a collection is referenced then the all references must be removed to n
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -3881,7 +3818,8 @@ test("if a collection is referenced then the all references must be removed to n
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -3893,10 +3831,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3908,7 +3844,8 @@ test("if a collection is referenced then the all references must be removed to n
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -3920,15 +3857,14 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -3940,10 +3876,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -3956,7 +3890,8 @@ test("if a collection is referenced then the all references must be removed to n
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -3969,15 +3904,14 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -3989,15 +3923,14 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -4009,10 +3942,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4024,7 +3955,8 @@ test("if a collection is referenced then the all references must be removed to n
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4036,10 +3968,8 @@ test("if a collection is referenced then the all references must be removed to n
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4100,16 +4030,15 @@ test("collections unreferenced by removing loaded task do not receive actions", 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4120,7 +4049,8 @@ test("collections unreferenced by removing loaded task do not receive actions", 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -4132,10 +4062,8 @@ test("collections unreferenced by removing loaded task do not receive actions", 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4146,7 +4074,8 @@ test("collections unreferenced by removing loaded task do not receive actions", 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4158,10 +4087,8 @@ test("collections unreferenced by removing loaded task do not receive actions", 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4227,16 +4154,15 @@ test("collections can be referenced, unreferenced, then referenced again", async
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4247,7 +4173,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -4259,10 +4186,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4273,7 +4198,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4285,10 +4211,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4304,12 +4228,11 @@ test("collections can be referenced, unreferenced, then referenced again", async
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4320,7 +4243,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -4332,10 +4256,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4392,18 +4314,17 @@ test("parent tasks are backfilled when query is initially loaded", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4467,24 +4388,24 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
 
     expect(
         await connection.procedures.loadMoreQueryTasks({
+            clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -4496,16 +4417,15 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: parentTask5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(parentTask5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4559,15 +4479,11 @@ test("parent tasks are backfilled when task is made visible", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task3.id)],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4578,15 +4494,11 @@ test("parent tasks are backfilled when task is made visible", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: parentTask1.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4641,16 +4553,15 @@ test("parent tasks is backfilled when task is updated", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4661,7 +4572,8 @@ test("parent tasks is backfilled when task is updated", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4673,10 +4585,8 @@ test("parent tasks is backfilled when task is updated", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4687,7 +4597,8 @@ test("parent tasks is backfilled when task is updated", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4707,10 +4618,8 @@ test("parent tasks is backfilled when task is updated", async () => {
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask2.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask2.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4765,17 +4674,16 @@ test("parents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4786,7 +4694,8 @@ test("parents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4798,10 +4707,8 @@ test("parents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4812,7 +4719,8 @@ test("parents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4832,10 +4740,8 @@ test("parents of loaded tasks receive update actions", async () => {
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4851,7 +4757,8 @@ test("parents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4863,10 +4770,8 @@ test("parents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4877,7 +4782,8 @@ test("parents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4889,10 +4795,8 @@ test("parents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4948,17 +4852,16 @@ test("parents of loaded tasks receive update actions until all references are re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -4969,7 +4872,8 @@ test("parents of loaded tasks receive update actions until all references are re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -4981,10 +4885,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -4995,7 +4897,8 @@ test("parents of loaded tasks receive update actions until all references are re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5015,10 +4918,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5029,7 +4930,8 @@ test("parents of loaded tasks receive update actions until all references are re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5041,10 +4943,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5055,7 +4955,8 @@ test("parents of loaded tasks receive update actions until all references are re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5075,10 +4976,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5094,7 +4993,8 @@ test("parents of loaded tasks receive update actions until all references are re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5106,10 +5006,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5120,7 +5018,8 @@ test("parents of loaded tasks receive update actions until all references are re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5132,10 +5031,8 @@ test("parents of loaded tasks receive update actions until all references are re
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5195,19 +5092,18 @@ test("grandparent tasks are backfilled when query is initially loaded", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
-                expect.objectContaining({id: parentTask3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5271,22 +5167,22 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
 
     expect(
         await connection.procedures.loadMoreQueryTasks({
+            clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -5298,18 +5194,17 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
-                expect.objectContaining({id: parentTask3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5368,15 +5263,11 @@ test("grandparent tasks are backfilled when task is made visible", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task3.id)],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5387,17 +5278,16 @@ test("grandparent tasks are backfilled when task is made visible", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
-                expect.objectContaining({id: parentTask3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5456,16 +5346,15 @@ test("grandparent tasks are backfilled when task is updated", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5476,7 +5365,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5488,14 +5378,12 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
-                expect.objectContaining({id: parentTask3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5507,7 +5395,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5527,15 +5416,14 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5547,13 +5435,11 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: parentTask3.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(parentTask3.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5565,7 +5451,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5585,10 +5472,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5600,7 +5485,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5628,10 +5514,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5691,19 +5575,18 @@ test("grandparents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
-                expect.objectContaining({id: parentTask3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5714,7 +5597,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5726,10 +5610,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5740,7 +5622,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5760,10 +5643,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5779,7 +5660,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5791,13 +5673,11 @@ test("grandparents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: parentTask3.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(parentTask3.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5808,7 +5688,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5820,10 +5701,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5884,19 +5763,18 @@ test("grandparents of loaded tasks receive update actions until all references a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
-                expect.objectContaining({id: parentTask3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -5907,7 +5785,8 @@ test("grandparents of loaded tasks receive update actions until all references a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5919,10 +5798,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5933,7 +5810,8 @@ test("grandparents of loaded tasks receive update actions until all references a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5953,10 +5831,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5967,7 +5843,8 @@ test("grandparents of loaded tasks receive update actions until all references a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -5979,10 +5856,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -5993,7 +5868,8 @@ test("grandparents of loaded tasks receive update actions until all references a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6013,10 +5889,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -6032,7 +5906,8 @@ test("grandparents of loaded tasks receive update actions until all references a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6044,14 +5919,12 @@ test("grandparents of loaded tasks receive update actions until all references a
                     },
                 },
             ],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: parentTask3.id}),
-                expect.objectContaining({id: parentTask2.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(parentTask3.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6062,7 +5935,8 @@ test("grandparents of loaded tasks receive update actions until all references a
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6074,10 +5948,8 @@ test("grandparents of loaded tasks receive update actions until all references a
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -6150,23 +6022,22 @@ test("collections of parent tasks are backfilled when query is initially loaded"
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask3.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask3.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection3.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection3.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6245,22 +6116,22 @@ test("collections of parent tasks are backfilled when more is loaded from query"
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
 
     expect(
         await connection.procedures.loadMoreQueryTasks({
+            clientTime: testClock.nowLogical(),
             querySubscriptionId,
             limit: 3,
         }),
@@ -6272,21 +6143,20 @@ test("collections of parent tasks are backfilled when more is loaded from query"
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask3.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask3.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection3.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection3.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6345,15 +6215,11 @@ test("collections of parent tasks are backfilled when task is made visible", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task3.id)],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6364,16 +6230,15 @@ test("collections of parent tasks are backfilled when task is made visible", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection2.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6432,16 +6297,15 @@ test("collections of parent tasks are backfilled when task is updated", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6452,7 +6316,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6464,13 +6329,11 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     },
                 },
             ],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection2.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6482,7 +6345,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6502,15 +6366,14 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6522,10 +6385,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask2.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection2.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask2.id)],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6537,7 +6398,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6557,10 +6419,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6572,7 +6432,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6600,10 +6461,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -6665,22 +6524,21 @@ test("collections of parents of loaded tasks receive update actions", async () =
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
-                expect.objectContaining({id: collection3.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6691,7 +6549,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -6703,10 +6562,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -6717,7 +6574,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -6729,10 +6587,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -6743,7 +6599,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6763,10 +6620,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -6782,7 +6637,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6794,10 +6650,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask2.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection3.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask2.id)],
+            backfillCollections: [expectAuthorizedCollection(collection3.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6808,7 +6662,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -6820,10 +6675,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -6889,21 +6742,20 @@ test("collections of parents of loaded tasks receive update actions until all re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -6914,7 +6766,8 @@ test("collections of parents of loaded tasks receive update actions until all re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -6926,10 +6779,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -6940,7 +6791,8 @@ test("collections of parents of loaded tasks receive update actions until all re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -6960,10 +6812,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -6974,7 +6824,8 @@ test("collections of parents of loaded tasks receive update actions until all re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -6986,10 +6837,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -7000,7 +6849,8 @@ test("collections of parents of loaded tasks receive update actions until all re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7020,10 +6870,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -7039,7 +6887,8 @@ test("collections of parents of loaded tasks receive update actions until all re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7051,13 +6900,11 @@ test("collections of parents of loaded tasks receive update actions until all re
                     },
                 },
             ],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: parentTask2.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection2.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7068,7 +6915,8 @@ test("collections of parents of loaded tasks receive update actions until all re
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -7080,10 +6928,8 @@ test("collections of parents of loaded tasks receive update actions until all re
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -7133,12 +6979,11 @@ test("race condition: parent task can change before previous parent task has loa
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7200,10 +7045,20 @@ test("race condition: parent task can change before previous parent task has loa
     await waitPromise1;
     await waitPromise2;
 
-    expect(connection1.takeEvents().sort((a, b) => a.number - b.number)).toEqual([
+    expect(
+        connection1
+            .takeEvents()
+            .sort((a, b) =>
+                compareHybridLogicalTimes(
+                    a.defaultAuthorizationStateVersion,
+                    b.defaultAuthorizationStateVersion,
+                ),
+            ),
+    ).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7215,15 +7070,14 @@ test("race condition: parent task can change before previous parent task has loa
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task2.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7235,10 +7089,8 @@ test("race condition: parent task can change before previous parent task has loa
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task3.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task3.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7254,7 +7106,8 @@ test("race condition: parent task can change before previous parent task has loa
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7266,10 +7119,8 @@ test("race condition: parent task can change before previous parent task has loa
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -7325,12 +7176,11 @@ test("race condition: parent task can change before previous grandparent task ha
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7397,10 +7247,20 @@ test("race condition: parent task can change before previous grandparent task ha
     await waitPromise1;
     await waitPromise2;
 
-    expect(connection1.takeEvents().sort((a, b) => a.number - b.number)).toEqual([
+    expect(
+        connection1
+            .takeEvents()
+            .sort((a, b) =>
+                compareHybridLogicalTimes(
+                    a.defaultAuthorizationStateVersion,
+                    b.defaultAuthorizationStateVersion,
+                ),
+            ),
+    ).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7412,18 +7272,14 @@ test("race condition: parent task can change before previous grandparent task ha
                     },
                 },
             ],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task4.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task4.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7443,10 +7299,8 @@ test("race condition: parent task can change before previous grandparent task ha
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task3.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task3.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7462,7 +7316,8 @@ test("race condition: parent task can change before previous grandparent task ha
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7474,10 +7329,8 @@ test("race condition: parent task can change before previous grandparent task ha
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -7523,12 +7376,11 @@ test("race condition: parent task is removed before it's loaded", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7572,10 +7424,20 @@ test("race condition: parent task is removed before it's loaded", async () => {
     await waitPromise1;
     await waitPromise2;
 
-    expect(connection.takeEvents().sort((a, b) => a.number - b.number)).toEqual([
+    expect(
+        connection
+            .takeEvents()
+            .sort((a, b) =>
+                compareHybridLogicalTimes(
+                    a.defaultAuthorizationStateVersion,
+                    b.defaultAuthorizationStateVersion,
+                ),
+            ),
+    ).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7587,15 +7449,14 @@ test("race condition: parent task is removed before it's loaded", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task2.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7607,10 +7468,8 @@ test("race condition: parent task is removed before it's loaded", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -7663,12 +7522,11 @@ test("race condition: collection can be removed before previous collection has l
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7713,7 +7571,8 @@ test("race condition: collection can be removed before previous collection has l
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7725,15 +7584,14 @@ test("race condition: collection can be removed before previous collection has l
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -7746,10 +7604,8 @@ test("race condition: collection can be removed before previous collection has l
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [],
         },
     ]);
@@ -7808,12 +7664,11 @@ test("race condition: parent task can change before previous collection of paren
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -7892,7 +7747,8 @@ test("race condition: parent task can change before previous collection of paren
         [
             {
                 type: "Update",
-                number: expect.any(Number),
+                originClientId: null,
+                defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [
                     {
                         type: "UpdateTask",
@@ -7904,15 +7760,14 @@ test("race condition: parent task can change before previous collection of paren
                         },
                     },
                 ],
-                backfillAuthorizedTasks: [expect.objectContaining({id: task2.id})],
-                backfillUnauthorizedTaskIds: [],
-                backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-                backfillUnauthorizedCollectionIds: [],
+                backfillTasks: [expectAuthorizedTask(task2.id)],
+                backfillCollections: [expectAuthorizedCollection(collection.id)],
                 referencedAccounts: [await session.get()],
             },
             {
                 type: "Update",
-                number: expect.any(Number),
+                originClientId: null,
+                defaultAuthorizationStateVersion: expect.any(Array),
                 actions: [
                     {
                         type: "UpdateTask",
@@ -7932,10 +7787,8 @@ test("race condition: parent task can change before previous collection of paren
                         }),
                     },
                 ],
-                backfillAuthorizedTasks: [],
-                backfillUnauthorizedTaskIds: [],
-                backfillAuthorizedCollections: [],
-                backfillUnauthorizedCollectionIds: [],
+                backfillTasks: [],
+                backfillCollections: [],
                 referencedAccounts: [],
             },
         ].sort(compare),
@@ -7994,18 +7847,14 @@ test("multiple subscriptions that receive the same actions only show action once
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task3.id)],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
-            ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -8033,12 +7882,11 @@ test("multiple subscriptions that receive the same actions only show action once
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task2.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -8049,7 +7897,8 @@ test("multiple subscriptions that receive the same actions only show action once
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8061,10 +7910,8 @@ test("multiple subscriptions that receive the same actions only show action once
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8075,7 +7922,8 @@ test("multiple subscriptions that receive the same actions only show action once
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8087,10 +7935,8 @@ test("multiple subscriptions that receive the same actions only show action once
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8101,7 +7947,8 @@ test("multiple subscriptions that receive the same actions only show action once
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8113,10 +7960,8 @@ test("multiple subscriptions that receive the same actions only show action once
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8170,15 +8015,15 @@ test("referenced task may be unauthorized", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectUnauthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [parentTask1.id],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -8189,7 +8034,8 @@ test("referenced task may be unauthorized", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8201,10 +8047,8 @@ test("referenced task may be unauthorized", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8263,15 +8107,15 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectUnauthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [parentTask1.id],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -8282,7 +8126,8 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8294,10 +8139,8 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8313,12 +8156,11 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -8329,7 +8171,8 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8341,10 +8184,8 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8355,7 +8196,8 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8367,10 +8209,8 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8380,12 +8220,11 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [parentTask1.id],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectUnauthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8441,19 +8280,18 @@ test("authorized referenced task may be loaded later", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -8464,7 +8302,8 @@ test("authorized referenced task may be loaded later", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8476,10 +8315,8 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8490,7 +8327,8 @@ test("authorized referenced task may be loaded later", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8502,10 +8340,8 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8516,7 +8352,8 @@ test("authorized referenced task may be loaded later", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8529,10 +8366,8 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8543,7 +8378,8 @@ test("authorized referenced task may be loaded later", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8555,10 +8391,8 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8569,7 +8403,8 @@ test("authorized referenced task may be loaded later", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8581,10 +8416,8 @@ test("authorized referenced task may be loaded later", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8642,16 +8475,15 @@ test("a loaded task may then become referenced", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -8662,7 +8494,8 @@ test("a loaded task may then become referenced", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8682,10 +8515,8 @@ test("a loaded task may then become referenced", async () => {
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8696,7 +8527,8 @@ test("a loaded task may then become referenced", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8708,10 +8540,8 @@ test("a loaded task may then become referenced", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8722,7 +8552,8 @@ test("a loaded task may then become referenced", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8734,10 +8565,8 @@ test("a loaded task may then become referenced", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8747,12 +8576,11 @@ test("a loaded task may then become referenced", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [parentTask1.id],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectUnauthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8808,15 +8636,11 @@ test("loaded task may be loaded by two subscriptions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -8844,12 +8668,11 @@ test("loaded task may be loaded by two subscriptions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task3.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task3.id)],
+            backfillCollections: [],
             referencedAccounts: [await session2.get()],
         },
     ]);
@@ -8860,7 +8683,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8872,10 +8696,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8886,7 +8708,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8898,10 +8721,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8912,7 +8733,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8924,10 +8746,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8938,7 +8758,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8950,10 +8771,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8964,7 +8783,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -8976,10 +8796,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -8995,7 +8813,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9007,10 +8826,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9026,7 +8843,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9038,10 +8856,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9101,15 +8917,11 @@ test("authorized referenced task may be referenced multiple times", async () => 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
+            backfillCollections: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -9142,7 +8954,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9154,10 +8967,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session2.get()],
         },
     ]);
@@ -9168,7 +8979,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9180,10 +8992,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9194,7 +9004,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9214,10 +9025,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9277,15 +9086,11 @@ test("unauthorized referenced task may be referenced multiple times", async () =
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -9318,7 +9123,8 @@ test("unauthorized referenced task may be referenced multiple times", async () =
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9330,10 +9136,8 @@ test("unauthorized referenced task may be referenced multiple times", async () =
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [parentTask1.id],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectUnauthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9349,7 +9153,8 @@ test("unauthorized referenced task may be referenced multiple times", async () =
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9361,10 +9166,8 @@ test("unauthorized referenced task may be referenced multiple times", async () =
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9436,16 +9239,19 @@ test("may reference unauthorized collections", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [collection3.id, collection2.id],
+            backfillCollections: [
+                expectUnauthorizedCollection(collection3.id),
+                expectUnauthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection1.id),
+            ],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -9456,7 +9262,8 @@ test("may reference unauthorized collections", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -9468,10 +9275,8 @@ test("may reference unauthorized collections", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9534,15 +9339,11 @@ test("authorized referenced collection may be referenced multiple times", async 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
+            backfillCollections: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -9575,7 +9376,8 @@ test("authorized referenced collection may be referenced multiple times", async 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9588,10 +9390,8 @@ test("authorized referenced collection may be referenced multiple times", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [],
         },
     ]);
@@ -9602,7 +9402,8 @@ test("authorized referenced collection may be referenced multiple times", async 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -9614,10 +9415,8 @@ test("authorized referenced collection may be referenced multiple times", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9628,7 +9427,8 @@ test("authorized referenced collection may be referenced multiple times", async 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9640,10 +9440,8 @@ test("authorized referenced collection may be referenced multiple times", async 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9703,15 +9501,11 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-            ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection2.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -9744,7 +9538,8 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9757,10 +9552,8 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [collection1.id],
+            backfillTasks: [],
+            backfillCollections: [expectUnauthorizedCollection(collection1.id)],
             referencedAccounts: [],
         },
     ]);
@@ -9776,7 +9569,8 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9788,10 +9582,8 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9848,15 +9640,15 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectUnauthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [parentTask1.id],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -9881,12 +9673,11 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: parentTask1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session2.get()],
         },
     ]);
@@ -9897,7 +9688,8 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9909,10 +9701,8 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -9965,16 +9755,15 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get(), await session2.get()],
         },
     ]);
@@ -9985,7 +9774,8 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -9997,10 +9787,8 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10011,7 +9799,8 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -10023,10 +9812,8 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10037,7 +9824,8 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -10049,10 +9837,8 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10062,12 +9848,11 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [parentTask1.id],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectUnauthorizedTask(parentTask1.id)],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10124,15 +9909,15 @@ test("reauthorize will noop if an unauthorized referenced task is still unauthor
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectUnauthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [parentTask1.id],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -10199,16 +9984,15 @@ test("reauthorize will noop if an authorized referenced task is still authorized
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get(), await session2.get()],
         },
     ]);
@@ -10219,7 +10003,8 @@ test("reauthorize will noop if an authorized referenced task is still authorized
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -10231,10 +10016,8 @@ test("reauthorize will noop if an authorized referenced task is still authorized
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10249,7 +10032,8 @@ test("reauthorize will noop if an authorized referenced task is still authorized
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -10261,10 +10045,8 @@ test("reauthorize will noop if an authorized referenced task is still authorized
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10316,15 +10098,14 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
+            backfillCollections: [
+                expectUnauthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [collection2.id],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -10349,12 +10130,11 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection2.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
             referencedAccounts: [],
         },
     ]);
@@ -10365,7 +10145,8 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -10377,10 +10158,8 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10432,18 +10211,14 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
-            ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -10454,7 +10229,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -10466,10 +10242,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10480,7 +10254,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -10491,10 +10266,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10505,7 +10278,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -10517,10 +10291,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10530,12 +10302,11 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [collection2.id],
+            backfillTasks: [],
+            backfillCollections: [expectUnauthorizedCollection(collection2.id)],
             referencedAccounts: [],
         },
     ]);
@@ -10592,15 +10363,14 @@ test("reauthorize will noop if an unauthorized referenced collection is still un
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
+            backfillCollections: [
+                expectUnauthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [collection2.id],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -10666,18 +10436,14 @@ test("reauthorize will noop if an authorized referenced collection is still auth
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
-            ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -10688,7 +10454,8 @@ test("reauthorize will noop if an authorized referenced collection is still auth
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -10700,10 +10467,8 @@ test("reauthorize will noop if an authorized referenced collection is still auth
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10718,7 +10483,8 @@ test("reauthorize will noop if an authorized referenced collection is still auth
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -10730,10 +10496,8 @@ test("reauthorize will noop if an authorized referenced collection is still auth
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10795,20 +10559,19 @@ test("referenced data is not evicted", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -10825,7 +10588,8 @@ test("referenced data is not evicted", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -10837,10 +10601,8 @@ test("referenced data is not evicted", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10851,7 +10613,8 @@ test("referenced data is not evicted", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -10863,10 +10626,8 @@ test("referenced data is not evicted", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -10904,20 +10665,19 @@ test("referenced data is not evicted", async () => {
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection2.id}),
-                expect.objectContaining({id: collection1.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection1.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -10978,20 +10738,19 @@ test("unreferenced data is evicted", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -11051,20 +10810,19 @@ test("unreferenced data is evicted", async () => {
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -11125,20 +10883,19 @@ test("unreferenced data can be reused when no eviction", async () => {
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -11194,20 +10951,19 @@ test("unreferenced data can be reused when no eviction", async () => {
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection2.id}),
-                expect.objectContaining({id: collection1.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection1.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -11261,16 +11017,15 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     expect(connection1.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -11355,16 +11110,15 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task1.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -11395,7 +11149,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -11407,10 +11162,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -11441,16 +11194,15 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -11464,7 +11216,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -11476,10 +11229,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -11500,7 +11251,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -11511,10 +11263,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -11654,18 +11404,17 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -11696,7 +11445,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -11708,10 +11458,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -11742,18 +11490,17 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -11767,7 +11514,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -11779,10 +11527,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -11798,7 +11544,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -11809,10 +11556,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -11828,7 +11573,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     expect(connection2.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -11839,10 +11585,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -12013,21 +11757,29 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     await applyActions1Promise;
     await subscribePromise;
 
-    expect(connection2.takeEvents().sort((a, b) => a.number - b.number)).toEqual([
+    expect(
+        connection2
+            .takeEvents()
+            .sort((a, b) =>
+                compareHybridLogicalTimes(
+                    a.defaultAuthorizationStateVersion,
+                    b.defaultAuthorizationStateVersion,
+                ),
+            ),
+    ).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -12233,26 +11985,37 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
     await subscribePromise;
     await applyActions4Promise;
 
-    expect(connection2.takeEvents().sort((a, b) => a.number - b.number)).toEqual([
+    expect(
+        connection2
+            .takeEvents()
+            .sort((a, b) =>
+                compareHybridLogicalTimes(
+                    a.defaultAuthorizationStateVersion,
+                    b.defaultAuthorizationStateVersion,
+                ),
+            ),
+    ).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12264,10 +12027,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12296,17 +12057,19 @@ test("can subscribe to task", async () => {
 
     expect(connection.takeEvents()).toEqual([]);
 
-    const {taskSubscriptionId} = await connection.procedures.subscribeToTask({taskId: task1.id});
+    const {taskSubscriptionId} = await connection.procedures.subscribeToTask({
+        clientTime: testClock.nowLogical(),
+        taskId: task1.id,
+    });
 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -12317,7 +12080,8 @@ test("can subscribe to task", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12329,10 +12093,8 @@ test("can subscribe to task", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12361,9 +12123,12 @@ test("can't subscribe to task that doesn't exist", async () => {
 
     expect(connection.takeEvents()).toEqual([]);
 
-    await expect(connection.procedures.subscribeToTask({taskId: generateId()})).rejects.toThrow(
-        NotFoundError,
-    );
+    await expect(
+        connection.procedures.subscribeToTask({
+            clientTime: testClock.nowLogical(),
+            taskId: generateId(),
+        }),
+    ).rejects.toThrow(NotFoundError);
 
     expect(connection.takeEvents()).toEqual([]);
 });
@@ -12383,9 +12148,12 @@ test("can't subscribe to task that you don't have access to", async () => {
 
     expect(connection.takeEvents()).toEqual([]);
 
-    await expect(connection.procedures.subscribeToTask({taskId: task1.id})).rejects.toThrow(
-        PermissionDeniedError,
-    );
+    await expect(
+        connection.procedures.subscribeToTask({
+            clientTime: testClock.nowLogical(),
+            taskId: task1.id,
+        }),
+    ).rejects.toThrow(PermissionDeniedError);
 
     expect(connection.takeEvents()).toEqual([]);
 });
@@ -12407,17 +12175,19 @@ test("will lose access to subscribed task upon reauthorization", async () => {
 
     expect(connection.takeEvents()).toEqual([]);
 
-    await connection.procedures.subscribeToTask({taskId: task1.id});
+    await connection.procedures.subscribeToTask({
+        clientTime: testClock.nowLogical(),
+        taskId: task1.id,
+    });
 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -12428,7 +12198,8 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12440,10 +12211,8 @@ test("will lose access to subscribed task upon reauthorization", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12458,7 +12227,8 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12470,10 +12240,8 @@ test("will lose access to subscribed task upon reauthorization", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12484,7 +12252,8 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12496,10 +12265,8 @@ test("will lose access to subscribed task upon reauthorization", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12547,25 +12314,27 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
 
     expect(connection.takeEvents()).toEqual([]);
 
-    await connection.procedures.subscribeToTask({taskId: task2.id});
+    await connection.procedures.subscribeToTask({
+        clientTime: testClock.nowLogical(),
+        taskId: task2.id,
+    });
 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
-                expect.objectContaining({id: collection3.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -12576,7 +12345,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12588,10 +12358,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12607,7 +12375,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12619,10 +12388,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12633,7 +12400,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12645,10 +12413,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12659,7 +12425,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12671,10 +12438,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12685,7 +12450,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12697,10 +12463,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12711,7 +12475,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12731,10 +12496,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12750,7 +12513,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12762,10 +12526,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12776,7 +12538,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12788,10 +12551,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12807,7 +12568,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12819,10 +12581,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12833,7 +12593,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12845,10 +12606,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12869,7 +12628,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12881,13 +12641,11 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task4.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection2.id}),
-                expect.objectContaining({id: collection3.id}),
+            backfillTasks: [expectAuthorizedTask(task4.id)],
+            backfillCollections: [
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     ]);
@@ -12898,7 +12656,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -12910,10 +12669,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12924,7 +12681,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12936,10 +12694,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12950,7 +12706,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12962,10 +12719,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -12976,7 +12731,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -12988,10 +12744,8 @@ test("subscribing to task subscribes to parent tasks and collections", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -13023,18 +12777,18 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
     expect(connection.takeEvents()).toEqual([]);
 
     const {taskSubscriptionId: taskSubscription1Id} = await connection.procedures.subscribeToTask({
+        clientTime: testClock.nowLogical(),
         taskId: task1.id,
     });
 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -13045,7 +12799,8 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateTask",
@@ -13057,27 +12812,25 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
 
     await connection.procedures.subscribeToTask({
+        clientTime: testClock.nowLogical(),
         taskId: task2.id,
     });
 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task2.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task2.id)],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -13093,12 +12846,11 @@ test("subscribed task will become unauthorized after unsubscribed", async () => 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [task1.id],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectUnauthorizedTask(task1.id)],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -13122,18 +12874,18 @@ test("can subscribe to collection", async () => {
     expect(connection.takeEvents()).toEqual([]);
 
     const {collectionSubscriptionId} = await connection.procedures.subscribeToCollection({
+        clientTime: testClock.nowLogical(),
         collectionId: collection1.id,
     });
 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [],
         },
     ]);
@@ -13144,7 +12896,8 @@ test("can subscribe to collection", async () => {
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -13156,10 +12909,8 @@ test("can subscribe to collection", async () => {
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -13189,7 +12940,10 @@ test("can't subscribe to collection that doesn't exist", async () => {
     expect(connection.takeEvents()).toEqual([]);
 
     await expect(
-        connection.procedures.subscribeToCollection({collectionId: generateId()}),
+        connection.procedures.subscribeToCollection({
+            clientTime: testClock.nowLogical(),
+            collectionId: generateId(),
+        }),
     ).rejects.toThrow(NotFoundError);
 
     expect(connection.takeEvents()).toEqual([]);
@@ -13211,7 +12965,10 @@ test("can't subscribe to collection that you don't have access to", async () => 
     expect(connection.takeEvents()).toEqual([]);
 
     await expect(
-        connection.procedures.subscribeToCollection({collectionId: collection1.id}),
+        connection.procedures.subscribeToCollection({
+            clientTime: testClock.nowLogical(),
+            collectionId: collection1.id,
+        }),
     ).rejects.toThrow(PermissionDeniedError);
 
     expect(connection.takeEvents()).toEqual([]);
@@ -13232,17 +12989,19 @@ test("will lose access to subscribed collection upon reauthorization", async () 
 
     expect(connection.takeEvents()).toEqual([]);
 
-    await connection.procedures.subscribeToCollection({collectionId: collection1.id});
+    await connection.procedures.subscribeToCollection({
+        clientTime: testClock.nowLogical(),
+        collectionId: collection1.id,
+    });
 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [],
         },
     ]);
@@ -13253,7 +13012,8 @@ test("will lose access to subscribed collection upon reauthorization", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -13265,10 +13025,8 @@ test("will lose access to subscribed collection upon reauthorization", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -13283,7 +13041,8 @@ test("will lose access to subscribed collection upon reauthorization", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -13295,10 +13054,8 @@ test("will lose access to subscribed collection upon reauthorization", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -13309,7 +13066,8 @@ test("will lose access to subscribed collection upon reauthorization", async () 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -13321,10 +13079,8 @@ test("will lose access to subscribed collection upon reauthorization", async () 
                     },
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -13364,35 +13120,35 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
     expect(connection.takeEvents()).toEqual([]);
 
     const {collectionSubscriptionId} = await connection.procedures.subscribeToCollection({
+        clientTime: testClock.nowLogical(),
         collectionId: collection2.id,
     });
 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection2.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [expectAuthorizedCollection(collection2.id)],
             referencedAccounts: [],
         },
     ]);
 
     await connection.procedures.subscribeToTask({
+        clientTime: testClock.nowLogical(),
         taskId: task1.id,
     });
 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [expect.objectContaining({id: task1.id})],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [expectAuthorizedTask(task1.id)],
+            backfillCollections: [expectAuthorizedCollection(collection1.id)],
             referencedAccounts: [await session1.get()],
         },
     ]);
@@ -13403,7 +13159,8 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [
                 {
                     type: "UpdateCollection",
@@ -13414,10 +13171,8 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
                     }),
                 },
             ],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     ]);
@@ -13433,12 +13188,11 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [collection2.id],
+            backfillTasks: [],
+            backfillCollections: [expectUnauthorizedCollection(collection2.id)],
             referencedAccounts: [],
         },
     ]);
@@ -13475,6 +13229,7 @@ test("deleting task and all children when subscribed to task and its children", 
     expect(connection.takeEvents()).toEqual([]);
 
     await connection.procedures.subscribe({
+        clientTime: testClock.nowLogical(),
         queries: [
             {
                 limit: 100,
@@ -13503,21 +13258,20 @@ test("deleting task and all children when subscribed to task and its children", 
 
     const events = connection.takeEvents();
 
-    (events[0]?.backfillAuthorizedTasks as Array<TaskModel> | undefined)?.sort((task1, task2) =>
-        defaultCompareStrings(task1.id, task2.id),
+    (events[0]?.backfillTasks as Array<{task: TaskModel}> | undefined)?.sort((task1, task2) =>
+        defaultCompareStrings(task1.task.id, task2.task.id),
     );
 
     expect(events).toEqual([
         {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [task1.id, task2.id, task3.id, task4.id, task5.id]
+            backfillTasks: [task1.id, task2.id, task3.id, task4.id, task5.id]
                 .sort(defaultCompareStrings)
-                .map(id => expect.objectContaining({id})),
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+                .map(expectAuthorizedTask),
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session.get()],
         },
     ]);

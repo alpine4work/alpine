@@ -2,6 +2,7 @@ import {CalendarDate} from "@internationalized/date";
 import {Selection} from "prosemirror-state";
 import {
     Key,
+    Memo,
     PropsWithoutRef,
     ReactElement,
     ReactNode,
@@ -83,7 +84,7 @@ export function TaskGridView({
     getMoveTaskToQueryActions,
     getMaybeRemoveTaskFromQueryActions,
 }: {
-    capabilities: TaskGridViewCapabilities;
+    capabilities: Memo<TaskGridViewCapabilities>;
     query: TaskClientQuery;
     initialExpansionState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;

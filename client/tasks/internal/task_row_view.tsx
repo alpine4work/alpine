@@ -253,7 +253,11 @@ function TaskRowView(
     // authorized. This component should only be rendered with `TaskId`s in the
     // query's loaded range and if the task is in the query's loaded range we
     // expect that it exists on the client and is authorized.
-    assert(cursor !== null ? task !== null && taskEntry?.isAuthorized : task === null);
+    assert(
+        cursor !== null
+            ? task !== null && taskEntry?.authorizationState?.value === "Authorized"
+            : task === null,
+    );
 
     // Always false if we have no child tasks.
     const areChildTasksExpanded =

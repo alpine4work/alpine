@@ -54,7 +54,8 @@ export function getTaskSubscriptionAccessStore(
             // If the task is marked as unauthorized, we don't have permission. Even if the
             // task was previously loaded. Our client might not see the action which makes
             // the task unauthorized.
-            if (!taskEntry.isAuthorized) return {type: "PermissionDenied"};
+            if (taskEntry.authorizationState.value !== "Authorized")
+                return {type: "PermissionDenied"};
 
             // The task is deleted. Special access rules apply.
             if (taskEntry.task.isDeleted()) {
@@ -152,7 +153,8 @@ function computeTaskCollectionSubscriptionAccess(
     // If the collection is marked as unauthorized, we don't have permission. Even
     // if the task was previously loaded. Our client might not see the action which
     // makes the task unauthorized.
-    if (!collectionEntry.isAuthorized) return {type: "PermissionDenied"};
+    if (collectionEntry.authorizationState.value !== "Authorized")
+        return {type: "PermissionDenied"};
 
     // Delete collections don't grant access.
     if (collectionEntry.collection.isDeleted()) return {type: "Deleted"};

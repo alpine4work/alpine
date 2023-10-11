@@ -9,7 +9,12 @@ import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscr
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
-import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {
+    HybridLogicalClock,
+    HybridLogicalTime,
+    zeroHybridLogicalTime,
+} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
@@ -39,6 +44,8 @@ beforeAll(() => {
 afterAll(() => {
     setShouldDisableCommitTaskActionTransactionMutexForTest(false);
 });
+
+const clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
 const accountStore = getAccountClientStoreForClient();
 
@@ -264,12 +271,10 @@ test("backfills an authorized task", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -277,8 +282,7 @@ test("backfills an authorized task", () => {
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -301,12 +305,13 @@ test("backfills authorized tasks", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1, task2],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [
+            {type: "Authorized", task: task1},
+            {type: "Authorized", task: task2},
+        ],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -314,16 +319,14 @@ test("backfills authorized tasks", () => {
         task: task1,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(getTaskEntryIfExists(store, task2.id)).toEqual({
         task: task2,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(getTaskEntryIfExists(store, task3.id)).toEqual(null);
@@ -332,12 +335,13 @@ test("backfills authorized tasks", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task3, task4],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [
+            {type: "Authorized", task: task3},
+            {type: "Authorized", task: task4},
+        ],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -345,32 +349,28 @@ test("backfills authorized tasks", () => {
         task: task1,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(getTaskEntryIfExists(store, task2.id)).toEqual({
         task: task2,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(getTaskEntryIfExists(store, task3.id)).toEqual({
         task: task3,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(getTaskEntryIfExists(store, task4.id)).toEqual({
         task: task4,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -399,12 +399,10 @@ test("backfill merges with existing authorized task", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1a],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1a}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -412,19 +410,16 @@ test("backfill merges with existing authorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1b],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1b}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -432,8 +427,7 @@ test("backfill merges with existing authorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -462,12 +456,10 @@ test("backfill merges with existing unauthorized task", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1a],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1a}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -475,19 +467,16 @@ test("backfill merges with existing unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [task1a.id],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -495,19 +484,16 @@ test("backfill merges with existing unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 3,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1b],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1b}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -515,8 +501,7 @@ test("backfill merges with existing unauthorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 3,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -538,6 +523,10 @@ test("backfill merges behind existing unauthorized task", () => {
         getSortableAccount,
     );
 
+    const time1 = clock.now();
+    const time2 = clock.now();
+    const time3 = clock.now();
+
     expect(task1a.rawData).not.toEqual(task1b.rawData);
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual(null);
@@ -545,12 +534,10 @@ test("backfill merges behind existing unauthorized task", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: time1,
         actions: [],
-        backfillAuthorizedTasks: [task1a],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1a}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -558,19 +545,16 @@ test("backfill merges behind existing unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 3,
+        defaultAuthorizationStateVersion: time3,
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [task1a.id],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -578,19 +562,16 @@ test("backfill merges behind existing unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 3,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: time2,
         actions: [],
-        backfillAuthorizedTasks: [task1b],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1b}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -598,8 +579,7 @@ test("backfill merges behind existing unauthorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 3,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 });
 
@@ -621,6 +601,9 @@ test("backfill adds task behind existing unauthorized task", () => {
         getSortableAccount,
     );
 
+    const time1 = clock.now();
+    const time2 = clock.now();
+
     expect(task1a.rawData).not.toEqual(task1b.rawData);
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual(null);
@@ -628,12 +611,10 @@ test("backfill adds task behind existing unauthorized task", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 3,
+        defaultAuthorizationStateVersion: time2,
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [task1a.id],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -641,19 +622,16 @@ test("backfill adds task behind existing unauthorized task", () => {
         task: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 3,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: time1,
         actions: [],
-        backfillAuthorizedTasks: [task1b],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1b}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -661,8 +639,7 @@ test("backfill adds task behind existing unauthorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 3,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 });
 
@@ -690,12 +667,10 @@ test("action is applied to authorized task", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1a],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1a}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -703,19 +678,16 @@ test("action is applied to authorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1a],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -723,8 +695,7 @@ test("action is applied to authorized task", () => {
         task: task1b,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -748,12 +719,10 @@ test("action is applied to unauthorized task", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1a],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1a}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -761,19 +730,16 @@ test("action is applied to unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [task1a.id],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -781,19 +747,16 @@ test("action is applied to unauthorized task", () => {
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 3,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1a],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -803,8 +766,7 @@ test("action is applied to unauthorized task", () => {
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 });
 
@@ -828,12 +790,10 @@ test("actions can be applied out of order", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1a],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -841,19 +801,16 @@ test("actions can be applied out of order", () => {
         task: null,
         actions: [action1a],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1a],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1a}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -863,8 +820,7 @@ test("actions can be applied out of order", () => {
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -888,12 +844,10 @@ test("actions can be applied out of order to unauthorized tasks", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [task1a.id],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -901,19 +855,16 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         task: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1a],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -921,19 +872,16 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         task: null,
         actions: [action1a],
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 3,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1a],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1a}],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -943,8 +891,7 @@ test("actions can be applied out of order to unauthorized tasks", () => {
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 3,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -968,12 +915,10 @@ test("if nothing changes in the task entry after action it's left as same refere
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task1a],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1a}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -981,19 +926,16 @@ test("if nothing changes in the task entry after action it's left as same refere
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1a],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1005,19 +947,16 @@ test("if nothing changes in the task entry after action it's left as same refere
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 3,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1a],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1039,17 +978,19 @@ test("if nothing changes in the task entry after backfill it's left as same refe
         },
     };
 
+    const time1 = clock.now();
+    const time2 = clock.now();
+    const time3 = clock.now();
+
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual(null);
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: time2,
         actions: [],
-        backfillAuthorizedTasks: [task1a],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task1a}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1057,19 +998,16 @@ test("if nothing changes in the task entry after backfill it's left as same refe
         task: task1a,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 3,
+        defaultAuthorizationStateVersion: time3,
         actions: [action1a],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1081,19 +1019,18 @@ test("if nothing changes in the task entry after backfill it's left as same refe
         task: task1a.applyAction(action1a, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: time1,
         actions: [],
-        backfillAuthorizedTasks: [task1a.applyAction(action1a, getSortableAccount)],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [
+            {type: "Authorized", task: task1a.applyAction(action1a, getSortableAccount)},
+        ],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1120,12 +1057,10 @@ test("action can be applied then task can be marked unauthorized", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1a],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1133,19 +1068,16 @@ test("action can be applied then task can be marked unauthorized", () => {
         task: null,
         actions: [action1a],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [task1a.id],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1153,8 +1085,7 @@ test("action can be applied then task can be marked unauthorized", () => {
         task: null,
         actions: [action1a],
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 });
 
@@ -1175,15 +1106,17 @@ test("redundant unauthorized action doesn't change task", () => {
 
     expect(getTaskEntryIfExists(store, task1a.id)).toEqual(null);
 
+    const time1 = clock.now();
+    const time2 = clock.now();
+    const time3 = clock.now();
+
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: time2,
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [task1a.id],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1191,19 +1124,16 @@ test("redundant unauthorized action doesn't change task", () => {
         task: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 3,
+        defaultAuthorizationStateVersion: time3,
         actions: [action1a],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1213,19 +1143,16 @@ test("redundant unauthorized action doesn't change task", () => {
         task: null,
         actions: [action1a],
         optimisticState: null,
-        isAuthorized: false,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Unauthorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: time1,
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [task1a.id],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Unauthorized", taskId: task1a.id}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1251,12 +1178,10 @@ test("create action will create a task", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -1268,8 +1193,7 @@ test("create action will create a task", () => {
         }),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -1302,12 +1226,10 @@ test("can receive create action out of order", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1315,19 +1237,16 @@ test("can receive create action out of order", () => {
         task: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action2],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -1339,8 +1258,7 @@ test("can receive create action out of order", () => {
         }).applyAction(action1, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -1373,12 +1291,10 @@ test("can receive create action with another action within a transaction", () =>
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1, action2],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -1390,8 +1306,7 @@ test("can receive create action with another action within a transaction", () =>
         }).applyAction(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -1424,12 +1339,10 @@ test("can receive create action out of order within a transaction", () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1, action2],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -1441,8 +1354,7 @@ test("can receive create action out of order within a transaction", () => {
         }).applyAction(action1, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -1456,12 +1368,10 @@ test("applies commit action calls optimistically", async () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1469,8 +1379,7 @@ test("applies commit action calls optimistically", async () => {
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     const action = {
@@ -1495,8 +1404,7 @@ test("applies commit action calls optimistically", async () => {
             },
             actions: [{isOptimistic: true, action}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
@@ -1508,8 +1416,7 @@ test("applies commit action calls optimistically", async () => {
         task: task.applyAction(action, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -1545,8 +1452,10 @@ test("can create tasks optimistically", async () => {
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
@@ -1562,8 +1471,10 @@ test("can create tasks optimistically", async () => {
         }),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -1609,8 +1520,10 @@ test("can create then update tasks optimistically", async () => {
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -1632,8 +1545,10 @@ test("can create then update tasks optimistically", async () => {
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -1659,8 +1574,10 @@ test("can create then update tasks optimistically", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -1676,8 +1593,10 @@ test("can create then update tasks optimistically", async () => {
         }).applyAction(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -1723,8 +1642,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -1746,8 +1667,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -1769,8 +1692,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -1786,8 +1711,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
         }).applyAction(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -1832,12 +1759,10 @@ test("can create then update tasks optimistically after an action from the serve
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -1845,8 +1770,7 @@ test("can create then update tasks optimistically after an action from the serve
         task: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -1865,8 +1789,10 @@ test("can create then update tasks optimistically after an action from the serve
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -1890,8 +1816,10 @@ test("can create then update tasks optimistically after an action from the serve
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -1919,8 +1847,10 @@ test("can create then update tasks optimistically after an action from the serve
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -1938,8 +1868,10 @@ test("can create then update tasks optimistically after an action from the serve
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -1981,8 +1913,7 @@ test("can create then update tasks optimistically our of order", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action1]);
@@ -2004,8 +1935,10 @@ test("can create then update tasks optimistically our of order", async () => {
                 {isOptimistic: true, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -2027,8 +1960,10 @@ test("can create then update tasks optimistically our of order", async () => {
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -2044,8 +1979,10 @@ test("can create then update tasks optimistically our of order", async () => {
         }).applyAction(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -2090,12 +2027,10 @@ test("can create then update tasks optimistically out of order after an action f
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -2103,8 +2038,7 @@ test("can create then update tasks optimistically out of order after an action f
         task: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -2119,8 +2053,7 @@ test("can create then update tasks optimistically out of order after an action f
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -2144,8 +2077,10 @@ test("can create then update tasks optimistically out of order after an action f
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -2169,8 +2104,10 @@ test("can create then update tasks optimistically out of order after an action f
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -2188,8 +2125,10 @@ test("can create then update tasks optimistically out of order after an action f
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -2243,8 +2182,7 @@ test("can create then update tasks optimistically out of order with more non-cre
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -2262,8 +2200,7 @@ test("can create then update tasks optimistically out of order with more non-cre
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -2288,8 +2225,10 @@ test("can create then update tasks optimistically out of order with more non-cre
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -2316,8 +2255,10 @@ test("can create then update tasks optimistically out of order with more non-cre
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -2341,8 +2282,10 @@ test("can create then update tasks optimistically out of order with more non-cre
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
@@ -2360,8 +2303,10 @@ test("can create then update tasks optimistically out of order with more non-cre
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -2407,8 +2352,10 @@ test("resolving task optimistic update after garbage collection is ok", async ()
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -2430,8 +2377,10 @@ test("resolving task optimistic update after garbage collection is ok", async ()
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -2457,8 +2406,10 @@ test("resolving task optimistic update after garbage collection is ok", async ()
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     const previousTaskSubscriptions = taskSubscriptions;
@@ -2507,12 +2458,10 @@ test("regular task actions are added to optimistic state", async () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -2520,8 +2469,7 @@ test("regular task actions are added to optimistic state", async () => {
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -2536,19 +2484,16 @@ test("regular task actions are added to optimistic state", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -2567,8 +2512,7 @@ test("regular task actions are added to optimistic state", async () => {
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -2582,8 +2526,7 @@ test("regular task actions are added to optimistic state", async () => {
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -2627,12 +2570,10 @@ test("regular task actions are added to optimistic state with multiple actions",
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -2640,8 +2581,7 @@ test("regular task actions are added to optimistic state with multiple actions",
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -2656,19 +2596,16 @@ test("regular task actions are added to optimistic state with multiple actions",
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -2687,8 +2624,7 @@ test("regular task actions are added to optimistic state with multiple actions",
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -2710,8 +2646,7 @@ test("regular task actions are added to optimistic state with multiple actions",
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -2734,8 +2669,7 @@ test("regular task actions are added to optimistic state with multiple actions",
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -2750,8 +2684,7 @@ test("regular task actions are added to optimistic state with multiple actions",
             .applyAction(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -2795,12 +2728,10 @@ test("regular task actions are added to optimistic state with multiple actions t
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -2808,8 +2739,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -2824,19 +2754,16 @@ test("regular task actions are added to optimistic state with multiple actions t
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -2855,8 +2782,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -2878,8 +2804,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -2903,8 +2828,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -2919,8 +2843,7 @@ test("regular task actions are added to optimistic state with multiple actions t
             .applyAction(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -2963,19 +2886,16 @@ test("regular actions are added to optimistic state when task is not backfilled"
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -2992,8 +2912,7 @@ test("regular actions are added to optimistic state when task is not backfilled"
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -3005,8 +2924,7 @@ test("regular actions are added to optimistic state when task is not backfilled"
         task: null,
         actions: [action2, action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 });
 
@@ -3059,19 +2977,16 @@ test("regular actions are added to optimistic state with multiple actions when t
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -3088,8 +3003,7 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -3108,8 +3022,7 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -3127,8 +3040,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -3140,8 +3052,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         task: null,
         actions: [action2, action3, action4],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 });
 
@@ -3194,19 +3105,16 @@ test("regular actions are added to optimistic state with multiple actions that a
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -3223,8 +3131,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -3243,8 +3150,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -3265,8 +3171,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -3278,8 +3183,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         task: null,
         actions: [action2, action3, action4],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 });
 
@@ -3337,8 +3241,10 @@ test("regular actions are added to optimistic state when task is created optimis
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -3356,19 +3262,19 @@ test("regular actions are added to optimistic state when task is created optimis
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -3388,8 +3294,10 @@ test("regular actions are added to optimistic state when task is created optimis
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -3412,8 +3320,10 @@ test("regular actions are added to optimistic state when task is created optimis
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -3427,8 +3337,10 @@ test("regular actions are added to optimistic state when task is created optimis
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -3496,8 +3408,10 @@ test("regular actions are added to optimistic state with multiple actions when t
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -3515,19 +3429,19 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -3547,8 +3461,10 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -3571,8 +3487,10 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -3597,8 +3515,10 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -3621,8 +3541,10 @@ test("regular actions are added to optimistic state with multiple actions when t
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
@@ -3637,8 +3559,10 @@ test("regular actions are added to optimistic state with multiple actions when t
             .applyAction(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -3706,8 +3630,10 @@ test("regular actions are added to optimistic state with multiple actions that a
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -3725,19 +3651,19 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -3757,8 +3683,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -3781,8 +3709,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -3807,8 +3737,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
@@ -3832,8 +3764,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -3848,8 +3782,10 @@ test("regular actions are added to optimistic state with multiple actions that a
             .applyAction(action4, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -3902,8 +3838,7 @@ test("three optimistic actions when task is not backfilled", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -3921,8 +3856,7 @@ test("three optimistic actions when task is not backfilled", async () => {
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -3941,8 +3875,7 @@ test("three optimistic actions when task is not backfilled", async () => {
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -3963,8 +3896,7 @@ test("three optimistic actions when task is not backfilled", async () => {
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -3982,8 +3914,7 @@ test("three optimistic actions when task is not backfilled", async () => {
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
@@ -3995,8 +3926,7 @@ test("three optimistic actions when task is not backfilled", async () => {
         task: null,
         actions: [action2, action3, action4],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 });
 
@@ -4039,19 +3969,16 @@ test("backfilling a task when none exists and there are optimistic actions works
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -4068,19 +3995,16 @@ test("backfilling a task when none exists and there are optimistic actions works
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -4099,8 +4023,7 @@ test("backfilling a task when none exists and there are optimistic actions works
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
@@ -4114,8 +4037,7 @@ test("backfilling a task when none exists and there are optimistic actions works
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -4149,12 +4071,10 @@ test("backfilling a task when one is already backfilled and there are optimistic
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -4162,8 +4082,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -4178,19 +4097,16 @@ test("backfilling a task when one is already backfilled and there are optimistic
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task.applyAction(action3, getSortableAccount)],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task.applyAction(action3, getSortableAccount)}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -4206,8 +4122,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
@@ -4221,8 +4136,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -4281,12 +4195,10 @@ test("backfilling a task when there are optimistic actions but no previously bac
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -4294,8 +4206,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         task: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action1]);
@@ -4310,8 +4221,10 @@ test("backfilling a task when there are optimistic actions but no previously bac
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -4331,19 +4244,19 @@ test("backfilling a task when there are optimistic actions but no previously bac
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task.applyAction(action4, getSortableAccount)],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task.applyAction(action4, getSortableAccount)}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -4365,8 +4278,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -4390,8 +4302,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -4406,8 +4317,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             .applyAction(action2, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -4421,12 +4331,10 @@ test("applies task commit action calls optimistically (rejected)", async () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -4434,8 +4342,7 @@ test("applies task commit action calls optimistically (rejected)", async () => {
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     const action = {
@@ -4460,8 +4367,7 @@ test("applies task commit action calls optimistically (rejected)", async () => {
             },
             actions: [{isOptimistic: true, action}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
@@ -4470,8 +4376,7 @@ test("applies task commit action calls optimistically (rejected)", async () => {
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(1);
@@ -4510,8 +4415,10 @@ test("can create tasks optimistically (rejected)", async () => {
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
@@ -4520,8 +4427,10 @@ test("can create tasks optimistically (rejected)", async () => {
         task: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(1);
@@ -4570,8 +4479,10 @@ test("can create then update tasks optimistically (rejected)", async () => {
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -4593,8 +4504,10 @@ test("can create then update tasks optimistically (rejected)", async () => {
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -4609,8 +4522,10 @@ test("can create then update tasks optimistically (rejected)", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -4619,8 +4534,10 @@ test("can create then update tasks optimistically (rejected)", async () => {
         task: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -4669,8 +4586,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -4692,8 +4611,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -4712,8 +4633,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -4722,8 +4645,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
         task: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -4771,12 +4696,10 @@ test("can create then update tasks optimistically after an action from the serve
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -4784,8 +4707,7 @@ test("can create then update tasks optimistically after an action from the serve
         task: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -4804,8 +4726,10 @@ test("can create then update tasks optimistically after an action from the serve
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -4829,8 +4753,10 @@ test("can create then update tasks optimistically after an action from the serve
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -4845,8 +4771,10 @@ test("can create then update tasks optimistically after an action from the serve
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -4855,8 +4783,10 @@ test("can create then update tasks optimistically after an action from the serve
         task: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -4901,8 +4831,7 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action1]);
@@ -4924,8 +4853,10 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
                 {isOptimistic: true, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -4944,8 +4875,10 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -4954,8 +4887,10 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         task: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -5003,12 +4938,10 @@ test("can create then update tasks optimistically out of order after an action f
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -5016,8 +4949,7 @@ test("can create then update tasks optimistically out of order after an action f
         task: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -5032,8 +4964,7 @@ test("can create then update tasks optimistically out of order after an action f
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -5057,8 +4988,10 @@ test("can create then update tasks optimistically out of order after an action f
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -5077,8 +5010,10 @@ test("can create then update tasks optimistically out of order after an action f
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -5087,8 +5022,10 @@ test("can create then update tasks optimistically out of order after an action f
         task: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -5145,8 +5082,7 @@ test("can create then update tasks optimistically out of order with more non-cre
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -5164,8 +5100,7 @@ test("can create then update tasks optimistically out of order with more non-cre
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -5190,8 +5125,10 @@ test("can create then update tasks optimistically out of order with more non-cre
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -5213,8 +5150,10 @@ test("can create then update tasks optimistically out of order with more non-cre
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -5233,8 +5172,10 @@ test("can create then update tasks optimistically out of order with more non-cre
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
@@ -5243,8 +5184,10 @@ test("can create then update tasks optimistically out of order with more non-cre
         task: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(3);
@@ -5293,8 +5236,10 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -5316,8 +5261,10 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -5343,8 +5290,10 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     const previousTaskSubscriptions = taskSubscriptions;
@@ -5393,12 +5342,10 @@ test("regular task actions are added to optimistic state (rejected)", async () =
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -5406,8 +5353,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -5422,19 +5368,16 @@ test("regular task actions are added to optimistic state (rejected)", async () =
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -5453,8 +5396,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -5463,8 +5405,7 @@ test("regular task actions are added to optimistic state (rejected)", async () =
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(1);
@@ -5511,12 +5452,10 @@ test("regular task actions are added to optimistic state with multiple actions (
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -5524,8 +5463,7 @@ test("regular task actions are added to optimistic state with multiple actions (
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -5540,19 +5478,16 @@ test("regular task actions are added to optimistic state with multiple actions (
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -5571,8 +5506,7 @@ test("regular task actions are added to optimistic state with multiple actions (
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -5594,8 +5528,7 @@ test("regular task actions are added to optimistic state with multiple actions (
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -5612,8 +5545,7 @@ test("regular task actions are added to optimistic state with multiple actions (
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -5622,8 +5554,7 @@ test("regular task actions are added to optimistic state with multiple actions (
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);
@@ -5670,12 +5601,10 @@ test("regular task actions are added to optimistic state with multiple actions t
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -5683,8 +5612,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -5699,19 +5627,16 @@ test("regular task actions are added to optimistic state with multiple actions t
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -5730,8 +5655,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -5753,8 +5677,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -5774,8 +5697,7 @@ test("regular task actions are added to optimistic state with multiple actions t
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -5784,8 +5706,7 @@ test("regular task actions are added to optimistic state with multiple actions t
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);
@@ -5831,19 +5752,16 @@ test("regular actions are added to optimistic state when task is not backfilled 
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -5860,8 +5778,7 @@ test("regular actions are added to optimistic state when task is not backfilled 
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -5870,8 +5787,7 @@ test("regular actions are added to optimistic state when task is not backfilled 
         task: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     expect(errors.length).toEqual(1);
@@ -5927,19 +5843,16 @@ test("regular actions are added to optimistic state with multiple actions when t
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -5956,8 +5869,7 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -5976,8 +5888,7 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -5992,8 +5903,7 @@ test("regular actions are added to optimistic state with multiple actions when t
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -6002,8 +5912,7 @@ test("regular actions are added to optimistic state with multiple actions when t
         task: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     expect(errors.length).toEqual(2);
@@ -6059,19 +5968,16 @@ test("regular actions are added to optimistic state with multiple actions that a
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -6088,8 +5994,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -6108,8 +6013,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -6127,8 +6031,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -6137,8 +6040,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         task: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     expect(errors.length).toEqual(2);
@@ -6199,8 +6101,10 @@ test("regular actions are added to optimistic state when task is created optimis
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -6218,19 +6122,19 @@ test("regular actions are added to optimistic state when task is created optimis
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -6250,8 +6154,10 @@ test("regular actions are added to optimistic state when task is created optimis
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -6269,8 +6175,10 @@ test("regular actions are added to optimistic state when task is created optimis
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -6279,8 +6187,10 @@ test("regular actions are added to optimistic state when task is created optimis
         task: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -6351,8 +6261,10 @@ test("regular actions are added to optimistic state with multiple actions when t
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -6370,19 +6282,19 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -6402,8 +6314,10 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -6426,8 +6340,10 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -6446,8 +6362,10 @@ test("regular actions are added to optimistic state with multiple actions when t
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -6462,8 +6380,10 @@ test("regular actions are added to optimistic state with multiple actions when t
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
@@ -6472,8 +6392,10 @@ test("regular actions are added to optimistic state with multiple actions when t
         task: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(3);
@@ -6544,8 +6466,10 @@ test("regular actions are added to optimistic state with multiple actions that a
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -6563,19 +6487,19 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -6595,8 +6519,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -6619,8 +6545,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -6639,8 +6567,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
@@ -6658,8 +6588,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -6668,8 +6600,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         task: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(3);
@@ -6725,8 +6659,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -6744,8 +6677,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -6764,8 +6696,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -6783,8 +6714,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -6799,8 +6729,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
@@ -6809,8 +6738,7 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
         task: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     expect(errors.length).toEqual(3);
@@ -6856,19 +6784,16 @@ test("backfilling a task when none exists and there are optimistic actions works
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -6885,19 +6810,16 @@ test("backfilling a task when none exists and there are optimistic actions works
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -6916,8 +6838,7 @@ test("backfilling a task when none exists and there are optimistic actions works
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
@@ -6926,8 +6847,7 @@ test("backfilling a task when none exists and there are optimistic actions works
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(1);
@@ -6964,12 +6884,10 @@ test("backfilling a task when one is already backfilled and there are optimistic
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -6977,8 +6895,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -6993,19 +6910,16 @@ test("backfilling a task when one is already backfilled and there are optimistic
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task.applyAction(action3, getSortableAccount)],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task.applyAction(action3, getSortableAccount)}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -7021,8 +6935,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
@@ -7031,8 +6944,7 @@ test("backfilling a task when one is already backfilled and there are optimistic
         task: task.applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(1);
@@ -7094,12 +7006,10 @@ test("backfilling a task when there are optimistic actions but no previously bac
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -7107,8 +7017,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
         task: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action1]);
@@ -7123,8 +7032,10 @@ test("backfilling a task when there are optimistic actions but no previously bac
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -7144,19 +7055,19 @@ test("backfilling a task when there are optimistic actions but no previously bac
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [task.applyAction(action4, getSortableAccount)],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [{type: "Authorized", task: task.applyAction(action4, getSortableAccount)}],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -7178,8 +7089,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -7199,8 +7109,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -7211,8 +7120,7 @@ test("backfilling a task when there are optimistic actions but no previously bac
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);
@@ -7273,19 +7181,16 @@ test("create task applied after optimistic updates", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -7302,8 +7207,7 @@ test("create task applied after optimistic updates", async () => {
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -7324,8 +7228,7 @@ test("create task applied after optimistic updates", async () => {
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -7345,8 +7248,7 @@ test("create task applied after optimistic updates", async () => {
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -7360,8 +7262,7 @@ test("create task applied after optimistic updates", async () => {
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -7419,19 +7320,16 @@ test("create task applied after optimistic updates that are resolved out of orde
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -7448,8 +7346,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -7470,8 +7367,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -7494,8 +7390,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -7509,8 +7404,7 @@ test("create task applied after optimistic updates that are resolved out of orde
             .applyAction(action3, getSortableAccount),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -7568,19 +7462,16 @@ test("create task applied after optimistic updates (rejected)", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -7597,8 +7488,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -7619,8 +7509,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -7635,8 +7524,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -7645,8 +7533,7 @@ test("create task applied after optimistic updates (rejected)", async () => {
         task: task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);
@@ -7707,19 +7594,16 @@ test("create task applied after optimistic updates that are resolved out of orde
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -7736,8 +7620,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -7758,8 +7641,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -7777,8 +7659,7 @@ test("create task applied after optimistic updates that are resolved out of orde
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -7787,8 +7668,7 @@ test("create task applied after optimistic updates that are resolved out of orde
         task: task,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);
@@ -7840,8 +7720,10 @@ test("can create then update collections optimistically", async () => {
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -7863,8 +7745,10 @@ test("can create then update collections optimistically", async () => {
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -7890,8 +7774,10 @@ test("can create then update collections optimistically", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -7907,8 +7793,10 @@ test("can create then update collections optimistically", async () => {
         }).applyAction(action2),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -7957,8 +7845,10 @@ test("can create then update collections optimistically and resolve commits out 
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -7980,8 +7870,10 @@ test("can create then update collections optimistically and resolve commits out 
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -8003,8 +7895,10 @@ test("can create then update collections optimistically and resolve commits out 
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -8020,8 +7914,10 @@ test("can create then update collections optimistically and resolve commits out 
         }).applyAction(action2),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -8069,12 +7965,10 @@ test("can create then update collections optimistically after an action from the
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -8082,8 +7976,7 @@ test("can create then update collections optimistically after an action from the
         collection: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -8102,8 +7995,10 @@ test("can create then update collections optimistically after an action from the
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -8127,8 +8022,10 @@ test("can create then update collections optimistically after an action from the
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -8156,8 +8053,10 @@ test("can create then update collections optimistically after an action from the
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -8175,8 +8074,10 @@ test("can create then update collections optimistically after an action from the
             .applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -8221,8 +8122,7 @@ test("can create then update collections optimistically our of order", async () 
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action1]);
@@ -8244,8 +8144,10 @@ test("can create then update collections optimistically our of order", async () 
                 {isOptimistic: true, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -8267,8 +8169,10 @@ test("can create then update collections optimistically our of order", async () 
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -8284,8 +8188,10 @@ test("can create then update collections optimistically our of order", async () 
         }).applyAction(action2),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -8333,12 +8239,10 @@ test("can create then update collections optimistically out of order after an ac
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -8346,8 +8250,7 @@ test("can create then update collections optimistically out of order after an ac
         collection: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -8362,8 +8265,7 @@ test("can create then update collections optimistically out of order after an ac
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -8387,8 +8289,10 @@ test("can create then update collections optimistically out of order after an ac
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -8412,8 +8316,10 @@ test("can create then update collections optimistically out of order after an ac
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -8431,8 +8337,10 @@ test("can create then update collections optimistically out of order after an ac
             .applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -8489,8 +8397,7 @@ test("can create then update collections optimistically out of order with more n
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -8508,8 +8415,7 @@ test("can create then update collections optimistically out of order with more n
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -8534,8 +8440,10 @@ test("can create then update collections optimistically out of order with more n
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -8562,8 +8470,10 @@ test("can create then update collections optimistically out of order with more n
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -8587,8 +8497,10 @@ test("can create then update collections optimistically out of order with more n
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
@@ -8606,8 +8518,10 @@ test("can create then update collections optimistically out of order with more n
             .applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -8656,8 +8570,10 @@ test("resolving collection optimistic update after garbage collection is ok", as
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -8679,8 +8595,10 @@ test("resolving collection optimistic update after garbage collection is ok", as
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -8706,8 +8624,10 @@ test("resolving collection optimistic update after garbage collection is ok", as
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     const previousCollectionSubscriptions = collectionSubscriptions;
@@ -8756,12 +8676,10 @@ test("regular collection actions are added to optimistic state", async () => {
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -8769,8 +8687,7 @@ test("regular collection actions are added to optimistic state", async () => {
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -8785,19 +8702,16 @@ test("regular collection actions are added to optimistic state", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -8814,8 +8728,7 @@ test("regular collection actions are added to optimistic state", async () => {
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -8827,8 +8740,7 @@ test("regular collection actions are added to optimistic state", async () => {
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -8872,12 +8784,10 @@ test("regular collection actions are added to optimistic state with multiple act
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -8885,8 +8795,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -8901,19 +8810,16 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -8930,8 +8836,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -8950,8 +8855,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -8969,8 +8873,7 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -8982,8 +8885,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -9027,12 +8929,10 @@ test("regular collection actions are added to optimistic state with multiple act
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -9040,8 +8940,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -9056,19 +8955,16 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -9085,8 +8981,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -9105,8 +9000,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -9127,8 +9021,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -9140,8 +9033,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -9184,19 +9076,16 @@ test("regular actions are added to optimistic state when collection is not backf
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -9213,8 +9102,7 @@ test("regular actions are added to optimistic state when collection is not backf
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -9226,8 +9114,7 @@ test("regular actions are added to optimistic state when collection is not backf
         collection: null,
         actions: [action2, action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 });
 
@@ -9280,19 +9167,16 @@ test("regular actions are added to optimistic state with multiple actions when c
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -9309,8 +9193,7 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -9329,8 +9212,7 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -9348,8 +9230,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -9361,8 +9242,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         collection: null,
         actions: [action2, action3, action4],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 });
 
@@ -9415,19 +9295,16 @@ test("regular actions are added to optimistic state with multiple actions that a
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -9444,8 +9321,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -9464,8 +9340,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -9486,8 +9361,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -9499,8 +9373,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         collection: null,
         actions: [action2, action3, action4],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 });
 
@@ -9561,8 +9434,10 @@ test("regular actions are added to optimistic state when collection is created o
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -9580,19 +9455,19 @@ test("regular actions are added to optimistic state when collection is created o
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -9610,8 +9485,10 @@ test("regular actions are added to optimistic state when collection is created o
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -9632,8 +9509,10 @@ test("regular actions are added to optimistic state when collection is created o
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -9645,8 +9524,10 @@ test("regular actions are added to optimistic state when collection is created o
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -9717,8 +9598,10 @@ test("regular actions are added to optimistic state with multiple actions when c
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -9736,19 +9619,19 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -9766,8 +9649,10 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -9787,8 +9672,10 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -9810,8 +9697,10 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -9829,8 +9718,10 @@ test("regular actions are added to optimistic state with multiple actions when c
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
@@ -9842,8 +9733,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -9914,8 +9807,10 @@ test("regular actions are added to optimistic state with multiple actions that a
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -9933,19 +9828,19 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -9963,8 +9858,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -9984,8 +9881,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -10007,8 +9906,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
@@ -10029,8 +9930,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -10042,8 +9945,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 });
 
@@ -10096,8 +10001,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -10115,8 +10019,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -10135,8 +10038,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -10157,8 +10059,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -10176,8 +10077,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 2, {
@@ -10189,8 +10089,7 @@ test("three optimistic actions when collection is not backfilled", async () => {
         collection: null,
         actions: [action2, action3, action4],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 });
 
@@ -10233,19 +10132,16 @@ test("backfilling a collection when none exists and there are optimistic actions
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -10262,19 +10158,16 @@ test("backfilling a collection when none exists and there are optimistic actions
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -10291,8 +10184,7 @@ test("backfilling a collection when none exists and there are optimistic actions
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
@@ -10304,8 +10196,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -10339,12 +10230,10 @@ test("backfilling a collection when one is already backfilled and there are opti
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -10352,8 +10241,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -10368,19 +10256,16 @@ test("backfilling a collection when one is already backfilled and there are opti
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection.applyAction(action3)],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection.applyAction(action3)}],
         referencedAccounts: [],
     });
 
@@ -10394,8 +10279,7 @@ test("backfilling a collection when one is already backfilled and there are opti
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveLastExecution(commitTaskActionTransaction, {
@@ -10407,8 +10291,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -10470,12 +10353,10 @@ test("backfilling a collection when there are optimistic actions but no previous
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -10483,8 +10364,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collection: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action1]);
@@ -10499,8 +10379,10 @@ test("backfilling a collection when there are optimistic actions but no previous
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -10518,19 +10400,19 @@ test("backfilling a collection when there are optimistic actions but no previous
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection.applyAction(action4)],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection.applyAction(action4)}],
         referencedAccounts: [],
     });
 
@@ -10547,8 +10429,7 @@ test("backfilling a collection when there are optimistic actions but no previous
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -10569,8 +10450,7 @@ test("backfilling a collection when there are optimistic actions but no previous
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -10582,8 +10462,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collection: collection.applyAction(action4).applyAction(action3).applyAction(action2),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -10597,12 +10476,10 @@ test("applies collection commit action calls optimistically (rejected)", async (
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -10610,8 +10487,7 @@ test("applies collection commit action calls optimistically (rejected)", async (
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     const action = {
@@ -10636,8 +10512,7 @@ test("applies collection commit action calls optimistically (rejected)", async (
             },
             actions: [{isOptimistic: true, action}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
@@ -10646,8 +10521,7 @@ test("applies collection commit action calls optimistically (rejected)", async (
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(1);
@@ -10689,8 +10563,10 @@ test("can create collections optimistically (rejected)", async () => {
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
@@ -10699,8 +10575,10 @@ test("can create collections optimistically (rejected)", async () => {
         collection: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(1);
@@ -10752,8 +10630,10 @@ test("can create then update collections optimistically (rejected)", async () =>
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -10775,8 +10655,10 @@ test("can create then update collections optimistically (rejected)", async () =>
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -10791,8 +10673,10 @@ test("can create then update collections optimistically (rejected)", async () =>
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -10801,8 +10685,10 @@ test("can create then update collections optimistically (rejected)", async () =>
         collection: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -10854,8 +10740,10 @@ test("can create then update collections optimistically and resolve commits out 
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -10877,8 +10765,10 @@ test("can create then update collections optimistically and resolve commits out 
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -10897,8 +10787,10 @@ test("can create then update collections optimistically and resolve commits out 
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -10907,8 +10799,10 @@ test("can create then update collections optimistically and resolve commits out 
         collection: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -10959,12 +10853,10 @@ test("can create then update collections optimistically after an action from the
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -10972,8 +10864,7 @@ test("can create then update collections optimistically after an action from the
         collection: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -10992,8 +10883,10 @@ test("can create then update collections optimistically after an action from the
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -11017,8 +10910,10 @@ test("can create then update collections optimistically after an action from the
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -11033,8 +10928,10 @@ test("can create then update collections optimistically after an action from the
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -11043,8 +10940,10 @@ test("can create then update collections optimistically after an action from the
         collection: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -11092,8 +10991,7 @@ test("can create then update collections optimistically our of order (rejected)"
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action1]);
@@ -11115,8 +11013,10 @@ test("can create then update collections optimistically our of order (rejected)"
                 {isOptimistic: true, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -11135,8 +11035,10 @@ test("can create then update collections optimistically our of order (rejected)"
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -11145,8 +11047,10 @@ test("can create then update collections optimistically our of order (rejected)"
         collection: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -11197,12 +11101,10 @@ test("can create then update collections optimistically out of order after an ac
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -11210,8 +11112,7 @@ test("can create then update collections optimistically out of order after an ac
         collection: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -11226,8 +11127,7 @@ test("can create then update collections optimistically out of order after an ac
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -11251,8 +11151,10 @@ test("can create then update collections optimistically out of order after an ac
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -11271,8 +11173,10 @@ test("can create then update collections optimistically out of order after an ac
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -11281,8 +11185,10 @@ test("can create then update collections optimistically out of order after an ac
         collection: null,
         actions: [action1],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -11342,8 +11248,7 @@ test("can create then update collections optimistically out of order with more n
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -11361,8 +11266,7 @@ test("can create then update collections optimistically out of order with more n
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -11387,8 +11291,10 @@ test("can create then update collections optimistically out of order with more n
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -11410,8 +11316,10 @@ test("can create then update collections optimistically out of order with more n
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -11430,8 +11338,10 @@ test("can create then update collections optimistically out of order with more n
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
@@ -11440,8 +11350,10 @@ test("can create then update collections optimistically out of order with more n
         collection: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(3);
@@ -11493,8 +11405,10 @@ test("resolving collection optimistic update after garbage collection is ok (rej
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -11516,8 +11430,10 @@ test("resolving collection optimistic update after garbage collection is ok (rej
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -11543,8 +11459,10 @@ test("resolving collection optimistic update after garbage collection is ok (rej
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     const previousCollectionSubscriptions = collectionSubscriptions;
@@ -11593,12 +11511,10 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -11606,8 +11522,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -11622,19 +11537,16 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -11651,8 +11563,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -11661,8 +11572,7 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(1);
@@ -11709,12 +11619,10 @@ test("regular collection actions are added to optimistic state with multiple act
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -11722,8 +11630,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -11738,19 +11645,16 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -11767,8 +11671,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -11787,8 +11690,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -11803,8 +11705,7 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -11813,8 +11714,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);
@@ -11861,12 +11761,10 @@ test("regular collection actions are added to optimistic state with multiple act
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -11874,8 +11772,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -11890,19 +11787,16 @@ test("regular collection actions are added to optimistic state with multiple act
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -11919,8 +11813,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -11939,8 +11832,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -11958,8 +11850,7 @@ test("regular collection actions are added to optimistic state with multiple act
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -11968,8 +11859,7 @@ test("regular collection actions are added to optimistic state with multiple act
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);
@@ -12015,19 +11905,16 @@ test("regular actions are added to optimistic state when collection is not backf
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -12044,8 +11931,7 @@ test("regular actions are added to optimistic state when collection is not backf
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -12054,8 +11940,7 @@ test("regular actions are added to optimistic state when collection is not backf
         collection: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     expect(errors.length).toEqual(1);
@@ -12111,19 +11996,16 @@ test("regular actions are added to optimistic state with multiple actions when c
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -12140,8 +12022,7 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -12160,8 +12041,7 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -12176,8 +12056,7 @@ test("regular actions are added to optimistic state with multiple actions when c
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -12186,8 +12065,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         collection: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     expect(errors.length).toEqual(2);
@@ -12243,19 +12121,16 @@ test("regular actions are added to optimistic state with multiple actions that a
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -12272,8 +12147,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -12292,8 +12166,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -12311,8 +12184,7 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -12321,8 +12193,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         collection: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     expect(errors.length).toEqual(2);
@@ -12386,8 +12257,10 @@ test("regular actions are added to optimistic state when collection is created o
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -12405,19 +12278,19 @@ test("regular actions are added to optimistic state when collection is created o
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -12435,8 +12308,10 @@ test("regular actions are added to optimistic state when collection is created o
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -12454,8 +12329,10 @@ test("regular actions are added to optimistic state when collection is created o
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -12464,8 +12341,10 @@ test("regular actions are added to optimistic state when collection is created o
         collection: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(2);
@@ -12539,8 +12418,10 @@ test("regular actions are added to optimistic state with multiple actions when c
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -12558,19 +12439,19 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -12588,8 +12469,10 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -12609,8 +12492,10 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -12629,8 +12514,10 @@ test("regular actions are added to optimistic state with multiple actions when c
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -12645,8 +12532,10 @@ test("regular actions are added to optimistic state with multiple actions when c
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
@@ -12655,8 +12544,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         collection: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(3);
@@ -12730,8 +12621,10 @@ test("regular actions are added to optimistic state with multiple actions that a
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -12749,19 +12642,19 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -12779,8 +12672,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -12800,8 +12695,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -12820,8 +12717,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
@@ -12839,8 +12738,10 @@ test("regular actions are added to optimistic state with multiple actions that a
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -12849,8 +12750,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         collection: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     expect(errors.length).toEqual(3);
@@ -12906,8 +12809,7 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -12925,8 +12827,7 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action4]);
@@ -12945,8 +12846,7 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -12964,8 +12864,7 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
                 {isOptimistic: true, action: action4},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -12980,8 +12879,7 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
             },
             actions: [{isOptimistic: true, action: action4}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 2);
@@ -12990,8 +12888,7 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
         collection: null,
         actions: [],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     expect(errors.length).toEqual(3);
@@ -13037,19 +12934,16 @@ test("backfilling a collection when none exists and there are optimistic actions
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -13066,19 +12960,16 @@ test("backfilling a collection when none exists and there are optimistic actions
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -13095,8 +12986,7 @@ test("backfilling a collection when none exists and there are optimistic actions
                 {isOptimistic: false, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
@@ -13105,8 +12995,7 @@ test("backfilling a collection when none exists and there are optimistic actions
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(1);
@@ -13143,12 +13032,10 @@ test("backfilling a collection when one is already backfilled and there are opti
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [],
     });
 
@@ -13156,8 +13043,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -13172,19 +13058,16 @@ test("backfilling a collection when one is already backfilled and there are opti
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection.applyAction(action3)],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection.applyAction(action3)}],
         referencedAccounts: [],
     });
 
@@ -13198,8 +13081,7 @@ test("backfilling a collection when one is already backfilled and there are opti
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectLastExecution(commitTaskActionTransaction);
@@ -13208,8 +13090,7 @@ test("backfilling a collection when one is already backfilled and there are opti
         collection: collection.applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(1);
@@ -13274,12 +13155,10 @@ test("backfilling a collection when there are optimistic actions but no previous
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action3],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [],
     });
 
@@ -13287,8 +13166,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collection: null,
         actions: [action3],
         optimisticState: null,
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.commitTaskActionTransaction(context, [action1]);
@@ -13303,8 +13181,10 @@ test("backfilling a collection when there are optimistic actions but no previous
             },
             actions: [{isOptimistic: true, action: action1}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.commitTaskActionTransaction(context, [action2]);
@@ -13322,19 +13202,19 @@ test("backfilling a collection when there are optimistic actions but no previous
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 0,
+        authorizationState: expect.objectContaining({
+            value: "Authorized",
+            version: zeroHybridLogicalTime,
+        }),
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 2,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [collection.applyAction(action4)],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [{type: "Authorized", collection: collection.applyAction(action4)}],
         referencedAccounts: [],
     });
 
@@ -13351,8 +13231,7 @@ test("backfilling a collection when there are optimistic actions but no previous
                 {isOptimistic: true, action: action2},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -13367,8 +13246,7 @@ test("backfilling a collection when there are optimistic actions but no previous
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -13377,8 +13255,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collection: collection.applyAction(action4).applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 2,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);
@@ -13442,19 +13319,16 @@ test("create collection applied after optimistic updates", async () => {
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -13471,8 +13345,7 @@ test("create collection applied after optimistic updates", async () => {
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -13491,8 +13364,7 @@ test("create collection applied after optimistic updates", async () => {
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -13510,8 +13382,7 @@ test("create collection applied after optimistic updates", async () => {
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -13523,8 +13394,7 @@ test("create collection applied after optimistic updates", async () => {
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -13585,19 +13455,16 @@ test("create collection applied after optimistic updates that are resolved out o
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -13614,8 +13481,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -13634,8 +13500,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 1, {
@@ -13656,8 +13521,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.resolveExecution(commitTaskActionTransaction, 0, {
@@ -13669,8 +13533,7 @@ test("create collection applied after optimistic updates that are resolved out o
         collection: collection.applyAction(action2).applyAction(action3),
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 });
 
@@ -13731,19 +13594,16 @@ test("create collection applied after optimistic updates (rejected)", async () =
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -13760,8 +13620,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -13780,8 +13639,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -13796,8 +13654,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
             },
             actions: [{isOptimistic: true, action: action3}],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -13806,8 +13663,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
         collection: collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);
@@ -13871,19 +13727,16 @@ test("create collection applied after optimistic updates that are resolved out o
             },
             actions: [{isOptimistic: true, action: action2}],
         },
-        isAuthorized: null,
-        authorizationEventNumber: null,
+        authorizationState: null,
     });
 
     store.applyUpdateEvent({
         type: "Update",
         originClientId: null,
-        number: 1,
+        defaultAuthorizationStateVersion: clock.now(),
         actions: [action1],
-        backfillAuthorizedTasks: [],
-        backfillUnauthorizedTaskIds: [],
-        backfillAuthorizedCollections: [],
-        backfillUnauthorizedCollectionIds: [],
+        backfillTasks: [],
+        backfillCollections: [],
         referencedAccounts: [account1],
     });
 
@@ -13900,8 +13753,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     store.commitTaskActionTransaction(context, [action3]);
@@ -13920,8 +13772,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: true, action: action3},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 1);
@@ -13939,8 +13790,7 @@ test("create collection applied after optimistic updates that are resolved out o
                 {isOptimistic: false, action: action1},
             ],
         },
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     await TestRpcContextModule.rejectExecution(commitTaskActionTransaction, 0);
@@ -13949,8 +13799,7 @@ test("create collection applied after optimistic updates that are resolved out o
         collection: collection,
         actions: null,
         optimisticState: null,
-        isAuthorized: true,
-        authorizationEventNumber: 1,
+        authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
     expect(errors.length).toEqual(2);

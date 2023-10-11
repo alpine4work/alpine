@@ -218,6 +218,7 @@ export class TaskRealtimeClient {
                 // if the query was not modified since then could also work.
                 const subscribePromise = this._client.procedures
                     .subscribe({
+                        clientTime: this.store.clock.now(),
                         queries: newQueriesArray.map((query, i) => ({
                             limit: newQueryLimits[i]!,
                             filters: query.filters,
@@ -309,6 +310,7 @@ export class TaskRealtimeClient {
 
                             const {loadedState, previouslyBackfilledTaskIds} =
                                 await this._client.procedures.loadMoreQueryTasks({
+                                    clientTime: this.store.clock.now(),
                                     querySubscriptionId,
                                     limit: loadMoreTaskCount,
                                 });

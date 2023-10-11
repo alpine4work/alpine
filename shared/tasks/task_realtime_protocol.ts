@@ -1,4 +1,5 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     TaskCollectionId,
@@ -8,6 +9,7 @@ import {
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
 } from "~/shared/id/types/id_types.js";
+import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
@@ -22,16 +24,53 @@ import {
 
 export type TaskRealtimeEvent = WebSocketProtocolEventType<typeof TaskRealtimeProtocol>;
 
+export type TaskAuthorizationState = SchemaType<typeof TaskAuthorizationStateSchema>;
+const TaskAuthorizationStateSchema = Schema.enum(["Authorized", "Unauthorized"]);
+export type TaskAuthorizationStateRegister = CrdtRegister<TaskAuthorizationState>;
+export const TaskAuthorizationStateRegister = createCrdtRegister(TaskAuthorizationStateSchema);
+
+export type TaskRealtimeUpdateEventBackfillTask = SchemaType<
+    typeof TaskRealtimeUpdateEventBackfillTaskSchema
+>;
+
+const TaskRealtimeUpdateEventBackfillTaskSchema = Schema.union({
+    Authorized: Schema.object({
+        type: Schema.value("Authorized"),
+        task: TaskModel.schema,
+        authorizationStateVersion: HybridLogicalTimeSchema.optional(),
+    }),
+    Unauthorized: Schema.object({
+        type: Schema.value("Unauthorized"),
+        taskId: Schema.id<TaskId>(),
+        authorizationStateVersion: HybridLogicalTimeSchema.optional(),
+    }),
+});
+
+export type TaskRealtimeUpdateEventBackfillCollection = SchemaType<
+    typeof TaskRealtimeUpdateEventBackfillCollectionSchema
+>;
+
+const TaskRealtimeUpdateEventBackfillCollectionSchema = Schema.union({
+    Authorized: Schema.object({
+        type: Schema.value("Authorized"),
+        collection: TaskCollectionModel.schema,
+        authorizationStateVersion: HybridLogicalTimeSchema.optional(),
+    }),
+    Unauthorized: Schema.object({
+        type: Schema.value("Unauthorized"),
+        collectionId: Schema.id<TaskCollectionId>(),
+        authorizationStateVersion: HybridLogicalTimeSchema.optional(),
+    }),
+});
+
 export type TaskRealtimeUpdateEvent = SchemaType<typeof TaskRealtimeUpdateEventSchema>;
 
 export const TaskRealtimeUpdateEventSchema = Schema.object({
     type: Schema.value("Update"),
-    number: Schema.integer,
     actions: Schema.array(TaskActionSchema),
-    backfillAuthorizedTasks: Schema.array(TaskModel.schema),
-    backfillUnauthorizedTaskIds: Schema.array(Schema.id<TaskId>()),
-    backfillAuthorizedCollections: Schema.array(TaskCollectionModel.schema),
-    backfillUnauthorizedCollectionIds: Schema.array(Schema.id<TaskCollectionId>()),
+    backfillTasks: Schema.array(TaskRealtimeUpdateEventBackfillTaskSchema),
+    backfillCollections: Schema.array(TaskRealtimeUpdateEventBackfillCollectionSchema),
+    defaultAuthorizationStateVersion: HybridLogicalTimeSchema,
     referencedAccounts: Schema.array(AccountModel.schema),
     originClientId: Schema.id<TaskRealtimeClientId>().nullable(),
 });
@@ -65,6 +104,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
     procedures: {
         subscribeToQuery: {
             input: {
+                clientTime: HybridLogicalTimeSchema,
                 filters: TaskQueryNormalizedFiltersSchema,
                 sorts: Schema.array(TaskQueryNormalizedSortSchema),
                 limit: Schema.integer,
@@ -83,6 +123,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
         },
         subscribeToTask: {
             input: {
+                clientTime: HybridLogicalTimeSchema,
                 taskId: Schema.id<TaskId>(),
             },
             output: {
@@ -97,6 +138,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
         },
         subscribeToCollection: {
             input: {
+                clientTime: HybridLogicalTimeSchema,
                 collectionId: Schema.id<TaskCollectionId>(),
             },
             output: {
@@ -111,6 +153,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
         },
         loadMoreQueryTasks: {
             input: {
+                clientTime: HybridLogicalTimeSchema,
                 querySubscriptionId: Schema.id<TaskRealtimeQuerySubscriptionId>(),
                 limit: Schema.integer,
             },
@@ -121,6 +164,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
         },
         subscribe: {
             input: {
+                clientTime: HybridLogicalTimeSchema,
                 queries: Schema.array(
                     Schema.object({
                         filters: TaskQueryNormalizedFiltersSchema,
