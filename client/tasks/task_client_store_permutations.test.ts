@@ -36,7 +36,7 @@ beforeEach(() => {
     });
 
     // Auto-retain tasks and collections that are updated until the end of the test.
-    store.subscribeToBatchUpdate(({taskEntryUpdateById, updatedCollectionIds}) => {
+    store.subscribeToBatchUpdate(({taskEntryUpdateById, collectionEntryUpdateById}) => {
         for (const taskId of taskEntryUpdateById.keys()) {
             if (retainedTaskIds.has(taskId)) continue;
             retainedTaskIds.add(taskId);
@@ -44,7 +44,7 @@ beforeEach(() => {
             store.getInternalForTest().retainTaskEntryStore(taskId);
         }
 
-        for (const collectionId of updatedCollectionIds) {
+        for (const collectionId of collectionEntryUpdateById.keys()) {
             if (retainedCollectionIds.has(collectionId)) continue;
             retainedCollectionIds.add(collectionId);
 

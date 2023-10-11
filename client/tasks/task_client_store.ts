@@ -269,7 +269,14 @@ export class TaskClientStore {
                     readonly newTaskEntry: TaskClientStoreTaskEntry;
                 }
             >;
-            updatedCollectionIds: Iterable<TaskCollectionId>;
+            collectionEntryUpdateById: ReadonlyMap<
+                TaskCollectionId,
+                {
+                    readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
+                    readonly oldCollectionEntry: TaskClientStoreCollectionEntry | null;
+                    readonly newCollectionEntry: TaskClientStoreCollectionEntry;
+                }
+            >;
         }) => void,
     ) {
         return this._internal.subscribeToBatchUpdate(listener);
@@ -3260,6 +3267,15 @@ export class TaskClientStoreInternal {
                 }
             >();
 
+            const collectionEntryUpdateById = new Map<
+                TaskCollectionId,
+                {
+                    collectionEntryStore: ValueStore<TaskClientStoreCollectionEntry>;
+                    oldCollectionEntry: TaskClientStoreCollectionEntry | null;
+                    newCollectionEntry: TaskClientStoreCollectionEntry;
+                }
+            >();
+
             const newTaskEntryStoreIds = new Set<TaskId>();
             const newCollectionEntryStoreIds = new Set<TaskCollectionId>();
 
@@ -3297,7 +3313,33 @@ export class TaskClientStoreInternal {
                         // immediately garbage collect the new store.
                         newTaskEntryStoreIds.add(taskId);
                     } else {
-                        taskEntryStore.store.set(newTaskEntry);
+                        assert(oldTaskEntry);
+
+                        // Optimization: If the only thing that changed about a task is the `version`
+                        // of its `authorizationState` register then we don't update our `ValueStore`
+                        // (which causes all tasks to re-render) and instead sneakily mutate the old
+                        // task entry with the new register.
+                        //
+                        // This works since no consumer of the task entry should really care about its
+                        // authorization state version.
+                        //
+                        // This happens when we connect to realtime and backfill data from our initial
+                        // load. We stop a re-render of all tasks on the page which is nice.
+                        if (
+                            oldTaskEntry.task === newTaskEntry.task &&
+                            oldTaskEntry.actions === newTaskEntry.actions &&
+                            oldTaskEntry.optimisticState === newTaskEntry.optimisticState &&
+                            oldTaskEntry.authorizationState?.value ===
+                                newTaskEntry.authorizationState?.value
+                        ) {
+                            // @ts-expect-error
+                            oldTaskEntry.authorizationState = newTaskEntry.authorizationState;
+
+                            // Don't add this task to `taskEntryUpdateById`!
+                            continue;
+                        } else {
+                            taskEntryStore.store.set(newTaskEntry);
+                        }
                     }
 
                     taskEntryUpdateById.set(taskId, {
@@ -3312,19 +3354,57 @@ export class TaskClientStoreInternal {
                 // Update all our collection stores and create new ones when necessary.
                 // Listeners will be called at the end of the batch.
                 for (const [collectionId, newCollectionEntry] of newCollectionEntryById) {
-                    const collectionEntryStore = this._collectionEntryStoreById.get(collectionId);
+                    let collectionEntryStore = this._collectionEntryStoreById.get(collectionId);
+                    const oldCollectionEntry = collectionEntryStore?.store.getSnapshot() ?? null;
+
                     if (collectionEntryStore === undefined) {
-                        this._collectionEntryStoreById.set(collectionId, {
+                        collectionEntryStore = {
                             referenceCount: 0,
                             store: new ValueStore(newCollectionEntry),
-                        });
+                        };
+
+                        this._collectionEntryStoreById.set(collectionId, collectionEntryStore);
 
                         // If a reference isn't added to the collection by the end of this function then
                         // we immediately garbage collect the new store.
                         newCollectionEntryStoreIds.add(collectionId);
                     } else {
-                        collectionEntryStore.store.set(newCollectionEntry);
+                        assert(oldCollectionEntry);
+
+                        // Optimization: If the only thing that changed about a collection is the
+                        // `version` of its `authorizationState` register then we don't update our
+                        // `ValueStore` (which causes all tasks to re-render) and instead sneakily
+                        // mutate the old collection entry with the new register.
+                        //
+                        // This works since no consumer of the collection entry should really care
+                        // about its authorization state version.
+                        //
+                        // This happens when we connect to realtime and backfill data from our initial
+                        // load. We stop a re-render of all tasks on the page which is nice.
+                        if (
+                            oldCollectionEntry.collection === newCollectionEntry.collection &&
+                            oldCollectionEntry.actions === newCollectionEntry.actions &&
+                            oldCollectionEntry.optimisticState ===
+                                newCollectionEntry.optimisticState &&
+                            oldCollectionEntry.authorizationState?.value ===
+                                newCollectionEntry.authorizationState?.value
+                        ) {
+                            // @ts-expect-error
+                            oldCollectionEntry.authorizationState =
+                                newCollectionEntry.authorizationState;
+
+                            // Don't add this collection to `collectionEntryUpdateById`!
+                            continue;
+                        } else {
+                            collectionEntryStore.store.set(newCollectionEntry);
+                        }
                     }
+
+                    collectionEntryUpdateById.set(collectionId, {
+                        collectionEntryStore: collectionEntryStore.store,
+                        oldCollectionEntry,
+                        newCollectionEntry,
+                    });
                 }
 
                 // Apply task updates to our subscriptions. This will also update stores within
@@ -3345,7 +3425,7 @@ export class TaskClientStoreInternal {
 
                 this._batchUpdateEventEmitter.emit({
                     taskEntryUpdateById,
-                    updatedCollectionIds: newCollectionEntryById.keys(),
+                    collectionEntryUpdateById,
                 });
 
                 return actionValue;
@@ -3445,7 +3525,14 @@ export class TaskClientStoreInternal {
                 readonly newTaskEntry: TaskClientStoreTaskEntry;
             }
         >;
-        updatedCollectionIds: Iterable<TaskCollectionId>;
+        collectionEntryUpdateById: ReadonlyMap<
+            TaskCollectionId,
+            {
+                readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
+                readonly oldCollectionEntry: TaskClientStoreCollectionEntry | null;
+                readonly newCollectionEntry: TaskClientStoreCollectionEntry;
+            }
+        >;
     }>();
 
     /**
@@ -3465,7 +3552,14 @@ export class TaskClientStoreInternal {
                     readonly newTaskEntry: TaskClientStoreTaskEntry;
                 }
             >;
-            updatedCollectionIds: Iterable<TaskCollectionId>;
+            collectionEntryUpdateById: ReadonlyMap<
+                TaskCollectionId,
+                {
+                    readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
+                    readonly oldCollectionEntry: TaskClientStoreCollectionEntry | null;
+                    readonly newCollectionEntry: TaskClientStoreCollectionEntry;
+                }
+            >;
         }) => void,
     ) {
         return this._batchUpdateEventEmitter.subscribe(listener);
