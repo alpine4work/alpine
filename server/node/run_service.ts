@@ -1,9 +1,11 @@
 import cluster, {Worker} from "cluster";
+import inspector from "inspector";
 import * as os from "os";
 import process from "process";
 import {ParseArgsConfig, ParsedResults, parseArgs} from "util";
 import {
     registerShutdownListener,
+    registerShutdownListenerForIngressTraffic,
     registerShutdownWaitUntilPromise,
 } from "~/server/node/shutdown_manager.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
@@ -106,9 +108,22 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         allowPositionals: false,
         options: {
             honeycombApiKey: {type: "string"},
+            inspectorPort: {type: "string"},
             ...options,
         },
     });
+
+    // Start the Node.js inspector if an `--inspectorPort` argument was provided.
+    const inspectorPortString: string | undefined = (parsedOptions.values as any).inspectorPort;
+    if (inspectorPortString) {
+        assert(process.env.NODE_ENV === "development", "Can't inspect process in production");
+
+        inspector.open(parseInt(inspectorPortString, 10));
+
+        registerShutdownListenerForIngressTraffic(async () => {
+            inspector.close();
+        });
+    }
 
     // If a Honeycomb API key is not provided in production then we get no logging
     // from our service.

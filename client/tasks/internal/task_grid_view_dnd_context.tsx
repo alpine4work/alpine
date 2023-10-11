@@ -2,6 +2,7 @@ import {
     CollisionDescriptor,
     CollisionDetection,
     DndContext,
+    DragEndEvent,
     DragOverlay,
     MouseSensor,
     useDndContext,
@@ -9,10 +10,11 @@ import {
     useSensors,
 } from "@dnd-kit/core";
 import type {MouseSensorProps} from "@dnd-kit/core/dist/sensors";
-import {ReactNode, RefObject, createContext, useContext, useState} from "react";
+import {ReactNode, RefObject, createContext, useContext, useMemo, useState} from "react";
 import {createPortal} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
@@ -90,17 +92,34 @@ export function TaskGridViewDndContext({
 }) {
     const context = useAppContext();
 
-    const mouseSensor = useSensor(MouseSensorWithImmediatePriorityEnd, {
-        activationConstraint: {
-            // The mouse must move to activate dragging. This is required for cards which
-            // when clicked expand the task and when dragged can be reordered.
-            distance: 1,
-        },
-    });
+    const mouseSensor = useSensor(
+        MouseSensorWithImmediatePriorityEnd,
+        // Needs to be `useMemo()`d to avoid unnecessary re-renders.
+        // https://github.com/clauderic/dnd-kit/blob/00f749bc0cc3e6582f4f887f64c1f1de65ee0081/packages/core/src/sensors/useSensor.ts#L15
+        useMemo(
+            () => ({
+                activationConstraint: {
+                    // The mouse must move to activate dragging. This is required for cards which
+                    // when clicked expand the task and when dragged can be reordered.
+                    distance: 1,
+                },
+            }),
+            [],
+        ),
+    );
 
     // No keyboard sensor. To move task rows and cards with the keyboard we should
     // have other keyboard shortcuts.
     const sensors = useSensors(mouseSensor);
+
+    const onActuallyDragEnd = useEvent(({active, over}: DragEndEvent) => {
+        if (!over) return;
+
+        const activeData = assertExists(active.data.current) as TaskGridViewDraggableData;
+        const overData = assertExists(over.data.current) as TaskGridViewDroppableData;
+
+        onDragEnd(activeData, overData);
+    });
 
     // If we already have a parent `<TaskGridViewDndContext>` then don't render
     // another one. This allows us to "hoist" up drag-and-drop functionality.
@@ -352,16 +371,7 @@ export function TaskGridViewDndContext({
             <DndContext
                 sensors={sensors}
                 collisionDetection={taskGridViewDndCollisionDetection}
-                onDragEnd={({active, over}) => {
-                    if (!over) return;
-
-                    const activeData = assertExists(
-                        active.data.current,
-                    ) as TaskGridViewDraggableData;
-                    const overData = assertExists(over.data.current) as TaskGridViewDroppableData;
-
-                    onDragEnd(activeData, overData);
-                }}
+                onDragEnd={onActuallyDragEnd}
             >
                 {children}
                 <TaskRowViewDragPortals store={store} />

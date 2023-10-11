@@ -1,4 +1,5 @@
 import fs from "fs-extra";
+import inspector from "inspector";
 import {Miniflare} from "miniflare";
 import {join as joinPath} from "path";
 import toml from "toml";
@@ -32,6 +33,7 @@ async function main() {
             taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
             honeycombApiKey,
+            inspectorPort: inspectorPortString,
         },
     } = parseArgs({
         options: {
@@ -42,8 +44,13 @@ async function main() {
             taskRealtimeServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
             honeycombApiKey: {type: "string"},
+            inspectorPort: {type: "string"},
         },
     });
+
+    if (inspectorPortString) {
+        inspector.open(parseInt(inspectorPortString, 10));
+    }
 
     if (!portString) throw new Error("Missing `port` arg");
     if (!appServiceUrl) throw new Error("Missing `appServiceUrl` arg");

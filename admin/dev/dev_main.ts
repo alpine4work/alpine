@@ -46,7 +46,6 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Id} from "~/shared/id/id.js";
@@ -59,17 +58,33 @@ process.title = "dev (cyberworlds, node)";
 
 const env = parseDotenv();
 
-const appDevPort = parseInt(assertExists(env.APP_DEV_PORT), 10);
+const parsePort = (portString: string | undefined) => {
+    assert(portString);
+    const port = parseInt(portString, 10);
+    assert(!isNaN(port));
+    return port;
+};
+
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
-const remixDevServerPort = parseInt(assertExists(env.REMIX_DEV_SERVER_PORT), 10);
+
+const appDevPort = parsePort(env.APP_DEV_PORT);
+const appDevInspectorPort = parsePort(env.APP_DEV_INSPECTOR_PORT);
+
+const edgeDevPort = parsePort(env.EDGE_DEV_PORT);
+const edgeDevInspectorPort = parsePort(env.EDGE_DEV_INSPECTOR_PORT);
+
+const taskRealtimeDevPort = parsePort(env.TASK_REALTIME_DEV_PORT);
+const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_PORT);
+
+const remixDevServerPort = parsePort(env.REMIX_DEV_SERVER_PORT);
+
 const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
 const dynamoLocalLogsPath = joinPath(devEnvPaths.log, "dynamo");
-const dynamoLocalPort = parseInt(assertExists(env.DYNAMO_LOCAL_PORT), 10);
-const edgeDevPort = parseInt(assertExists(env.EDGE_DEV_PORT), 10);
+const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
+
 const opensearchLocalDataPath = joinPath(devEnvPaths.data, "opensearch");
 const opensearchLocalLogsPath = joinPath(devEnvPaths.log, "opensearch");
-const opensearchLocalPort = parseInt(assertExists(env.OPENSEARCH_LOCAL_PORT), 10);
-const taskRealtimeDevPort = parseInt(assertExists(env.TASK_REALTIME_DEV_PORT), 10);
+const opensearchLocalPort = parsePort(env.OPENSEARCH_LOCAL_PORT);
 
 export type Artifact = {
     readonly bazelTarget: string;
@@ -121,6 +136,7 @@ async function createArtifacts() {
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
+                `--inspectorPort=${appDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -141,6 +157,7 @@ async function createArtifacts() {
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
+                `--inspectorPort=${edgeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -159,6 +176,7 @@ async function createArtifacts() {
                 `--taskRealtimeServicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
+                `--inspectorPort=${taskRealtimeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -286,6 +304,8 @@ function logError(reason: string, error: unknown) {
  */
 async function rebuildArtifact(artifact: Artifact) {
     await artifact.server.withLock(async artifactServerRef => {
+        const privatePortPromise = getPort();
+
         const {buildId, hasFailed: hasBuildFailed} = await buildBazelTarget(artifact.bazelTarget);
 
         if (artifactServerRef.current) {
@@ -297,7 +317,7 @@ async function rebuildArtifact(artifact: Artifact) {
 
             if (artifactServer.subprocess) {
                 // Start sending traffic to a new port before we kill the old port.
-                const privatePort = await getPort();
+                const privatePort = await privatePortPromise;
                 artifact.privatePort = privatePort;
 
                 // If our server process doesn't exit in a reasonable period of time, send

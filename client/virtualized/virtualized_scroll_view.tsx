@@ -4,6 +4,7 @@ import {
     ReactElement,
     ReactNode,
     Ref,
+    RefCallback,
     cloneElement,
     forwardRef,
     startTransition,
@@ -624,7 +625,7 @@ function VirtualizedScrollView(
             {
                 generation: number;
                 index: number;
-                element: HTMLDivElement;
+                element: HTMLElement;
                 lastRenderedHeight: number | null;
                 cleanup: () => void;
             }
@@ -654,6 +655,119 @@ function VirtualizedScrollView(
     // while maintaining the position of items lower in the list.
     const shouldRenderWithRelativePositioning = useIsInitialAppRender();
 
+    // Sparse array of refs we can reuse across renders.
+    //
+    // In a memo so we can carefully track dependencies in the `ref` function. If a
+    // dependency changes then we need to throw away all refs.
+    const {itemContainerRefs, getItemContainerRef} = useMemo(() => {
+        const itemContainerRefs: Array<{lastItemKey: Key; ref: RefCallback<HTMLElement>}> = [];
+
+        const getItemContainerRef = (index: number, itemKey: Key) => {
+            let itemContainerRef = itemContainerRefs[index];
+
+            if (!itemContainerRef || itemContainerRef.lastItemKey !== itemKey) {
+                const ref = (element: HTMLElement) => {
+                    // To make sure `itemsRef` doesn't grow forever, we occasionally clean it up.
+                    // We need to wait for all `ref`s to fire in this render to know which refs are
+                    // actually unused now.
+                    if (!itemsRef.current.hasScheduledCleanup) {
+                        itemsRef.current.hasScheduledCleanup = true;
+                        itemsRef.current.generation++;
+
+                        scheduleAfterNextBrowserPaint(() => {
+                            itemsRef.current.hasScheduledCleanup = false;
+
+                            for (const [key, elementRef] of itemsRef.current.elementRefByKey) {
+                                // If this ref is a part of the current generation it will not be
+                                // cleaned up.
+                                if (elementRef.generation === itemsRef.current.generation) continue;
+
+                                elementRef.cleanup();
+                                itemsRef.current.elementRefByKey.delete(key);
+                            }
+                        });
+                    }
+
+                    // Ref cleanup is handled in batch above.
+                    if (!element) return;
+
+                    const currentElementRef = itemsRef.current.elementRefByKey.get(itemKey);
+
+                    // If the element hasn't change for this item key, update the ref to the
+                    // current generation so it doesn't get cleaned up.
+                    if (currentElementRef && currentElementRef.element === element) {
+                        currentElementRef.generation = itemsRef.current.generation;
+
+                        // The key for an item may stay stable while the index changes.
+                        currentElementRef.index = index;
+                    }
+                    // Otherwise, cleanup the old ref (if it exists) and observe the height of the
+                    // new element.
+                    else {
+                        currentElementRef?.cleanup();
+
+                        const newElementRef: {
+                            generation: number;
+                            index: number;
+                            element: HTMLElement;
+                            lastRenderedHeight: number | null;
+                            cleanup: () => void;
+                        } = {
+                            generation: itemsRef.current.generation,
+                            index,
+                            element,
+                            lastRenderedHeight: currentElementRef?.lastRenderedHeight ?? null,
+                            cleanup: () => removeResizeListenerForElement(element, handleResize),
+                        };
+
+                        // IMPORTANT: Be careful about using props in this function because we will
+                        // capture a version of props when the component is rendered.
+                        const handleResize = () => {
+                            const height = element.offsetHeight;
+
+                            // If the element was removed from the DOM its height will be zero. Don't
+                            // record that height.
+                            if (!document.body.contains(element)) return;
+
+                            // If the height didn't change, don't bother setting state.
+                            if (height === newElementRef.lastRenderedHeight) return;
+
+                            // NOTE(calebmer): We can't update the rendered range inline here because we
+                            // will have captured stale `itemCount` and `renderItem` props.
+                            setActualState(actualState => {
+                                const newState = actualState.state.setItemHeight(itemKey, height);
+                                if (newState === actualState.state) return actualState;
+                                return {...actualState, state: newState};
+                            });
+                        };
+
+                        addResizeListenerForElement(element, handleResize);
+
+                        itemsRef.current.elementRefByKey.set(itemKey, newElementRef);
+                    }
+                };
+
+                itemContainerRefs[index] = itemContainerRef = {
+                    lastItemKey: itemKey,
+                    // Listen to the element's height with a resize observer so we can correctly
+                    // position items. The resize observer will notify us whenever the height
+                    // changes.
+                    ref,
+                };
+            }
+
+            return itemContainerRef.ref;
+        };
+
+        return {
+            itemContainerRefs,
+            getItemContainerRef,
+        };
+    }, []);
+
+    // Truncate so we never have more than `itemCount` refs.
+    itemContainerRefs.length = itemCount;
+
     const {
         state: newStateAfterRender,
         children,
@@ -677,94 +791,7 @@ function VirtualizedScrollView(
                     viewHeight,
                     originalContentHeight,
                 }) => {
-                    // Listen to the element's height with a resize observer so we can correctly
-                    // position items. The resize observer will notify us whenever the height
-                    // changes.
-                    const ref = (element: HTMLDivElement | null) => {
-                        // To make sure `itemsRef` doesn't grow forever, we occasionally clean it up.
-                        // We need to wait for all `ref`s to fire in this render to know which refs are
-                        // actually unused now.
-                        if (!itemsRef.current.hasScheduledCleanup) {
-                            itemsRef.current.hasScheduledCleanup = true;
-                            itemsRef.current.generation++;
-
-                            scheduleAfterNextBrowserPaint(() => {
-                                itemsRef.current.hasScheduledCleanup = false;
-
-                                for (const [key, elementRef] of itemsRef.current.elementRefByKey) {
-                                    // If this ref is a part of the current generation it will not be
-                                    // cleaned up.
-                                    if (elementRef.generation === itemsRef.current.generation)
-                                        continue;
-
-                                    elementRef.cleanup();
-                                    itemsRef.current.elementRefByKey.delete(key);
-                                }
-                            });
-                        }
-
-                        // Ref cleanup is handled in batch above.
-                        if (!element) return;
-
-                        const currentElementRef = itemsRef.current.elementRefByKey.get(item.key);
-
-                        // If the element hasn't change for this item key, update the ref to the
-                        // current generation so it doesn't get cleaned up.
-                        if (currentElementRef && currentElementRef.element === element) {
-                            currentElementRef.generation = itemsRef.current.generation;
-
-                            // The key for an item may stay stable while the index changes.
-                            currentElementRef.index = index;
-                        }
-                        // Otherwise, cleanup the old ref (if it exists) and observe the height of the
-                        // new element.
-                        else {
-                            currentElementRef?.cleanup();
-
-                            // IMPORTANT: Be careful about using props in this function because we will
-                            // capture a version of props when the component is rendered.
-                            const handleResize = () => {
-                                const height = element.offsetHeight;
-
-                                // If the element was removed from the DOM its height will be zero. Don't
-                                // record that height.
-                                if (!document.body.contains(element)) return;
-
-                                // If the height didn't change, don't bother setting state.
-                                if (height === newElementRef.lastRenderedHeight) return;
-
-                                // NOTE(calebmer): We can't update the rendered range inline here because we
-                                // will have captured stale `itemCount` and `renderItem` props.
-                                setActualState(actualState => {
-                                    const newState = actualState.state.setItemHeight(
-                                        item.key,
-                                        height,
-                                    );
-                                    if (newState === actualState.state) return actualState;
-                                    return {...actualState, state: newState};
-                                });
-                            };
-
-                            addResizeListenerForElement(element, handleResize);
-
-                            const newElementRef: {
-                                generation: number;
-                                index: number;
-                                element: HTMLDivElement;
-                                lastRenderedHeight: number | null;
-                                cleanup: () => void;
-                            } = {
-                                generation: itemsRef.current.generation,
-                                index,
-                                element,
-                                lastRenderedHeight: currentElementRef?.lastRenderedHeight ?? null,
-                                cleanup: () =>
-                                    removeResizeListenerForElement(element, handleResize),
-                            };
-
-                            itemsRef.current.elementRefByKey.set(item.key, newElementRef);
-                        }
-                    };
+                    const ref = getItemContainerRef(index, item.key);
 
                     if (item.withManualLayout) {
                         const element = item.render({

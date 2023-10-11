@@ -1,4 +1,4 @@
-import {RefObject, useEffect, useRef, useState} from "react";
+import {Memo, RefObject, useEffect, useRef, useState} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -750,7 +750,11 @@ export function useTaskGridViewExpansionState({
 
     return {
         toggleAreChildTasksExpanded,
-        getAreChildTasksExpandedStore: stateManager.getAreChildTasksExpandedStore,
-        iterateExpandedTaskIdsUnderPath: stateManager.iterateExpandedTaskIdsUnderPath,
+        getAreChildTasksExpandedStore: stateManager.getAreChildTasksExpandedStore as Memo<
+            typeof stateManager.getAreChildTasksExpandedStore
+        >,
+        iterateExpandedTaskIdsUnderPath: stateManager.iterateExpandedTaskIdsUnderPath as Memo<
+            typeof stateManager.iterateExpandedTaskIdsUnderPath
+        >,
     };
 }

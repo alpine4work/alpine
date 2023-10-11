@@ -56,12 +56,17 @@ export function useEvent<Args extends Array<unknown>>(
     }
 
     return useCallback((...args: Args) => {
-        if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcherIfExists()))
+        if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcherIfExists())) {
             throw new InternalError("Can not call event callback during React render");
+        }
 
         return eventRef.current?.(...args);
     }, []);
 }
+
+export type MemoObject<T extends {}> = Memo<{
+    [K in keyof T]: Memo<T[K]>;
+}>;
 
 /**
  * Allows you to define event handlers that can read the latest props/state but
@@ -87,8 +92,8 @@ export function useEvent<Args extends Array<unknown>>(
  */
 export function useEvents<Events extends {[key: string]: (...args: Array<any>) => unknown}>(
     events: Events,
-): Memo<{[Key in keyof Events]: Memo<Events[Key]>}> {
-    const currentEventKeys = new Set(Object.keys(events));
+): MemoObject<Events> {
+    const currentEventKeys = Object.keys(events);
     const [eventKeys] = useState(currentEventKeys);
 
     assert(
@@ -125,10 +130,11 @@ export function useEvents<Events extends {[key: string]: (...args: Array<any>) =
                             reactDispatchersSeenDuringRender.has(
                                 getCurrentReactDispatcherIfExists(),
                             )
-                        )
+                        ) {
                             throw new InternalError(
                                 "Can not call event callback during React render",
                             );
+                        }
 
                         return eventsRef.current[eventKey]!(...args);
                     },

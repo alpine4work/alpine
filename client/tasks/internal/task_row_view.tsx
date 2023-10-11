@@ -1,12 +1,10 @@
 import {useDraggable} from "@dnd-kit/core";
-import {setInteractionModality} from "@react-aria/interactions";
 import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
     KeyboardEvent,
     Ref,
     forwardRef,
-    useEffect,
     useId,
     useImperativeHandle,
     useMemo,
@@ -21,7 +19,6 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
-import {tooltipDelayMs} from "~/client/design/tooltip.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
@@ -68,13 +65,11 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {
-    taskRowViewCollectionsColumnWidth,
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {Context} from "~/shared/context/context.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -158,7 +153,7 @@ function TaskRowView(
         parents,
         isFirstRow,
         titlePlaceholder,
-        getNextIndentation,
+        nextIndentation,
         areChildTasksExpandedStore,
         onAreChildTasksExpandedToggle,
         withoutPaddingLeft,
@@ -186,6 +181,7 @@ function TaskRowView(
         onGhostTaskCreated?: () => void;
         parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
         isFirstRow: boolean;
+        nextIndentation: number;
         titlePlaceholder?: string;
         // NOCOMMIT:
         // allCollections: ReadonlyArray<LocalTaskCollection>;
@@ -200,8 +196,7 @@ function TaskRowView(
         // isEditingCollections: boolean;
         // onEditingCollectionsChange: (isEditingCollections: boolean) => void;
         // editingCollectionsContainerRef: RefCallback<HTMLElement> | null;
-        getNextIndentation: () => number;
-        areChildTasksExpandedStore: Store<boolean | undefined>;
+        areChildTasksExpandedStore: Store<true | undefined>;
         onAreChildTasksExpandedToggle: () => void;
         withoutPaddingLeft?: boolean;
         withPaddingBottom?: boolean;
@@ -386,9 +381,8 @@ function TaskRowView(
         focusTitleSelection,
     } = useMemo(
         () => ({
-            isTitleFocused: () => {
-                return assertExists(titleInputRef.current).isFocused();
-            },
+            isTitleFocused: () => assertExists(titleInputRef.current).isFocused(),
+
             focusTitleStart: () => {
                 assertExists(titleInputRef.current).focusStart();
             },
@@ -681,23 +675,6 @@ function TaskRowView(
 
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
 
-    const {
-        attributes: draggableAttributes,
-        listeners: draggableListeners,
-        setNodeRef: setDraggableNodeRef,
-    } = useDraggable({
-        id: useId(),
-        data: task
-            ? cast<TaskGridViewDraggableData>({
-                  type: "Row",
-                  task,
-                  getDropActions: getMaybeRemoveTaskFromQueryActions,
-              })
-            : undefined,
-        disabled: !task,
-    });
-
-    const [isDragHandlePressed, setIsDragHandlePressed] = useState(false);
     const [isExpandButtonFocused, setIsExpandButtonFocused] = useState(false);
 
     const contextMenuActions = (() => {
@@ -978,48 +955,13 @@ function TaskRowView(
                                     className={tasksStyles.pointerEventsNoneNotInheritedClassName}
                                 >
                                     {!capabilities.isReadOnly && hasTask ? (
-                                        <Box
-                                            paddingRight="0.5"
-                                            className={
-                                                tasksStyles.pointerEventsNoneNotInheritedClassName
+                                        <TaskRowViewDragHandle
+                                            task={task}
+                                            getMaybeRemoveTaskFromQueryActions={
+                                                getMaybeRemoveTaskFromQueryActions
                                             }
-                                            opacity={isHovered ? "100" : "0"}
-                                        >
-                                            <FocusRing>
-                                                <button
-                                                    {...mergeProps(
-                                                        draggableAttributes,
-                                                        draggableListeners ?? {},
-                                                        {
-                                                            onPointerDown: () =>
-                                                                setIsDragHandlePressed(true),
-                                                            onPointerUp: () =>
-                                                                setIsDragHandlePressed(false),
-                                                            onPointerOut: () =>
-                                                                setIsDragHandlePressed(false),
-                                                        },
-                                                    )}
-                                                    ref={setDraggableNodeRef}
-                                                    className={sprinkles({
-                                                        display: "block",
-                                                        width: "4",
-                                                        height: "4",
-                                                        padding: "0.5",
-                                                        borderRadius: "full",
-                                                        // Dragging doesn't activate until the mouse moves. Set the grabbing cursor
-                                                        // immediately on press.
-                                                        cursor: isDragHandlePressed
-                                                            ? "grabbing"
-                                                            : "grab",
-                                                    })}
-                                                    // Drag handle is not tab focusable. Keyboard navigation within a task grid is
-                                                    // not done with tab navigation.
-                                                    tabIndex={-1}
-                                                >
-                                                    <DotsSixVertical size={spacing["3"]} />
-                                                </button>
-                                            </FocusRing>
-                                        </Box>
+                                            isHovered={isHovered}
+                                        />
                                     ) : (
                                         <Box
                                             paddingRight="0.5"
@@ -1253,7 +1195,7 @@ function TaskRowView(
                             cursor={cursor}
                             task={task}
                             parents={parents}
-                            getNextIndentation={getNextIndentation}
+                            nextIndentation={nextIndentation}
                             areChildTasksExpanded={areChildTasksExpanded}
                             getMoveTaskToRootQueryActions={getMoveTaskToRootQueryActions}
                         />
@@ -1266,12 +1208,76 @@ function TaskRowView(
     );
 }
 
+function TaskRowViewDragHandle({
+    task,
+    getMaybeRemoveTaskFromQueryActions,
+    isHovered,
+}: {
+    task: TaskModel | null;
+    getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
+    isHovered: boolean;
+}) {
+    const [isDragHandlePressed, setIsDragHandlePressed] = useState(false);
+
+    // When drag state updates, only re-render `<TaskRowViewDragHandle>`s. Not
+    // every row.
+    const {
+        attributes: draggableAttributes,
+        listeners: draggableListeners,
+        setNodeRef: setDraggableNodeRef,
+    } = useDraggable({
+        id: useId(),
+        data: task
+            ? cast<TaskGridViewDraggableData>({
+                  type: "Row",
+                  task,
+                  getDropActions: getMaybeRemoveTaskFromQueryActions,
+              })
+            : undefined,
+        disabled: !task,
+    });
+
+    return (
+        <Box
+            paddingRight="0.5"
+            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+            opacity={isHovered ? "100" : "0"}
+        >
+            <FocusRing>
+                <button
+                    {...mergeProps(draggableAttributes, draggableListeners ?? {}, {
+                        onPointerDown: () => setIsDragHandlePressed(true),
+                        onPointerUp: () => setIsDragHandlePressed(false),
+                        onPointerOut: () => setIsDragHandlePressed(false),
+                    })}
+                    ref={setDraggableNodeRef}
+                    className={sprinkles({
+                        display: "block",
+                        width: "4",
+                        height: "4",
+                        padding: "0.5",
+                        borderRadius: "full",
+                        // Dragging doesn't activate until the mouse moves. Set the grabbing cursor
+                        // immediately on press.
+                        cursor: isDragHandlePressed ? "grabbing" : "grab",
+                    })}
+                    // Drag handle is not tab focusable. Keyboard navigation within a task grid is
+                    // not done with tab navigation.
+                    tabIndex={-1}
+                >
+                    <DotsSixVertical size={spacing["3"]} />
+                </button>
+            </FocusRing>
+        </Box>
+    );
+}
+
 function TaskRowViewDroppableIndentations({
     query,
     cursor,
     task,
     parents,
-    getNextIndentation,
+    nextIndentation,
     areChildTasksExpanded,
     getMoveTaskToRootQueryActions,
 }: {
@@ -1279,7 +1285,7 @@ function TaskRowViewDroppableIndentations({
     cursor: TaskQuerySortCursor;
     task: TaskModel;
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
-    getNextIndentation: () => number;
+    nextIndentation: number;
     areChildTasksExpanded: boolean;
     getMoveTaskToRootQueryActions: (
         taskId: TaskId,
@@ -1335,7 +1341,6 @@ function TaskRowViewDroppableIndentations({
         );
     }
 
-    const nextIndentation = getNextIndentation();
     const droppableIndentations = [parents.length];
 
     for (

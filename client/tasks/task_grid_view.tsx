@@ -24,7 +24,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
-import {TaskGridViewVirtualizedTaskList} from "~/client/tasks/internal/task_grid_view_virtualized_task_list.js";
+import {TaskGridViewVirtualizedListState} from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
 // NOCOMMIT:
 // import {TaskGridViewCapabilities} from "~/client/tasks/demo_2/internal/task_grid_view_capabilities.js";
 // import {TaskGridViewDndContext} from "~/client/tasks/demo_2/internal/task_grid_view_dnd_context.js";
