@@ -1,9 +1,22 @@
 import {Check} from "phosphor-react";
-import {Box} from "~/client/design/box.js";
 import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
+
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
 
 export function TaskDisplayStatusCircle({
     displayStatus,
@@ -29,7 +42,7 @@ export function TaskDisplayStatusCircle({
             : 1;
 
     return (
-        <Box
+        <div
             className={sprinkles({
                 position: "relative",
                 zIndex: "0",
@@ -59,12 +72,14 @@ export function TaskDisplayStatusCircle({
                 // When we added this there was a happy accident. The text color also got
                 // darker! This is more fitting for the physical analogy of a button being
                 // pressed down.
-                <Box
-                    position="absolute"
-                    zIndex="10"
-                    inset="0"
-                    backgroundColor="grey-dark"
-                    pointerEvents="none"
+                <div
+                    className={sprinkles({
+                        position: "absolute",
+                        zIndex: "10",
+                        inset: "0",
+                        backgroundColor: "grey-dark",
+                        pointerEvents: "none",
+                    })}
                     style={{
                         opacity: buttonPressedOverlayOpacity,
                     }}
@@ -79,12 +94,14 @@ export function TaskDisplayStatusCircle({
                 />
             )}
             {displayStatus === "OpenActive" && (
-                <Box
-                    position="absolute"
-                    top="0"
-                    left="0"
-                    height={size}
-                    overflow="hidden"
+                <div
+                    className={sprinkles({
+                        position: "absolute",
+                        top: "0",
+                        left: "0",
+                        height: size,
+                        overflow: "hidden",
+                    })}
                     style={{
                         width: `calc(${parseRemLengthNumber(spacing[size]) / 2}rem - ${
                             1 + activeHalfCircleMargin
@@ -106,12 +123,14 @@ export function TaskDisplayStatusCircle({
                         maskImage: "linear-gradient(white, white)",
                     }}
                 >
-                    <Box
-                        position="absolute"
-                        top="0"
-                        right="0"
-                        borderRadius="full"
-                        backgroundColor={{light: "theme-20-const", dark: "theme-30-const"}}
+                    <div
+                        className={sprinkles({
+                            position: "absolute",
+                            top: "0",
+                            right: "0",
+                            borderRadius: "full",
+                            backgroundColor: {light: "theme-20-const", dark: "theme-30-const"},
+                        })}
                         style={{
                             width: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
                             height: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
@@ -128,23 +147,25 @@ export function TaskDisplayStatusCircle({
                         // When we added this there was a happy accident. The text color also got
                         // darker! This is more fitting for the physical analogy of a button being
                         // pressed down.
-                        <Box
-                            position="absolute"
-                            zIndex="10"
-                            top="0"
-                            right="0"
-                            width={size}
-                            height={size}
-                            borderRadius="full"
-                            backgroundColor="grey-dark"
-                            pointerEvents="none"
+                        <div
+                            className={sprinkles({
+                                position: "absolute",
+                                zIndex: "10",
+                                top: "0",
+                                right: "0",
+                                width: size,
+                                height: size,
+                                borderRadius: "full",
+                                backgroundColor: "grey-dark",
+                                pointerEvents: "none",
+                            })}
                             style={{
                                 opacity: buttonPressedOverlayOpacity,
                             }}
                         />
                     )}
-                </Box>
+                </div>
             )}
-        </Box>
+        </div>
     );
 }

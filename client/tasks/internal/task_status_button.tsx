@@ -63,6 +63,20 @@ export function compareTaskAssigneeActiveStatus(
     );
 }
 
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
+
 const TaskStatusButtonForwardRef = forwardRef(TaskStatusButton);
 export {TaskStatusButtonForwardRef as TaskStatusButton};
 

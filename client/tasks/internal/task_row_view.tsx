@@ -1,4 +1,5 @@
 import {useDraggable} from "@dnd-kit/core";
+import classNames from "classnames";
 import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
@@ -13,14 +14,11 @@ import {
 } from "react";
 import {mergeProps} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
@@ -31,14 +29,10 @@ import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
-import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
-import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
-import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {
     TaskRowAssigneeCell,
     TaskRowAssigneeCellRef,
@@ -59,17 +53,20 @@ import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
 } from "~/client/tasks/internal/task_row_title_input.js";
-import {TaskRowViewDroppable} from "~/client/tasks/internal/task_row_view_droppable.js";
+import {
+    TaskRowViewDenseFields,
+    TaskRowViewDenseFieldsRef,
+} from "~/client/tasks/internal/task_row_view_dense_fields.js";
+import {TaskRowViewDroppableIndentations} from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {Context} from "~/shared/context/context.js";
-import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -87,7 +84,6 @@ import {
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
-import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQuerySortCursor,
@@ -134,11 +130,19 @@ export type TaskRowViewRef = {
     focusCell(column: TaskGridViewColumn): void;
 };
 
-// NOCOMMIT: Check rendering performance and maybe hand write `<div>` instead
-// of `<Box>`? Look for other performance optimizations.
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
 //
-// For instance, we shouldn't re-render every row when pressing enter to add a
-// new row. This is taking a ridiculously long time right now.
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
 
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
 export {TaskRowViewForwardRef as TaskRowView};
@@ -894,23 +898,27 @@ function TaskRowView(
     return (
         <>
             <ContextMenuActions actions={contextMenuActions}>
-                <Box
+                <div
                     ref={hoverRef}
-                    minHeight={taskRowViewMinHeight}
-                    position="relative"
-                    // NOTE(calebmer): Setting z-index here creates a new stacking context which
-                    // means the task row drop indicator lines can't render on top of
-                    // adjacent rows.
-                    zIndex={undefined}
+                    className={sprinkles({
+                        minHeight: taskRowViewMinHeight,
+                        position: "relative",
+                        // NOTE(calebmer): Setting z-index here creates a new stacking context which
+                        // means the task row drop indicator lines can't render on top of
+                        // adjacent rows.
+                        zIndex: undefined,
+                    })}
                 >
-                    <Box
-                        position="absolute"
-                        zIndex="-10"
-                        top="0"
-                        bottom="0"
-                        left="5"
-                        right="5"
-                        pointerEvents="none"
+                    <div
+                        className={sprinkles({
+                            position: "absolute",
+                            zIndex: "-10",
+                            top: "0",
+                            bottom: "0",
+                            left: "5",
+                            right: "5",
+                            pointerEvents: "none",
+                        })}
                         style={{
                             // Draw the top and bottom border with a shadow so it:
                             //
@@ -919,31 +927,34 @@ function TaskRowView(
                             boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
                         }}
                     />
-                    <Box
-                        position="relative"
-                        // NOTE(calebmer): Setting z-index here creates a new stacking context which
-                        // means the editable collection overlay can't render on top of adjacent rows.
-                        zIndex={undefined}
-                        // Important not to set `overflow="hidden"` here so that the collections overlay
-                        // we open in edit mode can render outside the bounds of the row.
-                        overflow={undefined}
-                        display="flex"
+                    <div
+                        className={sprinkles({
+                            position: "relative",
+                            // NOTE(calebmer): Setting z-index here creates a new stacking context which
+                            // means the editable collection overlay can't render on top of adjacent rows.
+                            zIndex: undefined,
+                            // Important not to set `overflow="hidden"` here so that the collections overlay
+                            // we open in edit mode can render outside the bounds of the row.
+                            overflow: undefined,
+                            display: "flex",
+                        })}
                     >
-                        <Box
-                            position="relative"
-                            flexShrink="0"
+                        <div
+                            className={classNames(
+                                sprinkles({
+                                    position: "relative",
+                                    flexShrink: "0",
+                                }),
+                                // Create an illusion that the text editor extends into the margins by giving
+                                // the margin a text cursor and making it clickable putting focus in the task.
+                                // A double click selects the task text.
+                                //
+                                // This is an affordance for mouse users, does not need to be usable
+                                // by keyboard.
+                                !capabilities.isReadOnly &&
+                                    tasksStyles.textCursorNotInheritedClassName,
+                            )}
                             style={{width: marginLeft}}
-                            // Create an illusion that the text editor extends into the margins by giving
-                            // the margin a text cursor and making it clickable putting focus in the task.
-                            // A double click selects the task text.
-                            //
-                            // This is an affordance for mouse users, does not need to be usable
-                            // by keyboard.
-                            className={
-                                !capabilities.isReadOnly
-                                    ? tasksStyles.textCursorNotInheritedClassName
-                                    : undefined
-                            }
                             {...useOutOfBoundsClickSelection({
                                 isDisabled: capabilities.isReadOnly,
                                 onSelect: focusTitleStart,
@@ -951,12 +962,16 @@ function TaskRowView(
                             })}
                         >
                             {!withoutPaddingLeft && (
-                                <Box
-                                    display="flex"
-                                    justifyContent="flex-end"
-                                    alignItems="center"
-                                    height={taskRowViewMinHeight}
-                                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                                <div
+                                    className={classNames(
+                                        sprinkles({
+                                            display: "flex",
+                                            justifyContent: "flex-end",
+                                            alignItems: "center",
+                                            height: taskRowViewMinHeight,
+                                        }),
+                                        tasksStyles.pointerEventsNoneNotInheritedClassName,
+                                    )}
                                 >
                                     {!capabilities.isReadOnly && hasTask ? (
                                         <TaskRowViewDragHandle
@@ -967,23 +982,26 @@ function TaskRowView(
                                             isHovered={isHovered}
                                         />
                                     ) : (
-                                        <Box
-                                            paddingRight="0.5"
-                                            className={
-                                                tasksStyles.pointerEventsNoneNotInheritedClassName
-                                            }
+                                        <div
+                                            className={classNames(
+                                                tasksStyles.pointerEventsNoneNotInheritedClassName,
+                                                sprinkles({paddingRight: "0.5"}),
+                                            )}
                                         />
                                     )}
                                     {hasTask ? (
-                                        <Box
-                                            width="5"
-                                            paddingRight="1"
-                                            className={
-                                                tasksStyles.pointerEventsNoneNotInheritedClassName
-                                            }
-                                            opacity={
-                                                isHovered || isExpandButtonFocused ? "100" : "0"
-                                            }
+                                        <div
+                                            className={classNames(
+                                                tasksStyles.pointerEventsNoneNotInheritedClassName,
+                                                sprinkles({
+                                                    width: "5",
+                                                    paddingRight: "1",
+                                                    opacity:
+                                                        isHovered || isExpandButtonFocused
+                                                            ? "100"
+                                                            : "0",
+                                                }),
+                                            )}
                                         >
                                             <IconButton
                                                 ref={expandButtonRef}
@@ -1020,22 +1038,23 @@ function TaskRowView(
                                             >
                                                 <ArrowsOutSimple />
                                             </IconButton>
-                                        </Box>
+                                        </div>
                                     ) : (
-                                        <Box
-                                            width="5"
-                                            paddingRight="1"
-                                            className={
-                                                tasksStyles.pointerEventsNoneNotInheritedClassName
-                                            }
+                                        <div
+                                            className={classNames(
+                                                tasksStyles.pointerEventsNoneNotInheritedClassName,
+                                                sprinkles({
+                                                    width: "5",
+                                                    paddingRight: "1",
+                                                }),
+                                            )}
                                         />
                                     )}
-                                    <Box
-                                        width="6"
-                                        paddingRight="2"
-                                        className={
-                                            tasksStyles.pointerEventsNoneNotInheritedClassName
-                                        }
+                                    <div
+                                        className={classNames(
+                                            tasksStyles.pointerEventsNoneNotInheritedClassName,
+                                            sprinkles({width: "6", paddingRight: "2"}),
+                                        )}
                                     >
                                         {hasTask ? (
                                             <TaskStatusButton
@@ -1053,26 +1072,30 @@ function TaskRowView(
                                                 }
                                             />
                                         ) : (
-                                            <Box
-                                                width="4"
-                                                height="4"
-                                                borderRadius="full"
-                                                border="grey-10"
-                                                pointerEvents="none"
+                                            <div
+                                                className={sprinkles({
+                                                    width: "4",
+                                                    height: "4",
+                                                    borderRadius: "full",
+                                                    border: "grey-10",
+                                                    pointerEvents: "none",
+                                                })}
                                             />
                                         )}
-                                    </Box>
-                                </Box>
+                                    </div>
+                                </div>
                             )}
-                        </Box>
+                        </div>
                         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
-                            <Box
+                            <div
                                 ref={titleCellRef}
                                 tabIndex={
                                     capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined
                                 }
-                                flexGrow="1"
-                                overflow="hidden"
+                                className={sprinkles({
+                                    flexGrow: "1",
+                                    overflow: "hidden",
+                                })}
                                 onKeyDownCapture={event => handleCellKeyDownCapture("Title", event)}
                             >
                                 <TaskRowTitleInput
@@ -1113,7 +1136,7 @@ function TaskRowView(
                                     focusNextCell={() => focusNextCell("Title")}
                                     focusPreviousCell={() => focusPreviousCell("Title")}
                                 />
-                            </Box>
+                            </div>
                         </FocusRing>
                         {capabilities.hasColumns && (
                             <>
@@ -1158,31 +1181,35 @@ function TaskRowView(
                                 />
                             </>
                         )}
-                        <Box
-                            flexShrink="0"
-                            width="5"
-                            // Create an illusion that the text editor extends into the margins by giving
-                            // the margin a text cursor and making it clickable putting focus in the task.
-                            // A double click selects the task text.
-                            //
-                            // This is an affordance for mouse users, does not need to be usable
-                            // by keyboard.
-                            cursor={
-                                capabilities.hasColumns
+                        <div
+                            className={sprinkles({
+                                flexShrink: "0",
+                                width: "5",
+                                // Create an illusion that the text editor extends into the margins by giving
+                                // the margin a text cursor and making it clickable putting focus in the task.
+                                // A double click selects the task text.
+                                //
+                                // This is an affordance for mouse users, does not need to be usable
+                                // by keyboard.
+                                cursor: capabilities.hasColumns
                                     ? undefined
                                     : !capabilities.isReadOnly
                                     ? "text"
-                                    : undefined
-                            }
-                            pointerEvents={capabilities.hasColumns ? "none" : undefined}
+                                    : undefined,
+                                pointerEvents: capabilities.hasColumns ? "none" : undefined,
+                            })}
                             {...useOutOfBoundsClickSelection({
                                 isDisabled: capabilities.isReadOnly,
                                 onSelect: focusTitleEnd,
                                 onSelectAll: focusTitleAll,
                             })}
                         />
-                    </Box>
+                    </div>
                     {task && capabilities.hasDenseFields && (
+                        // NOTE(calebmer): This component is not rendered by a fullscreen grid view
+                        // which may have many, many tasks. So we haven't spent time optimizing it yet.
+                        // However, if tasks with many children are common this component may slow
+                        // us down.
                         <TaskRowViewDenseFields
                             ref={denseFieldsRef}
                             store={query.store}
@@ -1204,10 +1231,12 @@ function TaskRowView(
                             getMoveTaskToRootQueryActions={getMoveTaskToRootQueryActions}
                         />
                     )}
-                </Box>
+                </div>
             </ContextMenuActions>
             {/* NOCOMMIT: Test that we can click here to select */}
-            {withPaddingBottom && <Box width="full" height="5" pointerEvents="none" />}
+            {withPaddingBottom && (
+                <div className={sprinkles({width: "full", height: "5", pointerEvents: "none"})} />
+            )}
         </>
     );
 }
@@ -1242,10 +1271,14 @@ function TaskRowViewDragHandle({
     });
 
     return (
-        <Box
-            paddingRight="0.5"
-            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-            opacity={isHovered ? "100" : "0"}
+        <div
+            className={classNames(
+                tasksStyles.pointerEventsNoneNotInheritedClassName,
+                sprinkles({
+                    paddingRight: "0.5",
+                    opacity: isHovered ? "100" : "0",
+                }),
+            )}
         >
             <FocusRing>
                 <button
@@ -1272,536 +1305,6 @@ function TaskRowViewDragHandle({
                     <DotsSixVertical size={spacing["3"]} />
                 </button>
             </FocusRing>
-        </Box>
+        </div>
     );
 }
-
-function TaskRowViewDroppableIndentations({
-    query,
-    cursor,
-    task,
-    parents,
-    nextIndentation,
-    areChildTasksExpanded,
-    getMoveTaskToRootQueryActions,
-}: {
-    query: TaskClientQuery;
-    cursor: TaskQuerySortCursor;
-    task: TaskModel;
-    parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
-    nextIndentation: number;
-    areChildTasksExpanded: boolean;
-    getMoveTaskToRootQueryActions: (
-        taskId: TaskId,
-        position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
-    ) => Array<TaskAction>;
-}) {
-    if (areChildTasksExpanded && task.getChildTaskCount() > 0) {
-        return (
-            <TaskRowViewDroppable
-                indentation={parents.length + 1}
-                nextAdjacentIndentation={null}
-                previousAdjacentIndentation={null}
-                isVerticallyFlipped={true}
-                getDropActions={(taskId): Array<TaskAction> => {
-                    const time1 = query.store.clock.now();
-                    const time2 = query.store.clock.now();
-
-                    const childrenQuery = query.store
-                        .getTaskChildrenQueryStore(task.id)
-                        .getSnapshot();
-
-                    return [
-                        {
-                            type: "UpdateTask",
-                            time: time1,
-                            taskId: taskId,
-                            taskAction: {
-                                type: "UpdateParentTaskId",
-                                parentTaskId: task.id,
-                            },
-                        },
-                        ...(childrenQuery
-                            ? cast<Array<TaskAction>>([
-                                  {
-                                      type: "UpdateTask",
-                                      time: time2,
-                                      taskId: taskId,
-                                      taskAction: {
-                                          type: "UpdateParentPosition",
-                                          parentPosition:
-                                              getNewTaskPositionForQuerySortedByPosition(
-                                                  time2,
-                                                  childrenQuery,
-                                                  {type: "Start"},
-                                              ),
-                                      },
-                                  },
-                              ])
-                            : []),
-                    ];
-                }}
-            />
-        );
-    }
-
-    const droppableIndentations = [parents.length];
-
-    for (
-        let droppableIndentation = parents.length - 1;
-        droppableIndentation >= nextIndentation;
-        droppableIndentation--
-    ) {
-        droppableIndentations.push(droppableIndentation);
-    }
-
-    droppableIndentations.reverse();
-
-    return (
-        <>
-            {droppableIndentations.map((droppableIndentation, index) => (
-                <TaskRowViewDroppable
-                    key={droppableIndentation}
-                    indentation={droppableIndentation}
-                    nextAdjacentIndentation={droppableIndentations[index + 1] ?? null}
-                    previousAdjacentIndentation={droppableIndentations[index - 1] ?? null}
-                    getDropActions={taskId => {
-                        const time1 = query.store.clock.now();
-                        const time2 = query.store.clock.now();
-
-                        const {query: parentQuery, cursor: parentCursor} =
-                            parents.length === droppableIndentation
-                                ? {query, cursor}
-                                : parents[droppableIndentation]!;
-
-                        if (droppableIndentation === 0) {
-                            return getMoveTaskToRootQueryActions(taskId, {
-                                type: "Below",
-                                taskId: getTaskQuerySortCursorTaskId(parentCursor),
-                            });
-                        }
-
-                        const {cursor: grandParentCursor} = parents[droppableIndentation - 1]!;
-
-                        return [
-                            {
-                                type: "UpdateTask",
-                                time: time1,
-                                taskId: taskId,
-                                taskAction: {
-                                    type: "UpdateParentTaskId",
-                                    parentTaskId: getTaskQuerySortCursorTaskId(grandParentCursor),
-                                },
-                            },
-                            {
-                                type: "UpdateTask",
-                                time: time2,
-                                taskId: taskId,
-                                taskAction: {
-                                    type: "UpdateParentPosition",
-                                    parentPosition: getNewTaskPositionForQuerySortedByPosition(
-                                        time2,
-                                        parentQuery,
-                                        {
-                                            type: "Below",
-                                            taskId: getTaskQuerySortCursorTaskId(parentCursor),
-                                        },
-                                    ),
-                                },
-                            },
-                        ];
-                    }}
-                />
-            ))}
-        </>
-    );
-}
-
-type TaskRowViewDenseFieldsRef = {
-    focusAssigneeInput(): void;
-    focusPriorityInput(): void;
-    focusDueDateInput(): void;
-};
-
-const TaskRowViewDenseFields = forwardRef(function TaskRowViewDenseFields(
-    {
-        store,
-        task,
-        marginLeft,
-        focusTitleStart,
-        focusTitleEnd,
-        focusTitleAll,
-    }: {
-        store: TaskClientStore;
-        task: TaskModel;
-        marginLeft: RemLength;
-        focusTitleEnd: () => void;
-        focusTitleStart: () => void;
-        focusTitleAll: () => void;
-    },
-    ref: Ref<TaskRowViewDenseFieldsRef>,
-) {
-    const context = useAppContext();
-    const {currentAccount} = useSpaceContext();
-    const {timeZone} = useClientInfo();
-
-    const assigneeInputRef = useRef<HTMLDivElement>(null);
-    const priorityInputRef = useRef<HTMLDivElement>(null);
-    const dueDateInputRef = useRef<HTMLDivElement>(null);
-
-    const assigneeAccountStore = store.getTaskAssigneeAccountStore(task);
-    const assigneeAccountData = useStore(assigneeAccountStore);
-    const priority = task.getPriority();
-    const dueDate = task.getDueDate();
-
-    const fieldMaxWidth = `calc(${100 / 3}% - ${
-        parseRemLengthNumber(
-            addRemLengths(
-                marginLeft, // Margin left
-                spacing["2"], // Gap
-                spacing["5"], // Margin right
-            ),
-        ) / 3
-    }rem)`;
-
-    const [assigneeInputState, setAssigneeInputState] = useState<
-        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    >(
-        assigneeAccountData
-            ? {isVisible: true, shouldFocus: false, isFocused: false}
-            : {isVisible: false},
-    );
-
-    if (
-        assigneeInputState.isVisible &&
-        !assigneeInputState.isFocused &&
-        !assigneeInputState.shouldFocus &&
-        !assigneeAccountData
-    ) {
-        setAssigneeInputState({isVisible: false});
-    }
-
-    if (!assigneeInputState.isVisible && assigneeAccountData) {
-        setAssigneeInputState({isVisible: true, shouldFocus: false, isFocused: false});
-    }
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (assigneeInputState.isVisible && assigneeInputState.shouldFocus) {
-            assertExists(
-                getNextFocusableElementIfExists(null, {
-                    withinElement: assertExists(assigneeInputRef.current),
-                }),
-            ).focus({preventScroll: true});
-
-            setAssigneeInputState(assigneeInputState => {
-                if (!assigneeInputState.isVisible) return assigneeInputState;
-                return {...assigneeInputState, shouldFocus: false};
-            });
-        }
-    }, [assigneeInputState]);
-
-    const [priorityInputState, setPriorityInputState] = useState<
-        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    >(priority ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
-
-    if (
-        priorityInputState.isVisible &&
-        !priorityInputState.isFocused &&
-        !priorityInputState.shouldFocus &&
-        !priority
-    ) {
-        setPriorityInputState({isVisible: false});
-    }
-
-    if (!priorityInputState.isVisible && priority) {
-        setPriorityInputState({isVisible: true, shouldFocus: false, isFocused: false});
-    }
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (priorityInputState.isVisible && priorityInputState.shouldFocus) {
-            assertExists(
-                getNextFocusableElementIfExists(null, {
-                    withinElement: assertExists(priorityInputRef.current),
-                }),
-            ).focus({preventScroll: true});
-
-            setPriorityInputState(priorityInputState => {
-                if (!priorityInputState.isVisible) return priorityInputState;
-                return {...priorityInputState, shouldFocus: false};
-            });
-        }
-    }, [priorityInputState]);
-
-    const [dueDateInputState, setDueDateInputState] = useState<
-        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    >(dueDate ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
-
-    if (
-        dueDateInputState.isVisible &&
-        !dueDateInputState.isFocused &&
-        !dueDateInputState.shouldFocus &&
-        !dueDate
-    ) {
-        setDueDateInputState({isVisible: false});
-    }
-
-    if (!dueDateInputState.isVisible && dueDate) {
-        setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
-    }
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
-            assertExists(
-                getNextFocusableElementIfExists(null, {
-                    withinElement: assertExists(dueDateInputRef.current),
-                }),
-            ).focus({preventScroll: true});
-
-            setDueDateInputState(dueDateInputState => {
-                if (!dueDateInputState.isVisible) return dueDateInputState;
-                return {...dueDateInputState, shouldFocus: false};
-            });
-        }
-    }, [dueDateInputState]);
-
-    useImperativeHandle(
-        ref,
-        () => ({
-            focusAssigneeInput: () => {
-                if (assigneeInputState.isVisible) {
-                    assertExists(
-                        getNextFocusableElementIfExists(null, {
-                            withinElement: assertExists(assigneeInputRef.current),
-                        }),
-                    ).focus({preventScroll: true});
-                } else {
-                    setAssigneeInputState({
-                        isVisible: true,
-                        shouldFocus: true,
-                        isFocused: false,
-                    });
-                }
-            },
-            focusPriorityInput: () => {
-                if (priorityInputState.isVisible) {
-                    assertExists(
-                        getNextFocusableElementIfExists(null, {
-                            withinElement: assertExists(priorityInputRef.current),
-                        }),
-                    ).focus({preventScroll: true});
-                } else {
-                    setPriorityInputState({
-                        isVisible: true,
-                        shouldFocus: true,
-                        isFocused: false,
-                    });
-                }
-            },
-            focusDueDateInput: () => {
-                if (dueDateInputState.isVisible) {
-                    assertExists(
-                        getNextFocusableElementIfExists(null, {
-                            withinElement: assertExists(dueDateInputRef.current),
-                        }),
-                    ).focus({preventScroll: true});
-                } else {
-                    setDueDateInputState({
-                        isVisible: true,
-                        shouldFocus: true,
-                        isFocused: false,
-                    });
-                }
-            },
-        }),
-        [assigneeInputState.isVisible, dueDateInputState.isVisible, priorityInputState.isVisible],
-    );
-
-    const node = (
-        <Box display="flex" alignItems="stretch">
-            <Box
-                flexShrink="0"
-                cursor="text"
-                style={{width: marginLeft}}
-                {...useOutOfBoundsClickSelection({
-                    onSelect: focusTitleStart,
-                    onSelectAll: focusTitleAll,
-                })}
-            />
-            <Box
-                flexGrow="1"
-                display="flex"
-                gap="5"
-                // I find some negative `marginLeft` helps the fields feel optically aligned.
-                marginLeft="-0.5"
-                // I find some negative `marginTop` helps the fields feel optically aligned.
-                // Since above us is text, not a divider line.
-                marginTop="-0.5"
-                paddingBottom="2"
-                className={tasksStyles.textCursorNotInheritedClassName}
-                {...useOutOfBoundsClickSelection({
-                    onSelect: focusTitleEnd,
-                    onSelectAll: focusTitleAll,
-                })}
-            >
-                {assigneeInputState.isVisible && (
-                    <Box
-                        ref={assigneeInputRef}
-                        flexShrink="0"
-                        style={{maxWidth: fieldMaxWidth}}
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                        onFocus={() => {
-                            setAssigneeInputState(assigneeInputState => {
-                                if (!assigneeInputState.isVisible) return assigneeInputState;
-                                if (assigneeInputState.isFocused) return assigneeInputState;
-                                return {...assigneeInputState, isFocused: true};
-                            });
-                        }}
-                        onBlur={event => {
-                            // If focus is moving within the element, don't unfocus.
-                            if (event.currentTarget.contains(event.relatedTarget)) return;
-
-                            setAssigneeInputState(assigneeInputState => {
-                                if (!assigneeInputState.isVisible) return assigneeInputState;
-                                if (!assigneeInputState.isFocused) return assigneeInputState;
-                                return {...assigneeInputState, isFocused: false};
-                            });
-                        }}
-                    >
-                        <TaskAssigneeInput
-                            aria-label="Assignee"
-                            color="grey-60"
-                            avatarSize="4"
-                            shouldDisplayShortName={true}
-                            assigneeAccountData={assigneeAccountData}
-                            onAssigneeAccountChange={assigneeAccount => {
-                                const time = store.clock.now();
-
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateTask",
-                                        time,
-                                        taskId: task.id,
-                                        taskAction: {
-                                            type: "UpdateAssignee",
-                                            assignee: assigneeAccount
-                                                ? {
-                                                      assigneeId: assigneeAccount.id,
-                                                      assignerId: currentAccount.id,
-                                                      assignedTime: new TaskFilterableTime({
-                                                          absoluteTime: time,
-                                                          setterTimeZone: timeZone,
-                                                      }),
-                                                  }
-                                                : null,
-                                        },
-                                    },
-                                ]);
-                            }}
-                        />
-                    </Box>
-                )}
-                {priorityInputState.isVisible && (
-                    <Box
-                        ref={priorityInputRef}
-                        flexShrink="0"
-                        style={{maxWidth: fieldMaxWidth}}
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                        onFocus={() => {
-                            setPriorityInputState(priorityInputState => {
-                                if (!priorityInputState.isVisible) return priorityInputState;
-                                if (priorityInputState.isFocused) return priorityInputState;
-                                return {...priorityInputState, isFocused: true};
-                            });
-                        }}
-                        onBlur={event => {
-                            // If focus is moving within the element, don't unfocus.
-                            if (event.currentTarget.contains(event.relatedTarget)) return;
-
-                            setPriorityInputState(priorityInputState => {
-                                if (!priorityInputState.isVisible) return priorityInputState;
-                                if (!priorityInputState.isFocused) return priorityInputState;
-                                return {...priorityInputState, isFocused: false};
-                            });
-                        }}
-                    >
-                        <TaskPriorityInput
-                            aria-label="Priority"
-                            color="grey-60"
-                            priority={priority}
-                            onPriorityChange={priority => {
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateTask",
-                                        time: store.clock.now(),
-                                        taskId: task.id,
-                                        taskAction: {
-                                            type: "UpdatePriority",
-                                            priority,
-                                        },
-                                    },
-                                ]);
-                            }}
-                        />
-                    </Box>
-                )}
-                {dueDateInputState.isVisible && (
-                    <Box
-                        ref={dueDateInputRef}
-                        flexShrink="0"
-                        style={{maxWidth: fieldMaxWidth}}
-                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                        onFocus={() => {
-                            setDueDateInputState(dueDateInputState => {
-                                if (!dueDateInputState.isVisible) return dueDateInputState;
-                                if (dueDateInputState.isFocused) return dueDateInputState;
-                                return {...dueDateInputState, isFocused: true};
-                            });
-                        }}
-                        onBlur={event => {
-                            // If focus is moving within the element, don't unfocus.
-                            if (event.currentTarget.contains(event.relatedTarget)) return;
-
-                            setDueDateInputState(dueDateInputState => {
-                                if (!dueDateInputState.isVisible) return dueDateInputState;
-                                if (!dueDateInputState.isFocused) return dueDateInputState;
-                                return {...dueDateInputState, isFocused: false};
-                            });
-                        }}
-                    >
-                        <TaskDateInput
-                            aria-label="Due date"
-                            date={dueDate}
-                            shouldIncludeCalendarIcon={true}
-                            shouldWarnIfAfterDate={task.getDisplayStatus() !== "Closed"}
-                            shouldFormatAroundToday={true}
-                            color="grey-60"
-                            onDateChange={dueDate => {
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateTask",
-                                        time: store.clock.now(),
-                                        taskId: task.id,
-                                        taskAction: {
-                                            type: "UpdateDueDate",
-                                            dueDate,
-                                        },
-                                    },
-                                ]);
-                            }}
-                        />
-                    </Box>
-                )}
-            </Box>
-        </Box>
-    );
-
-    if (
-        !assigneeInputState.isVisible &&
-        !priorityInputState.isVisible &&
-        !dueDateInputState.isVisible
-    ) {
-        return null;
-    }
-
-    return node;
-});
