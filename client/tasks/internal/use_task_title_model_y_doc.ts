@@ -4,7 +4,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
-import {TaskTitle, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
+import {TaskTitle, TaskTitleUpdate, getYDocGuid} from "~/shared/tasks/task_title.js";
 
 function createYDoc(title: TaskTitleModel): Y.Doc & {
     matches: {
@@ -12,7 +12,7 @@ function createYDoc(title: TaskTitleModel): Y.Doc & {
         titleUpdate: TaskTitleUpdate | null;
     } | null;
 } {
-    const titleDoc = new Y.Doc();
+    const titleDoc = new Y.Doc({guid: getYDocGuid()});
     Y.applyUpdateV2(titleDoc, title.raw);
 
     return Object.assign(titleDoc, {

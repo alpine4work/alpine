@@ -14,7 +14,7 @@ import {
     useState,
 } from "react";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
-import {ySyncPlugin} from "y-prosemirror";
+import {ySyncPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
 import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
@@ -475,13 +475,15 @@ function TaskRowTitleInput(
             const containerElement = assertExists(rootElement.firstElementChild);
             assert(containerElement.childElementCount === 0);
 
+            const yXmlFragment = titleYDoc.getXmlFragment("doc");
+
             const view = new EditorView(containerElement, {
                 state: EditorState.create({
                     schema: TaskTitleProsemirrorSchema,
                     // Make sure we start with the correct initial document. After this the
                     // `ySyncPlugin` manages document state.
-                    doc: getTaskTitleProsemirrorNode(titleRef.current.raw),
-                    plugins: [ySyncPlugin(titleYDoc.getXmlFragment("doc"))],
+                    doc: yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yXmlFragment),
+                    plugins: [ySyncPlugin(yXmlFragment)],
                 }),
 
                 // We add this prop to `prosemirror-view` with a patch. With this prop when the

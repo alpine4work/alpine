@@ -2,6 +2,7 @@ import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {prosemirrorToYXmlFragment, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {generateId} from "~/shared/id/id.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export const TaskTitleProsemirrorSchema = new ProsemirrorSchema({
@@ -63,7 +64,7 @@ export type TaskTitle = Uint8Array & TaskTitleUpdate & {readonly _TaskTitle: nev
  */
 export function isTaskTitle(title: Uint8Array): title is TaskTitle {
     try {
-        const doc = new Y.Doc();
+        const doc = new Y.Doc({guid: getYDocGuid()});
         Y.applyUpdateV2(doc, title);
         yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, doc.getXmlFragment("doc"));
         return true;
@@ -81,15 +82,27 @@ export const TaskTitleSchema = Schema.bytes as any as Schema<TaskTitle>;
 export const emptyTaskTitleProsemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, []);
 
 export const emptyTaskTitle = new Lazy(() => {
-    const doc = new Y.Doc();
+    const doc = new Y.Doc({guid: getYDocGuid()});
     prosemirrorToYXmlFragment(emptyTaskTitleProsemirrorNode, doc.getXmlFragment("doc"));
     return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
 });
 
 export function getTaskTitleProsemirrorNode(title: TaskTitle): Node {
-    const doc = new Y.Doc();
+    const doc = new Y.Doc({guid: getYDocGuid()});
     Y.applyUpdateV2(doc, title);
     return yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, doc.getXmlFragment("doc"));
+}
+
+let nextYDocGuid = 0;
+
+/**
+ * Optimized function for generating a GUID for `new Y.Doc()`. When creating
+ * many `Y.Doc`s in a hot code path (like scrolling a task grid view) we don't
+ * want to get random values from WebCrypto since that shows up as expensive in
+ * profiling.
+ */
+export function getYDocGuid() {
+    return `${generateId()}-${nextYDocGuid++}`;
 }
 
 /**

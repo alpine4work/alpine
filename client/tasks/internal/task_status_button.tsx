@@ -11,7 +11,6 @@ import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_stat
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
-import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId} from "~/shared/id/types/id_types.js";

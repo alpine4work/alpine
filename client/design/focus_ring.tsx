@@ -28,6 +28,11 @@ export {FocusRingForwardRef as FocusRing};
 
 let currentActiveElement: HTMLElement | null = null;
 
+const overlayClassName = sprinkles({
+    pointerEvents: "none",
+    position: "relative",
+});
+
 /**
  * Our focus ring component is modeled after how [Discord built their focus
  * ring][1]. Instead of using native browser outlines that get clipped in
@@ -168,11 +173,13 @@ function FocusRing(
             sameHeight={true}
             overlay={
                 <div
-                    className={sprinkles({
-                        pointerEvents: "none",
-                        position: "relative",
-                        zIndex: overlayZIndex,
-                    })}
+                    // Optimization: `<FocusRing>` is rendered hot code paths. Don't call
+                    // `sprinkles()` if we can avoid it.
+                    className={
+                        overlayZIndex
+                            ? `${overlayClassName} ${sprinkles({zIndex: overlayZIndex})}`
+                            : overlayClassName
+                    }
                 >
                     <FocusRingBox
                         offset={offset}
