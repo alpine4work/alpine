@@ -1,9 +1,9 @@
 import {CalendarDate, DateValue, createCalendar} from "@internationalized/date";
+import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
 import {useRef, useState} from "react";
-import {AriaDateFieldProps, mergeProps, useDateField, useDateSegment} from "react-aria";
+import {AriaDateFieldProps, useDateField, useDateSegment} from "react-aria";
 import {DateFieldState, DateFieldStateOptions, DateSegment, useDateFieldState} from "react-stately";
-import {Box} from "~/client/design/box.js";
 import {FocusRingBox, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
 import {
     getLastFocusableElementIfExists,
@@ -16,6 +16,20 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
 
 export function TaskDateInputText({
     date,
@@ -101,9 +115,162 @@ export function TaskDateInputText({
         })?.focus();
     };
 
+    let node = (
+        <div
+            ref={useMergedRefs<HTMLDivElement>(
+                !focusRingAroundText ? focusRingTargetRef : null,
+                focusRingVisibilityRef,
+            )}
+            className={sprinkles({
+                // Inline flex so the clickable range doesn't extend beyond the
+                // input's contents.
+                display: display === "inline" ? "inline-flex" : "flex",
+                height: "full",
+                alignItems: "center",
+                color,
+                cursor: "text",
+            })}
+        >
+            {shouldIncludeCalendarIcon && (
+                <div
+                    className={sprinkles({
+                        alignSelf: "stretch",
+                        display: "flex",
+                        alignItems: "center",
+                        paddingLeft: paddingX,
+                        paddingRight: "1",
+                    })}
+                    onPointerDown={event => {
+                        if (
+                            document.activeElement &&
+                            assertExists(ref.current).contains(document.activeElement)
+                        ) {
+                            // Don't unfocus field segments when clicking on icon.
+                            event.preventDefault();
+                        }
+                    }}
+                    onClick={() => {
+                        getNextFocusableElementIfExists(null, {
+                            withinElement: assertExists(ref.current),
+                        })?.focus();
+                    }}
+                >
+                    <CalendarBlank
+                        size={spacing["4"]}
+                        className={sprinkles({pointerEvents: "none"})}
+                        color={
+                            areAllSegmentsPlaceholders ? inputPlaceholderStyles.color : undefined
+                        }
+                    />
+                </div>
+            )}
+            <div
+                {...fieldProps}
+                ref={ref}
+                className={sprinkles({
+                    display: display === "inline" ? "inline-flex" : "flex",
+                    flexGrow: display === "block" ? "1" : undefined,
+                    height: "full",
+                })}
+            >
+                {state.segments.map((segment, index) => (
+                    <TaskDateInputTextSegment
+                        key={index}
+                        state={state}
+                        segment={segment}
+                        areAllSegmentsPlaceholders={areAllSegmentsPlaceholders}
+                        flexGrow={
+                            display === "block" && index === state.segments.length - 1
+                                ? "1"
+                                : undefined
+                        }
+                        paddingLeft={
+                            !shouldIncludeCalendarIcon && index === 0 ? paddingX : undefined
+                        }
+                        paddingRight={index === state.segments.length - 1 ? paddingX : undefined}
+                        isFirstSegment={index === 0}
+                        isLastSegment={index === state.segments.length - 1}
+                        isTabbable={isTabbable}
+                        onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
+                        onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}
+                        focusStart={focusStart}
+                        focusEnd={focusEnd}
+                    />
+                ))}
+            </div>
+            {focusRingAroundText && (
+                <Overlay
+                    isVisible={isFocusRingVisible}
+                    placement="center"
+                    preventOverflow={false}
+                    sameWidth={true}
+                    sameHeight={true}
+                    overlay={
+                        <div
+                            className={sprinkles({
+                                pointerEvents: "none",
+                                position: "relative",
+                            })}
+                        >
+                            <FocusRingBox offset={focusRingOffset} targetRef={focusRingTargetRef} />
+                        </div>
+                    }
+                >
+                    <div
+                        ref={focusRingTargetRef}
+                        className={sprinkles({
+                            position: "absolute",
+                            left: paddingX,
+                            display: "inline-flex",
+                            height: "4",
+                            paddingLeft: shouldIncludeCalendarIcon ? "5" : undefined,
+                            pointerEvents: "none",
+                            opacity: "0",
+                        })}
+                    >
+                        {state.segments.map((segment, index) => (
+                            <div
+                                key={index}
+                                style={{
+                                    fontVariantNumeric: "tabular-nums",
+                                    ...(areAllSegmentsPlaceholders || segment.isPlaceholder
+                                        ? inputPlaceholderStyles
+                                        : {}),
+                                }}
+                            >
+                                {segment.text}
+                            </div>
+                        ))}
+                    </div>
+                </Overlay>
+            )}
+        </div>
+    );
+
+    // Only wrap in an `<Overlay>` if the focus ring is around our text. Otherwise
+    // we can skip rendering the component to improve performance.
+    if (!focusRingAroundText) {
+        node = (
+            <Overlay
+                isVisible={isFocusRingVisible}
+                placement="center"
+                preventOverflow={false}
+                sameWidth={true}
+                sameHeight={true}
+                overlay={
+                    <div className={sprinkles({pointerEvents: "none", position: "relative"})}>
+                        <FocusRingBox offset={focusRingOffset} targetRef={focusRingTargetRef} />
+                    </div>
+                }
+            >
+                {node}
+            </Overlay>
+        );
+    }
+
     return (
-        <Box
-            height={height}
+        <div
+            className={sprinkles({height})}
             onKeyDown={event => {
                 if (event.key === "Escape") {
                     event.preventDefault();
@@ -113,143 +280,8 @@ export function TaskDateInputText({
                 }
             }}
         >
-            <Overlay
-                isVisible={!focusRingAroundText && isFocusRingVisible}
-                placement="center"
-                preventOverflow={false}
-                sameWidth={true}
-                sameHeight={true}
-                overlay={
-                    <Box pointerEvents="none" position="relative">
-                        <FocusRingBox offset={focusRingOffset} targetRef={focusRingTargetRef} />
-                    </Box>
-                }
-            >
-                <Box
-                    ref={useMergedRefs<HTMLDivElement>(
-                        !focusRingAroundText ? focusRingTargetRef : null,
-                        focusRingVisibilityRef,
-                    )}
-                    // Inline flex so the clickable range doesn't extend beyond the
-                    // input's contents.
-                    display={display === "inline" ? "inline-flex" : "flex"}
-                    height="full"
-                    alignItems="center"
-                    color={color}
-                    cursor="text"
-                >
-                    {shouldIncludeCalendarIcon && (
-                        <Box
-                            alignSelf="stretch"
-                            display="flex"
-                            alignItems="center"
-                            paddingLeft={paddingX}
-                            paddingRight="1"
-                            onPointerDown={event => {
-                                if (
-                                    document.activeElement &&
-                                    assertExists(ref.current).contains(document.activeElement)
-                                ) {
-                                    // Don't unfocus field segments when clicking on icon.
-                                    event.preventDefault();
-                                }
-                            }}
-                            onClick={() => {
-                                getNextFocusableElementIfExists(null, {
-                                    withinElement: assertExists(ref.current),
-                                })?.focus();
-                            }}
-                        >
-                            <CalendarBlank
-                                size={spacing["4"]}
-                                className={sprinkles({pointerEvents: "none"})}
-                                color={
-                                    areAllSegmentsPlaceholders
-                                        ? inputPlaceholderStyles.color
-                                        : undefined
-                                }
-                            />
-                        </Box>
-                    )}
-                    <Box
-                        {...fieldProps}
-                        ref={ref}
-                        display={display === "inline" ? "inline-flex" : "flex"}
-                        flexGrow={display === "block" ? "1" : undefined}
-                        height="full"
-                    >
-                        {state.segments.map((segment, index) => (
-                            <TaskDateInputTextSegment
-                                key={index}
-                                state={state}
-                                segment={segment}
-                                areAllSegmentsPlaceholders={areAllSegmentsPlaceholders}
-                                flexGrow={
-                                    display === "block" && index === state.segments.length - 1
-                                        ? "1"
-                                        : undefined
-                                }
-                                paddingLeft={
-                                    !shouldIncludeCalendarIcon && index === 0 ? paddingX : undefined
-                                }
-                                paddingRight={
-                                    index === state.segments.length - 1 ? paddingX : undefined
-                                }
-                                isFirstSegment={index === 0}
-                                isLastSegment={index === state.segments.length - 1}
-                                isTabbable={isTabbable}
-                                onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
-                                onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}
-                                focusStart={focusStart}
-                                focusEnd={focusEnd}
-                            />
-                        ))}
-                    </Box>
-                    {focusRingAroundText && (
-                        <Overlay
-                            isVisible={isFocusRingVisible}
-                            placement="center"
-                            preventOverflow={false}
-                            sameWidth={true}
-                            sameHeight={true}
-                            overlay={
-                                <Box pointerEvents="none" position="relative">
-                                    <FocusRingBox
-                                        offset={focusRingOffset}
-                                        targetRef={focusRingTargetRef}
-                                    />
-                                </Box>
-                            }
-                        >
-                            <Box
-                                ref={focusRingTargetRef}
-                                position="absolute"
-                                left={paddingX}
-                                display="inline-flex"
-                                height="4"
-                                paddingLeft={shouldIncludeCalendarIcon ? "5" : undefined}
-                                pointerEvents="none"
-                                opacity="0"
-                            >
-                                {state.segments.map((segment, index) => (
-                                    <Box
-                                        key={index}
-                                        style={{
-                                            fontVariantNumeric: "tabular-nums",
-                                            ...(areAllSegmentsPlaceholders || segment.isPlaceholder
-                                                ? inputPlaceholderStyles
-                                                : {}),
-                                        }}
-                                    >
-                                        {segment.text}
-                                    </Box>
-                                ))}
-                            </Box>
-                        </Overlay>
-                    )}
-                </Box>
-            </Overlay>
-        </Box>
+            {node}
+        </div>
     );
 }
 
@@ -286,19 +318,16 @@ function TaskDateInputTextSegment({
     const {segmentProps} = useDateSegment(segment, state, ref);
     const [isFocused, setIsFocused] = useState(false);
 
-    const {onKeyDown, ...mergedSegmentProps} = mergeProps(segmentProps, {
-        onFocus: () => setIsFocused(true),
-        onBlur: () => setIsFocused(false),
-    });
-
     return (
-        <Box
-            display="flex"
-            alignItems="center"
-            flexGrow={flexGrow}
-            height="full"
-            paddingLeft={paddingLeft}
-            paddingRight={paddingRight}
+        <div
+            className={sprinkles({
+                display: "flex",
+                alignItems: "center",
+                flexGrow,
+                height: "full",
+                paddingLeft,
+                paddingRight,
+            })}
             onClick={event => {
                 if (event.target === event.currentTarget) {
                     if (segment.isEditable) {
@@ -311,21 +340,33 @@ function TaskDateInputTextSegment({
                 }
             }}
         >
-            <Box
-                {...mergedSegmentProps}
+            <div
+                {...segmentProps}
                 ref={ref}
-                tabIndex={!isTabbable ? -1 : mergedSegmentProps.tabIndex}
-                className={tasksStyles.taskDateInputTextSegmentClassName}
-                backgroundColor={isFocused ? "theme-selection" : undefined}
-                // `react-aria`s click support for non-editable segments isn't super reliable.
-                // So use our parent's `onClick` handler instead.
-                pointerEvents={!segment.isEditable ? "none" : undefined}
+                tabIndex={!isTabbable ? -1 : segmentProps.tabIndex}
+                className={classNames(
+                    tasksStyles.taskDateInputTextSegmentClassName,
+                    sprinkles({
+                        backgroundColor: isFocused ? "theme-selection" : undefined,
+                        // `react-aria`s click support for non-editable segments isn't super reliable.
+                        // So use our parent's `onClick` handler instead.
+                        pointerEvents: !segment.isEditable ? "none" : undefined,
+                    }),
+                )}
                 style={{
-                    ...mergedSegmentProps.style,
+                    ...segmentProps.style,
                     fontVariantNumeric: "tabular-nums",
                     ...(areAllSegmentsPlaceholders || segment.isPlaceholder
                         ? inputPlaceholderStyles
                         : {}),
+                }}
+                onFocus={event => {
+                    setIsFocused(true);
+                    segmentProps.onFocus?.(event);
+                }}
+                onBlur={event => {
+                    setIsFocused(false);
+                    segmentProps.onBlur?.(event);
                 }}
                 onKeyDown={event => {
                     if (isFirstSegment && event.key === "ArrowLeft") {
@@ -347,12 +388,12 @@ function TaskDateInputTextSegment({
                     ) {
                         focusEnd();
                     } else {
-                        onKeyDown?.(event);
+                        segmentProps.onKeyDown?.(event);
                     }
                 }}
             >
                 {segment.text}
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 }

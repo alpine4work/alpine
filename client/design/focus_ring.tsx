@@ -11,7 +11,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {Box} from "~/client/design/box.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {Overlay} from "~/client/design/overlay.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -22,7 +21,7 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {Spacing, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {Sprinkles} from "~/shared/styles/styles.js";
+import {Sprinkles, sprinkles} from "~/shared/styles/styles.js";
 
 const FocusRingForwardRef = forwardRef(FocusRing);
 export {FocusRingForwardRef as FocusRing};
@@ -168,14 +167,20 @@ function FocusRing(
             sameWidth={true}
             sameHeight={true}
             overlay={
-                <Box pointerEvents="none" position="relative" zIndex={overlayZIndex}>
+                <div
+                    className={sprinkles({
+                        pointerEvents: "none",
+                        position: "relative",
+                        zIndex: overlayZIndex,
+                    })}
+                >
                     <FocusRingBox
                         offset={offset}
                         insetX={insetX}
                         insetBottom={insetBottom}
                         targetRef={targetRef}
                     />
-                </Box>
+                </div>
             }
             children={useElementWithRef(children, mergedTargetRef)}
             targetElement={targetElement}
@@ -468,9 +473,9 @@ export function FocusRingBox({
     }, [ringOffsetBasePx, targetRef]);
 
     return (
-        <Box
+        <div
             ref={ringRef}
-            border="theme-30-const"
+            className={sprinkles({border: "theme-30-const"})}
             style={{
                 width: `calc(100% + ${ringWidthPx * 2 + ringOffsetXPx * 2}px)`,
                 height: `calc(100% + ${ringWidthPx * 2 + ringOffsetTopPx + ringOffsetBottomPx}px)`,

@@ -1,7 +1,7 @@
 import {CalendarDate} from "@internationalized/date";
+import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
 import {useMemo, useRef, useState} from "react";
-import {Box} from "~/client/design/box.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
@@ -13,7 +13,21 @@ import {TaskDateInputCalendar} from "~/client/tasks/internal/task_date_input_cal
 import {TaskDateInputText} from "~/client/tasks/internal/task_date_input_text.js";
 import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {greyElevated2ClassName} from "~/shared/styles/styles.js";
+import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
+
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
 
 /**
  * The date field displays the formatted date we show everywhere but when
@@ -85,24 +99,35 @@ export function TaskDateInput({
     const isEditing = !isReadOnly && (isFocusWithinInput || isFocusWithinOverlay);
 
     return (
-        <Box position="relative" height={height} width={display === "block" ? "full" : undefined}>
+        <div
+            className={sprinkles({
+                position: "relative",
+                height,
+                width: display === "block" ? "full" : undefined,
+            })}
+        >
             {!isEditing && formattedDate && (
-                <Box
-                    // Inline flex so the clickable range doesn't extend beyond the
-                    // input's contents.
-                    display={display === "inline" ? "inline-flex" : "flex"}
-                    alignItems="stretch"
-                    height="full"
-                    color={shouldWarnIfAfterDate && formattedDate.isAfterDate ? "red-60" : color}
-                    cursor={!isReadOnly ? "text" : undefined}
-                    userSelect={isReadOnly ? "text" : undefined}
+                <div
+                    className={sprinkles({
+                        // Inline flex so the clickable range doesn't extend beyond the
+                        // input's contents.
+                        display: display === "inline" ? "inline-flex" : "flex",
+                        alignItems: "stretch",
+                        height: "full",
+                        color:
+                            shouldWarnIfAfterDate && formattedDate.isAfterDate ? "red-60" : color,
+                        cursor: !isReadOnly ? "text" : undefined,
+                        userSelect: isReadOnly ? "text" : undefined,
+                    })}
                 >
                     {shouldIncludeCalendarIcon && (
-                        <Box
-                            display="flex"
-                            alignItems="center"
-                            paddingLeft={paddingX}
-                            paddingRight="1"
+                        <div
+                            className={sprinkles({
+                                display: "flex",
+                                alignItems: "center",
+                                paddingLeft: paddingX,
+                                paddingRight: "1",
+                            })}
                             onClick={() => {
                                 getNextFocusableElementIfExists(null, {
                                     withinElement: assertExists(inputRef.current),
@@ -110,17 +135,19 @@ export function TaskDateInput({
                             }}
                         >
                             <CalendarBlank size={spacing["4"]} />
-                        </Box>
+                        </div>
                     )}
                     {isReadOnly || formattedDate.isFormattedAroundToday ? (
                         // Render read-only date inputs as a single div so they may be easily selected
                         // and copied/pasted.
-                        <Box
-                            flexGrow={display === "block" ? "1" : undefined}
-                            display="flex"
-                            alignItems="center"
-                            paddingLeft={!shouldIncludeCalendarIcon ? paddingX : undefined}
-                            paddingRight={paddingX}
+                        <div
+                            className={sprinkles({
+                                flexGrow: display === "block" ? "1" : undefined,
+                                display: "flex",
+                                alignItems: "center",
+                                paddingLeft: !shouldIncludeCalendarIcon ? paddingX : undefined,
+                                paddingRight: paddingX,
+                            })}
                             onClick={() => {
                                 getNextFocusableElementIfExists(null, {
                                     withinElement: assertExists(inputRef.current),
@@ -131,26 +158,29 @@ export function TaskDateInput({
                             }}
                         >
                             {formattedDate.dateString}
-                        </Box>
+                        </div>
                     ) : (
                         formattedDate.dateString.split(" ").map((segment, index, segments) => (
-                            <Box
+                            <div
                                 key={index}
-                                flexGrow={
-                                    display === "block" && index === segments.length - 1
-                                        ? "1"
-                                        : undefined
-                                }
-                                display="flex"
-                                alignItems="center"
+                                className={sprinkles({
+                                    flexGrow:
+                                        display === "block" && index === segments.length - 1
+                                            ? "1"
+                                            : undefined,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    paddingLeft:
+                                        !shouldIncludeCalendarIcon && index === 0
+                                            ? paddingX
+                                            : undefined,
+                                    paddingRight:
+                                        index === segments.length - 1 ? paddingX : undefined,
+                                })}
                                 style={{
                                     // Don't collapse space.
                                     whiteSpace: "pre",
                                 }}
-                                paddingLeft={
-                                    !shouldIncludeCalendarIcon && index === 0 ? paddingX : undefined
-                                }
-                                paddingRight={index === segments.length - 1 ? paddingX : undefined}
                                 onClick={() => {
                                     getNextFocusableElementIfExists(null, {
                                         withinElement: assertExists(inputRef.current),
@@ -168,10 +198,10 @@ export function TaskDateInput({
                             >
                                 {segment}
                                 {index < segments.length - 1 && " "}
-                            </Box>
+                            </div>
                         ))
                     )}
-                </Box>
+                </div>
             )}
             <OverlayAnimated
                 isVisible={isEditing}
@@ -181,11 +211,15 @@ export function TaskDateInput({
                 placement={overlayPlacement}
                 offset={overlayOffset}
                 overlay={
-                    <Box
-                        className={greyElevated2ClassName}
-                        borderRadius="md"
-                        backgroundColor="grey-0"
-                        boxShadow="elevation-20"
+                    <div
+                        className={classNames(
+                            greyElevated2ClassName,
+                            sprinkles({
+                                borderRadius: "md",
+                                backgroundColor: "grey-0",
+                                boxShadow: "elevation-20",
+                            }),
+                        )}
                         // Focusable so that if you click on the calendar without clicking a date, we
                         // consider the calendar focused and won't close the overlay.
                         tabIndex={-1}
@@ -199,16 +233,18 @@ export function TaskDateInput({
                         }}
                     >
                         <TaskDateInputCalendar date={date} onDateChange={onDateChange} />
-                    </Box>
+                    </div>
                 }
             >
-                <Box
+                <div
                     ref={inputRef}
-                    width="full"
-                    height={height}
-                    position={!isEditing && formattedDate ? "absolute" : "relative"}
-                    top={!isEditing && formattedDate ? "0" : undefined}
-                    pointerEvents={!isEditing && formattedDate ? "none" : undefined}
+                    className={sprinkles({
+                        width: "full",
+                        height,
+                        position: !isEditing && formattedDate ? "absolute" : "relative",
+                        top: !isEditing && formattedDate ? "0" : undefined,
+                        pointerEvents: !isEditing && formattedDate ? "none" : undefined,
+                    })}
                     style={{opacity: !isEditing && formattedDate ? 0 : undefined}}
                     onFocus={event => {
                         setIsFocusWithinInput(event.currentTarget.contains(event.target));
@@ -235,8 +271,8 @@ export function TaskDateInput({
                         onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
                         onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}
                     />
-                </Box>
+                </div>
             </OverlayAnimated>
-        </Box>
+        </div>
     );
 }

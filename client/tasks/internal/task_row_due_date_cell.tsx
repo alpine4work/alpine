@@ -1,6 +1,6 @@
+import classNames from "classnames";
 import {KeyboardEvent, Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {
     getLastFocusableElementIfExists,
@@ -17,7 +17,7 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {tasksStyles} from "~/shared/styles/styles.js";
+import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 export type TaskRowDueDateCellRef = {
@@ -25,6 +25,20 @@ export type TaskRowDueDateCellRef = {
     focusCellInputStart(): void;
     focusCellInputEnd(): void;
 };
+
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
 
 const TaskRowDueDateCellForwardRef = forwardRef(TaskRowDueDateCell);
 export {TaskRowDueDateCellForwardRef as TaskRowDueDateCell};
@@ -74,13 +88,18 @@ function TaskRowDueDateCell(
 
     return (
         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
-            <Box
+            <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 tabIndex={-1}
-                flexShrink="0"
-                width={taskRowViewColumnWidth}
-                overflow="hidden"
-                className={tasksStyles.textCursorNotInheritedClassName}
+                className={classNames(
+                    tasksStyles.textCursorNotInheritedClassName,
+                    sprinkles({
+                        flexShrink: "0",
+                        width: taskRowViewColumnWidth,
+                        height: taskRowViewMinHeight,
+                        overflow: "hidden",
+                    }),
+                )}
                 {...useOutOfBoundsClickSelection({
                     onSelect: () => {
                         getLastFocusableElementIfExists({
@@ -99,12 +118,14 @@ function TaskRowDueDateCell(
                 }}
                 onKeyDownCapture={onCellKeyDownCapture}
             >
-                <Box
+                <div
                     ref={inputContainerRef}
-                    height={taskRowViewMinHeight}
-                    display="flex"
-                    alignItems="center"
-                    opacity={dueDate || isHovered || isFocusWithin ? "100" : "0"}
+                    className={sprinkles({
+                        height: taskRowViewMinHeight,
+                        display: "flex",
+                        alignItems: "center",
+                        opacity: dueDate || isHovered || isFocusWithin ? "100" : "0",
+                    })}
                 >
                     <TaskDateInput
                         aria-label="Due date"
@@ -138,8 +159,8 @@ function TaskRowDueDateCell(
                         onArrowLeftLeaveKeyDown={focusPreviousCell}
                         onArrowRightLeaveKeyDown={focusNextCell}
                     />
-                </Box>
-            </Box>
+                </div>
+            </div>
         </FocusRing>
     );
 }
