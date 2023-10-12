@@ -94,6 +94,10 @@ function TaskRowAssigneeCell(
                         width: taskRowViewColumnWidth,
                         paddingX: taskRowViewColumnPaddingX,
                         overflow: "hidden",
+                        height: taskRowViewMinHeight,
+                        display: "flex",
+                        alignItems: "center",
+                        opacity: assigneeAccountData || isHovered || isFocusWithin ? "100" : "0",
                     }),
                 )}
                 {...useOutOfBoundsClickSelection({
@@ -106,55 +110,42 @@ function TaskRowAssigneeCell(
                 }}
                 onKeyDownCapture={onCellKeyDownCapture}
             >
-                <div
-                    className={classNames(
-                        tasksStyles.pointerEventsNoneNotInheritedClassName,
-                        sprinkles({
-                            height: taskRowViewMinHeight,
-                            display: "flex",
-                            alignItems: "center",
-                            opacity:
-                                assigneeAccountData || isHovered || isFocusWithin ? "100" : "0",
-                        }),
-                    )}
-                >
-                    <TaskAssigneeInput
-                        ref={inputRef}
-                        aria-label="Assignee"
-                        shouldDisplayShortName={true}
-                        assigneeAccountData={assigneeAccountData}
-                        onAssigneeAccountChange={assigneeAccount => {
-                            if (!task) return;
+                <TaskAssigneeInput
+                    ref={inputRef}
+                    aria-label="Assignee"
+                    shouldDisplayShortName={true}
+                    assigneeAccountData={assigneeAccountData}
+                    onAssigneeAccountChange={assigneeAccount => {
+                        if (!task) return;
 
-                            const time = store.clock.now();
+                        const time = store.clock.now();
 
-                            store.commitTaskActionTransaction(context, [
-                                {
-                                    type: "UpdateTask",
-                                    time,
-                                    taskId: task.id,
-                                    taskAction: {
-                                        type: "UpdateAssignee",
-                                        assignee: assigneeAccount
-                                            ? {
-                                                  assigneeId: assigneeAccount.id,
-                                                  assignerId: currentAccount.id,
-                                                  assignedTime: new TaskFilterableTime({
-                                                      absoluteTime: time,
-                                                      setterTimeZone: timeZone,
-                                                  }),
-                                              }
-                                            : null,
-                                    },
+                        store.commitTaskActionTransaction(context, [
+                            {
+                                type: "UpdateTask",
+                                time,
+                                taskId: task.id,
+                                taskAction: {
+                                    type: "UpdateAssignee",
+                                    assignee: assigneeAccount
+                                        ? {
+                                              assigneeId: assigneeAccount.id,
+                                              assignerId: currentAccount.id,
+                                              assignedTime: new TaskFilterableTime({
+                                                  absoluteTime: time,
+                                                  setterTimeZone: timeZone,
+                                              }),
+                                          }
+                                        : null,
                                 },
-                            ]);
-                        }}
-                        // Keyboard navigation in grid view is not done with the tab key.
-                        isTabbable={false}
-                        onArrowLeftLeaveKeyDown={focusPreviousCell}
-                        onArrowRightLeaveKeyDown={focusNextCell}
-                    />
-                </div>
+                            },
+                        ]);
+                    }}
+                    // Keyboard navigation in grid view is not done with the tab key.
+                    isTabbable={false}
+                    onArrowLeftLeaveKeyDown={focusPreviousCell}
+                    onArrowRightLeaveKeyDown={focusNextCell}
+                />
             </div>
         </FocusRing>
     );

@@ -87,6 +87,10 @@ function TaskRowPriorityCell(
                         width: taskRowViewColumnWidth,
                         paddingX: taskRowViewColumnPaddingX,
                         overflow: "hidden",
+                        height: taskRowViewMinHeight,
+                        display: "flex",
+                        alignItems: "center",
+                        opacity: priority || isHovered || isFocusWithin ? "100" : "0",
                     }),
                 )}
                 {...useOutOfBoundsClickSelection({
@@ -99,42 +103,30 @@ function TaskRowPriorityCell(
                 }}
                 onKeyDownCapture={onCellKeyDownCapture}
             >
-                <div
-                    className={classNames(
-                        tasksStyles.pointerEventsNoneNotInheritedClassName,
-                        sprinkles({
-                            height: taskRowViewMinHeight,
-                            display: "flex",
-                            alignItems: "center",
-                            opacity: priority || isHovered || isFocusWithin ? "100" : "0",
-                        }),
-                    )}
-                >
-                    <TaskPriorityInput
-                        ref={inputRef}
-                        aria-label="Priority"
-                        priority={priority}
-                        onPriorityChange={priority => {
-                            if (!task) return task;
+                <TaskPriorityInput
+                    ref={inputRef}
+                    aria-label="Priority"
+                    priority={priority}
+                    onPriorityChange={priority => {
+                        if (!task) return task;
 
-                            store.commitTaskActionTransaction(context, [
-                                {
-                                    type: "UpdateTask",
-                                    time: store.clock.now(),
-                                    taskId: task.id,
-                                    taskAction: {
-                                        type: "UpdatePriority",
-                                        priority,
-                                    },
+                        store.commitTaskActionTransaction(context, [
+                            {
+                                type: "UpdateTask",
+                                time: store.clock.now(),
+                                taskId: task.id,
+                                taskAction: {
+                                    type: "UpdatePriority",
+                                    priority,
                                 },
-                            ]);
-                        }}
-                        // Keyboard navigation in grid view is not done with the tab key.
-                        isTabbable={false}
-                        onArrowLeftLeaveKeyDown={focusPreviousCell}
-                        onArrowRightLeaveKeyDown={focusNextCell}
-                    />
-                </div>
+                            },
+                        ]);
+                    }}
+                    // Keyboard navigation in grid view is not done with the tab key.
+                    isTabbable={false}
+                    onArrowLeftLeaveKeyDown={focusPreviousCell}
+                    onArrowRightLeaveKeyDown={focusNextCell}
+                />
             </div>
         </FocusRing>
     );

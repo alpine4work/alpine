@@ -128,7 +128,10 @@ export function TaskDateInput({
                                 paddingLeft: paddingX,
                                 paddingRight: "1",
                             })}
-                            onClick={() => {
+                            onPointerDown={event => {
+                                // `mousedown` will blur by default. Prevent that.
+                                event.preventDefault();
+
                                 getNextFocusableElementIfExists(null, {
                                     withinElement: assertExists(inputRef.current),
                                 })?.focus();
@@ -148,7 +151,10 @@ export function TaskDateInput({
                                 paddingLeft: !shouldIncludeCalendarIcon ? paddingX : undefined,
                                 paddingRight: paddingX,
                             })}
-                            onClick={() => {
+                            onPointerDown={event => {
+                                // `mousedown` will blur by default. Prevent that.
+                                event.preventDefault();
+
                                 getNextFocusableElementIfExists(null, {
                                     withinElement: assertExists(inputRef.current),
                                     // NOTE(calebmer): Small UX improvement, focus the day input segment if the
@@ -181,7 +187,10 @@ export function TaskDateInput({
                                     // Don't collapse space.
                                     whiteSpace: "pre",
                                 }}
-                                onClick={() => {
+                                onPointerDown={event => {
+                                    // `mousedown` will blur by default. Prevent that.
+                                    event.preventDefault();
+
                                     getNextFocusableElementIfExists(null, {
                                         withinElement: assertExists(inputRef.current),
                                         // NOTE(calebmer): Small UX improvement, focus the input segment the user

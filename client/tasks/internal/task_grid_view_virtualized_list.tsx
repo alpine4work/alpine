@@ -5,6 +5,7 @@ import {
     Key,
     Memo,
     MutableRefObject,
+    ReactElement,
     ReactNode,
     Ref,
     RefObject,
@@ -738,12 +739,8 @@ export function useTaskGridViewVirtualizedList({
                 }
 
                 if (relativeItemIndex === 0) {
-                    return {
-                        // We want to use the same key and component as a regular task so we can turn a
-                        // ghost task into a regular task without losing focus.
-                        key: `Task:${bottomGhostTaskId}`,
-                        minHeight: spacing[taskRowViewMinHeight],
-                        node: (
+                    const actuallyRender = (disableExpensiveFeaturesDuringScroll: boolean) => {
+                        return (
                             <TaskRowViewMemo
                                 context={context}
                                 capabilities={capabilities}
@@ -753,6 +750,9 @@ export function useTaskGridViewVirtualizedList({
                                 cursor={null}
                                 ghostTaskId={bottomGhostTaskId}
                                 parents={emptyArray}
+                                disableExpensiveFeaturesDuringScroll={
+                                    disableExpensiveFeaturesDuringScroll
+                                }
                                 isFirstRow={stateItemCount === 0}
                                 nextIndentation={0}
                                 // NOCOMMIT: Ghost row placeholder sequence!
@@ -773,6 +773,58 @@ export function useTaskGridViewVirtualizedList({
                                 withoutPaddingLeft={stateItemCount === 0}
                                 withPaddingBottom={itemIndex === itemCount - 1}
                             />
+                        );
+                    };
+
+                    // It's important to reuse nodes across renders because then React won't try to
+                    // re-render the component.
+                    let nodeWithExpensiveFeaturesDisabled: ReactElement | null = null;
+                    let nodeWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
+
+                    const render = (isScrolling: boolean) => {
+                        // If we already rendered the node without expensive features disabled, don't
+                        // render a new version since that will cause a frame drop right at the start
+                        // of the scroll as React re-renders every message.
+                        if (nodeWithoutExpensiveFeaturesDisabled !== null)
+                            return nodeWithoutExpensiveFeaturesDisabled;
+
+                        if (isScrolling) {
+                            nodeWithExpensiveFeaturesDisabled ??= actuallyRender(true);
+                            return nodeWithExpensiveFeaturesDisabled;
+                        } else {
+                            nodeWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
+                            return nodeWithoutExpensiveFeaturesDisabled;
+                        }
+                    };
+
+                    return {
+                        // We want to use the same key and component as a regular task so we can turn a
+                        // ghost task into a regular task without losing focus.
+                        key: `Task:${bottomGhostTaskId}`,
+                        minHeight: spacing[taskRowViewMinHeight],
+                        withManualLayout: true,
+                        render: ({
+                            ref,
+                            shouldRenderWithRelativePositioning,
+                            offset,
+                            isScrolling,
+                        }) => (
+                            <div
+                                ref={ref}
+                                style={{
+                                    minHeight: spacing[taskRowViewMinHeight],
+                                    ...(shouldRenderWithRelativePositioning
+                                        ? {position: "relative"}
+                                        : {
+                                              position: "absolute",
+                                              top: offset,
+                                              left: 0,
+                                              right: 0,
+                                          }),
+                                }}
+                            >
+                                {render(isScrolling)}
+                            </div>
                         ),
                     };
                 }
@@ -804,10 +856,8 @@ export function useTaskGridViewVirtualizedList({
                         ? `${getTaskQuerySortCursorTaskId(item.parents[0]!.cursor)}-${taskId}`
                         : taskId;
 
-                return {
-                    key: `Task:${taskKey}`,
-                    minHeight: spacing[taskRowViewMinHeight],
-                    node: (
+                const actuallyRender = (disableExpensiveFeaturesDuringScroll: boolean) => {
+                    return (
                         <TaskRowViewMemo
                             context={context}
                             capabilities={capabilities}
@@ -816,6 +866,9 @@ export function useTaskGridViewVirtualizedList({
                             taskKey={taskKey}
                             cursor={item.cursor}
                             parents={item.parents}
+                            disableExpensiveFeaturesDuringScroll={
+                                disableExpensiveFeaturesDuringScroll
+                            }
                             isFirstRow={itemIndex - itemCountBeforeState === 0}
                             nextIndentation={
                                 itemIndex + 1 < itemCountBeforeState + stateItemCount
@@ -835,6 +888,51 @@ export function useTaskGridViewVirtualizedList({
                                 onTaskDeleteConfirmationModalDialogClosedCallbacksRef
                             }
                         />
+                    );
+                };
+
+                // It's important to reuse nodes across renders because then React won't try to
+                // re-render the component.
+                let nodeWithExpensiveFeaturesDisabled: ReactElement | null = null;
+                let nodeWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
+
+                const render = (isScrolling: boolean) => {
+                    // If we already rendered the node without expensive features disabled, don't
+                    // render a new version since that will cause a frame drop right at the start
+                    // of the scroll as React re-renders every message.
+                    if (nodeWithoutExpensiveFeaturesDisabled !== null)
+                        return nodeWithoutExpensiveFeaturesDisabled;
+
+                    if (isScrolling) {
+                        nodeWithExpensiveFeaturesDisabled ??= actuallyRender(true);
+                        return nodeWithExpensiveFeaturesDisabled;
+                    } else {
+                        nodeWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
+                        return nodeWithoutExpensiveFeaturesDisabled;
+                    }
+                };
+
+                return {
+                    key: `Task:${taskKey}`,
+                    minHeight: spacing[taskRowViewMinHeight],
+                    withManualLayout: true,
+                    render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => (
+                        <div
+                            ref={ref}
+                            style={{
+                                minHeight: spacing[taskRowViewMinHeight],
+                                ...(shouldRenderWithRelativePositioning
+                                    ? {position: "relative"}
+                                    : {
+                                          position: "absolute",
+                                          top: offset,
+                                          left: 0,
+                                          right: 0,
+                                      }),
+                            }}
+                        >
+                            {render(isScrolling)}
+                        </div>
                     ),
                 };
             } else {
@@ -1290,6 +1388,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     cursor,
     ghostTaskId,
     parents,
+    disableExpensiveFeaturesDuringScroll,
     isFirstRow,
     nextIndentation,
     titlePlaceholder,
@@ -1311,6 +1410,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     cursor: TaskQuerySortCursor | null;
     ghostTaskId?: TaskId | null;
     parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+    disableExpensiveFeaturesDuringScroll: boolean;
     isFirstRow: boolean;
     nextIndentation: number;
     titlePlaceholder?: string;
@@ -1656,6 +1756,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             ghostTaskId={ghostTaskId}
             onGhostTaskCreated={events.onGhostTaskCreated}
             parents={parents}
+            disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
             titlePlaceholder={titlePlaceholder}
             isFirstRow={isFirstRow}
             nextIndentation={nextIndentation}

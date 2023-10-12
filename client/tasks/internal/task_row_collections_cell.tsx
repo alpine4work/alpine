@@ -111,103 +111,94 @@ function TaskRowCollectionsCell(
         <div
             ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
             tabIndex={-1}
-            className={sprinkles({
-                flexShrink: "0",
-                width: taskRowViewCollectionsColumnWidth,
-                paddingLeft: taskRowViewColumnPaddingX,
-                paddingRight: taskRowViewLastColumnPaddingRight,
-                // Important not to set `overflow="hidden"` here so that the editable
-                // collections overlay can render outside the bounds of this cell.
-                overflow: undefined,
-                position: "relative",
-            })}
+            className={classNames(
+                tasksStyles.textCursorNotInheritedClassName,
+                sprinkles({
+                    flexShrink: "0",
+                    width: taskRowViewCollectionsColumnWidth,
+                    paddingLeft: taskRowViewColumnPaddingX,
+                    paddingRight: taskRowViewLastColumnPaddingRight,
+                    // Important not to set `overflow="hidden"` here so that the editable
+                    // collections overlay can render outside the bounds of this cell.
+                    overflow: undefined,
+                    position: "relative",
+                    height: taskRowViewMinHeight,
+                    display: "flex",
+                    alignItems: "center",
+                    rowGap: "3",
+                    columnGap: "2.5",
+                }),
+            )}
             onFocus={() => setIsFocusWithin(true)}
             onBlur={event => {
                 setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
             }}
             onKeyDownCapture={onCellKeyDownCapture}
+            onPointerDown={event => {
+                if (event.target === event.currentTarget) {
+                    event.preventDefault();
+                    shouldFocusTextInputNextRenderRef.current = true;
+                    assertExists(cellRef.current).focus();
+                }
+            }}
         >
             {!isFocusWithin ? (
-                <div
-                    className={classNames(
-                        tasksStyles.textCursorNotInheritedClassName,
-                        sprinkles({
-                            height: taskRowViewMinHeight,
+                collectionsArray.length === 0 ? (
+                    // NOCOMMIT: Private is a misnomer when you have access to the parent
+                    <div
+                        style={inputPlaceholderStyles}
+                        className={sprinkles({
                             display: "flex",
                             alignItems: "center",
-                            rowGap: "3",
-                            columnGap: "2.5",
-                        }),
-                    )}
-                    onPointerDown={event => {
-                        if (event.target === event.currentTarget) {
-                            event.preventDefault();
-                            shouldFocusTextInputNextRenderRef.current = true;
-                            assertExists(cellRef.current).focus();
-                        }
-                    }}
-                >
-                    {collectionsArray.length === 0 ? (
-                        // NOCOMMIT: Private is a misnomer when you have access to the parent
-                        <div
-                            style={inputPlaceholderStyles}
-                            className={sprinkles({
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "1",
-                                opacity: isHovered ? "100" : "0",
-                                pointerEvents: "none",
-                            })}
-                        >
-                            <Lock size={spacing["4"]} />
-                            <div>Private</div>
-                        </div>
-                    ) : (
-                        <>
-                            {collectionsArray.slice(0, 2).map(({collectionId}) => (
-                                <div
-                                    key={collectionId}
-                                    className={sprinkles({
-                                        marginY: "-0.5",
-                                        marginLeft: "-0.5",
-                                        cursor: "default",
-                                    })}
-                                    style={{
-                                        // Don't allow item to grow beyond flexbox bounds. By default flexbox items
-                                        // have `min-width: auto` which extends with content.
-                                        // https://stackoverflow.com/a/66689926/1568890
-                                        minWidth: 0,
-                                    }}
-                                    onPointerDown={event => {
-                                        if (event.target === event.currentTarget) {
-                                            event.preventDefault();
-                                            assertExists(cellRef.current).focus();
-                                        }
-                                    }}
-                                >
-                                    <div className={sprinkles({pointerEvents: "none"})}>
-                                        <TaskCollectionChip
-                                            collectionEntryStore={query.getReferencedCollectionEntryStore(
-                                                collectionId,
-                                            )}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
-                            {collectionsArray.length > 2 && (
-                                <div
-                                    className={sprinkles({
-                                        color: "grey-70",
-                                        pointerEvents: "none",
-                                    })}
-                                    style={{fontFeatureSettings: '"calt"'}}
-                                >
-                                    +{collectionsArray.length - 2}
-                                </div>
-                            )}
-                        </>
-                    )}
-                </div>
+                            gap: "1",
+                            opacity: isHovered ? "100" : "0",
+                            pointerEvents: "none",
+                        })}
+                    >
+                        <Lock size={spacing["4"]} />
+                        <div>Private</div>
+                    </div>
+                ) : (
+                    <>
+                        {collectionsArray.slice(0, 2).map(({collectionId}) => (
+                            <div
+                                key={collectionId}
+                                className={sprinkles({
+                                    marginY: "-0.5",
+                                    marginLeft: "-0.5",
+                                    cursor: "default",
+                                })}
+                                style={{
+                                    // Don't allow item to grow beyond flexbox bounds. By default flexbox items
+                                    // have `min-width: auto` which extends with content.
+                                    // https://stackoverflow.com/a/66689926/1568890
+                                    minWidth: 0,
+                                }}
+                                onPointerDown={event => {
+                                    event.preventDefault();
+                                    assertExists(cellRef.current).focus();
+                                }}
+                            >
+                                <TaskCollectionChip
+                                    collectionEntryStore={query.getReferencedCollectionEntryStore(
+                                        collectionId,
+                                    )}
+                                />
+                            </div>
+                        ))}
+                        {collectionsArray.length > 2 && (
+                            <div
+                                className={sprinkles({
+                                    color: "grey-70",
+                                    pointerEvents: "none",
+                                })}
+                                style={{fontFeatureSettings: '"calt"'}}
+                            >
+                                {`+${collectionsArray.length - 2}`}
+                            </div>
+                        )}
+                    </>
+                )
             ) : (
                 <TaskRowCollectionsCellOverlay
                     query={query}

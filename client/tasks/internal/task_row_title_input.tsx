@@ -818,6 +818,9 @@ function TaskRowTitleInput(
                     sprinkles({
                         flexGrow: "1",
                         alignSelf: "stretch",
+                        display: "flex",
+                        alignItems: "center",
+                        height: taskRowTitleInputSingleLineHeight,
                     }),
                 )}
                 style={{paddingRight}}
@@ -827,51 +830,36 @@ function TaskRowTitleInput(
                     onSelectAll: focusAll,
                 })}
             >
-                <div
-                    className={classNames(
-                        tasksStyles.pointerEventsNoneNotInheritedClassName,
-                        sprinkles({
-                            display: "flex",
-                            alignItems: "center",
-                            height: taskRowTitleInputSingleLineHeight,
-                        }),
-                    )}
-                >
-                    {capabilities.hasParentTaskTitle &&
-                        parentTaskEntryStore &&
-                        indentation === 0 && (
-                            <TaskRowTitleParentTaskTitle
-                                parentTaskEntryStore={parentTaskEntryStore}
-                            />
-                        )}
-                    {childTaskCount > 0 && (
-                        <TaskRowTitleChildTasksButton
-                            ref={childTasksButtonRef}
-                            childTaskCount={childTaskCount}
-                            closedChildTaskCount={closedChildTaskCount}
-                            areChildTasksExpanded={areChildTasksExpanded}
-                            onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
-                            onKeyDown={event => {
-                                switch (event.key) {
-                                    case "ArrowLeft": {
-                                        event.preventDefault();
-                                        event.stopPropagation();
+                {capabilities.hasParentTaskTitle && parentTaskEntryStore && indentation === 0 && (
+                    <TaskRowTitleParentTaskTitle parentTaskEntryStore={parentTaskEntryStore} />
+                )}
+                {childTaskCount > 0 && (
+                    <TaskRowTitleChildTasksButton
+                        ref={childTasksButtonRef}
+                        childTaskCount={childTaskCount}
+                        closedChildTaskCount={closedChildTaskCount}
+                        areChildTasksExpanded={areChildTasksExpanded}
+                        onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
+                        onKeyDown={event => {
+                            switch (event.key) {
+                                case "ArrowLeft": {
+                                    event.preventDefault();
+                                    event.stopPropagation();
 
-                                        focusEnd();
-                                        break;
-                                    }
-                                    case "ArrowRight": {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-
-                                        focusNextCell();
-                                        break;
-                                    }
+                                    focusEnd();
+                                    break;
                                 }
-                            }}
-                        />
-                    )}
-                </div>
+                                case "ArrowRight": {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+
+                                    focusNextCell();
+                                    break;
+                                }
+                            }
+                        }}
+                    />
+                )}
             </div>
         </div>
     );

@@ -66,7 +66,7 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {Context} from "~/shared/context/context.js";
-import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -155,6 +155,7 @@ function TaskRowView(
         ghostTaskId = null,
         onGhostTaskCreated,
         parents,
+        disableExpensiveFeaturesDuringScroll,
         isFirstRow,
         titlePlaceholder,
         nextIndentation,
@@ -184,6 +185,7 @@ function TaskRowView(
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
         parents: ReadonlyArray<{query: TaskClientQuery; cursor: TaskQuerySortCursor}>;
+        disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
         nextIndentation: number;
         titlePlaceholder?: string;
@@ -895,343 +897,339 @@ function TaskRowView(
             : 0)
     }rem`;
 
+    const borderCoverNode = (
+        <div
+            className={sprinkles({
+                position: "absolute",
+                zIndex: "-10",
+                top: "0",
+                bottom: "0",
+                left: "5",
+                right: "5",
+                pointerEvents: "none",
+            })}
+            style={{
+                // Draw the top and bottom border with a shadow so it:
+                //
+                // 1. Doesn't add 2px to layout
+                // 2. Adjacent borders share the same space so we don't get 2px dividers
+                boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
+            }}
+        />
+    );
+
+    const droppableIndentationsNode = !disableExpensiveFeaturesDuringScroll &&
+        !capabilities.isReadOnly &&
+        cursor &&
+        task && (
+            <TaskRowViewDroppableIndentations
+                query={query}
+                cursor={cursor}
+                task={task}
+                parents={parents}
+                nextIndentation={nextIndentation}
+                areChildTasksExpanded={areChildTasksExpanded}
+                getMoveTaskToRootQueryActions={getMoveTaskToRootQueryActions}
+            />
+        );
+
+    const node = (
+        <div
+            ref={!capabilities.hasDenseFields ? hoverRef : undefined}
+            className={sprinkles({
+                minHeight: taskRowViewMinHeight,
+                position: "relative",
+                // NOTE(calebmer): Setting z-index here creates a new stacking context which
+                // means the editable collection overlay can't render on top of adjacent rows.
+                zIndex: undefined,
+                // Important not to set `overflow="hidden"` here so that the collections overlay
+                // we open in edit mode can render outside the bounds of the row.
+                overflow: undefined,
+                display: "flex",
+            })}
+        >
+            {!capabilities.hasDenseFields && borderCoverNode}
+            <div
+                className={classNames(
+                    sprinkles({
+                        position: "relative",
+                        flexShrink: "0",
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        height: taskRowViewMinHeight,
+                    }),
+                    // Create an illusion that the text editor extends into the margins by giving
+                    // the margin a text cursor and making it clickable putting focus in the task.
+                    // A double click selects the task text.
+                    //
+                    // This is an affordance for mouse users, does not need to be usable
+                    // by keyboard.
+                    !capabilities.isReadOnly && tasksStyles.textCursorNotInheritedClassName,
+                )}
+                style={{width: marginLeft}}
+                {...useOutOfBoundsClickSelection({
+                    isDisabled: capabilities.isReadOnly,
+                    onSelect: focusTitleStart,
+                    onSelectAll: focusTitleAll,
+                })}
+            >
+                {!withoutPaddingLeft &&
+                    (!disableExpensiveFeaturesDuringScroll &&
+                    !capabilities.isReadOnly &&
+                    hasTask ? (
+                        <TaskRowViewDragHandle
+                            task={task}
+                            getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
+                            isHovered={isHovered}
+                        />
+                    ) : (
+                        <div
+                            className={classNames(
+                                tasksStyles.pointerEventsNoneNotInheritedClassName,
+                                sprinkles({paddingRight: "0.5"}),
+                            )}
+                            style={{width: taskRowViewDragHandleWidth}}
+                        />
+                    ))}
+                {!withoutPaddingLeft &&
+                    (!disableExpensiveFeaturesDuringScroll && hasTask ? (
+                        <div
+                            className={classNames(
+                                tasksStyles.pointerEventsNoneNotInheritedClassName,
+                                sprinkles({
+                                    width: "5",
+                                    paddingRight: "1",
+                                    opacity: isHovered || isExpandButtonFocused ? "100" : "0",
+                                }),
+                            )}
+                        >
+                            <IconButton
+                                ref={expandButtonRef}
+                                // Expand button is not tab focusable. Keyboard navigation within a task grid is
+                                // not done with tab navigation.
+                                isTabbable={false}
+                                // Don't show the tooltip when focused through keyboard navigation. It's a
+                                // little distracting to see it move as you arrow key up/down.
+                                isTooltipVisibleWhenFocused={false}
+                                size="xs"
+                                description="Expand"
+                                pressErrorTitle="Couldn’t expand task"
+                                onPress={async () => {
+                                    // If we are already in a peek then navigate the peek instead of opening a
+                                    // new one.
+                                    if (peekContext?.withMobileLayout) {
+                                        await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
+                                    } else {
+                                        await peekStackContext.push(
+                                            `/s/${task.getSpaceId()}/tasks/${task.id}`,
+                                        );
+                                    }
+                                }}
+                                onFocusChange={setIsExpandButtonFocused}
+                                onKeyDownCapture={event =>
+                                    handleCellKeyDownCapture("ExpandButton", event)
+                                }
+                            >
+                                <ArrowsOutSimple />
+                            </IconButton>
+                        </div>
+                    ) : (
+                        <div
+                            className={classNames(
+                                tasksStyles.pointerEventsNoneNotInheritedClassName,
+                                sprinkles({
+                                    width: "5",
+                                    paddingRight: "1",
+                                }),
+                            )}
+                        />
+                    ))}
+                {!withoutPaddingLeft && (
+                    <div
+                        className={classNames(
+                            tasksStyles.pointerEventsNoneNotInheritedClassName,
+                            sprinkles({width: "6", paddingRight: "2"}),
+                        )}
+                    >
+                        {hasTask ? (
+                            <TaskStatusButton
+                                ref={statusButtonRef}
+                                store={query.store}
+                                task={task}
+                                // Disable the ability to tab to this button. Since there are so many tasks and
+                                // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
+                                // navigation.
+                                isFocusable={true}
+                                isTabbable={false}
+                                isDisabled={capabilities.isReadOnly}
+                                onKeyDownCapture={event =>
+                                    handleCellKeyDownCapture("StatusButton", event)
+                                }
+                            />
+                        ) : (
+                            <div
+                                className={sprinkles({
+                                    width: "4",
+                                    height: "4",
+                                    borderRadius: "full",
+                                    border: "grey-10",
+                                    pointerEvents: "none",
+                                })}
+                            />
+                        )}
+                    </div>
+                )}
+            </div>
+            <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
+                <div
+                    ref={titleCellRef}
+                    tabIndex={capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined}
+                    className={sprinkles({
+                        flexGrow: "1",
+                        overflow: "hidden",
+                    })}
+                    onKeyDownCapture={event => handleCellKeyDownCapture("Title", event)}
+                >
+                    <TaskRowTitleInput
+                        ref={titleInputRef}
+                        capabilities={capabilities}
+                        title={task?.getTitle() ?? emptyTaskTitleModel.get()}
+                        onTitleChange={onTitleChange}
+                        placeholder={titlePlaceholder}
+                        indentation={parents.length}
+                        paddingRight={
+                            capabilities.hasColumns
+                                ? taskRowViewFirstColumnExtraPaddingLeft
+                                : undefined
+                        }
+                        parentTaskEntryStore={parentTaskEntryStore}
+                        childTaskCount={task?.getChildTaskCount() ?? 0}
+                        closedChildTaskCount={task?.getClosedChildTaskCount() ?? 0}
+                        areChildTasksExpanded={areChildTasksExpanded}
+                        onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
+                        createTaskAbove={createTaskAbove}
+                        createTaskBelowAndFocus={createTaskBelowAndFocus}
+                        nestWithPreviousTaskRowIfExistsAndExpand={
+                            nestWithPreviousTaskRowIfExistsAndExpand
+                        }
+                        unnestTaskIfNestedRow={unnestTaskIfNestedRow}
+                        deleteTaskAndAllChildrenAndFocusPreviousRow={
+                            deleteTaskAndAllChildrenAndFocusPreviousRow
+                        }
+                        focusNextTaskTitleCoord={focusNextTaskTitleCoord}
+                        focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
+                        preserveLastTaskTitleArrowNavigationCoord={
+                            preserveLastTaskTitleArrowNavigationCoord
+                        }
+                        focusFirstVisibleTaskTitleStart={focusFirstVisibleTaskTitleStart}
+                        focusLastVisibleTaskTitleEnd={focusLastVisibleTaskTitleEnd}
+                        focusNextCell={() => focusNextCell("Title")}
+                        focusPreviousCell={() => focusPreviousCell("Title")}
+                    />
+                </div>
+            </FocusRing>
+            {capabilities.hasColumns && (
+                <>
+                    <TaskRowAssigneeCell
+                        ref={assigneeCellRef}
+                        store={query.store}
+                        task={task}
+                        onCellKeyDownCapture={event => handleCellKeyDownCapture("Assignee", event)}
+                        focusNextCell={() => focusNextCell("Assignee")}
+                        focusPreviousCell={() => focusPreviousCell("Assignee")}
+                    />
+                    <TaskRowPriorityCell
+                        ref={priorityCellRef}
+                        store={query.store}
+                        task={task}
+                        onCellKeyDownCapture={event => handleCellKeyDownCapture("Priority", event)}
+                        focusNextCell={() => focusNextCell("Priority")}
+                        focusPreviousCell={() => focusPreviousCell("Priority")}
+                    />
+                    <TaskRowDueDateCell
+                        ref={dueDateCellRef}
+                        store={query.store}
+                        task={task}
+                        onCellKeyDownCapture={event => handleCellKeyDownCapture("DueDate", event)}
+                        focusNextCell={() => focusNextCell("DueDate")}
+                        focusPreviousCell={() => focusPreviousCell("DueDate")}
+                    />
+                    <TaskRowCollectionsCell
+                        ref={collectionsCellRef}
+                        query={query}
+                        task={task}
+                        onCellKeyDownCapture={event =>
+                            handleCellKeyDownCapture("Collections", event)
+                        }
+                        focusPreviousCell={() => focusPreviousCell("Collections")}
+                    />
+                </>
+            )}
+            <div
+                className={sprinkles({
+                    flexShrink: "0",
+                    width: "5",
+                    // Create an illusion that the text editor extends into the margins by giving
+                    // the margin a text cursor and making it clickable putting focus in the task.
+                    // A double click selects the task text.
+                    //
+                    // This is an affordance for mouse users, does not need to be usable
+                    // by keyboard.
+                    cursor: capabilities.hasColumns
+                        ? undefined
+                        : !capabilities.isReadOnly
+                        ? "text"
+                        : undefined,
+                    pointerEvents: capabilities.hasColumns ? "none" : undefined,
+                })}
+                {...useOutOfBoundsClickSelection({
+                    isDisabled: capabilities.isReadOnly,
+                    onSelect: focusTitleEnd,
+                    onSelectAll: focusTitleAll,
+                })}
+            />
+            {!capabilities.hasDenseFields && droppableIndentationsNode}
+        </div>
+    );
+
     return (
         <>
             <ContextMenuActions actions={contextMenuActions}>
-                <div
-                    ref={hoverRef}
-                    className={sprinkles({
-                        minHeight: taskRowViewMinHeight,
-                        position: "relative",
-                        // NOTE(calebmer): Setting z-index here creates a new stacking context which
-                        // means the task row drop indicator lines can't render on top of
-                        // adjacent rows.
-                        zIndex: undefined,
-                    })}
-                >
+                {!capabilities.hasDenseFields ? (
+                    node
+                ) : (
                     <div
+                        ref={hoverRef}
                         className={sprinkles({
-                            position: "absolute",
-                            zIndex: "-10",
-                            top: "0",
-                            bottom: "0",
-                            left: "5",
-                            right: "5",
-                            pointerEvents: "none",
-                        })}
-                        style={{
-                            // Draw the top and bottom border with a shadow so it:
-                            //
-                            // 1. Doesn't add 2px to layout
-                            // 2. Adjacent borders share the same space so we don't get 2px dividers
-                            boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
-                        }}
-                    />
-                    <div
-                        className={sprinkles({
+                            minHeight: taskRowViewMinHeight,
                             position: "relative",
                             // NOTE(calebmer): Setting z-index here creates a new stacking context which
-                            // means the editable collection overlay can't render on top of adjacent rows.
+                            // means the task row drop indicator lines can't render on top of
+                            // adjacent rows.
                             zIndex: undefined,
-                            // Important not to set `overflow="hidden"` here so that the collections overlay
-                            // we open in edit mode can render outside the bounds of the row.
-                            overflow: undefined,
-                            display: "flex",
                         })}
                     >
-                        <div
-                            className={classNames(
-                                sprinkles({
-                                    position: "relative",
-                                    flexShrink: "0",
-                                }),
-                                // Create an illusion that the text editor extends into the margins by giving
-                                // the margin a text cursor and making it clickable putting focus in the task.
-                                // A double click selects the task text.
-                                //
-                                // This is an affordance for mouse users, does not need to be usable
-                                // by keyboard.
-                                !capabilities.isReadOnly &&
-                                    tasksStyles.textCursorNotInheritedClassName,
-                            )}
-                            style={{width: marginLeft}}
-                            {...useOutOfBoundsClickSelection({
-                                isDisabled: capabilities.isReadOnly,
-                                onSelect: focusTitleStart,
-                                onSelectAll: focusTitleAll,
-                            })}
-                        >
-                            {!withoutPaddingLeft && (
-                                <div
-                                    className={classNames(
-                                        sprinkles({
-                                            display: "flex",
-                                            justifyContent: "flex-end",
-                                            alignItems: "center",
-                                            height: taskRowViewMinHeight,
-                                        }),
-                                        tasksStyles.pointerEventsNoneNotInheritedClassName,
-                                    )}
-                                >
-                                    {!capabilities.isReadOnly && hasTask ? (
-                                        <TaskRowViewDragHandle
-                                            task={task}
-                                            getMaybeRemoveTaskFromQueryActions={
-                                                getMaybeRemoveTaskFromQueryActions
-                                            }
-                                            isHovered={isHovered}
-                                        />
-                                    ) : (
-                                        <div
-                                            className={classNames(
-                                                tasksStyles.pointerEventsNoneNotInheritedClassName,
-                                                sprinkles({paddingRight: "0.5"}),
-                                            )}
-                                        />
-                                    )}
-                                    {hasTask ? (
-                                        <div
-                                            className={classNames(
-                                                tasksStyles.pointerEventsNoneNotInheritedClassName,
-                                                sprinkles({
-                                                    width: "5",
-                                                    paddingRight: "1",
-                                                    opacity:
-                                                        isHovered || isExpandButtonFocused
-                                                            ? "100"
-                                                            : "0",
-                                                }),
-                                            )}
-                                        >
-                                            <IconButton
-                                                ref={expandButtonRef}
-                                                // Expand button is not tab focusable. Keyboard navigation within a task grid is
-                                                // not done with tab navigation.
-                                                isTabbable={false}
-                                                // Don't show the tooltip when focused through keyboard navigation. It's a
-                                                // little distracting to see it move as you arrow key up/down.
-                                                isTooltipVisibleWhenFocused={false}
-                                                size="xs"
-                                                description="Expand"
-                                                pressErrorTitle="Couldn’t expand task"
-                                                onPress={async () => {
-                                                    // If we are already in a peek then navigate the peek instead of opening a
-                                                    // new one.
-                                                    if (peekContext?.withMobileLayout) {
-                                                        await navigate(
-                                                            `/s/${task.getSpaceId()}/tasks/${
-                                                                task.id
-                                                            }`,
-                                                        );
-                                                    } else {
-                                                        await peekStackContext.push(
-                                                            `/s/${task.getSpaceId()}/tasks/${
-                                                                task.id
-                                                            }`,
-                                                        );
-                                                    }
-                                                }}
-                                                onFocusChange={setIsExpandButtonFocused}
-                                                onKeyDownCapture={event =>
-                                                    handleCellKeyDownCapture("ExpandButton", event)
-                                                }
-                                            >
-                                                <ArrowsOutSimple />
-                                            </IconButton>
-                                        </div>
-                                    ) : (
-                                        <div
-                                            className={classNames(
-                                                tasksStyles.pointerEventsNoneNotInheritedClassName,
-                                                sprinkles({
-                                                    width: "5",
-                                                    paddingRight: "1",
-                                                }),
-                                            )}
-                                        />
-                                    )}
-                                    <div
-                                        className={classNames(
-                                            tasksStyles.pointerEventsNoneNotInheritedClassName,
-                                            sprinkles({width: "6", paddingRight: "2"}),
-                                        )}
-                                    >
-                                        {hasTask ? (
-                                            <TaskStatusButton
-                                                ref={statusButtonRef}
-                                                store={query.store}
-                                                task={task}
-                                                // Disable the ability to tab to this button. Since there are so many tasks and
-                                                // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
-                                                // navigation.
-                                                isFocusable={true}
-                                                isTabbable={false}
-                                                isDisabled={capabilities.isReadOnly}
-                                                onKeyDownCapture={event =>
-                                                    handleCellKeyDownCapture("StatusButton", event)
-                                                }
-                                            />
-                                        ) : (
-                                            <div
-                                                className={sprinkles({
-                                                    width: "4",
-                                                    height: "4",
-                                                    borderRadius: "full",
-                                                    border: "grey-10",
-                                                    pointerEvents: "none",
-                                                })}
-                                            />
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
-                            <div
-                                ref={titleCellRef}
-                                tabIndex={
-                                    capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined
-                                }
-                                className={sprinkles({
-                                    flexGrow: "1",
-                                    overflow: "hidden",
-                                })}
-                                onKeyDownCapture={event => handleCellKeyDownCapture("Title", event)}
-                            >
-                                <TaskRowTitleInput
-                                    ref={titleInputRef}
-                                    capabilities={capabilities}
-                                    title={task?.getTitle() ?? emptyTaskTitleModel.get()}
-                                    onTitleChange={onTitleChange}
-                                    placeholder={titlePlaceholder}
-                                    indentation={parents.length}
-                                    paddingRight={
-                                        capabilities.hasColumns
-                                            ? taskRowViewFirstColumnExtraPaddingLeft
-                                            : undefined
-                                    }
-                                    parentTaskEntryStore={parentTaskEntryStore}
-                                    childTaskCount={task?.getChildTaskCount() ?? 0}
-                                    closedChildTaskCount={task?.getClosedChildTaskCount() ?? 0}
-                                    areChildTasksExpanded={areChildTasksExpanded}
-                                    onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
-                                    createTaskAbove={createTaskAbove}
-                                    createTaskBelowAndFocus={createTaskBelowAndFocus}
-                                    nestWithPreviousTaskRowIfExistsAndExpand={
-                                        nestWithPreviousTaskRowIfExistsAndExpand
-                                    }
-                                    unnestTaskIfNestedRow={unnestTaskIfNestedRow}
-                                    deleteTaskAndAllChildrenAndFocusPreviousRow={
-                                        deleteTaskAndAllChildrenAndFocusPreviousRow
-                                    }
-                                    focusNextTaskTitleCoord={focusNextTaskTitleCoord}
-                                    focusPreviousTaskTitleCoord={focusPreviousTaskTitleCoord}
-                                    preserveLastTaskTitleArrowNavigationCoord={
-                                        preserveLastTaskTitleArrowNavigationCoord
-                                    }
-                                    focusFirstVisibleTaskTitleStart={
-                                        focusFirstVisibleTaskTitleStart
-                                    }
-                                    focusLastVisibleTaskTitleEnd={focusLastVisibleTaskTitleEnd}
-                                    focusNextCell={() => focusNextCell("Title")}
-                                    focusPreviousCell={() => focusPreviousCell("Title")}
-                                />
-                            </div>
-                        </FocusRing>
-                        {capabilities.hasColumns && (
-                            <>
-                                <TaskRowAssigneeCell
-                                    ref={assigneeCellRef}
-                                    store={query.store}
-                                    task={task}
-                                    onCellKeyDownCapture={event =>
-                                        handleCellKeyDownCapture("Assignee", event)
-                                    }
-                                    focusNextCell={() => focusNextCell("Assignee")}
-                                    focusPreviousCell={() => focusPreviousCell("Assignee")}
-                                />
-                                <TaskRowPriorityCell
-                                    ref={priorityCellRef}
-                                    store={query.store}
-                                    task={task}
-                                    onCellKeyDownCapture={event =>
-                                        handleCellKeyDownCapture("Priority", event)
-                                    }
-                                    focusNextCell={() => focusNextCell("Priority")}
-                                    focusPreviousCell={() => focusPreviousCell("Priority")}
-                                />
-                                <TaskRowDueDateCell
-                                    ref={dueDateCellRef}
-                                    store={query.store}
-                                    task={task}
-                                    onCellKeyDownCapture={event =>
-                                        handleCellKeyDownCapture("DueDate", event)
-                                    }
-                                    focusNextCell={() => focusNextCell("DueDate")}
-                                    focusPreviousCell={() => focusPreviousCell("DueDate")}
-                                />
-                                <TaskRowCollectionsCell
-                                    ref={collectionsCellRef}
-                                    query={query}
-                                    task={task}
-                                    onCellKeyDownCapture={event =>
-                                        handleCellKeyDownCapture("Collections", event)
-                                    }
-                                    focusPreviousCell={() => focusPreviousCell("Collections")}
-                                />
-                            </>
+                        {borderCoverNode}
+                        {node}
+                        {task && (
+                            // NOTE(calebmer): This component is not rendered by a fullscreen grid view
+                            // which may have many, many tasks. So we haven't spent time optimizing it yet.
+                            // However, if tasks with many children are common this component may slow
+                            // us down.
+                            <TaskRowViewDenseFields
+                                ref={denseFieldsRef}
+                                store={query.store}
+                                task={task}
+                                marginLeft={marginLeft}
+                                focusTitleStart={focusTitleStart}
+                                focusTitleEnd={focusTitleEnd}
+                                focusTitleAll={focusTitleAll}
+                            />
                         )}
-                        <div
-                            className={sprinkles({
-                                flexShrink: "0",
-                                width: "5",
-                                // Create an illusion that the text editor extends into the margins by giving
-                                // the margin a text cursor and making it clickable putting focus in the task.
-                                // A double click selects the task text.
-                                //
-                                // This is an affordance for mouse users, does not need to be usable
-                                // by keyboard.
-                                cursor: capabilities.hasColumns
-                                    ? undefined
-                                    : !capabilities.isReadOnly
-                                    ? "text"
-                                    : undefined,
-                                pointerEvents: capabilities.hasColumns ? "none" : undefined,
-                            })}
-                            {...useOutOfBoundsClickSelection({
-                                isDisabled: capabilities.isReadOnly,
-                                onSelect: focusTitleEnd,
-                                onSelectAll: focusTitleAll,
-                            })}
-                        />
+                        {droppableIndentationsNode}
                     </div>
-                    {task && capabilities.hasDenseFields && (
-                        // NOTE(calebmer): This component is not rendered by a fullscreen grid view
-                        // which may have many, many tasks. So we haven't spent time optimizing it yet.
-                        // However, if tasks with many children are common this component may slow
-                        // us down.
-                        <TaskRowViewDenseFields
-                            ref={denseFieldsRef}
-                            store={query.store}
-                            task={task}
-                            marginLeft={marginLeft}
-                            focusTitleStart={focusTitleStart}
-                            focusTitleEnd={focusTitleEnd}
-                            focusTitleAll={focusTitleAll}
-                        />
-                    )}
-                    {!capabilities.isReadOnly && cursor && task && (
-                        <TaskRowViewDroppableIndentations
-                            query={query}
-                            cursor={cursor}
-                            task={task}
-                            parents={parents}
-                            nextIndentation={nextIndentation}
-                            areChildTasksExpanded={areChildTasksExpanded}
-                            getMoveTaskToRootQueryActions={getMoveTaskToRootQueryActions}
-                        />
-                    )}
-                </div>
+                )}
             </ContextMenuActions>
             {/* NOCOMMIT: Test that we can click here to select */}
             {withPaddingBottom && (
@@ -1240,6 +1238,8 @@ function TaskRowView(
         </>
     );
 }
+
+const taskRowViewDragHandleWidth = addRemLengths(spacing["4"], spacing["0.5"]);
 
 function TaskRowViewDragHandle({
     task,
@@ -1279,6 +1279,7 @@ function TaskRowViewDragHandle({
                     opacity: isHovered ? "100" : "0",
                 }),
             )}
+            style={{width: taskRowViewDragHandleWidth}}
         >
             <FocusRing>
                 <button
