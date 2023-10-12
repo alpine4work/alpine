@@ -2,6 +2,7 @@ import {Lock} from "phosphor-react";
 import {
     KeyboardEvent,
     Ref,
+    RefObject,
     forwardRef,
     useImperativeHandle,
     useMemo,
@@ -68,10 +69,8 @@ function TaskRowCollectionsCell(
     );
 
     const cellRef = useRef<HTMLDivElement>(null);
-    const scrollbarRef = useScrollbar();
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
-    const [isChildFocusRingVisible, childFocusRingTargetRef] = useIsChildFocusRingVisible();
 
     useImperativeHandle(
         ref,
@@ -187,55 +186,75 @@ function TaskRowCollectionsCell(
                     )}
                 </Box>
             ) : (
-                <Box
-                    ref={childFocusRingTargetRef}
-                    position="absolute"
-                    zIndex="30"
-                    top="0"
-                    right="0"
-                    borderRadius="sm"
-                    boxShadow="elevation-20"
-                >
-                    <Box
-                        ref={scrollbarRef}
-                        position="relative"
-                        backgroundColor="grey-0"
-                        overflowY="scroll"
-                        borderRadius="sm"
-                        style={{
-                            width: addRemLengths(
-                                spacing[taskRowViewCollectionsColumnWidth],
-                                subtractRemLengths(
-                                    spacing["2.5"],
-                                    spacing[taskRowViewColumnPaddingX],
-                                ),
-                            ),
-                            // We add an extra 1px of padding to the top to render on top of the row's
-                            // `box-shadow` border.
-                            minHeight: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
-                            maxHeight: spacing["48"],
-                            // The focus ring is rendered on the inner `<div>` so it renders on top of the
-                            // elevation shadow.
-                            boxShadow: !isChildFocusRingVisible
-                                ? `0 0 0 2px ${colorSchemeVars["theme-30-const"]}`
-                                : undefined,
-                        }}
-                    >
-                        <TaskCollectionsInput
-                            aria-label="Collections"
-                            referencesSubscription={query}
-                            task={task}
-                            areMarginsClickable={true}
-                            paddingX="2.5"
-                            paddingY="2.5"
-                            // Keyboard navigation in grid view is not done with the tab key.
-                            isTabbable={false}
-                            onArrowLeftLeaveKeyDown={focusPreviousCell}
-                            onReturnFocus={() => assertExists(cellRef.current).focus()}
-                        />
-                    </Box>
-                </Box>
+                <TaskRowCollectionsCellOverlay
+                    query={query}
+                    task={task}
+                    focusPreviousCell={focusPreviousCell}
+                    cellRef={cellRef}
+                />
             )}
+        </Box>
+    );
+}
+
+function TaskRowCollectionsCellOverlay({
+    query,
+    task,
+    focusPreviousCell,
+    cellRef,
+}: {
+    query: TaskClientQuery;
+    task: TaskModel | null;
+    focusPreviousCell: () => void;
+    cellRef: RefObject<HTMLDivElement>;
+}) {
+    const [isChildFocusRingVisible, childFocusRingTargetRef] = useIsChildFocusRingVisible();
+
+    return (
+        <Box
+            ref={childFocusRingTargetRef}
+            position="absolute"
+            zIndex="30"
+            top="0"
+            right="0"
+            borderRadius="sm"
+            boxShadow="elevation-20"
+        >
+            <Box
+                ref={useScrollbar()}
+                position="relative"
+                backgroundColor="grey-0"
+                overflowY="scroll"
+                borderRadius="sm"
+                style={{
+                    width: addRemLengths(
+                        spacing[taskRowViewCollectionsColumnWidth],
+                        subtractRemLengths(spacing["2.5"], spacing[taskRowViewColumnPaddingX]),
+                    ),
+                    // We add an extra 1px of padding to the top to render on top of the row's
+                    // `box-shadow` border.
+                    minHeight: `calc(${spacing[taskRowViewMinHeight]} + 1px)`,
+                    maxHeight: spacing["48"],
+                    // The focus ring is rendered on the inner `<div>` so it renders on top of the
+                    // elevation shadow.
+                    boxShadow: !isChildFocusRingVisible
+                        ? `0 0 0 2px ${colorSchemeVars["theme-30-const"]}`
+                        : undefined,
+                }}
+            >
+                <TaskCollectionsInput
+                    aria-label="Collections"
+                    referencesSubscription={query}
+                    task={task}
+                    areMarginsClickable={true}
+                    paddingX="2.5"
+                    paddingY="2.5"
+                    // Keyboard navigation in grid view is not done with the tab key.
+                    isTabbable={false}
+                    onArrowLeftLeaveKeyDown={focusPreviousCell}
+                    onReturnFocus={() => assertExists(cellRef.current).focus()}
+                />
+            </Box>
         </Box>
     );
 }
