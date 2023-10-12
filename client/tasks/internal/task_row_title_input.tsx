@@ -8,6 +8,7 @@ import {
     forwardRef,
     useCallback,
     useImperativeHandle,
+    useInsertionEffect,
     useMemo,
     useRef,
     useState,
@@ -163,7 +164,6 @@ function TaskRowTitleInput(
     ref: Ref<TaskRowTitleInputRef>,
 ) {
     const isInitialAppRender = useIsInitialAppRender();
-    const containerRef = useRef<HTMLDivElement>(null);
 
     const viewRef = useRef<
         | {isReady: false; callbacks: Set<(view: EditorView) => void>}
@@ -325,10 +325,20 @@ function TaskRowTitleInput(
     const titleRef = useRef(title);
     const handleKeyDownRef = useRef(handleKeyDown);
     const isReadOnlyRef = useRef(capabilities.isReadOnly);
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useInsertionEffect(() => {
         titleRef.current = title;
         handleKeyDownRef.current = handleKeyDown;
         isReadOnlyRef.current = capabilities.isReadOnly;
+    });
+
+    const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const callbacks = onLayoutEffectCallbacksRef.current;
+        onLayoutEffectCallbacksRef.current = [];
+
+        for (const callback of callbacks) {
+            callback();
+        }
     });
 
     // We initially consider ourselves to be fully scrolled to the left and to the
@@ -337,123 +347,220 @@ function TaskRowTitleInput(
     const [isFullyScrolledLeft, setIsFullyScrolledLeft] = useState(true);
     const [isFullyScrolledRight, setIsFullyScrolledRight] = useState(true);
 
-    useLayoutEffectWithoutServerSideWarning(() => {
-        // Wait for the client-side rerender before mounting our editor.
-        if (isInitialAppRender) return;
+    // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the
+    // docs say only CSS-in-JS libraries should use it.
+    //
+    // Wait what?? A `rootElement` parameter??? That's not documented? What the what?
+    //
+    // This is me reenacting your reaction to this code. Something very strange is
+    // afoot here. Instead of using `useLayoutEffect()` to mount our ProseMirror
+    // editor, we use `useInsertionEffect()`. This is pretty critical for
+    // the performance of a large task grid view.
+    //
+    // We need to use `useInsertionEffect()` to prevent browser [layout
+    // thrashing][2]. Layout thrashing happens when you read from the DOM and write
+    // to the DOM in a loop. Since whenever you read from the DOM after writing to
+    // the DOM the browser needs to perform an expensive layout calculation to give
+    // you the right answer. So if you're in a loop that expensive layout
+    // calculation happens on every iteration of the loop.
+    //
+    // A common way to fix this is to batch your reads and writes with a library
+    // like [`fastdom`][3]. React is already batching writes internally though so
+    // ideally we'd use React itself.
+    //
+    // A React render you can think of as a big loop over components. It happens in
+    // three phases:
+    //
+    // 1. Render phase: React calls all of your function components to build up the
+    //    new virtual DOM.
+    // 2. Mutation phase: React reconciles your virtual DOM with the actual DOM.
+    //    Creating new nodes and appending them. `useInsertionEffect()` is called
+    //    during this phase.
+    // 3. Layout phase: React updates all your `ref`s and calls
+    //    `useLayoutEffect()`s.
+    // 4. React is done, now the browser paints.
+    //
+    // The intended use of `useLayoutEffect()` is to [measure layout before the
+    // browser repaints the screen][4]. Otherwise you should use `useEffect()` if
+    // your effect can run after the browser paints (most effects). So that's how
+    // we use `useLayoutEffect()` in our code.
+    //
+    // The problem is if you read from the DOM in `useLayoutEffect()` in one
+    // component and write to the DOM in `useLayoutEffect()` in another component
+    // (this one) and you're rendering a large list of stuff you get layout thrash!
+    //
+    // We saw this when rendering task grid views. The solution, like
+    // [`fastdom`][3], is to batch our DOM writes (adding the ProseMirror editor to
+    // the DOM) with React. Our DOM reads continue to be batched in the layout
+    // phase.
+    //
+    // React gives us a mutation phase hook, `useInsertionEffect()`. However, it's
+    // pretty severely limited since it doesn't have access to the DOM React is
+    // actively rendering. So we PATCH REACT to pass in the DOM element it's
+    // rendering to the effect (hence `rootElement`). `rootElement` is not attached
+    // to document. `document.body.contains(rootElement)` will return false. React
+    // renders children first then parents. Once we render the final parent React
+    // will add our element to the document. However it's ok if the element isn't
+    // attached to the DOM when we build our ProseMirror editor.
+    //
+    // I want to know what the React team thinks the proper solution to this layout
+    // thrashing problem is. I believe React is missing a feature which is why I
+    // resorted to a patch. Maybe we turn this into a blog post someday to get the
+    // React team's attention.
+    //
+    // [1]: https://react.dev/reference/react/useInsertionEffect
+    // [2]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
+    // [3]: https://www.npmjs.com/package/fastdom
+    // [4]: https://react.dev/reference/react/useLayoutEffect#measuring-layout-before-the-browser-repaints-the-screen
+    useInsertionEffect(
+        (rootElement?: HTMLDivElement) => {
+            // Wait for the client-side rerender before mounting our editor.
+            if (isInitialAppRender) return;
 
-        const containerElement = assertExists(containerRef.current);
+            assert(rootElement);
 
-        const view = new EditorView(containerElement, {
-            state: EditorState.create({
-                schema: TaskTitleProsemirrorSchema,
-                // Make sure we start with the correct initial document. After this the
-                // `ySyncPlugin` manages document state.
-                doc: getTaskTitleProsemirrorNode(titleRef.current.raw),
-                plugins: [ySyncPlugin(titleYDoc.getXmlFragment("doc"))],
-            }),
+            const containerElement = assertExists(rootElement.firstElementChild);
+            assert(containerElement.childElementCount === 0);
 
-            // We add this prop to `prosemirror-view` with a patch. With this prop when the
-            // editor is focused we place focus where the browser places focus. So if the
-            // user clicks into the editor focus goes to where the user clicked. Not to the
-            // selection currently in state.
-            shouldUseDOMSelectionOnFocus: true,
+            const view = new EditorView(containerElement, {
+                state: EditorState.create({
+                    schema: TaskTitleProsemirrorSchema,
+                    // Make sure we start with the correct initial document. After this the
+                    // `ySyncPlugin` manages document state.
+                    doc: getTaskTitleProsemirrorNode(titleRef.current.raw),
+                    plugins: [ySyncPlugin(titleYDoc.getXmlFragment("doc"))],
+                }),
 
-            // Disable editing when the `isReadOnly` prop is set.
-            editable: () => !isReadOnlyRef.current,
+                // We add this prop to `prosemirror-view` with a patch. With this prop when the
+                // editor is focused we place focus where the browser places focus. So if the
+                // user clicks into the editor focus goes to where the user clicked. Not to the
+                // selection currently in state.
+                shouldUseDOMSelectionOnFocus: true,
 
-            attributes: {
-                // Title row inputs are focusable but are not a part of the tab order.
-                tabindex: "-1",
+                // Disable editing when the `isReadOnly` prop is set.
+                editable: () => !isReadOnlyRef.current,
 
-                // Native spellcheck is often more distracting then it's worth. It puts a red
-                // squiggly under names, nouns, industry terms, and oddly sometimes
-                // contractions (like "they're", maybe has to do with curly quotes?).
-                //
-                // It's also inconsistent with `<input>`s which don't have spellcheck on by
-                // default.
-                //
-                // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
-                // spellchecker.
-                spellcheck: "false",
-            },
+                attributes: {
+                    // Title row inputs are focusable but are not a part of the tab order.
+                    tabindex: "-1",
 
-            handleKeyDown: (view, event) => {
-                handleKeyDownRef.current(view, event);
-                return event.defaultPrevented;
-            },
+                    // Native spellcheck is often more distracting then it's worth. It puts a red
+                    // squiggly under names, nouns, industry terms, and oddly sometimes
+                    // contractions (like "they're", maybe has to do with curly quotes?).
+                    //
+                    // It's also inconsistent with `<input>`s which don't have spellcheck on by
+                    // default.
+                    //
+                    // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
+                    // spellchecker.
+                    spellcheck: "false",
+                },
 
-            dispatchTransaction: transaction => {
-                const oldTitleState = view.state;
-                const newTitleState = oldTitleState.apply(transaction);
+                handleKeyDown: (view, event) => {
+                    handleKeyDownRef.current(view, event);
+                    return event.defaultPrevented;
+                },
 
-                updateEditorEmptyClass(newTitleState);
+                dispatchTransaction: transaction => {
+                    const oldTitleState = view.state;
+                    const newTitleState = oldTitleState.apply(transaction);
 
-                view.updateState(newTitleState);
-            },
-        });
+                    updateEditorEmptyClass(newTitleState);
 
-        view.dom.ariaLabel = taskRowTitleInputAriaLabel;
-        view.dom.className = capabilities.hasMultilineTitle
-            ? taskRowTitleInputMultilineClassName
-            : taskRowTitleInputSingleLineClassName;
-        Object.assign(
-            view.dom.style,
-            capabilities.hasMultilineTitle
-                ? taskRowTitleInputMultilineStyle
-                : taskRowTitleInputSingleLineStyle,
-        );
+                    view.updateState(newTitleState);
+                },
+            });
 
-        // Don't render a scrollbar with our row title input.
-        view.dom.dataset.scrollbar = "false";
+            view.dom.ariaLabel = taskRowTitleInputAriaLabel;
+            view.dom.className = capabilities.hasMultilineTitle
+                ? taskRowTitleInputMultilineClassName
+                : taskRowTitleInputSingleLineClassName;
+            Object.assign(
+                view.dom.style,
+                capabilities.hasMultilineTitle
+                    ? taskRowTitleInputMultilineStyle
+                    : taskRowTitleInputSingleLineStyle,
+            );
 
-        const updateFullyScrolledState = (event: Event | null) => {
-            const isInitialUpdate = event === null;
+            // Don't render a scrollbar with our row title input.
+            view.dom.dataset.scrollbar = "false";
 
-            const isFullyScrolledLeft = view.dom.scrollLeft === 0;
-            const isFullyScrolledRight =
-                Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) + 1 >= view.dom.scrollWidth;
+            const updateFullyScrolledState = (event: Event | null) => {
+                const isInitialUpdate = event === null;
 
-            // NOTE(calebmer): Unexpectedly, I've found avoiding setting state on the first
-            // render avoids unnecessary re-renders. I would have expected React to noop
-            // renders that don't change state. Maybe it behaves differently on the
-            // first render?
-            if (isInitialUpdate && !isFullyScrolledLeft) {
-                setIsFullyScrolledLeft(isFullyScrolledLeft);
+                const isFullyScrolledLeft = view.dom.scrollLeft === 0;
+                const isFullyScrolledRight =
+                    Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) + 1 >=
+                    view.dom.scrollWidth;
+
+                // NOTE(calebmer): Unexpectedly, I've found avoiding setting state on the first
+                // render avoids unnecessary re-renders. I would have expected React to noop
+                // renders that don't change state. Maybe it behaves differently on the
+                // first render?
+                if (!isInitialUpdate || !isFullyScrolledLeft) {
+                    setIsFullyScrolledLeft(isFullyScrolledLeft);
+                }
+
+                if (!isInitialUpdate || !isFullyScrolledRight) {
+                    setIsFullyScrolledRight(isFullyScrolledRight);
+                }
+            };
+
+            // This reads from the DOM (`scrollLeft`). We can't run this during React's
+            // insertion phase. It has to run in a layout effect.
+            onLayoutEffectCallbacksRef.current.push(() => {
+                if (view.isDestroyed) return;
+                updateFullyScrolledState(null);
+            });
+
+            view.dom.addEventListener("scroll", updateFullyScrolledState);
+
+            const updateEditorEmptyClass = (state: EditorState) => {
+                const addEmptyClassName = state.doc.childCount === 0;
+                if (
+                    addEmptyClassName &&
+                    !rootElement.classList.contains(
+                        tasksStyles.rowTitleInputEmptyContainerClassName,
+                    )
+                ) {
+                    rootElement.classList.add(tasksStyles.rowTitleInputEmptyContainerClassName);
+                }
+                if (
+                    !addEmptyClassName &&
+                    rootElement.classList.contains(tasksStyles.rowTitleInputEmptyContainerClassName)
+                ) {
+                    rootElement.classList.remove(tasksStyles.rowTitleInputEmptyContainerClassName);
+                }
+            };
+
+            // This mutates the DOM but does not read from the DOM in the way that triggers
+            // layout. It's ok to run during React's insertion phase.
+            updateEditorEmptyClass(view.state);
+
+            // Update `viewRef` and call any callbacks that were waiting for the view to
+            // be ready.
+            {
+                const callbacks = !viewRef.current.isReady ? viewRef.current.callbacks : [];
+
+                viewRef.current = {isReady: true, view};
+
+                for (const callback of callbacks) {
+                    callback(view);
+                }
             }
 
-            if (isInitialUpdate && !isFullyScrolledRight) {
-                setIsFullyScrolledRight(isFullyScrolledRight);
-            }
-        };
+            return () => {
+                view.dom.removeEventListener("scroll", updateFullyScrolledState);
+                viewRef.current = {isReady: false, callbacks: new Set()};
+                view.destroy();
+            };
 
-        updateFullyScrolledState(null);
-
-        view.dom.addEventListener("scroll", updateFullyScrolledState);
-
-        // Update `viewRef` and call any callbacks that were waiting for the view to
-        // be ready.
-        {
-            const callbacks = !viewRef.current.isReady ? viewRef.current.callbacks : [];
-
-            viewRef.current = {isReady: true, view};
-
-            for (const callback of callbacks) {
-                callback(view);
-            }
-        }
-
-        updateEditorEmptyClass(view.state);
-
-        return () => {
-            view.dom.removeEventListener("scroll", updateFullyScrolledState);
-            viewRef.current = {isReady: false, callbacks: new Set()};
-            view.destroy();
-        };
-
-        // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
-        // careful about what you put in here. Ideally we never destroy the
-        // `EditorView` while this component is mounted.
-    }, [capabilities.hasMultilineTitle, isInitialAppRender, titleYDoc]);
+            // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
+            // careful about what you put in here. Ideally we never destroy the
+            // `EditorView` while this component is mounted.
+        },
+        [capabilities.hasMultilineTitle, isInitialAppRender, titleYDoc],
+    );
 
     const runWhenViewIsReady = useCallback((run: (view: EditorView) => void) => {
         if (viewRef.current.isReady) {
@@ -575,27 +682,6 @@ function TaskRowTitleInput(
         focusSelection,
     }));
 
-    function updateEditorEmptyClass(state: EditorState) {
-        assert(viewRef.current.isReady);
-        const containerElement = assertExists(
-            viewRef.current.view.dom.parentElement?.parentElement,
-        );
-
-        const addEmptyClassName = state.doc.childCount === 0;
-        if (
-            addEmptyClassName &&
-            !containerElement.classList.contains(tasksStyles.rowTitleInputEmptyContainerClassName)
-        ) {
-            containerElement.classList.add(tasksStyles.rowTitleInputEmptyContainerClassName);
-        }
-        if (
-            !addEmptyClassName &&
-            containerElement.classList.contains(tasksStyles.rowTitleInputEmptyContainerClassName)
-        ) {
-            containerElement.classList.remove(tasksStyles.rowTitleInputEmptyContainerClassName);
-        }
-    }
-
     const taskNodeForInitialAppRender = isInitialAppRender
         ? getTaskTitleProsemirrorNode(title.raw)
         : null;
@@ -617,7 +703,6 @@ function TaskRowTitleInput(
             )}
         >
             <div
-                ref={containerRef}
                 className={classNames(
                     sprinkles({
                         position: "relative",

@@ -225,7 +225,8 @@
             "@dnd-kit/utilities@3.2.1": "admin/patches/@dnd-kit__utilities@3.2.1.patch",
             "@react-aria/i18n@3.8.3": "admin/patches/@react-aria__i18n@3.8.3.patch",
             "@react-aria/utils@3.21.0": "admin/patches/@react-aria__utils@3.21.0.patch",
-            "@react-aria/label@3.7.1": "admin/patches/@react-aria__label@3.7.1.patch"
+            "@react-aria/label@3.7.1": "admin/patches/@react-aria__label@3.7.1.patch",
+            "react-dom@18.2.0": "admin/patches/react-dom@18.2.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

@@ -94,6 +94,9 @@ patchedDependencies:
   prosemirror-view@1.27.2:
     hash: ep5td2fcl7fty7i23lgflvirku
     path: admin/patches/prosemirror-view@1.27.2.patch
+  react-dom@18.2.0:
+    hash: tnikcvhudzlgolbl44e5npwiuq
+    path: admin/patches/react-dom@18.2.0.patch
   react-router-dom@6.14.0:
     hash: kvpk374ql5erre4wvvaotuluya
     path: admin/patches/react-router-dom@6.14.0.patch
@@ -572,7 +575,7 @@ dependencies:
     version: 3.29.0(react-dom@18.2.0)(react@18.2.0)
   react-dom:
     specifier: 18.2.0
-    version: 18.2.0(react@18.2.0)
+    version: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
   react-router:
     specifier: 6.14.0
     version: 6.14.0(patch_hash=7mgs4cb3kjuu4mvyc3m7w3zr2m)(react@18.2.0)
@@ -2706,7 +2709,7 @@ packages:
       '@dnd-kit/accessibility': 3.0.1(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
       tslib: 2.5.0
     dev: false
 
@@ -3946,7 +3949,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/checkbox@3.11.1(react@18.2.0):
@@ -3988,7 +3991,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/datepicker@3.8.0(patch_hash=xqnhgw7qi7ka62pc4sg4534tge)(react-dom@18.2.0)(react@18.2.0):
@@ -4014,7 +4017,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
     patched: true
 
@@ -4032,7 +4035,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/dnd@3.4.2(react-dom@18.2.0)(react@18.2.0):
@@ -4053,7 +4056,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/focus@3.14.2(react@18.2.0):
@@ -4090,7 +4093,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/gridlist@3.7.0(react-dom@18.2.0)(react@18.2.0):
@@ -4110,7 +4113,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/i18n@3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0):
@@ -4187,7 +4190,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/live-announcer@3.3.1:
@@ -4216,7 +4219,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/meter@3.4.6(react@18.2.0):
@@ -4250,7 +4253,7 @@ packages:
       '@react-types/textfield': 3.8.1(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/overlays@3.18.0(react-dom@18.2.0)(react@18.2.0):
@@ -4271,7 +4274,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/progress@3.4.6(react@18.2.0):
@@ -4342,7 +4345,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/selection@3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0):
@@ -4360,7 +4363,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
     patched: true
 
@@ -4407,7 +4410,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/ssr@3.8.0(patch_hash=cgn3hbn7gnmhjyutyvkech445y)(react@18.2.0):
@@ -4457,7 +4460,7 @@ packages:
       '@react-types/table': 3.9.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/tabs@3.8.0(react-dom@18.2.0)(react@18.2.0):
@@ -4477,7 +4480,7 @@ packages:
       '@react-types/tabs': 3.3.3(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/tag@3.2.0(react-dom@18.2.0)(react@18.2.0):
@@ -4497,7 +4500,7 @@ packages:
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@react-aria/textfield@3.12.1(react@18.2.0):
@@ -5285,7 +5288,7 @@ packages:
     dependencies:
       '@remix-run/router': 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
       react-router-dom: 6.14.0(patch_hash=kvpk374ql5erre4wvvaotuluya)(react-dom@18.2.0)(react@18.2.0)
     dev: false
     patched: true
@@ -5783,7 +5786,7 @@ packages:
       '@testing-library/dom': 8.16.0
       '@types/react-dom': 18.0.6
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
   /@tootallnate/once@1.1.2:
@@ -12059,7 +12062,7 @@ packages:
       color: 3.2.1
       mjml: 4.13.0
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
       react-reconciler: 0.26.2(react@18.2.0)
     dev: false
 
@@ -13298,10 +13301,10 @@ packages:
       '@react-aria/visually-hidden': 3.8.5(react@18.2.0)
       '@react-types/shared': 3.21.0(react@18.2.0)
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
     dev: false
 
-  /react-dom@18.2.0(react@18.2.0):
+  /react-dom@18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0):
     resolution: {integrity: sha512-6IMTriUmvsjHUjNtEDudZfuDQUoWXVxKHhlEGSk81n4YFS+r/Kl99wXiwlVXtPBtJenozv2P+hxDsw9eA7Xo6g==}
     peerDependencies:
       react: ^18.2.0 || 18
@@ -13310,6 +13313,7 @@ packages:
       react: 18.2.0
       scheduler: 0.23.0
     dev: false
+    patched: true
 
   /react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -13349,7 +13353,7 @@ packages:
     dependencies:
       '@remix-run/router': 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
       react: 18.2.0
-      react-dom: 18.2.0(react@18.2.0)
+      react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
       react-router: 6.14.0(patch_hash=7mgs4cb3kjuu4mvyc3m7w3zr2m)(react@18.2.0)
     dev: false
     patched: true

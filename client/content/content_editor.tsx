@@ -19,6 +19,7 @@ import {
     useCallback,
     useEffect,
     useImperativeHandle,
+    useInsertionEffect,
     useLayoutEffect,
     useRef,
     useState,
@@ -404,7 +405,6 @@ function ContentEditor<Content extends ContentWithReferences>(
         currentAccountRef.current = currentAccount;
     });
 
-    const elementRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<EditorView | null>(null);
 
     useImperativeHandle(
@@ -451,19 +451,26 @@ function ContentEditor<Content extends ContentWithReferences>(
         lastSelectionChangeTransactionTime: null,
     });
 
-    // Effect which initializes and destroys a ProseMirror editor view.
+    // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the
+    // docs say only CSS-in-JS libraries should use it.
     //
-    // Layout effect because the visual layout of this component depends on the
-    // editor view being initialized.
-    useLayoutEffect(() => {
-        assert(elementRef.current);
+    // Wait what?? A `rootElement` parameter??? That's not documented? What the what?
+    //
+    // Read the documentation comment on `<TaskRowTitleInput>`. This is how we
+    // render the non-React ProseMirror `EditorView`. It's essential for
+    // performance on `<TaskRowTitleInput>`, it's not essential for performance
+    // here. But we use this pattern everywhere we render an `EditorView` for
+    // consistency and since we believe this is the proper way to manually mutate
+    // the DOM in React.
+    useInsertionEffect((rootElement?: HTMLDivElement) => {
+        assert(rootElement);
 
         const accountStore = getAccountClientStoreForClient();
 
         const initialState = unwrap(propsRef.current.state);
         const schema = initialState.doc.type.schema;
 
-        const view = new EditorView(elementRef.current, {
+        const view = new EditorView(rootElement, {
             state: initialState,
 
             attributes: {
@@ -681,7 +688,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         });
 
         // Stash the editor view instance on the DOM node for debugging and tests.
-        (elementRef.current as any)[internalEditorViewKey] = view;
+        (rootElement as any)[internalEditorViewKey] = view;
 
         viewRef.current = view;
 
@@ -1098,7 +1105,6 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     return (
         <div
-            ref={elementRef}
             className={classNames(containerClassName, customContainerClassName)}
             onFocus={onFocus}
             onBlur={onBlur}
