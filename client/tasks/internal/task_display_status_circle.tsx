@@ -1,6 +1,7 @@
 import {Check} from "phosphor-react";
 import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
@@ -18,6 +19,63 @@ import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
+const computeCircleClassName = (displayStatus: TaskDisplayStatus, isPressed: boolean) =>
+    sprinkles({
+        position: "relative",
+        zIndex: "0",
+        borderRadius: "full",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        overflow: "hidden",
+        border:
+            displayStatus === "OpenInactive" || displayStatus === "OpenActive"
+                ? "grey-40"
+                : undefined,
+        backgroundColor: displayStatus === "Closed" ? "theme-50" : isPressed ? "grey-10" : "grey-0",
+    });
+
+const unpressedCircleClassNameByDisplayStatus = new DefaultMap((displayStatus: TaskDisplayStatus) =>
+    computeCircleClassName(displayStatus, false),
+);
+
+const pressedCircleClassNameByDisplayStatus = new DefaultMap((displayStatus: TaskDisplayStatus) =>
+    computeCircleClassName(displayStatus, true),
+);
+
+const closedPressedOverlayClassName = sprinkles({
+    position: "absolute",
+    zIndex: "10",
+    inset: "0",
+    backgroundColor: "grey-dark",
+    pointerEvents: "none",
+});
+
+const activeHalfCircleContainerClassName = sprinkles({
+    position: "absolute",
+    top: "0",
+    left: "0",
+    overflow: "hidden",
+});
+
+const activeHalfCircleClassName = sprinkles({
+    position: "absolute",
+    top: "0",
+    right: "0",
+    borderRadius: "full",
+    backgroundColor: {light: "theme-20-const", dark: "theme-30-const"},
+});
+
+const activePressedOverlayClassName = sprinkles({
+    position: "absolute",
+    zIndex: "10",
+    top: "0",
+    right: "0",
+    borderRadius: "full",
+    backgroundColor: "grey-dark",
+    pointerEvents: "none",
+});
+
 export function TaskDisplayStatusCircle({
     displayStatus,
     size,
@@ -27,6 +85,22 @@ export function TaskDisplayStatusCircle({
     size: "3" | "4" | "5" | "6";
     isPressed?: boolean;
 }) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     const sizeInt = parseInt(size, 10);
     const activeHalfCircleMargin =
         sizeInt >= 6
@@ -43,23 +117,12 @@ export function TaskDisplayStatusCircle({
 
     return (
         <div
-            className={sprinkles({
-                position: "relative",
-                zIndex: "0",
-                width: size,
-                height: size,
-                borderRadius: "full",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                overflow: "hidden",
-                border:
-                    displayStatus === "OpenInactive" || displayStatus === "OpenActive"
-                        ? "grey-40"
-                        : undefined,
-                backgroundColor:
-                    displayStatus === "Closed" ? "theme-50" : isPressed ? "grey-10" : "grey-0",
-            })}
+            className={
+                isPressed
+                    ? pressedCircleClassNameByDisplayStatus.getOrSetDefault(displayStatus)
+                    : unpressedCircleClassNameByDisplayStatus.getOrSetDefault(displayStatus)
+            }
+            style={{width: spacing[size], height: spacing[size]}}
         >
             {isPressed && displayStatus === "Closed" && (
                 // For accent buttons, instead of choosing a darker background color shade when
@@ -73,16 +136,8 @@ export function TaskDisplayStatusCircle({
                 // darker! This is more fitting for the physical analogy of a button being
                 // pressed down.
                 <div
-                    className={sprinkles({
-                        position: "absolute",
-                        zIndex: "10",
-                        inset: "0",
-                        backgroundColor: "grey-dark",
-                        pointerEvents: "none",
-                    })}
-                    style={{
-                        opacity: buttonPressedOverlayOpacity,
-                    }}
+                    className={closedPressedOverlayClassName}
+                    style={{opacity: buttonPressedOverlayOpacity}}
                 />
             )}
             {displayStatus === "Closed" && (
@@ -95,13 +150,7 @@ export function TaskDisplayStatusCircle({
             )}
             {displayStatus === "OpenActive" && (
                 <div
-                    className={sprinkles({
-                        position: "absolute",
-                        top: "0",
-                        left: "0",
-                        height: size,
-                        overflow: "hidden",
-                    })}
+                    className={activeHalfCircleContainerClassName}
                     style={{
                         width: `calc(${parseRemLengthNumber(spacing[size]) / 2}rem - ${
                             1 + activeHalfCircleMargin
@@ -124,13 +173,7 @@ export function TaskDisplayStatusCircle({
                     }}
                 >
                     <div
-                        className={sprinkles({
-                            position: "absolute",
-                            top: "0",
-                            right: "0",
-                            borderRadius: "full",
-                            backgroundColor: {light: "theme-20-const", dark: "theme-30-const"},
-                        })}
+                        className={activeHalfCircleClassName}
                         style={{
                             width: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
                             height: `calc(${spacing[size]} - ${2 + activeHalfCircleMargin * 2}px)`,
@@ -148,19 +191,11 @@ export function TaskDisplayStatusCircle({
                         // darker! This is more fitting for the physical analogy of a button being
                         // pressed down.
                         <div
-                            className={sprinkles({
-                                position: "absolute",
-                                zIndex: "10",
-                                top: "0",
-                                right: "0",
-                                width: size,
-                                height: size,
-                                borderRadius: "full",
-                                backgroundColor: "grey-dark",
-                                pointerEvents: "none",
-                            })}
+                            className={activePressedOverlayClassName}
                             style={{
                                 opacity: buttonPressedOverlayOpacity,
+                                width: spacing[size],
+                                height: spacing[size],
                             }}
                         />
                     )}

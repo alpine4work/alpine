@@ -41,6 +41,15 @@ const Box = null;
 const TaskRowDueDateCellForwardRef = forwardRef(TaskRowDueDateCell);
 export {TaskRowDueDateCellForwardRef as TaskRowDueDateCell};
 
+const cellClassName = sprinkles({
+    flexShrink: "0",
+    width: taskRowViewColumnWidth,
+    height: taskRowViewMinHeight,
+    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+});
+
 function TaskRowDueDateCell(
     {
         store,
@@ -57,6 +66,22 @@ function TaskRowDueDateCell(
     },
     ref: Ref<TaskRowDueDateCellRef>,
 ) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     const context = useAppContext();
 
     const dueDate = task?.getDueDate() ?? null;
@@ -88,15 +113,8 @@ function TaskRowDueDateCell(
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 tabIndex={-1}
-                className={sprinkles({
-                    flexShrink: "0",
-                    width: taskRowViewColumnWidth,
-                    height: taskRowViewMinHeight,
-                    overflow: "hidden",
-                    display: "flex",
-                    alignItems: "center",
-                    opacity: dueDate || isHovered || isFocusWithin ? "100" : "0",
-                })}
+                className={cellClassName}
+                style={{opacity: dueDate || isHovered || isFocusWithin ? 1 : 0}}
                 onFocus={() => setIsFocusWithin(true)}
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));

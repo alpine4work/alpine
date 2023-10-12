@@ -147,6 +147,44 @@ const Box = null;
 const TaskRowViewForwardRef = forwardRef(TaskRowView);
 export {TaskRowViewForwardRef as TaskRowView};
 
+const borderCoverClassName = sprinkles({
+    position: "absolute",
+    zIndex: "-10",
+    top: "0",
+    bottom: "0",
+    left: "5",
+    right: "5",
+    pointerEvents: "none",
+});
+
+const marginLeftContainerClassName = sprinkles({
+    position: "relative",
+    flexShrink: "0",
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    height: taskRowViewMinHeight,
+});
+
+const placeholderStatusButtonClassName = sprinkles({
+    width: "4",
+    height: "4",
+    borderRadius: "full",
+    border: "grey-10",
+    pointerEvents: "none",
+});
+
+const titleCellClassName = sprinkles({
+    flexGrow: "1",
+    overflow: "hidden",
+});
+
+const paddingBottomClassName = sprinkles({
+    width: "full",
+    height: "5",
+    pointerEvents: "none",
+});
+
 function TaskRowView(
     {
         capabilities,
@@ -236,6 +274,22 @@ function TaskRowView(
     },
     ref: Ref<TaskRowViewRef>,
 ) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     // Either `cursor` or `ghostTaskId` should be provided. This component
     // transitions from a ghost task to a regular task when the user enters data.
     assert(cursor !== null ? ghostTaskId === null : ghostTaskId !== null);
@@ -899,15 +953,7 @@ function TaskRowView(
 
     const borderCoverNode = (
         <div
-            className={sprinkles({
-                position: "absolute",
-                zIndex: "-10",
-                top: "0",
-                bottom: "0",
-                left: "5",
-                right: "5",
-                pointerEvents: "none",
-            })}
+            className={borderCoverClassName}
             style={{
                 // Draw the top and bottom border with a shadow so it:
                 //
@@ -936,8 +982,8 @@ function TaskRowView(
     const node = (
         <div
             ref={!capabilities.hasDenseFields ? hoverRef : undefined}
-            className={sprinkles({
-                minHeight: taskRowViewMinHeight,
+            style={{
+                minHeight: spacing[taskRowViewMinHeight],
                 position: "relative",
                 // NOTE(calebmer): Setting z-index here creates a new stacking context which
                 // means the editable collection overlay can't render on top of adjacent rows.
@@ -946,19 +992,12 @@ function TaskRowView(
                 // we open in edit mode can render outside the bounds of the row.
                 overflow: undefined,
                 display: "flex",
-            })}
+            }}
         >
             {!capabilities.hasDenseFields && borderCoverNode}
             <div
                 className={classNames(
-                    sprinkles({
-                        position: "relative",
-                        flexShrink: "0",
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        alignItems: "center",
-                        height: taskRowViewMinHeight,
-                    }),
+                    marginLeftContainerClassName,
                     // Create an illusion that the text editor extends into the margins by giving
                     // the margin a text cursor and making it clickable putting focus in the task.
                     // A double click selects the task text.
@@ -985,24 +1024,22 @@ function TaskRowView(
                         />
                     ) : (
                         <div
-                            className={classNames(
-                                tasksStyles.pointerEventsNoneNotInheritedClassName,
-                                sprinkles({paddingRight: "0.5"}),
-                            )}
-                            style={{width: taskRowViewDragHandleWidth}}
+                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                            style={{
+                                width: taskRowViewDragHandleWidth,
+                                paddingRight: spacing["0.5"],
+                            }}
                         />
                     ))}
                 {!withoutPaddingLeft &&
                     (!disableExpensiveFeaturesDuringScroll && hasTask ? (
                         <div
-                            className={classNames(
-                                tasksStyles.pointerEventsNoneNotInheritedClassName,
-                                sprinkles({
-                                    width: "5",
-                                    paddingRight: "1",
-                                    opacity: isHovered || isExpandButtonFocused ? "100" : "0",
-                                }),
-                            )}
+                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                            style={{
+                                width: spacing["5"],
+                                paddingRight: spacing["1"],
+                                opacity: isHovered || isExpandButtonFocused ? 1 : 0,
+                            }}
                         >
                             <IconButton
                                 ref={expandButtonRef}
@@ -1036,21 +1073,17 @@ function TaskRowView(
                         </div>
                     ) : (
                         <div
-                            className={classNames(
-                                tasksStyles.pointerEventsNoneNotInheritedClassName,
-                                sprinkles({
-                                    width: "5",
-                                    paddingRight: "1",
-                                }),
-                            )}
+                            className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                            style={{
+                                width: spacing["5"],
+                                paddingRight: spacing["1"],
+                            }}
                         />
                     ))}
                 {!withoutPaddingLeft && (
                     <div
-                        className={classNames(
-                            tasksStyles.pointerEventsNoneNotInheritedClassName,
-                            sprinkles({width: "6", paddingRight: "2"}),
-                        )}
+                        className={tasksStyles.pointerEventsNoneNotInheritedClassName}
+                        style={{width: spacing["6"], paddingRight: spacing["2"]}}
                     >
                         {hasTask ? (
                             <TaskStatusButton
@@ -1068,15 +1101,7 @@ function TaskRowView(
                                 }
                             />
                         ) : (
-                            <div
-                                className={sprinkles({
-                                    width: "4",
-                                    height: "4",
-                                    borderRadius: "full",
-                                    border: "grey-10",
-                                    pointerEvents: "none",
-                                })}
-                            />
+                            <div className={placeholderStatusButtonClassName} />
                         )}
                     </div>
                 )}
@@ -1085,10 +1110,7 @@ function TaskRowView(
                 <div
                     ref={titleCellRef}
                     tabIndex={capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined}
-                    className={sprinkles({
-                        flexGrow: "1",
-                        overflow: "hidden",
-                    })}
+                    className={titleCellClassName}
                     onKeyDownCapture={event => handleCellKeyDownCapture("Title", event)}
                 >
                     <TaskRowTitleInput
@@ -1167,9 +1189,9 @@ function TaskRowView(
                 </>
             )}
             <div
-                className={sprinkles({
-                    flexShrink: "0",
-                    width: "5",
+                style={{
+                    flexShrink: 0,
+                    width: spacing["5"],
                     // Create an illusion that the text editor extends into the margins by giving
                     // the margin a text cursor and making it clickable putting focus in the task.
                     // A double click selects the task text.
@@ -1182,7 +1204,7 @@ function TaskRowView(
                         ? "text"
                         : undefined,
                     pointerEvents: capabilities.hasColumns ? "none" : undefined,
-                })}
+                }}
                 {...useOutOfBoundsClickSelection({
                     isDisabled: capabilities.isReadOnly,
                     onSelect: focusTitleEnd,
@@ -1201,14 +1223,14 @@ function TaskRowView(
                 ) : (
                     <div
                         ref={hoverRef}
-                        className={sprinkles({
-                            minHeight: taskRowViewMinHeight,
+                        style={{
+                            minHeight: spacing[taskRowViewMinHeight],
                             position: "relative",
                             // NOTE(calebmer): Setting z-index here creates a new stacking context which
                             // means the task row drop indicator lines can't render on top of
                             // adjacent rows.
                             zIndex: undefined,
-                        })}
+                        }}
                     >
                         {borderCoverNode}
                         {node}
@@ -1232,9 +1254,7 @@ function TaskRowView(
                 )}
             </ContextMenuActions>
             {/* NOCOMMIT: Test that we can click here to select */}
-            {withPaddingBottom && (
-                <div className={sprinkles({width: "full", height: "5", pointerEvents: "none"})} />
-            )}
+            {withPaddingBottom && <div className={paddingBottomClassName} />}
         </>
     );
 }

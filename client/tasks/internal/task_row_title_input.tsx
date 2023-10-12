@@ -114,6 +114,40 @@ export {TaskRowTitleInputForwardRef as TaskRowTitleInput};
 
 let scheduledDestroyTaskRowTitleInputEditorViewCallbacks: Array<() => void> | null = null;
 
+const rootClassName = sprinkles({
+    display: "flex",
+    overflow: "hidden",
+    position: "relative",
+    zIndex: "0",
+});
+
+const containerClassName = sprinkles({
+    position: "relative",
+    zIndex: "0",
+    overflow: "hidden",
+    minHeight: taskRowTitleInputSingleLineHeight,
+    color: "grey-text",
+});
+
+const placeholderClassName = sprinkles({
+    position: "absolute",
+    left: "0",
+    top: "0",
+    bottom: "0",
+    paddingY: "2",
+    pointerEvents: "none",
+    // Make sure placeholder is rendered underneath cursor.
+    zIndex: "-10",
+});
+
+const marginRightContainerClassName = sprinkles({
+    flexGrow: "1",
+    alignSelf: "stretch",
+    display: "flex",
+    alignItems: "center",
+    height: taskRowTitleInputSingleLineHeight,
+});
+
 function TaskRowTitleInput(
     {
         capabilities,
@@ -166,6 +200,22 @@ function TaskRowTitleInput(
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     const isInitialAppRender = useIsInitialAppRender();
 
     const viewRef = useRef<
@@ -715,12 +765,7 @@ function TaskRowTitleInput(
     return (
         <div
             className={classNames(
-                sprinkles({
-                    display: "flex",
-                    overflow: "hidden",
-                    position: "relative",
-                    zIndex: "0",
-                }),
+                rootClassName,
                 taskNodeForInitialAppRender &&
                     taskNodeForInitialAppRender.childCount === 0 &&
                     // We use a different class than `rowTitleInputEmptyContainerClassName` because
@@ -730,13 +775,7 @@ function TaskRowTitleInput(
         >
             <div
                 className={classNames(
-                    sprinkles({
-                        position: "relative",
-                        zIndex: "0",
-                        overflow: "hidden",
-                        minHeight: taskRowTitleInputSingleLineHeight,
-                        color: "grey-text",
-                    }),
+                    containerClassName,
                     !isFullyScrolledLeft &&
                         tasksStyles.rowTitleInputOverflowGradientLeftContainerClassName,
                     !isFullyScrolledRight &&
@@ -789,16 +828,7 @@ function TaskRowTitleInput(
                         // imperatively add/remove a class on our container to let us know when it's
                         // empty or not and use CSS to control our placeholder visibility.
                         tasksStyles.rowTitleInputPlaceholderClassName,
-                        sprinkles({
-                            position: "absolute",
-                            left: "0",
-                            top: "0",
-                            bottom: "0",
-                            paddingY: "2",
-                            pointerEvents: "none",
-                            // Make sure placeholder is rendered underneath cursor.
-                            zIndex: "-10",
-                        }),
+                        placeholderClassName,
                     )}
                     style={{
                         ...(capabilities.hasMultilineTitle
@@ -815,13 +845,7 @@ function TaskRowTitleInput(
                     !capabilities.isReadOnly
                         ? tasksStyles.textCursorNotInheritedClassName
                         : undefined,
-                    sprinkles({
-                        flexGrow: "1",
-                        alignSelf: "stretch",
-                        display: "flex",
-                        alignItems: "center",
-                        height: taskRowTitleInputSingleLineHeight,
-                    }),
+                    marginRightContainerClassName,
                 )}
                 style={{paddingRight}}
                 {...useOutOfBoundsClickSelection({

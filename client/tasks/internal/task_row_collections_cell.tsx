@@ -52,6 +52,40 @@ const Box = null;
 const TaskRowCollectionsCellForwardRef = forwardRef(TaskRowCollectionsCell);
 export {TaskRowCollectionsCellForwardRef as TaskRowCollectionsCell};
 
+const cellClassName = sprinkles({
+    flexShrink: "0",
+    width: taskRowViewCollectionsColumnWidth,
+    paddingLeft: taskRowViewColumnPaddingX,
+    paddingRight: taskRowViewLastColumnPaddingRight,
+    // Important not to set `overflow="hidden"` here so that the editable
+    // collections overlay can render outside the bounds of this cell.
+    overflow: undefined,
+    position: "relative",
+    height: taskRowViewMinHeight,
+    display: "flex",
+    alignItems: "center",
+    rowGap: "3",
+    columnGap: "2.5",
+});
+
+const emptyCollectionsClassName = sprinkles({
+    display: "flex",
+    alignItems: "center",
+    gap: "1",
+    pointerEvents: "none",
+});
+
+const collectionChipContainerClassName = sprinkles({
+    marginY: "-0.5",
+    marginLeft: "-0.5",
+    cursor: "default",
+});
+
+const extraCollectionsClassName = sprinkles({
+    color: "grey-70",
+    pointerEvents: "none",
+});
+
 function TaskRowCollectionsCell(
     {
         query,
@@ -66,6 +100,22 @@ function TaskRowCollectionsCell(
     },
     ref: Ref<TaskRowCollectionsCellRef>,
 ) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
 
     const collectionsArray = useStore(
@@ -111,24 +161,7 @@ function TaskRowCollectionsCell(
         <div
             ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
             tabIndex={-1}
-            className={classNames(
-                tasksStyles.textCursorNotInheritedClassName,
-                sprinkles({
-                    flexShrink: "0",
-                    width: taskRowViewCollectionsColumnWidth,
-                    paddingLeft: taskRowViewColumnPaddingX,
-                    paddingRight: taskRowViewLastColumnPaddingRight,
-                    // Important not to set `overflow="hidden"` here so that the editable
-                    // collections overlay can render outside the bounds of this cell.
-                    overflow: undefined,
-                    position: "relative",
-                    height: taskRowViewMinHeight,
-                    display: "flex",
-                    alignItems: "center",
-                    rowGap: "3",
-                    columnGap: "2.5",
-                }),
-            )}
+            className={classNames(tasksStyles.textCursorNotInheritedClassName, cellClassName)}
             onFocus={() => setIsFocusWithin(true)}
             onBlur={event => {
                 setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
@@ -146,14 +179,11 @@ function TaskRowCollectionsCell(
                 collectionsArray.length === 0 ? (
                     // NOCOMMIT: Private is a misnomer when you have access to the parent
                     <div
-                        style={inputPlaceholderStyles}
-                        className={sprinkles({
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "1",
-                            opacity: isHovered ? "100" : "0",
-                            pointerEvents: "none",
-                        })}
+                        className={emptyCollectionsClassName}
+                        style={{
+                            ...inputPlaceholderStyles,
+                            opacity: isHovered ? 1 : 0,
+                        }}
                     >
                         <Lock size={spacing["4"]} />
                         <div>Private</div>
@@ -163,11 +193,7 @@ function TaskRowCollectionsCell(
                         {collectionsArray.slice(0, 2).map(({collectionId}) => (
                             <div
                                 key={collectionId}
-                                className={sprinkles({
-                                    marginY: "-0.5",
-                                    marginLeft: "-0.5",
-                                    cursor: "default",
-                                })}
+                                className={collectionChipContainerClassName}
                                 style={{
                                     // Don't allow item to grow beyond flexbox bounds. By default flexbox items
                                     // have `min-width: auto` which extends with content.
@@ -188,10 +214,7 @@ function TaskRowCollectionsCell(
                         ))}
                         {collectionsArray.length > 2 && (
                             <div
-                                className={sprinkles({
-                                    color: "grey-70",
-                                    pointerEvents: "none",
-                                })}
+                                className={extraCollectionsClassName}
                                 style={{fontFeatureSettings: '"calt"'}}
                             >
                                 {`+${collectionsArray.length - 2}`}

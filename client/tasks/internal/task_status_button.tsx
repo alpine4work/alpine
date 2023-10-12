@@ -11,6 +11,7 @@ import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_stat
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
+import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {OrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
@@ -80,6 +81,20 @@ const Box = null;
 const TaskStatusButtonForwardRef = forwardRef(TaskStatusButton);
 export {TaskStatusButtonForwardRef as TaskStatusButton};
 
+const size4ClassName = sprinkles({
+    display: "block",
+    width: "4",
+    height: "4",
+    borderRadius: "full",
+});
+
+const size5ClassName = sprinkles({
+    display: "block",
+    width: "5",
+    height: "5",
+    borderRadius: "full",
+});
+
 function TaskStatusButton(
     {
         store,
@@ -102,6 +117,22 @@ function TaskStatusButton(
     },
     ref: Ref<HTMLElement>,
 ) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     const context = useAppContext();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
@@ -154,6 +185,8 @@ function TaskStatusButton(
         buttonRef,
     );
 
+    const className = size === "4" ? size4ClassName : size5ClassName;
+
     return (
         <FocusRing>
             {isFocusable ? (
@@ -161,12 +194,7 @@ function TaskStatusButton(
                     {...mergeProps(buttonProps, {onKeyDownCapture})}
                     ref={mergedButtonRef as any}
                     tabIndex={!isTabbable ? -1 : undefined}
-                    className={sprinkles({
-                        display: "block",
-                        width: size,
-                        height: size,
-                        borderRadius: "full",
-                    })}
+                    className={className}
                 >
                     <TaskDisplayStatusCircle
                         displayStatus={task.getDisplayStatus()}
@@ -180,12 +208,7 @@ function TaskStatusButton(
                     ref={mergedButtonRef as any}
                     // Remove `tabIndex` from button props if this button is not focusable.
                     tabIndex={undefined}
-                    className={sprinkles({
-                        display: "block",
-                        width: size,
-                        height: size,
-                        borderRadius: "full",
-                    })}
+                    className={className}
                 >
                     <TaskDisplayStatusCircle
                         displayStatus={task.getDisplayStatus()}

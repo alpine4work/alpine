@@ -41,6 +41,16 @@ const Box = null;
 const TaskRowPriorityCellForwardRef = forwardRef(TaskRowPriorityCell);
 export {TaskRowPriorityCellForwardRef as TaskRowPriorityCell};
 
+const cellClassName = sprinkles({
+    flexShrink: "0",
+    width: taskRowViewColumnWidth,
+    paddingX: taskRowViewColumnPaddingX,
+    overflow: "hidden",
+    height: taskRowViewMinHeight,
+    display: "flex",
+    alignItems: "center",
+});
+
 function TaskRowPriorityCell(
     {
         store,
@@ -57,6 +67,22 @@ function TaskRowPriorityCell(
     },
     ref: Ref<TaskRowPriorityCellRef>,
 ) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     const context = useAppContext();
 
     const priority = task?.getPriority() ?? null;
@@ -80,19 +106,10 @@ function TaskRowPriorityCell(
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 tabIndex={-1}
-                className={classNames(
-                    tasksStyles.textCursorNotInheritedClassName,
-                    sprinkles({
-                        flexShrink: "0",
-                        width: taskRowViewColumnWidth,
-                        paddingX: taskRowViewColumnPaddingX,
-                        overflow: "hidden",
-                        height: taskRowViewMinHeight,
-                        display: "flex",
-                        alignItems: "center",
-                        opacity: priority || isHovered || isFocusWithin ? "100" : "0",
-                    }),
-                )}
+                className={classNames(tasksStyles.textCursorNotInheritedClassName, cellClassName)}
+                style={{
+                    opacity: priority || isHovered || isFocusWithin ? 1 : 0,
+                }}
                 {...useOutOfBoundsClickSelection({
                     onSelect: () => assertExists(inputRef.current).focus(),
                     onSelectAll: () => assertExists(inputRef.current).focus(),
