@@ -1,8 +1,80 @@
 diff --git a/dist/y-prosemirror.cjs b/dist/y-prosemirror.cjs
-index 52a54c8511a726df3e1a94861939f0fb75418afb..cfc7a61993a8b84e75f4ee39cf696bf91930b24d 100644
+index 52a54c8511a726df3e1a94861939f0fb75418afb..15d6db2f05f414fe92c894cdb4489540cffa1db0 100644
 --- a/dist/y-prosemirror.cjs
 +++ b/dist/y-prosemirror.cjs
-@@ -451,13 +451,35 @@ class ProsemirrorBinding {
+@@ -128,6 +128,8 @@ const getUserColor = (colorMapping, colors, user) => {
+   return /** @type {ColorDef} */ (colorMapping.get(user))
+ };
+ 
++let scheduledRerenderCallbacks = null;
++
+ /**
+  * This plugin listens to changes in prosemirror view and keeps yXmlState and view in sync.
+  *
+@@ -143,7 +145,7 @@ const ySyncPlugin = (yXmlFragment, {
+   onFirstRender = () => {}
+ } = {}) => {
+   let changedInitialContent = false;
+-  let rerenderTimeout;
++  let hasScheduledRerender = false;
+   const plugin = new prosemirrorState.Plugin({
+     props: {
+       editable: (state) => {
+@@ -226,15 +228,36 @@ const ySyncPlugin = (yXmlFragment, {
+     },
+     view: (view) => {
+       const binding = new ProsemirrorBinding(yXmlFragment, view);
+-      if (rerenderTimeout != null) {
+-        rerenderTimeout.destroy();
++      // NOTE(calebmer): While profiling task grid view scrolling, I found
++      // creating a timeout for each individual editor ends up taking a
++      // non-trivial amount of time (6% of time in a render in one test).
++      // So batch rerenders together in a single timeout call.
++      if (!hasScheduledRerender) {
++        hasScheduledRerender = true;
++        
++        if (!scheduledRerenderCallbacks) {
++          scheduledRerenderCallbacks = [];
++
++          eventloop__namespace.timeout(0, () => {
++            const callbacks = scheduledRerenderCallbacks
++            scheduledRerenderCallbacks = null
++
++            for (const callback of callbacks) {
++              callback();
++            }
++          });
++        }
++
++        scheduledRerenderCallbacks.push(() => {
++          if (!hasScheduledRerender) return;
++          hasScheduledRerender = false;
++
++          // Make sure this is called in a separate context
++          binding._forceRerender();
++          view.dispatch(view.state.tr.setMeta(ySyncPluginKey, { binding }));
++          onFirstRender();
++        });
+       }
+-      // Make sure this is called in a separate context
+-      rerenderTimeout = eventloop__namespace.timeout(0, () => {
+-        binding._forceRerender();
+-        view.dispatch(view.state.tr.setMeta(ySyncPluginKey, { binding }));
+-        onFirstRender();
+-      });
+       return {
+         update: () => {
+           const pluginState = plugin.getState(view.state);
+@@ -271,7 +294,7 @@ const ySyncPlugin = (yXmlFragment, {
+           }
+         },
+         destroy: () => {
+-          rerenderTimeout.destroy();
++          hasScheduledRerender = false;
+           binding.destroy();
+         }
+       }
+@@ -451,13 +474,35 @@ class ProsemirrorBinding {
    _forceRerender () {
      this.mapping = new Map();
      this.mux(() => {
@@ -45,7 +117,7 @@ index 52a54c8511a726df3e1a94861939f0fb75418afb..cfc7a61993a8b84e75f4ee39cf696bf9
        // @ts-ignore
        const tr = this._tr.replace(
          0,
-@@ -577,13 +599,35 @@ class ProsemirrorBinding {
+@@ -577,13 +622,35 @@ class ProsemirrorBinding {
        );
        transaction.changed.forEach(delType);
        transaction.changedParentTypes.forEach(delType);
@@ -88,7 +160,7 @@ index 52a54c8511a726df3e1a94861939f0fb75418afb..cfc7a61993a8b84e75f4ee39cf696bf9
        // @ts-ignore
        let tr = this._tr.replace(
          0,
-@@ -1553,6 +1597,8 @@ function yXmlFragmentToProsemirrorJSON (xmlFragment) {
+@@ -1553,6 +1620,8 @@ function yXmlFragmentToProsemirrorJSON (xmlFragment) {
  
    return {
      type: 'doc',
@@ -126,10 +198,82 @@ index 964f8affdad7519e6681064fbcc42d804de31317..fb5bd7457374579e7f67431f3385b269
    }
  }
 diff --git a/src/plugins/sync-plugin.js b/src/plugins/sync-plugin.js
-index e4d5163b4932228fae5ede4e40fd7671daa54aca..f430a03e19ad0ae29dac242d4034c295994f3dec 100644
+index e4d5163b4932228fae5ede4e40fd7671daa54aca..98f35b60d634281117d176de453a199ecabc45df 100644
 --- a/src/plugins/sync-plugin.js
 +++ b/src/plugins/sync-plugin.js
-@@ -398,13 +398,35 @@ export class ProsemirrorBinding {
+@@ -75,6 +75,8 @@ const getUserColor = (colorMapping, colors, user) => {
+   return /** @type {ColorDef} */ (colorMapping.get(user))
+ }
+ 
++let scheduledRerenderCallbacks = null
++
+ /**
+  * This plugin listens to changes in prosemirror view and keeps yXmlState and view in sync.
+  *
+@@ -90,7 +92,7 @@ export const ySyncPlugin = (yXmlFragment, {
+   onFirstRender = () => {}
+ } = {}) => {
+   let changedInitialContent = false
+-  let rerenderTimeout
++  let hasScheduledRerender = false
+   const plugin = new Plugin({
+     props: {
+       editable: (state) => {
+@@ -173,15 +175,36 @@ export const ySyncPlugin = (yXmlFragment, {
+     },
+     view: (view) => {
+       const binding = new ProsemirrorBinding(yXmlFragment, view)
+-      if (rerenderTimeout != null) {
+-        rerenderTimeout.destroy()
++      // NOTE(calebmer): While profiling task grid view scrolling, I found
++      // creating a timeout for each individual editor ends up taking a
++      // non-trivial amount of time (6% of time in a render in one test).
++      // So batch rerenders together in a single timeout call.
++      if (!hasScheduledRerender) {
++        hasScheduledRerender = true
++        
++        if (!scheduledRerenderCallbacks) {
++          scheduledRerenderCallbacks = []
++
++          eventloop.timeout(0, () => {
++            const callbacks = scheduledRerenderCallbacks
++            scheduledRerenderCallbacks = null
++
++            for (const callback of callbacks) {
++              callback()
++            }
++          })
++        }
++
++        scheduledRerenderCallbacks.push(() => {
++          if (!hasScheduledRerender) return
++          hasScheduledRerender = false
++
++          // Make sure this is called in a separate context
++          binding._forceRerender()
++          view.dispatch(view.state.tr.setMeta(ySyncPluginKey, { binding }))
++          onFirstRender()
++        })
+       }
+-      // Make sure this is called in a separate context
+-      rerenderTimeout = eventloop.timeout(0, () => {
+-        binding._forceRerender()
+-        view.dispatch(view.state.tr.setMeta(ySyncPluginKey, { binding }))
+-        onFirstRender()
+-      })
+       return {
+         update: () => {
+           const pluginState = plugin.getState(view.state)
+@@ -218,7 +241,7 @@ export const ySyncPlugin = (yXmlFragment, {
+           }
+         },
+         destroy: () => {
+-          rerenderTimeout.destroy()
++          hasScheduledRerender = false
+           binding.destroy()
+         }
+       }
+@@ -398,13 +421,35 @@ export class ProsemirrorBinding {
    _forceRerender () {
      this.mapping = new Map()
      this.mux(() => {
@@ -172,7 +316,7 @@ index e4d5163b4932228fae5ede4e40fd7671daa54aca..f430a03e19ad0ae29dac242d4034c295
        // @ts-ignore
        const tr = this._tr.replace(
          0,
-@@ -524,13 +546,35 @@ export class ProsemirrorBinding {
+@@ -524,13 +569,35 @@ export class ProsemirrorBinding {
        )
        transaction.changed.forEach(delType)
        transaction.changedParentTypes.forEach(delType)

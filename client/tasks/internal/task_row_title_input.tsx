@@ -13,6 +13,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {ySyncPlugin} from "y-prosemirror";
 import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -110,6 +111,8 @@ const taskRowTitleInputMultilineStyle: CSSProperties = {
 
 const TaskRowTitleInputForwardRef = forwardRef(TaskRowTitleInput);
 export {TaskRowTitleInputForwardRef as TaskRowTitleInput};
+
+let scheduledDestroyTaskRowTitleInputEditorViewCallbacks: Array<() => void> | null = null;
 
 function TaskRowTitleInput(
     {
@@ -550,9 +553,32 @@ function TaskRowTitleInput(
             }
 
             return () => {
-                view.dom.removeEventListener("scroll", updateFullyScrolledState);
                 viewRef.current = {isReady: false, callbacks: new Set()};
-                view.destroy();
+                containerElement.removeChild(view.dom);
+
+                // NOTE(calebmer): While profiling task grid view scrolling I've found
+                // `view.destroy()` takes a meaningful chunk of blocking time. Since when
+                // scrolling a virtualized list we're destroying the old components as well as
+                // mounting new ones. So move view destruction off the render hot path. Using
+                // the React scheduler so new renders from scroll can interrupt.
+                if (scheduledDestroyTaskRowTitleInputEditorViewCallbacks === null) {
+                    scheduledDestroyTaskRowTitleInputEditorViewCallbacks = [];
+                    unstable_scheduleCallback(unstable_LowPriority, () => {
+                        const callbacks = assertExists(
+                            scheduledDestroyTaskRowTitleInputEditorViewCallbacks,
+                        );
+                        scheduledDestroyTaskRowTitleInputEditorViewCallbacks = null;
+
+                        for (const callback of callbacks) {
+                            callback();
+                        }
+                    });
+                }
+
+                scheduledDestroyTaskRowTitleInputEditorViewCallbacks.push(() => {
+                    view.dom.removeEventListener("scroll", updateFullyScrolledState);
+                    view.destroy();
+                });
             };
 
             // IMPORTANT: We want to maintain the `EditorView` instance during updates. Be
