@@ -2,9 +2,9 @@ import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {parseAccountName} from "~/client/accounts/internal/parse_account_name.js";
-import {Box} from "~/client/design/box.js";
 import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {Spacing} from "~/shared/design/spacing.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * A circular image representing the account.
@@ -37,27 +37,31 @@ export function AccountAvatar({
     }, [accountData]);
 
     return (
-        <Box
-            flexShrink="0"
-            width={size}
-            height={size}
-            backgroundColor="grey-30-const"
-            borderRadius="full"
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            color="grey-80-const"
-            position="relative"
-            zIndex="0"
+        <div
+            className={sprinkles({
+                flexShrink: "0",
+                width: size,
+                height: size,
+                backgroundColor: "grey-30-const",
+                borderRadius: "full",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                color: "grey-80-const",
+                position: "relative",
+                zIndex: "0",
+            })}
         >
-            <Box
-                fontSize="75"
+            <div
+                className={sprinkles({
+                    fontSize: "75",
+                })}
                 style={{transform: `scale(${parseInt(size, 10) / 8})`}}
                 aria-hidden="true"
             >
                 {firstInitial.toUpperCase()}
                 {lastInitial?.toUpperCase()}
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 }

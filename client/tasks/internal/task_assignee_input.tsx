@@ -1,39 +1,17 @@
-import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
-import {Node} from "@react-types/shared";
+import {getInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import _Fuse from "fuse.js";
-import {Check, MagnifyingGlass} from "phosphor-react";
-import {
-    Ref,
-    RefObject,
-    cloneElement,
-    forwardRef,
-    isValidElement,
-    useImperativeHandle,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
-import {
-    AriaListBoxOptions,
-    mergeProps,
-    useComboBox,
-    useHover,
-    useListBox,
-    useOption,
-} from "react-aria";
-import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
+import {Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {useComboBox} from "react-aria";
+import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
-import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {useScrollbar} from "~/client/design/scrollbar.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -41,28 +19,25 @@ import {
     useExpensivelyLoadAllSpaceAccounts,
     useExpensivelyPreloadAllSpaceAccounts,
 } from "~/client/spaces/use_expensively_load_all_space_accounts.js";
+import {
+    TaskAssigneeInputListBox,
+    TaskAssigneeInputListBoxOptionItem,
+} from "~/client/tasks/internal/task_assignee_input_list_box.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
-import {spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {assertId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {
-    colorSchemeVars,
-    greyElevated2ClassName,
-    sprinkles,
-    tasksStyles,
-} from "~/shared/styles/styles.js";
+import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
-const nullAssigneeLabel = "Nobody";
+export const nullTaskAssigneeInputLabel = "Nobody";
 
-type TaskAssigneeInputItem =
+export type TaskAssigneeInputItem =
     | {
           readonly type: "Account";
           readonly key: `Account:${AccountId}`;
@@ -89,6 +64,20 @@ type TaskAssigneeInputState =
 export type TaskAssigneeInputRef = {
     focus(): void;
 };
+
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
 
 const TaskAssigneeInputForwardRef = forwardRef(TaskAssigneeInput);
 export {TaskAssigneeInputForwardRef as TaskAssigneeInput};
@@ -194,7 +183,12 @@ function TaskAssigneeInput(
     const itemsSearchIndex = useMemo(
         () =>
             new Fuse(allItems, {
-                keys: [{name: "name", getFn: item => item.accountData?.name ?? nullAssigneeLabel}],
+                keys: [
+                    {
+                        name: "name",
+                        getFn: item => item.accountData?.name ?? nullTaskAssigneeInputLabel,
+                    },
+                ],
             }),
         [allItems],
     );
@@ -379,8 +373,8 @@ function TaskAssigneeInput(
     );
 
     return (
-        <Box
-            marginLeft={avatarSize === "5" ? "-0.5" : undefined}
+        <div
+            className={sprinkles({marginLeft: avatarSize === "5" ? "-0.5" : undefined})}
             onKeyDown={event => {
                 // Blur the input when escape is pressed which closes the dropdown.
                 if (event.key === "Escape") {
@@ -401,28 +395,30 @@ function TaskAssigneeInput(
                 }
                 placement="bottom-start"
                 overlay={
-                    <Box ref={popoverRef} position="relative">
+                    <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskAssigneeInputListBox
                             comboBoxState={comboBoxState}
                             listBoxRef={listBoxRef}
                             listBoxProps={listBoxProps}
                             selectedKey={selectedKey}
                         />
-                    </Box>
+                    </div>
                 }
             >
                 <FocusRing isVisibleWhenFocusWithin>
-                    <Box
-                        maxWidth="full"
-                        height={avatarSize}
-                        marginY={avatarSize === "5" ? "-0.5" : undefined}
-                        overflow="hidden"
-                        display="inline-flex"
-                        alignItems="center"
-                        gap={avatarSize === "5" ? "1.5" : "1"}
-                        className={
-                            !isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined
-                        }
+                    <div
+                        className={classNames(
+                            !isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined,
+                            sprinkles({
+                                maxWidth: "full",
+                                height: avatarSize,
+                                marginY: avatarSize === "5" ? "-0.5" : undefined,
+                                overflow: "hidden",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: avatarSize === "5" ? "1.5" : "1",
+                            }),
+                        )}
                         style={{
                             // `display: inline-block` creates an inline layout which adds extra space
                             // below the element. Adding `vertical-align` stops the space from being added.
@@ -443,19 +439,21 @@ function TaskAssigneeInput(
                             }
                         }}
                     >
-                        <Box flexShrink="0" pointerEvents="none">
+                        <div className={sprinkles({flexShrink: "0", pointerEvents: "none"})}>
                             {assigneeAccountData ? (
                                 <AccountAvatar size={avatarSize} account={assigneeAccountData} />
                             ) : (
                                 <TaskMissingAccountAvatar size={avatarSize} />
                             )}
-                        </Box>
+                        </div>
                         <InputWithAutoGrowingWidth
                             {...inputProps}
                             ref={inputRef}
                             tabIndex={!isTabbable ? -1 : undefined}
                             placeholder={
-                                assigneeAccountData ? selectionInputValue : nullAssigneeLabel
+                                assigneeAccountData
+                                    ? selectionInputValue
+                                    : nullTaskAssigneeInputLabel
                             }
                             className={sprinkles({color, height: "4"})}
                             style={{
@@ -465,172 +463,9 @@ function TaskAssigneeInput(
                                 cursor: inputValue.length > 0 ? "text" : undefined,
                             }}
                         />
-                    </Box>
+                    </div>
                 </FocusRing>
             </OverlayAnimated>
-        </Box>
+        </div>
     );
-}
-
-function TaskAssigneeInputListBox({
-    comboBoxState,
-    listBoxRef,
-    listBoxProps: _listBoxProps,
-    selectedKey,
-}: {
-    comboBoxState: ComboBoxState<TaskAssigneeInputItem>;
-    listBoxRef: RefObject<HTMLUListElement>;
-    listBoxProps: AriaListBoxOptions<TaskAssigneeInputItem>;
-    selectedKey: string;
-}) {
-    const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
-
-    return (
-        <ul
-            {...listBoxProps}
-            ref={useMergedRefs(listBoxRef, useScrollbar())}
-            className={classNames(
-                greyElevated2ClassName,
-                sprinkles({
-                    position: "relative",
-                    borderRadius: "md",
-                    padding: "1",
-                    backgroundColor: "grey-0",
-                    boxShadow: "elevation-20",
-                    width: "48",
-                    maxHeight: "64",
-                    overflowX: "hidden",
-                    overflowY: "auto",
-                }),
-            )}
-        >
-            {comboBoxState.collection.size === 0 ? (
-                <Box padding="1.5" display="flex" alignItems="center" gap="1.5" color="grey-70">
-                    <Box padding="0.5">
-                        <MagnifyingGlass size={spacing["4"]} />
-                    </Box>
-                    <Box>No results</Box>
-                </Box>
-            ) : (
-                Array.from(comboBoxState.collection, item => (
-                    <TaskAssigneeInputListBoxOption
-                        key={item.key}
-                        comboBoxState={comboBoxState}
-                        item={item}
-                        selectedKey={selectedKey}
-                    />
-                ))
-            )}
-        </ul>
-    );
-}
-
-function TaskAssigneeInputListBoxOption({
-    comboBoxState,
-    item,
-    selectedKey,
-}: {
-    comboBoxState: ComboBoxState<TaskAssigneeInputItem>;
-    item: Node<TaskAssigneeInputItem>;
-    selectedKey: string;
-}) {
-    const optionRef = useRef(null);
-    const {isHovered, hoverProps} = useHover({});
-    const {optionProps, isFocused, isPressed} = useOption(
-        {key: item.key},
-        comboBoxState,
-        optionRef,
-    );
-
-    const [wasFocusVisibleWhenFocused, setWasFocusVisibleWhenFocused] = useState(false);
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
-    }, [isFocused]);
-
-    assert(isValidElement(item.rendered));
-
-    return (
-        <FocusRing offset="0" isVisible={isFocused && wasFocusVisibleWhenFocused}>
-            <li
-                {...mergeProps(optionProps, hoverProps)}
-                ref={optionRef}
-                className={sprinkles({
-                    width: "full",
-                    padding: "1.5",
-                    borderRadius: "base",
-                    color: "grey-text",
-                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-                })}
-            >
-                {cloneElement(item.rendered, {
-                    isSelected: selectedKey === item.key,
-                    isPressed,
-                } as any)}
-            </li>
-        </FocusRing>
-    );
-}
-
-function TaskAssigneeInputListBoxOptionItem({
-    item,
-    isSelected,
-    isPressed,
-}: {
-    item: TaskAssigneeInputItem;
-    isSelected?: boolean;
-    isPressed?: boolean;
-}) {
-    assert(
-        typeof isSelected === "boolean" && typeof isPressed === "boolean",
-        "Expected to be rendered by <TaskAssigneeInputListBoxOption> which provides extra props",
-    );
-
-    switch (item.type) {
-        case "Account": {
-            return (
-                <Box display="flex" alignItems="center" gap="1.5">
-                    <AccountAvatar account={item.accountData} size="5" />
-                    <Box flexGrow="1" fontStyle="truncate">
-                        {item.accountData.name}
-                    </Box>
-                    {isSelected && (
-                        <Box flexShrink="0" marginLeft="2">
-                            <Check
-                                size={spacing["3"]}
-                                color={
-                                    isPressed
-                                        ? colorSchemeVars["grey-text"]
-                                        : colorSchemeVars["grey-70"]
-                                }
-                            />
-                        </Box>
-                    )}
-                </Box>
-            );
-        }
-        case "Null": {
-            return (
-                <Box display="flex" alignItems="center" gap="1.5">
-                    <TaskMissingAccountAvatar />
-                    <Box flexGrow="1" fontStyle="truncate" color="grey-60">
-                        {nullAssigneeLabel}
-                    </Box>
-                    {isSelected && (
-                        <Box flexShrink="0" marginLeft="2">
-                            <Check
-                                size={spacing["3"]}
-                                color={
-                                    isPressed
-                                        ? colorSchemeVars["grey-text"]
-                                        : colorSchemeVars["grey-70"]
-                                }
-                            />
-                        </Box>
-                    )}
-                </Box>
-            );
-        }
-        default:
-            throw exhaustive(item);
-    }
 }

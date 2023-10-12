@@ -1,19 +1,28 @@
 import {User} from "phosphor-react";
-import {Box} from "~/client/design/box.js";
 import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskMissingAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"}) {
     return (
-        <Box flexShrink="0" position="relative" width={size} height={size} borderRadius="full">
+        <div
+            className={sprinkles({
+                flexShrink: "0",
+                position: "relative",
+                width: size,
+                height: size,
+                borderRadius: "full",
+            })}
+        >
             <TaskMissingAccountAvatarDashedCircle size={size} />
-            <Box
-                position="absolute"
-                inset="0"
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
+            <div
+                className={sprinkles({
+                    position: "absolute",
+                    inset: "0",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                })}
             >
                 <User
                     size={spacing["3"]}
@@ -21,8 +30,8 @@ export function TaskMissingAccountAvatar({size = "5"}: {size?: "3" | "4" | "5"})
                     weight={parseInt(size, 10) < 5 ? "bold" : undefined}
                     style={{transform: `scale(${parseInt(size, 10) / 5})`}}
                 />
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 }
 

@@ -173,30 +173,75 @@ export function TaskDateInputText({
                     height: "full",
                 })}
             >
-                {state.segments.map((segment, index) => (
-                    <TaskDateInputTextSegment
-                        key={index}
-                        state={state}
-                        segment={segment}
-                        areAllSegmentsPlaceholders={areAllSegmentsPlaceholders}
-                        flexGrow={
-                            display === "block" && index === state.segments.length - 1
-                                ? "1"
-                                : undefined
-                        }
-                        paddingLeft={
-                            !shouldIncludeCalendarIcon && index === 0 ? paddingX : undefined
-                        }
-                        paddingRight={index === state.segments.length - 1 ? paddingX : undefined}
-                        isFirstSegment={index === 0}
-                        isLastSegment={index === state.segments.length - 1}
-                        isTabbable={isTabbable}
-                        onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
-                        onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}
-                        focusStart={focusStart}
-                        focusEnd={focusEnd}
-                    />
-                ))}
+                {state.segments.map((segment, index) => {
+                    const flexGrow =
+                        display === "block" && index === state.segments.length - 1
+                            ? "1"
+                            : undefined;
+
+                    const paddingLeft =
+                        !shouldIncludeCalendarIcon && index === 0 ? paddingX : undefined;
+
+                    const paddingRight = index === state.segments.length - 1 ? paddingX : undefined;
+
+                    return segment.type === "literal" ? (
+                        <div
+                            key={index}
+                            className={sprinkles({
+                                display: "flex",
+                                alignItems: "center",
+                                flexGrow,
+                                height: "full",
+                                paddingLeft,
+                                paddingRight,
+                            })}
+                            onClick={event => {
+                                if (event.target === event.currentTarget) {
+                                    getNextFocusableElementIfExists(ref.current, {
+                                        withinElement: event.currentTarget.parentElement,
+                                    })?.focus({preventScroll: true});
+                                }
+                            }}
+                        >
+                            <div
+                                // The only prop provided to literal segments is `aria-hidden={true}`. As an
+                                // optimization we avoid rendering a text segment component for literal
+                                // segments.
+                                // https://github.com/adobe/react-spectrum/blob/88550234c383f2a07a27aa2ca9a0a47a9f49e9aa/packages/%40react-aria/datepicker/src/useDateSegment.ts#L353-L361
+                                aria-hidden={true}
+                                className={sprinkles({
+                                    // `react-aria`s click support for non-editable segments isn't super reliable.
+                                    // So use our parent's `onClick` handler instead.
+                                    pointerEvents: !segment.isEditable ? "none" : undefined,
+                                })}
+                                style={
+                                    areAllSegmentsPlaceholders || segment.isPlaceholder
+                                        ? inputPlaceholderStyles
+                                        : {}
+                                }
+                            >
+                                {segment.text}
+                            </div>
+                        </div>
+                    ) : (
+                        <TaskDateInputTextSegment
+                            key={index}
+                            state={state}
+                            segment={segment}
+                            areAllSegmentsPlaceholders={areAllSegmentsPlaceholders}
+                            flexGrow={flexGrow}
+                            paddingLeft={paddingLeft}
+                            paddingRight={paddingRight}
+                            isFirstSegment={index === 0}
+                            isLastSegment={index === state.segments.length - 1}
+                            isTabbable={isTabbable}
+                            onArrowLeftLeaveKeyDown={onArrowLeftLeaveKeyDown}
+                            onArrowRightLeaveKeyDown={onArrowRightLeaveKeyDown}
+                            focusStart={focusStart}
+                            focusEnd={focusEnd}
+                        />
+                    );
+                })}
             </div>
             {focusRingAroundText && (
                 <Overlay

@@ -1,4 +1,4 @@
-import {Box} from "~/client/design/box.js";
+import classNames from "classnames";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {colorSchemeVars, pingAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
@@ -49,13 +49,17 @@ export function TaskPriorityIcon({
             // Derived from Phosphor's `<WarningCircle>` icon but we made the exclamation
             // mark bigger and duotone.
             return (
-                <Box position="relative" zIndex="0">
+                <div className={sprinkles({position: "relative", zIndex: "0"})}>
                     {shouldHighlightUrgent && (
-                        <Box
-                            position="absolute"
-                            inset="0"
-                            zIndex="-10"
-                            className={pingAnimationClassName}
+                        <div
+                            className={classNames(
+                                pingAnimationClassName,
+                                sprinkles({
+                                    position: "absolute",
+                                    inset: "0",
+                                    zIndex: "-10",
+                                }),
+                            )}
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -69,7 +73,7 @@ export function TaskPriorityIcon({
                                     fill={colorSchemeVars["red-50-const"]}
                                 />
                             </svg>
-                        </Box>
+                        </div>
                     )}
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -96,7 +100,7 @@ export function TaskPriorityIcon({
                         />
                         <circle cx="16" cy="21.5" r="1.5" fill={colorSchemeVars["grey-0-const"]} />
                     </svg>
-                </Box>
+                </div>
             );
         }
         default:

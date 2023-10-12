@@ -1,53 +1,29 @@
-import {getInteractionModality, isFocusVisible} from "@react-aria/interactions";
-import {Node} from "@react-types/shared";
+import {getInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import _Fuse from "fuse.js";
-import {Check, MagnifyingGlass} from "phosphor-react";
-import {
-    Ref,
-    RefObject,
-    cloneElement,
-    forwardRef,
-    isValidElement,
-    useImperativeHandle,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
-import {
-    AriaListBoxOptions,
-    mergeProps,
-    useComboBox,
-    useHover,
-    useListBox,
-    useOption,
-} from "react-aria";
-import {ComboBoxState, ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
-import {Box} from "~/client/design/box.js";
+import {Ref, forwardRef, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {useComboBox} from "react-aria";
+import {ComboBoxStateOptions, Item, useComboBoxState} from "react-stately";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {useScrollbar} from "~/client/design/scrollbar.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
-import {spacing} from "~/shared/design/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
-    colorSchemeVars,
-    greyElevated2ClassName,
-    sprinkles,
-    tasksStyles,
-} from "~/shared/styles/styles.js";
+    TaskPriorityInputListBox,
+    TaskPriorityInputListBoxOptionItem,
+} from "~/client/tasks/internal/task_priority_input_list_box.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
 
-type TaskPriorityInputItem = {readonly key: TaskPriority | "Null"};
+export type TaskPriorityInputItem = {readonly key: TaskPriority | "Null"};
 
 type TaskPriorityInputState =
     | {
@@ -65,8 +41,36 @@ export type TaskPriorityInputRef = {
     focus(): void;
 };
 
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
+
 const TaskPriorityInputForwardRef = forwardRef(TaskPriorityInput);
 export {TaskPriorityInputForwardRef as TaskPriorityInput};
+
+const allItems: ReadonlyArray<TaskPriorityInputItem> = [
+    {key: "Null"},
+    {key: "Low"},
+    {key: "Medium"},
+    {key: "High"},
+    {key: "Urgent"},
+];
+
+const itemsSearchIndex = new Lazy(() => {
+    return new Fuse(allItems, {
+        keys: [{name: "name", getFn: item => getTaskPriorityName(item.key)}],
+    });
+});
 
 function TaskPriorityInput(
     {
@@ -107,26 +111,16 @@ function TaskPriorityInput(
     const selectionInputValue = priority ? getTaskPriorityName(priority) : "";
     const inputValue = inputState.type === "Selection" ? selectionInputValue : inputState.value;
 
-    const allItems: Array<TaskPriorityInputItem> = useMemo(
-        () => [{key: "Null"}, {key: "Low"}, {key: "Medium"}, {key: "High"}, {key: "Urgent"}],
-        [],
-    );
-
-    const itemsSearchIndex = useMemo(
-        () =>
-            new Fuse(allItems, {
-                keys: [{name: "name", getFn: item => getTaskPriorityName(item.key)}],
-            }),
-        [allItems],
-    );
-
     const searchedItems = useMemo(
         () =>
             inputValue === "" || inputState.type === "Selection" || !inputState.hasChanged
                 ? allItems
-                : itemsSearchIndex.search(inputValue).map(({item}) => item),
+                : itemsSearchIndex
+                      .get()
+                      .search(inputValue)
+                      .map(({item}) => item),
 
-        [allItems, inputState, inputValue, itemsSearchIndex],
+        [inputState, inputValue],
     );
 
     const selectedKey: TaskPriorityInputItem["key"] = priority ?? "Null";
@@ -268,7 +262,7 @@ function TaskPriorityInput(
     );
 
     return (
-        <Box
+        <div
             onKeyDown={event => {
                 // Blur the input when escape is pressed which closes the dropdown.
                 if (event.key === "Escape") {
@@ -289,26 +283,28 @@ function TaskPriorityInput(
                 }
                 placement="bottom-start"
                 overlay={
-                    <Box ref={popoverRef} position="relative">
+                    <div ref={popoverRef} className={sprinkles({position: "relative"})}>
                         <TaskPriorityInputListBox
                             comboBoxState={comboBoxState}
                             listBoxRef={listBoxRef}
                             listBoxProps={listBoxProps}
                             selectedKey={selectedKey}
                         />
-                    </Box>
+                    </div>
                 }
             >
                 <FocusRing isVisibleWhenFocusWithin>
-                    <Box
-                        maxWidth="full"
-                        height="4"
-                        display="inline-flex"
-                        alignItems="center"
-                        gap="1"
-                        className={
-                            !isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined
-                        }
+                    <div
+                        className={classNames(
+                            !isReadOnly && tasksStyles.textCursorNotInheritedClassName,
+                            sprinkles({
+                                maxWidth: "full",
+                                height: "4",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "1",
+                            }),
+                        )}
                         style={{
                             // `display: inline-block` creates an inline layout which adds extra space
                             // below the element. Adding `vertical-align` stops the space from being added.
@@ -329,13 +325,15 @@ function TaskPriorityInput(
                             }
                         }}
                     >
-                        <Box width="4" height="4" pointerEvents="none">
+                        <div
+                            className={sprinkles({width: "4", height: "4", pointerEvents: "none"})}
+                        >
                             <TaskPriorityIcon
                                 size="4"
                                 priority={priority}
                                 shouldHighlightUrgent={true}
                             />
-                        </Box>
+                        </div>
                         <InputWithAutoGrowingWidth
                             {...inputProps}
                             ref={inputRef}
@@ -349,145 +347,9 @@ function TaskPriorityInput(
                                 cursor: inputValue.length > 0 ? "text" : undefined,
                             }}
                         />
-                    </Box>
+                    </div>
                 </FocusRing>
             </OverlayAnimated>
-        </Box>
-    );
-}
-
-function TaskPriorityInputListBox({
-    comboBoxState,
-    listBoxRef,
-    listBoxProps: _listBoxProps,
-    selectedKey,
-}: {
-    comboBoxState: ComboBoxState<TaskPriorityInputItem>;
-    listBoxRef: RefObject<HTMLUListElement>;
-    listBoxProps: AriaListBoxOptions<TaskPriorityInputItem>;
-    selectedKey: TaskPriorityInputItem["key"];
-}) {
-    const {listBoxProps} = useListBox(_listBoxProps, comboBoxState, listBoxRef);
-
-    return (
-        <ul
-            {...listBoxProps}
-            ref={useMergedRefs(listBoxRef, useScrollbar())}
-            className={classNames(
-                greyElevated2ClassName,
-                sprinkles({
-                    borderRadius: "md",
-                    padding: "1",
-                    backgroundColor: "grey-0",
-                    boxShadow: "elevation-20",
-                    width: "48",
-                    maxHeight: "64",
-                    overflowX: "hidden",
-                    overflowY: "auto",
-                }),
-            )}
-        >
-            {comboBoxState.collection.size === 0 ? (
-                <Box padding="1.5" display="flex" alignItems="center" gap="1.5" color="grey-70">
-                    <Box padding="0.5">
-                        <MagnifyingGlass size={spacing["4"]} />
-                    </Box>
-                    <Box>No results</Box>
-                </Box>
-            ) : (
-                Array.from(comboBoxState.collection, item => (
-                    <TaskPriorityInputListBoxOption
-                        key={item.key}
-                        comboBoxState={comboBoxState}
-                        item={item}
-                        selectedKey={selectedKey}
-                    />
-                ))
-            )}
-        </ul>
-    );
-}
-
-function TaskPriorityInputListBoxOption({
-    comboBoxState,
-    item,
-    selectedKey,
-}: {
-    comboBoxState: ComboBoxState<TaskPriorityInputItem>;
-    item: Node<TaskPriorityInputItem>;
-    selectedKey: TaskPriorityInputItem["key"];
-}) {
-    const optionRef = useRef(null);
-    const {isHovered, hoverProps} = useHover({});
-    const {optionProps, isFocused, isPressed} = useOption(
-        {key: item.key},
-        comboBoxState,
-        optionRef,
-    );
-
-    const [wasFocusVisibleWhenFocused, setWasFocusVisibleWhenFocused] = useState(false);
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (isFocused) setWasFocusVisibleWhenFocused(isFocusVisible());
-    }, [isFocused]);
-
-    assert(isValidElement(item.rendered));
-
-    return (
-        <FocusRing offset="0" isVisible={isFocused && wasFocusVisibleWhenFocused}>
-            <li
-                {...mergeProps(optionProps, hoverProps)}
-                ref={optionRef}
-                className={sprinkles({
-                    width: "full",
-                    padding: "1.5",
-                    borderRadius: "base",
-                    color: "grey-text",
-                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
-                })}
-            >
-                {cloneElement(item.rendered, {
-                    isSelected: selectedKey === item.key,
-                    isPressed,
-                } as any)}
-            </li>
-        </FocusRing>
-    );
-}
-
-function TaskPriorityInputListBoxOptionItem({
-    item,
-    isSelected,
-    isPressed,
-}: {
-    item: TaskPriorityInputItem;
-    isSelected?: boolean;
-    isPressed?: boolean;
-}) {
-    assert(
-        typeof isSelected === "boolean" || typeof isPressed === "boolean",
-        "Expected to be rendered by <TaskPriorityInputListBoxOption> which provides extra props",
-    );
-
-    return (
-        <Box display="flex" alignItems="center" gap="1.5">
-            <TaskPriorityIcon
-                size="4"
-                priority={item.key === "Null" ? null : item.key}
-                shouldHighlightUrgent={false}
-            />
-            <Box flexGrow="1" fontStyle="truncate">
-                {getTaskPriorityName(item.key)}
-            </Box>
-            {isSelected && (
-                <Box flexShrink="0" marginLeft="2">
-                    <Check
-                        size={spacing["3"]}
-                        color={
-                            isPressed ? colorSchemeVars["grey-text"] : colorSchemeVars["grey-70"]
-                        }
-                    />
-                </Box>
-            )}
-        </Box>
+        </div>
     );
 }

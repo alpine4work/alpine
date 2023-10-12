@@ -1,6 +1,6 @@
+import classNames from "classnames";
 import {KeyboardEvent, Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
-import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
@@ -16,13 +16,27 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {tasksStyles} from "~/shared/styles/styles.js";
+import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 export type TaskRowPriorityCellRef = {
     focusCell(): void;
     focusCellInput(): void;
 };
+
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
 
 const TaskRowPriorityCellForwardRef = forwardRef(TaskRowPriorityCell);
 export {TaskRowPriorityCellForwardRef as TaskRowPriorityCell};
@@ -63,14 +77,18 @@ function TaskRowPriorityCell(
 
     return (
         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
-            <Box
+            <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 tabIndex={-1}
-                flexShrink="0"
-                width={taskRowViewColumnWidth}
-                paddingX={taskRowViewColumnPaddingX}
-                overflow="hidden"
-                className={tasksStyles.textCursorNotInheritedClassName}
+                className={classNames(
+                    tasksStyles.textCursorNotInheritedClassName,
+                    sprinkles({
+                        flexShrink: "0",
+                        width: taskRowViewColumnWidth,
+                        paddingX: taskRowViewColumnPaddingX,
+                        overflow: "hidden",
+                    }),
+                )}
                 {...useOutOfBoundsClickSelection({
                     onSelect: () => assertExists(inputRef.current).focus(),
                     onSelectAll: () => assertExists(inputRef.current).focus(),
@@ -81,12 +99,16 @@ function TaskRowPriorityCell(
                 }}
                 onKeyDownCapture={onCellKeyDownCapture}
             >
-                <Box
-                    height={taskRowViewMinHeight}
-                    display="flex"
-                    alignItems="center"
-                    className={tasksStyles.pointerEventsNoneNotInheritedClassName}
-                    opacity={priority || isHovered || isFocusWithin ? "100" : "0"}
+                <div
+                    className={classNames(
+                        tasksStyles.pointerEventsNoneNotInheritedClassName,
+                        sprinkles({
+                            height: taskRowViewMinHeight,
+                            display: "flex",
+                            alignItems: "center",
+                            opacity: priority || isHovered || isFocusWithin ? "100" : "0",
+                        }),
+                    )}
                 >
                     <TaskPriorityInput
                         ref={inputRef}
@@ -112,8 +134,8 @@ function TaskRowPriorityCell(
                         onArrowLeftLeaveKeyDown={focusPreviousCell}
                         onArrowRightLeaveKeyDown={focusNextCell}
                     />
-                </Box>
-            </Box>
+                </div>
+            </div>
         </FocusRing>
     );
 }
