@@ -1,5 +1,14 @@
 import classNames from "classnames";
-import {KeyboardEvent, Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
+import {
+    KeyboardEvent,
+    Memo,
+    Ref,
+    forwardRef,
+    memo,
+    useImperativeHandle,
+    useRef,
+    useState,
+} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -13,6 +22,7 @@ import {
     TaskAssigneeInput,
     TaskAssigneeInputRef,
 } from "~/client/tasks/internal/task_assignee_input.js";
+import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {
@@ -44,8 +54,8 @@ export type TaskRowAssigneeCellRef = {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-const TaskRowAssigneeCellForwardRef = forwardRef(TaskRowAssigneeCell);
-export {TaskRowAssigneeCellForwardRef as TaskRowAssigneeCell};
+const TaskRowAssigneeCellForwardRefMemo = memo(forwardRef(TaskRowAssigneeCell));
+export {TaskRowAssigneeCellForwardRefMemo as TaskRowAssigneeCell};
 
 const cellClassName = sprinkles({
     flexShrink: "0",
@@ -87,9 +97,9 @@ function TaskRowAssigneeCell(
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
-        onCellKeyDownCapture: (event: KeyboardEvent) => void;
-        focusNextCell: () => void;
-        focusPreviousCell: () => void;
+        onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
+        focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
+        focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
     },
     ref: Ref<TaskRowAssigneeCellRef>,
 ) {
@@ -157,7 +167,7 @@ function TaskRowAssigneeCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
-                onKeyDownCapture={onCellKeyDownCapture}
+                onKeyDownCapture={event => onCellKeyDownCapture("Assignee", event)}
             >
                 {isReadOnly ? (
                     assigneeAccountData && (
@@ -217,8 +227,8 @@ function TaskRowAssigneeCell(
                         }}
                         // Keyboard navigation in grid view is not done with the tab key.
                         isTabbable={false}
-                        onArrowLeftLeaveKeyDown={focusPreviousCell}
-                        onArrowRightLeaveKeyDown={focusNextCell}
+                        onArrowLeftLeaveKeyDown={() => focusPreviousCell("Assignee")}
+                        onArrowRightLeaveKeyDown={() => focusNextCell("Assignee")}
                     />
                 )}
             </div>

@@ -2,7 +2,6 @@ import React, {Memo, useCallback, useMemo, useRef, useState} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 
 const reactDispatchersSeenDuringRender = new Set();
 
@@ -93,13 +92,7 @@ export type MemoObject<T extends {}> = Memo<{
 export function useEvents<Events extends {[key: string]: (...args: Array<any>) => unknown}>(
     events: Events,
 ): MemoObject<Events> {
-    const currentEventKeys = Object.keys(events);
-    const [eventKeys] = useState(currentEventKeys);
-
-    assert(
-        isDeepEqual(currentEventKeys, eventKeys),
-        "Can't change events passed into `useEvents()` hook",
-    );
+    const [eventKeys] = useState(() => Object.keys(events));
 
     const eventsRef = useRef(events);
 
@@ -121,26 +114,19 @@ export function useEvents<Events extends {[key: string]: (...args: Array<any>) =
     }
 
     return useMemo(() => {
-        return Object.fromEntries(
-            Array.from(eventKeys, eventKey => {
-                return [
-                    eventKey,
-                    (...args: Array<any>) => {
-                        if (
-                            reactDispatchersSeenDuringRender.has(
-                                getCurrentReactDispatcherIfExists(),
-                            )
-                        ) {
-                            throw new InternalError(
-                                "Can not call event callback during React render",
-                            );
-                        }
+        const eventsMemo: any = {};
 
-                        return eventsRef.current[eventKey]!(...args);
-                    },
-                ];
-            }),
-        ) as {[Key in keyof Events]: Memo<Events[Key]>};
+        for (const eventKey of eventKeys) {
+            eventsMemo[eventKey] = (...args: Array<any>) => {
+                if (reactDispatchersSeenDuringRender.has(getCurrentReactDispatcherIfExists())) {
+                    throw new InternalError("Can not call event callback during React render");
+                }
+
+                return eventsRef.current[eventKey]!(...args);
+            };
+        }
+
+        return eventsMemo;
     }, [eventKeys]);
 }
 

@@ -2,8 +2,10 @@ import classNames from "classnames";
 import {Lock} from "phosphor-react";
 import {
     KeyboardEvent,
+    Memo,
     Ref,
     forwardRef,
+    memo,
     useImperativeHandle,
     useMemo,
     useRef,
@@ -17,6 +19,7 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
+import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     taskRowViewCollectionsColumnWidth,
@@ -49,8 +52,8 @@ export type TaskRowCollectionsCellRef = {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-const TaskRowCollectionsCellForwardRef = forwardRef(TaskRowCollectionsCell);
-export {TaskRowCollectionsCellForwardRef as TaskRowCollectionsCell};
+const TaskRowCollectionsCellForwardRefMemo = memo(forwardRef(TaskRowCollectionsCell));
+export {TaskRowCollectionsCellForwardRefMemo as TaskRowCollectionsCell};
 
 const cellClassName = sprinkles({
     flexShrink: "0",
@@ -95,8 +98,8 @@ function TaskRowCollectionsCell(
     }: {
         query: TaskClientQuery;
         task: TaskModel | null;
-        onCellKeyDownCapture: (event: KeyboardEvent) => void;
-        focusPreviousCell: () => void;
+        onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
+        focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
     },
     ref: Ref<TaskRowCollectionsCellRef>,
 ) {
@@ -166,7 +169,7 @@ function TaskRowCollectionsCell(
             onBlur={event => {
                 setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
             }}
-            onKeyDownCapture={onCellKeyDownCapture}
+            onKeyDownCapture={event => onCellKeyDownCapture("Collections", event)}
             onPointerDown={event => {
                 if (event.target === event.currentTarget) {
                     event.preventDefault();
@@ -226,7 +229,7 @@ function TaskRowCollectionsCell(
                 <TaskRowCollectionsCellOverlay
                     query={query}
                     task={task}
-                    focusPreviousCell={focusPreviousCell}
+                    focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}
                 />
             )}

@@ -1,5 +1,14 @@
 import classNames from "classnames";
-import {KeyboardEvent, Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
+import {
+    KeyboardEvent,
+    Memo,
+    Ref,
+    forwardRef,
+    memo,
+    useImperativeHandle,
+    useRef,
+    useState,
+} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -10,6 +19,7 @@ import {
     TaskPriorityInput,
     TaskPriorityInputRef,
 } from "~/client/tasks/internal/task_priority_input.js";
+import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {
@@ -40,8 +50,8 @@ export type TaskRowPriorityCellRef = {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-const TaskRowPriorityCellForwardRef = forwardRef(TaskRowPriorityCell);
-export {TaskRowPriorityCellForwardRef as TaskRowPriorityCell};
+const TaskRowPriorityCellForwardRefMemo = memo(forwardRef(TaskRowPriorityCell));
+export {TaskRowPriorityCellForwardRefMemo as TaskRowPriorityCell};
 
 const cellClassName = sprinkles({
     flexShrink: "0",
@@ -78,9 +88,9 @@ function TaskRowPriorityCell(
         store: TaskClientStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
-        onCellKeyDownCapture: (event: KeyboardEvent) => void;
-        focusNextCell: () => void;
-        focusPreviousCell: () => void;
+        onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
+        focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
+        focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
     },
     ref: Ref<TaskRowPriorityCellRef>,
 ) {
@@ -147,7 +157,7 @@ function TaskRowPriorityCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
-                onKeyDownCapture={onCellKeyDownCapture}
+                onKeyDownCapture={event => onCellKeyDownCapture("Priority", event)}
             >
                 {isReadOnly ? (
                     priority && (
@@ -194,8 +204,8 @@ function TaskRowPriorityCell(
                         }}
                         // Keyboard navigation in grid view is not done with the tab key.
                         isTabbable={false}
-                        onArrowLeftLeaveKeyDown={focusPreviousCell}
-                        onArrowRightLeaveKeyDown={focusNextCell}
+                        onArrowLeftLeaveKeyDown={() => focusPreviousCell("Priority")}
+                        onArrowRightLeaveKeyDown={() => focusNextCell("Priority")}
                     />
                 )}
             </div>

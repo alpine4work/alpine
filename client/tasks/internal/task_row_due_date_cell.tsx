@@ -3,8 +3,10 @@ import classNames from "classnames";
 import {CalendarBlank} from "phosphor-react";
 import {
     KeyboardEvent,
+    Memo,
     Ref,
     forwardRef,
+    memo,
     useImperativeHandle,
     useMemo,
     useRef,
@@ -22,6 +24,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
+import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {
     taskRowViewColumnPaddingX,
@@ -53,8 +56,8 @@ export type TaskRowDueDateCellRef = {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-const TaskRowDueDateCellForwardRef = forwardRef(TaskRowDueDateCell);
-export {TaskRowDueDateCellForwardRef as TaskRowDueDateCell};
+const TaskRowDueDateCellForwardRefMemo = memo(forwardRef(TaskRowDueDateCell));
+export {TaskRowDueDateCellForwardRefMemo as TaskRowDueDateCell};
 
 const cellClassName = sprinkles({
     flexShrink: "0",
@@ -103,9 +106,9 @@ function TaskRowDueDateCell(
         store: TaskClientStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
-        onCellKeyDownCapture: (event: KeyboardEvent) => void;
-        focusPreviousCell: () => void;
-        focusNextCell: () => void;
+        onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
+        focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
+        focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
     },
     ref: Ref<TaskRowDueDateCellRef>,
 ) {
@@ -171,7 +174,7 @@ function TaskRowDueDateCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
-                onKeyDownCapture={onCellKeyDownCapture}
+                onKeyDownCapture={event => onCellKeyDownCapture("DueDate", event)}
             >
                 {isReadOnly ? (
                     dueDate && <TaskRowDueDateCellPreview dueDate={dueDate} />
@@ -205,8 +208,8 @@ function TaskRowDueDateCell(
                         }}
                         // Keyboard navigation in grid view is not done with the tab key.
                         isTabbable={false}
-                        onArrowLeftLeaveKeyDown={focusPreviousCell}
-                        onArrowRightLeaveKeyDown={focusNextCell}
+                        onArrowLeftLeaveKeyDown={() => focusPreviousCell("DueDate")}
+                        onArrowRightLeaveKeyDown={() => focusNextCell("DueDate")}
                     />
                 )}
             </div>
