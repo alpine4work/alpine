@@ -3726,3 +3726,500 @@ test("can always render additional items", () => {
         });
     }
 });
+
+test("will accurately report if an item was previously in rendered range", () => {
+    const itemCount = 1_000;
+    const getItem = (index: number) => ({
+        key: index,
+        minHeight: 10,
+        render: ({
+            offset,
+            wasPreviouslyInRenderedRange,
+        }: {
+            offset: number;
+            wasPreviouslyInRenderedRange: boolean;
+        }) => <div style={{top: offset}}>{`${index} ${wasPreviouslyInRenderedRange}`}</div>,
+    });
+
+    let renderedRange;
+    let result;
+
+    let state = VirtualizedScrollViewState.initializeFromTop({
+        initialViewHeight: 100,
+        bufferedItemHeight: 10,
+        itemCount,
+        getItem,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 0}}>0 true</div>,
+            <div style={{top: 10}}>1 true</div>,
+            <div style={{top: 20}}>2 true</div>,
+            <div style={{top: 30}}>3 true</div>,
+            <div style={{top: 40}}>4 true</div>,
+            <div style={{top: 50}}>5 true</div>,
+            <div style={{top: 60}}>6 true</div>,
+            <div style={{top: 70}}>7 true</div>,
+            <div style={{top: 80}}>8 true</div>,
+            <div style={{top: 90}}>9 true</div>,
+            <div style={{top: 100}}>10 true</div>,
+            <div style={{top: 110}}>11 true</div>,
+            <div style={{top: 120}}>12 true</div>,
+            <div style={{top: 130}}>13 true</div>,
+            <div style={{top: 140}}>14 true</div>,
+            <div style={{top: 150}}>15 true</div>,
+            <div style={{top: 160}}>16 true</div>,
+            <div style={{top: 170}}>17 true</div>,
+            <div style={{top: 180}}>18 true</div>,
+            <div style={{top: 190}}>19 true</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 0,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 50,
+        itemCount,
+        getItem,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 0}}>0 true</div>,
+            <div style={{top: 10}}>1 true</div>,
+            <div style={{top: 20}}>2 true</div>,
+            <div style={{top: 30}}>3 true</div>,
+            <div style={{top: 40}}>4 true</div>,
+            <div style={{top: 50}}>5 true</div>,
+            <div style={{top: 60}}>6 true</div>,
+            <div style={{top: 70}}>7 true</div>,
+            <div style={{top: 80}}>8 true</div>,
+            <div style={{top: 90}}>9 true</div>,
+            <div style={{top: 100}}>10 true</div>,
+            <div style={{top: 110}}>11 true</div>,
+            <div style={{top: 120}}>12 true</div>,
+            <div style={{top: 130}}>13 true</div>,
+            <div style={{top: 140}}>14 true</div>,
+            <div style={{top: 150}}>15 true</div>,
+            <div style={{top: 160}}>16 true</div>,
+            <div style={{top: 170}}>17 true</div>,
+            <div style={{top: 180}}>18 true</div>,
+            <div style={{top: 190}}>19 true</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 0,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 60,
+        itemCount,
+        getItem,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 10}}>1 true</div>,
+            <div style={{top: 20}}>2 true</div>,
+            <div style={{top: 30}}>3 true</div>,
+            <div style={{top: 40}}>4 true</div>,
+            <div style={{top: 50}}>5 true</div>,
+            <div style={{top: 60}}>6 true</div>,
+            <div style={{top: 70}}>7 true</div>,
+            <div style={{top: 80}}>8 true</div>,
+            <div style={{top: 90}}>9 true</div>,
+            <div style={{top: 100}}>10 true</div>,
+            <div style={{top: 110}}>11 true</div>,
+            <div style={{top: 120}}>12 true</div>,
+            <div style={{top: 130}}>13 true</div>,
+            <div style={{top: 140}}>14 true</div>,
+            <div style={{top: 150}}>15 true</div>,
+            <div style={{top: 160}}>16 true</div>,
+            <div style={{top: 170}}>17 true</div>,
+            <div style={{top: 180}}>18 true</div>,
+            <div style={{top: 190}}>19 true</div>,
+            <div style={{top: 200}}>20 false</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 10,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 10}}>1 true</div>,
+            <div style={{top: 20}}>2 true</div>,
+            <div style={{top: 30}}>3 true</div>,
+            <div style={{top: 40}}>4 true</div>,
+            <div style={{top: 50}}>5 true</div>,
+            <div style={{top: 60}}>6 true</div>,
+            <div style={{top: 70}}>7 true</div>,
+            <div style={{top: 80}}>8 true</div>,
+            <div style={{top: 90}}>9 true</div>,
+            <div style={{top: 100}}>10 true</div>,
+            <div style={{top: 110}}>11 true</div>,
+            <div style={{top: 120}}>12 true</div>,
+            <div style={{top: 130}}>13 true</div>,
+            <div style={{top: 140}}>14 true</div>,
+            <div style={{top: 150}}>15 true</div>,
+            <div style={{top: 160}}>16 true</div>,
+            <div style={{top: 170}}>17 true</div>,
+            <div style={{top: 180}}>18 true</div>,
+            <div style={{top: 190}}>19 true</div>,
+            <div style={{top: 200}}>20 false</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 10,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 65,
+        itemCount,
+        getItem,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 10}}>1 true</div>,
+            <div style={{top: 20}}>2 true</div>,
+            <div style={{top: 30}}>3 true</div>,
+            <div style={{top: 40}}>4 true</div>,
+            <div style={{top: 50}}>5 true</div>,
+            <div style={{top: 60}}>6 true</div>,
+            <div style={{top: 70}}>7 true</div>,
+            <div style={{top: 80}}>8 true</div>,
+            <div style={{top: 90}}>9 true</div>,
+            <div style={{top: 100}}>10 true</div>,
+            <div style={{top: 110}}>11 true</div>,
+            <div style={{top: 120}}>12 true</div>,
+            <div style={{top: 130}}>13 true</div>,
+            <div style={{top: 140}}>14 true</div>,
+            <div style={{top: 150}}>15 true</div>,
+            <div style={{top: 160}}>16 true</div>,
+            <div style={{top: 170}}>17 true</div>,
+            <div style={{top: 180}}>18 true</div>,
+            <div style={{top: 190}}>19 true</div>,
+            <div style={{top: 200}}>20 true</div>,
+            <div style={{top: 210}}>21 false</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 10,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 100,
+        itemCount,
+        getItem,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 50}}>5 true</div>,
+            <div style={{top: 60}}>6 true</div>,
+            <div style={{top: 70}}>7 true</div>,
+            <div style={{top: 80}}>8 true</div>,
+            <div style={{top: 90}}>9 true</div>,
+            <div style={{top: 100}}>10 true</div>,
+            <div style={{top: 110}}>11 true</div>,
+            <div style={{top: 120}}>12 true</div>,
+            <div style={{top: 130}}>13 true</div>,
+            <div style={{top: 140}}>14 true</div>,
+            <div style={{top: 150}}>15 true</div>,
+            <div style={{top: 160}}>16 true</div>,
+            <div style={{top: 170}}>17 true</div>,
+            <div style={{top: 180}}>18 true</div>,
+            <div style={{top: 190}}>19 true</div>,
+            <div style={{top: 200}}>20 true</div>,
+            <div style={{top: 210}}>21 true</div>,
+            <div style={{top: 220}}>22 false</div>,
+            <div style={{top: 230}}>23 false</div>,
+            <div style={{top: 240}}>24 false</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 50,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 50}}>5 true</div>,
+            <div style={{top: 60}}>6 true</div>,
+            <div style={{top: 70}}>7 true</div>,
+            <div style={{top: 80}}>8 true</div>,
+            <div style={{top: 90}}>9 true</div>,
+            <div style={{top: 100}}>10 true</div>,
+            <div style={{top: 110}}>11 true</div>,
+            <div style={{top: 120}}>12 true</div>,
+            <div style={{top: 130}}>13 true</div>,
+            <div style={{top: 140}}>14 true</div>,
+            <div style={{top: 150}}>15 true</div>,
+            <div style={{top: 160}}>16 true</div>,
+            <div style={{top: 170}}>17 true</div>,
+            <div style={{top: 180}}>18 true</div>,
+            <div style={{top: 190}}>19 true</div>,
+            <div style={{top: 200}}>20 true</div>,
+            <div style={{top: 210}}>21 true</div>,
+            <div style={{top: 220}}>22 false</div>,
+            <div style={{top: 230}}>23 false</div>,
+            <div style={{top: 240}}>24 false</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 50,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 60,
+        itemCount,
+        getItem,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 10}}>1 false</div>,
+            <div style={{top: 20}}>2 false</div>,
+            <div style={{top: 30}}>3 false</div>,
+            <div style={{top: 40}}>4 false</div>,
+            <div style={{top: 50}}>5 true</div>,
+            <div style={{top: 60}}>6 true</div>,
+            <div style={{top: 70}}>7 true</div>,
+            <div style={{top: 80}}>8 true</div>,
+            <div style={{top: 90}}>9 true</div>,
+            <div style={{top: 100}}>10 true</div>,
+            <div style={{top: 110}}>11 true</div>,
+            <div style={{top: 120}}>12 true</div>,
+            <div style={{top: 130}}>13 true</div>,
+            <div style={{top: 140}}>14 true</div>,
+            <div style={{top: 150}}>15 true</div>,
+            <div style={{top: 160}}>16 true</div>,
+            <div style={{top: 170}}>17 true</div>,
+            <div style={{top: 180}}>18 true</div>,
+            <div style={{top: 190}}>19 true</div>,
+            <div style={{top: 200}}>20 true</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 10,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 1000,
+        itemCount,
+        getItem,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 950}}>95 false</div>,
+            <div style={{top: 960}}>96 false</div>,
+            <div style={{top: 970}}>97 false</div>,
+            <div style={{top: 980}}>98 false</div>,
+            <div style={{top: 990}}>99 false</div>,
+            <div style={{top: 1000}}>100 false</div>,
+            <div style={{top: 1010}}>101 false</div>,
+            <div style={{top: 1020}}>102 false</div>,
+            <div style={{top: 1030}}>103 false</div>,
+            <div style={{top: 1040}}>104 false</div>,
+            <div style={{top: 1050}}>105 false</div>,
+            <div style={{top: 1060}}>106 false</div>,
+            <div style={{top: 1070}}>107 false</div>,
+            <div style={{top: 1080}}>108 false</div>,
+            <div style={{top: 1090}}>109 false</div>,
+            <div style={{top: 1100}}>110 false</div>,
+            <div style={{top: 1110}}>111 false</div>,
+            <div style={{top: 1120}}>112 false</div>,
+            <div style={{top: 1130}}>113 false</div>,
+            <div style={{top: 1140}}>114 false</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 950,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 950}}>95 false</div>,
+            <div style={{top: 960}}>96 false</div>,
+            <div style={{top: 970}}>97 false</div>,
+            <div style={{top: 980}}>98 false</div>,
+            <div style={{top: 990}}>99 false</div>,
+            <div style={{top: 1000}}>100 false</div>,
+            <div style={{top: 1010}}>101 false</div>,
+            <div style={{top: 1020}}>102 false</div>,
+            <div style={{top: 1030}}>103 false</div>,
+            <div style={{top: 1040}}>104 false</div>,
+            <div style={{top: 1050}}>105 false</div>,
+            <div style={{top: 1060}}>106 false</div>,
+            <div style={{top: 1070}}>107 false</div>,
+            <div style={{top: 1080}}>108 false</div>,
+            <div style={{top: 1090}}>109 false</div>,
+            <div style={{top: 1100}}>110 false</div>,
+            <div style={{top: 1110}}>111 false</div>,
+            <div style={{top: 1120}}>112 false</div>,
+            <div style={{top: 1130}}>113 false</div>,
+            <div style={{top: 1140}}>114 false</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 950,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 990,
+        itemCount,
+        getItem,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 940}}>94 false</div>,
+            <div style={{top: 950}}>95 true</div>,
+            <div style={{top: 960}}>96 true</div>,
+            <div style={{top: 970}}>97 true</div>,
+            <div style={{top: 980}}>98 true</div>,
+            <div style={{top: 990}}>99 true</div>,
+            <div style={{top: 1000}}>100 true</div>,
+            <div style={{top: 1010}}>101 true</div>,
+            <div style={{top: 1020}}>102 true</div>,
+            <div style={{top: 1030}}>103 true</div>,
+            <div style={{top: 1040}}>104 true</div>,
+            <div style={{top: 1050}}>105 true</div>,
+            <div style={{top: 1060}}>106 true</div>,
+            <div style={{top: 1070}}>107 true</div>,
+            <div style={{top: 1080}}>108 true</div>,
+            <div style={{top: 1090}}>109 true</div>,
+            <div style={{top: 1100}}>110 true</div>,
+            <div style={{top: 1110}}>111 true</div>,
+            <div style={{top: 1120}}>112 true</div>,
+            <div style={{top: 1130}}>113 true</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 940,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+        alwaysRenderAdditionalItemIndexes: [10, 900],
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 100}}>10 false</div>,
+            <div style={{top: 940}}>94 false</div>,
+            <div style={{top: 950}}>95 true</div>,
+            <div style={{top: 960}}>96 true</div>,
+            <div style={{top: 970}}>97 true</div>,
+            <div style={{top: 980}}>98 true</div>,
+            <div style={{top: 990}}>99 true</div>,
+            <div style={{top: 1000}}>100 true</div>,
+            <div style={{top: 1010}}>101 true</div>,
+            <div style={{top: 1020}}>102 true</div>,
+            <div style={{top: 1030}}>103 true</div>,
+            <div style={{top: 1040}}>104 true</div>,
+            <div style={{top: 1050}}>105 true</div>,
+            <div style={{top: 1060}}>106 true</div>,
+            <div style={{top: 1070}}>107 true</div>,
+            <div style={{top: 1080}}>108 true</div>,
+            <div style={{top: 1090}}>109 true</div>,
+            <div style={{top: 1100}}>110 true</div>,
+            <div style={{top: 1110}}>111 true</div>,
+            <div style={{top: 1120}}>112 true</div>,
+            <div style={{top: 1130}}>113 true</div>,
+            <div style={{top: 9000}}>900 false</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 940,
+    });
+
+    state = state.updateRenderedRange({
+        scrollOffset: 995,
+        itemCount,
+        getItem,
+    });
+
+    ({state, renderedRange, ...result} = state.render({
+        itemCount,
+        getItem,
+        alwaysRenderAdditionalItemIndexes: [10, 900],
+    }));
+
+    expect(result).toEqual({
+        children: [
+            <div style={{top: 100}}>10 false</div>,
+            <div style={{top: 940}}>94 true</div>,
+            <div style={{top: 950}}>95 true</div>,
+            <div style={{top: 960}}>96 true</div>,
+            <div style={{top: 970}}>97 true</div>,
+            <div style={{top: 980}}>98 true</div>,
+            <div style={{top: 990}}>99 true</div>,
+            <div style={{top: 1000}}>100 true</div>,
+            <div style={{top: 1010}}>101 true</div>,
+            <div style={{top: 1020}}>102 true</div>,
+            <div style={{top: 1030}}>103 true</div>,
+            <div style={{top: 1040}}>104 true</div>,
+            <div style={{top: 1050}}>105 true</div>,
+            <div style={{top: 1060}}>106 true</div>,
+            <div style={{top: 1070}}>107 true</div>,
+            <div style={{top: 1080}}>108 true</div>,
+            <div style={{top: 1090}}>109 true</div>,
+            <div style={{top: 1100}}>110 true</div>,
+            <div style={{top: 1110}}>111 true</div>,
+            <div style={{top: 1120}}>112 true</div>,
+            <div style={{top: 1130}}>113 true</div>,
+            <div style={{top: 1140}}>114 false</div>,
+            <div style={{top: 9000}}>900 false</div>,
+        ],
+        contentHeight: 10_000,
+        bufferedHeightBeforeChildren: 940,
+    });
+});

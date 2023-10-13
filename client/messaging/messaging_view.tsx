@@ -776,22 +776,32 @@ export function renderMessageListItem<
 
             // It's important to reuse nodes across renders because then React won't try to
             // re-render the component.
-            let nodeWithExpensiveFeaturesDisabled: ReactElement | null = null;
-            let nodeWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
+            let elementWithExpensiveFeaturesDisabled: ReactElement | null = null;
+            let elementWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
 
-            const render = (isScrolling: boolean) => {
+            // NOTE(calebmer): This is an inline implementation of
+            // `renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll()`.
+            // That helper was added after this code and this code has some `customRender`
+            // stuff I'm going to leave alone. Ideally this code would use the helper.
+            const render = (isScrolling: boolean, wasPreviouslyInRenderedRange: boolean) => {
+                // If we previously rendered this item without expensive features disabled and
+                // now we're reintroducing it to the rendered range while scrolling, we want to
+                // render WITH expensive features disabled until we stop scrolling.
+                if (!wasPreviouslyInRenderedRange && isScrolling)
+                    elementWithoutExpensiveFeaturesDisabled = null;
+
                 // If we already rendered the node without expensive features disabled, don't
                 // render a new version since that will cause a frame drop right at the start
                 // of the scroll as React re-renders every message.
-                if (nodeWithoutExpensiveFeaturesDisabled !== null)
-                    return nodeWithoutExpensiveFeaturesDisabled;
+                if (elementWithoutExpensiveFeaturesDisabled !== null)
+                    return elementWithoutExpensiveFeaturesDisabled;
 
                 if (isScrolling) {
-                    nodeWithExpensiveFeaturesDisabled ??= actuallyRender(true);
-                    return nodeWithExpensiveFeaturesDisabled;
+                    elementWithExpensiveFeaturesDisabled ??= actuallyRender(true);
+                    return elementWithExpensiveFeaturesDisabled;
                 } else {
-                    nodeWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
-                    return nodeWithoutExpensiveFeaturesDisabled;
+                    elementWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
+                    return elementWithoutExpensiveFeaturesDisabled;
                 }
             };
 
@@ -806,7 +816,13 @@ export function renderMessageListItem<
                         : `UnloadedMessage:${item.messageIndex}`,
                 minHeight: messageViewMinHeight,
                 withManualLayout: true,
-                render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => {
+                render: ({
+                    ref,
+                    shouldRenderWithRelativePositioning,
+                    offset,
+                    isScrolling,
+                    wasPreviouslyInRenderedRange,
+                }) => {
                     if (!customRender) {
                         return (
                             <div
@@ -824,14 +840,14 @@ export function renderMessageListItem<
                                 }}
                             >
                                 {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
-                                {render(isScrolling)}
+                                {render(isScrolling, wasPreviouslyInRenderedRange)}
                             </div>
                         );
                     } else {
                         const node = customRender(
                             <>
                                 {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
-                                {render(isScrolling)}
+                                {render(isScrolling, wasPreviouslyInRenderedRange)}
                             </>,
                         );
 

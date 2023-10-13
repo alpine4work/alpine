@@ -7,6 +7,7 @@ import {Key, ReactNode} from "react";
 import {OutOfRangeError, UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {
@@ -71,6 +72,7 @@ export function withRealVirtualizationWindowHeightForTest(action: () => void) {
 export type VirtualizedScrollViewStateRenderItemProps = {
     offset: number;
     height: number;
+    minHeight: number;
 
     /**
      * Get the position of an arbitrary item.
@@ -99,6 +101,16 @@ export type VirtualizedScrollViewStateRenderItemProps = {
      * re-render with the correct content height.
      */
     originalContentHeight: number;
+
+    /**
+     * True if an item at this index was previously in our rendered range. False
+     * if the item is just now entering our rendered range.
+     *
+     * If an item at some index moves from out of our rendered range into the
+     * rendered range this will be false. It's only true for items that are now
+     * visible because the rendered range shifted.
+     */
+    wasPreviouslyInRenderedRange: boolean;
 };
 
 /**
@@ -163,6 +175,16 @@ export class VirtualizedScrollViewState {
     private readonly _renderedRange: VirtualizedScrollViewStateRenderedRange | null;
 
     /**
+     * The range of items from our last `render()` call. Used by the `render()`
+     * method to determine if an item is newly rendered.
+     *
+     * This is updated by the `updateRenderedRange()` function. We update in
+     * `updateRenderedRange()` instead of `render()` to avoid extra state updates
+     * while scrolling.
+     */
+    private readonly _previousRenderedRange: VirtualizedScrollViewStateRenderedRange | null;
+
+    /**
      * Cache of the item count in `entryByOrderKey` subtrees.
      */
     private readonly _itemCountSubtreeCache: WeakMap<
@@ -184,6 +206,7 @@ export class VirtualizedScrollViewState {
         entryByOrderKey,
         orderKeyByItemKey,
         renderedRange,
+        previousRenderedRange,
         itemCountSubtreeCache,
         contentHeightSubtreeCache,
     }: {
@@ -192,6 +215,7 @@ export class VirtualizedScrollViewState {
         entryByOrderKey: Tree<OrderKey, VirtualizedScrollViewStateEntry>;
         orderKeyByItemKey: Tree<Key, OrderKey>;
         renderedRange: VirtualizedScrollViewStateRenderedRange | null;
+        previousRenderedRange: VirtualizedScrollViewStateRenderedRange | null;
         itemCountSubtreeCache: WeakMap<TreeNode<OrderKey, VirtualizedScrollViewStateEntry>, number>;
         contentHeightSubtreeCache: WeakMap<
             TreeNode<OrderKey, VirtualizedScrollViewStateEntry>,
@@ -253,6 +277,7 @@ export class VirtualizedScrollViewState {
         this._entryByOrderKey = entryByOrderKey;
         this._orderKeyByItemKey = orderKeyByItemKey;
         this._renderedRange = renderedRange;
+        this._previousRenderedRange = previousRenderedRange;
         this._itemCountSubtreeCache = itemCountSubtreeCache;
         this._contentHeightSubtreeCache = contentHeightSubtreeCache;
     }
@@ -317,18 +342,27 @@ export class VirtualizedScrollViewState {
             });
         }
 
+        const renderedRange =
+            renderedItems.length > 0
+                ? {
+                      startOrderKey: orderKeys[0]!,
+                      endOrderKey: orderKeys[renderedItems.length - 1]!,
+                  }
+                : null;
+
         return new VirtualizedScrollViewState({
             viewHeight: initialViewHeight,
             bufferedItemHeight,
             entryByOrderKey,
             orderKeyByItemKey,
-            renderedRange:
-                renderedItems.length > 0
-                    ? {
-                          startOrderKey: orderKeys[0]!,
-                          endOrderKey: orderKeys[renderedItems.length - 1]!,
-                      }
-                    : null,
+            renderedRange,
+            // Use the current rendered range as our previous rendered range after
+            // initialization. This makes it appear as if the view has always had this
+            // rendered range.
+            //
+            // Setting this to null would make it appear like we went from an empty list to
+            // a list with items which isn't what the user perceives.
+            previousRenderedRange: renderedRange,
             itemCountSubtreeCache: new WeakMap(),
             contentHeightSubtreeCache: new WeakMap(),
         });
@@ -398,18 +432,27 @@ export class VirtualizedScrollViewState {
             orderKeyByItemKey = orderKeyByItemKey.insert(item.key, orderKey);
         }
 
+        const renderedRange =
+            renderedItems.length > 0
+                ? {
+                      startOrderKey: orderKeys[1]!,
+                      endOrderKey: orderKeys[renderedItems.length]!,
+                  }
+                : null;
+
         return new VirtualizedScrollViewState({
             viewHeight: initialViewHeight,
             bufferedItemHeight,
             entryByOrderKey,
             orderKeyByItemKey,
-            renderedRange:
-                renderedItems.length > 0
-                    ? {
-                          startOrderKey: orderKeys[1]!,
-                          endOrderKey: orderKeys[renderedItems.length]!,
-                      }
-                    : null,
+            renderedRange,
+            // Use the current rendered range as our previous rendered range after
+            // initialization. This makes it appear as if the view has always had this
+            // rendered range.
+            //
+            // Setting this to null would make it appear like we went from an empty list to
+            // a list with items which isn't what the user perceives.
+            previousRenderedRange: renderedRange,
             itemCountSubtreeCache: new WeakMap(),
             contentHeightSubtreeCache: new WeakMap(),
         });
@@ -439,6 +482,7 @@ export class VirtualizedScrollViewState {
             entryByOrderKey: this._entryByOrderKey,
             orderKeyByItemKey: this._orderKeyByItemKey,
             renderedRange: this._renderedRange,
+            previousRenderedRange: this._previousRenderedRange,
             itemCountSubtreeCache: this._itemCountSubtreeCache,
             contentHeightSubtreeCache: this._contentHeightSubtreeCache,
         });
@@ -461,6 +505,7 @@ export class VirtualizedScrollViewState {
             entryByOrderKey: this._entryByOrderKey,
             orderKeyByItemKey: this._orderKeyByItemKey,
             renderedRange: this._renderedRange,
+            previousRenderedRange: this._previousRenderedRange,
             itemCountSubtreeCache: this._itemCountSubtreeCache,
             // We need to clear the content height cache when the buffered item height
             // changes since it affects the height of buffer entries.
@@ -491,6 +536,7 @@ export class VirtualizedScrollViewState {
             entryByOrderKey: entryIterator.update({type: "Item", key: itemKey, height: itemHeight}),
             orderKeyByItemKey: this._orderKeyByItemKey,
             renderedRange: this._renderedRange,
+            previousRenderedRange: this._previousRenderedRange,
             itemCountSubtreeCache: this._itemCountSubtreeCache,
             contentHeightSubtreeCache: this._contentHeightSubtreeCache,
         });
@@ -1124,6 +1170,7 @@ export class VirtualizedScrollViewState {
                     startOrderKey: newRenderedRangeStartOrderKey,
                     endOrderKey: newRenderedRangeEndOrderKey,
                 },
+                previousRenderedRange: originalState._renderedRange,
                 itemCountSubtreeCache: state._itemCountSubtreeCache,
                 contentHeightSubtreeCache: state._contentHeightSubtreeCache,
             });
@@ -1139,6 +1186,7 @@ export class VirtualizedScrollViewState {
                 entryByOrderKey: state._entryByOrderKey,
                 orderKeyByItemKey: state._orderKeyByItemKey,
                 renderedRange: null,
+                previousRenderedRange: originalState._renderedRange,
                 itemCountSubtreeCache: state._itemCountSubtreeCache,
                 contentHeightSubtreeCache: state._contentHeightSubtreeCache,
             });
@@ -1542,13 +1590,53 @@ export class VirtualizedScrollViewState {
         assert(iterator.node, "Could not find rendered range start order key");
         const startIndex = state._getPreviousItemCount(iterator);
         let endIndex = startIndex;
+
+        const previousRenderedRange = originalState._previousRenderedRange;
+        let previousRenderedRangeState: "Before" | "Within" | "After" | null = null;
+
         const renderAdditionalItemIndexes = new Set<number>();
 
+        // Must be called in item order. Indexes before our rendered range should be
+        // called before our rendered range loop. Indexes after our rendered range
+        // should be called after our rendered range loop.
         const renderAdditionalItemIndex = (index: number) => {
             const item = getItem(index);
             const {iterator, nodeIndex} = state._getNodeAtIndex(index);
             const node = assertExists(iterator.node);
             const nodeOffset = state._getPreviousContentHeight(iterator);
+
+            if (previousRenderedRange !== null) {
+                switch (previousRenderedRangeState) {
+                    case null: {
+                        previousRenderedRangeState =
+                            node.key < previousRenderedRange.startOrderKey
+                                ? "Before"
+                                : node.key > previousRenderedRange.endOrderKey
+                                ? "After"
+                                : "Within";
+                        break;
+                    }
+                    case "Before": {
+                        if (node.key >= previousRenderedRange.startOrderKey) {
+                            previousRenderedRangeState =
+                                node.key <= previousRenderedRange.endOrderKey ? "Within" : "After";
+                        }
+                        break;
+                    }
+                    case "Within": {
+                        if (node.key > previousRenderedRange.endOrderKey) {
+                            previousRenderedRangeState = "After";
+                        }
+                        break;
+                    }
+                    case "After": {
+                        // Done
+                        break;
+                    }
+                    default:
+                        throw exhaustive(previousRenderedRangeState);
+                }
+            }
 
             let offset: number;
             let height: number;
@@ -1645,6 +1733,7 @@ export class VirtualizedScrollViewState {
             const renderedItem = item.render({
                 offset,
                 height,
+                minHeight: item.minHeight,
                 getPositionByIndex: searchIndex => {
                     // NOTE(calebmer): We do not allow this because we are not done laying out items
                     // after this one. We could implement this by laying out all items first then
@@ -1658,6 +1747,7 @@ export class VirtualizedScrollViewState {
                 },
                 viewHeight: originalState.getViewHeight(),
                 originalContentHeight: originalState.getContentHeight(),
+                wasPreviouslyInRenderedRange: previousRenderedRangeState === "Within",
             });
 
             children.push(renderedItem);
@@ -1696,6 +1786,39 @@ export class VirtualizedScrollViewState {
             assert(node.value.type === "Item", "Entries within rendered range must be items");
             iterator.next();
 
+            if (previousRenderedRange !== null) {
+                switch (previousRenderedRangeState) {
+                    case null: {
+                        previousRenderedRangeState =
+                            node.key < previousRenderedRange.startOrderKey
+                                ? "Before"
+                                : node.key > previousRenderedRange.endOrderKey
+                                ? "After"
+                                : "Within";
+                        break;
+                    }
+                    case "Before": {
+                        if (node.key >= previousRenderedRange.startOrderKey) {
+                            previousRenderedRangeState =
+                                node.key <= previousRenderedRange.endOrderKey ? "Within" : "After";
+                        }
+                        break;
+                    }
+                    case "Within": {
+                        if (node.key > previousRenderedRange.endOrderKey) {
+                            previousRenderedRangeState = "After";
+                        }
+                        break;
+                    }
+                    case "After": {
+                        // Done
+                        break;
+                    }
+                    default:
+                        throw exhaustive(previousRenderedRangeState);
+                }
+            }
+
             const index = endIndex;
             const item = getItem(index);
             const itemHeight =
@@ -1708,6 +1831,7 @@ export class VirtualizedScrollViewState {
             const renderedItem = item.render({
                 offset,
                 height: itemHeight,
+                minHeight: item.minHeight,
                 getPositionByIndex: searchIndex => {
                     // NOTE(calebmer): We do not allow this because we are not done laying out items
                     // after this one. We could implement this by laying out all items first then
@@ -1721,6 +1845,7 @@ export class VirtualizedScrollViewState {
                 },
                 viewHeight: originalState.getViewHeight(),
                 originalContentHeight: originalState.getContentHeight(),
+                wasPreviouslyInRenderedRange: previousRenderedRangeState === "Within",
             });
 
             if (item.renderAdditionalItemIndexes)
@@ -1864,6 +1989,7 @@ export class VirtualizedScrollViewState {
             entryByOrderKey,
             orderKeyByItemKey,
             renderedRange: state._renderedRange,
+            previousRenderedRange: state._previousRenderedRange,
             itemCountSubtreeCache: state._itemCountSubtreeCache,
             contentHeightSubtreeCache: state._contentHeightSubtreeCache,
         });
@@ -1900,6 +2026,10 @@ export class VirtualizedScrollViewState {
             entryByOrderKey,
             orderKeyByItemKey,
             renderedRange: newRenderedRange !== undefined ? newRenderedRange : state._renderedRange,
+            previousRenderedRange:
+                newRenderedRange !== undefined
+                    ? state._renderedRange
+                    : state._previousRenderedRange,
             itemCountSubtreeCache: state._itemCountSubtreeCache,
             contentHeightSubtreeCache: state._contentHeightSubtreeCache,
         });
