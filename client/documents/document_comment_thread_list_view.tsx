@@ -39,7 +39,7 @@ import {
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {VirtualizedTree} from "~/client/virtualized/virtualized_tree.js";
+import {VirtualizedTree} from "~/client/virtualized/helpers/virtualized_tree.js";
 import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";

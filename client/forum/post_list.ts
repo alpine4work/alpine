@@ -1,5 +1,5 @@
 import {MessageList} from "~/client/messaging/message_list.js";
-import {VirtualizedTree} from "~/client/virtualized/virtualized_tree.js";
+import {VirtualizedTree} from "~/client/virtualized/helpers/virtualized_tree.js";
 import {
     FailedPreconditionError,
     InternalError,

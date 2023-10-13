@@ -5,7 +5,6 @@ import {
     Key,
     Memo,
     MutableRefObject,
-    ReactElement,
     ReactNode,
     Ref,
     RefObject,
@@ -49,6 +48,7 @@ import {
     taskRowViewLastColumnPaddingRight,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
+import {renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll} from "~/client/virtualized/helpers/render_virtualized_scroll_view_item_with_expensive_features_disabled_during_scroll.js";
 import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
@@ -739,92 +739,47 @@ export function useTaskGridViewVirtualizedList({
                 }
 
                 if (relativeItemIndex === 0) {
-                    const actuallyRender = (disableExpensiveFeaturesDuringScroll: boolean) => {
-                        return (
-                            <TaskRowViewMemo
-                                context={context}
-                                capabilities={capabilities}
-                                rootQuery={rootQuery}
-                                query={rootQuery}
-                                taskKey={bottomGhostTaskId}
-                                cursor={null}
-                                ghostTaskId={bottomGhostTaskId}
-                                parents={emptyArray}
-                                disableExpensiveFeaturesDuringScroll={
-                                    disableExpensiveFeaturesDuringScroll
-                                }
-                                isFirstRow={stateItemCount === 0}
-                                nextIndentation={0}
-                                // NOCOMMIT: Ghost row placeholder sequence!
-                                titlePlaceholder={
-                                    !capabilities.isReadOnly ? "Add a task…" : undefined
-                                }
-                                viewRef={viewRef}
-                                events={events}
-                                taskRowByTaskKeyRef={taskRowByTaskKeyRef}
-                                getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
-                                toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
-                                setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
-                                onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
-                                    onTaskDeleteConfirmationModalDialogClosedCallbacksRef
-                                }
-                                // If there are no task rows, the padding just makes our ghost row placeholder
-                                // look misaligned. So remove it.
-                                withoutPaddingLeft={stateItemCount === 0}
-                                withPaddingBottom={itemIndex === itemCount - 1}
-                            />
-                        );
-                    };
-
-                    // It's important to reuse nodes across renders because then React won't try to
-                    // re-render the component.
-                    let nodeWithExpensiveFeaturesDisabled: ReactElement | null = null;
-                    let nodeWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
-
-                    const render = (isScrolling: boolean) => {
-                        // If we already rendered the node without expensive features disabled, don't
-                        // render a new version since that will cause a frame drop right at the start
-                        // of the scroll as React re-renders every message.
-                        if (nodeWithoutExpensiveFeaturesDisabled !== null)
-                            return nodeWithoutExpensiveFeaturesDisabled;
-
-                        if (isScrolling) {
-                            nodeWithExpensiveFeaturesDisabled ??= actuallyRender(true);
-                            return nodeWithExpensiveFeaturesDisabled;
-                        } else {
-                            nodeWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
-                            return nodeWithoutExpensiveFeaturesDisabled;
-                        }
-                    };
-
                     return {
                         // We want to use the same key and component as a regular task so we can turn a
                         // ghost task into a regular task without losing focus.
                         key: `Task:${bottomGhostTaskId}`,
                         minHeight: spacing[taskRowViewMinHeight],
                         withManualLayout: true,
-                        render: ({
-                            ref,
-                            shouldRenderWithRelativePositioning,
-                            offset,
-                            isScrolling,
-                        }) => (
-                            <div
-                                ref={ref}
-                                style={{
-                                    minHeight: spacing[taskRowViewMinHeight],
-                                    ...(shouldRenderWithRelativePositioning
-                                        ? {position: "relative"}
-                                        : {
-                                              position: "absolute",
-                                              top: offset,
-                                              left: 0,
-                                              right: 0,
-                                          }),
-                                }}
-                            >
-                                {render(isScrolling)}
-                            </div>
+                        render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
+                            disableExpensiveFeaturesDuringScroll => (
+                                <TaskRowViewMemo
+                                    context={context}
+                                    capabilities={capabilities}
+                                    rootQuery={rootQuery}
+                                    query={rootQuery}
+                                    taskKey={bottomGhostTaskId}
+                                    cursor={null}
+                                    ghostTaskId={bottomGhostTaskId}
+                                    parents={emptyArray}
+                                    disableExpensiveFeaturesDuringScroll={
+                                        disableExpensiveFeaturesDuringScroll
+                                    }
+                                    isFirstRow={stateItemCount === 0}
+                                    nextIndentation={0}
+                                    // NOCOMMIT: Ghost row placeholder sequence!
+                                    titlePlaceholder={
+                                        !capabilities.isReadOnly ? "Add a task…" : undefined
+                                    }
+                                    viewRef={viewRef}
+                                    events={events}
+                                    taskRowByTaskKeyRef={taskRowByTaskKeyRef}
+                                    getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
+                                    toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
+                                    setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
+                                    onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
+                                        onTaskDeleteConfirmationModalDialogClosedCallbacksRef
+                                    }
+                                    // If there are no task rows, the padding just makes our ghost row placeholder
+                                    // look misaligned. So remove it.
+                                    withoutPaddingLeft={stateItemCount === 0}
+                                    withPaddingBottom={itemIndex === itemCount - 1}
+                                />
+                            ),
                         ),
                     };
                 }
@@ -856,83 +811,43 @@ export function useTaskGridViewVirtualizedList({
                         ? `${getTaskQuerySortCursorTaskId(item.parents[0]!.cursor)}-${taskId}`
                         : taskId;
 
-                const actuallyRender = (disableExpensiveFeaturesDuringScroll: boolean) => {
-                    return (
-                        <TaskRowViewMemo
-                            context={context}
-                            capabilities={capabilities}
-                            rootQuery={rootQuery}
-                            query={item.query}
-                            taskKey={taskKey}
-                            cursor={item.cursor}
-                            parents={item.parents}
-                            disableExpensiveFeaturesDuringScroll={
-                                disableExpensiveFeaturesDuringScroll
-                            }
-                            isFirstRow={itemIndex - itemCountBeforeState === 0}
-                            nextIndentation={
-                                itemIndex + 1 < itemCountBeforeState + stateItemCount
-                                    ? // This doesn't mess up the `state.getItem(n + 1)` optimization since
-                                      // repeatedly calling `state.getItem(n)` preserves the internal iterator.
-                                      state.getItem(itemIndex - itemCountBeforeState + 1).parents
-                                          .length
-                                    : 0
-                            }
-                            viewRef={viewRef}
-                            events={events}
-                            taskRowByTaskKeyRef={taskRowByTaskKeyRef}
-                            getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
-                            toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
-                            setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
-                            onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
-                                onTaskDeleteConfirmationModalDialogClosedCallbacksRef
-                            }
-                        />
-                    );
-                };
-
-                // It's important to reuse nodes across renders because then React won't try to
-                // re-render the component.
-                let nodeWithExpensiveFeaturesDisabled: ReactElement | null = null;
-                let nodeWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
-
-                const render = (isScrolling: boolean) => {
-                    // If we already rendered the node without expensive features disabled, don't
-                    // render a new version since that will cause a frame drop right at the start
-                    // of the scroll as React re-renders every message.
-                    if (nodeWithoutExpensiveFeaturesDisabled !== null)
-                        return nodeWithoutExpensiveFeaturesDisabled;
-
-                    if (isScrolling) {
-                        nodeWithExpensiveFeaturesDisabled ??= actuallyRender(true);
-                        return nodeWithExpensiveFeaturesDisabled;
-                    } else {
-                        nodeWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
-                        return nodeWithoutExpensiveFeaturesDisabled;
-                    }
-                };
-
                 return {
                     key: `Task:${taskKey}`,
                     minHeight: spacing[taskRowViewMinHeight],
                     withManualLayout: true,
-                    render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => (
-                        <div
-                            ref={ref}
-                            style={{
-                                minHeight: spacing[taskRowViewMinHeight],
-                                ...(shouldRenderWithRelativePositioning
-                                    ? {position: "relative"}
-                                    : {
-                                          position: "absolute",
-                                          top: offset,
-                                          left: 0,
-                                          right: 0,
-                                      }),
-                            }}
-                        >
-                            {render(isScrolling)}
-                        </div>
+                    render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
+                        disableExpensiveFeaturesDuringScroll => (
+                            <TaskRowViewMemo
+                                context={context}
+                                capabilities={capabilities}
+                                rootQuery={rootQuery}
+                                query={item.query}
+                                taskKey={taskKey}
+                                cursor={item.cursor}
+                                parents={item.parents}
+                                disableExpensiveFeaturesDuringScroll={
+                                    disableExpensiveFeaturesDuringScroll
+                                }
+                                isFirstRow={itemIndex - itemCountBeforeState === 0}
+                                nextIndentation={
+                                    itemIndex + 1 < itemCountBeforeState + stateItemCount
+                                        ? // This doesn't mess up the `state.getItem(n + 1)` optimization since
+                                          // repeatedly calling `state.getItem(n)` preserves the internal iterator.
+                                          state.getItem(itemIndex - itemCountBeforeState + 1)
+                                              .parents.length
+                                        : 0
+                                }
+                                viewRef={viewRef}
+                                events={events}
+                                taskRowByTaskKeyRef={taskRowByTaskKeyRef}
+                                getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
+                                toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
+                                setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
+                                onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
+                                    onTaskDeleteConfirmationModalDialogClosedCallbacksRef
+                                }
+                            />
+                        ),
                     ),
                 };
             } else {
