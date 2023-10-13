@@ -290,6 +290,9 @@ function TaskRowView(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
+    // NOCOMMIT
+    disableExpensiveFeaturesDuringScroll = true;
+
     // Either `cursor` or `ghostTaskId` should be provided. This component
     // transitions from a ghost task to a regular task when the user enters data.
     assert(cursor !== null ? ghostTaskId === null : ghostTaskId !== null);

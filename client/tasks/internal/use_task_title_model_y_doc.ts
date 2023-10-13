@@ -4,23 +4,22 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
-import {TaskTitle, TaskTitleUpdate, getYDocGuid} from "~/shared/tasks/task_title.js";
+import {TaskTitle, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
-function createYDoc(title: TaskTitleModel): Y.Doc & {
+function createYDocState(title: TaskTitleModel): {
+    doc: Y.Doc & {release: () => void};
     matches: {
         rawTitle: TaskTitle;
         titleUpdate: TaskTitleUpdate | null;
     } | null;
 } {
-    const titleDoc = new Y.Doc({guid: getYDocGuid()});
-    Y.applyUpdateV2(titleDoc, title.raw);
-
-    return Object.assign(titleDoc, {
+    return {
+        doc: title.createYDoc(),
         matches: {
             rawTitle: title.raw,
             titleUpdate: null,
         },
-    });
+    };
 }
 
 const titleEffectTransactionOrigin = Symbol("titleEffectTransactionOrigin");
@@ -36,7 +35,7 @@ export function useTaskTitleModelYDoc(
     title: TaskTitleModel,
     onTitleUpdate: (titleUpdate: TaskTitleUpdate) => void,
 ): Y.Doc {
-    const [yDoc, setYDoc] = useState(() => createYDoc(title));
+    const [yDocState, setYDocState] = useState(() => createYDocState(title));
 
     const titleRef = useRef(title);
     const onTitleUpdateRef = useRef(onTitleUpdate);
@@ -46,8 +45,8 @@ export function useTaskTitleModelYDoc(
     });
 
     useLayoutEffectWithoutServerSideWarning(() => {
-        // If our `yDoc` matches our `title` prop then we're good!
-        if (yDoc.matches?.rawTitle === title.raw && yDoc.matches.titleUpdate === null) {
+        // If our `yDocState` matches our `title` prop then we're good!
+        if (yDocState.matches?.rawTitle === title.raw && yDocState.matches.titleUpdate === null) {
             return;
         }
 
@@ -56,7 +55,7 @@ export function useTaskTitleModelYDoc(
         const titlePreviousUpdate = title.getPreviousUpdate();
         if (
             titlePreviousUpdate !== null &&
-            yDoc.matches?.rawTitle === titlePreviousUpdate.rawTitle
+            yDocState.matches?.rawTitle === titlePreviousUpdate.rawTitle
         ) {
             // If our `title` prop's previous update is the same update that was just
             // applied to our `yDoc` then everything is in sync. Hooray!
@@ -64,8 +63,8 @@ export function useTaskTitleModelYDoc(
             // This happens when `onTitleUpdate` synchronously calls
             // `setTitle(title.apply(titleUpdate))` so our component re-renders with an
             // update the component already saw and optimistically applied.
-            if (yDoc.matches.titleUpdate === titlePreviousUpdate.titleUpdate) {
-                yDoc.matches = {rawTitle: title.raw, titleUpdate: null};
+            if (yDocState.matches.titleUpdate === titlePreviousUpdate.titleUpdate) {
+                yDocState.matches = {rawTitle: title.raw, titleUpdate: null};
                 return;
             }
 
@@ -75,13 +74,13 @@ export function useTaskTitleModelYDoc(
             // This happens when we get a title update from a realtime event. The component
             // will re-render with the new `title` model and we'll need to apply the update
             // in our component.
-            if (yDoc.matches.titleUpdate === null) {
+            if (yDocState.matches.titleUpdate === null) {
                 Y.applyUpdateV2(
-                    yDoc,
+                    yDocState.doc,
                     titlePreviousUpdate.titleUpdate,
                     titleEffectTransactionOrigin,
                 );
-                yDoc.matches = {rawTitle: title.raw, titleUpdate: null};
+                yDocState.matches = {rawTitle: title.raw, titleUpdate: null};
                 return;
             }
         }
@@ -93,8 +92,8 @@ export function useTaskTitleModelYDoc(
         //
         // This might happen if we optimistically update a task title but then we need
         // to revert that update because an error occurs on the backend.
-        setYDoc(createYDoc(title));
-    }, [title, yDoc]);
+        setYDocState(createYDocState(title));
+    }, [title, yDocState]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         let isUnsubscribed = false;
@@ -111,12 +110,12 @@ export function useTaskTitleModelYDoc(
             // If our `yDoc` starts in a good state (it matches the `title` prop) then
             // record that our `yDoc` matches the `title` prop plus the new
             // `titleUpdate`.
-            if (yDoc.matches !== null && yDoc.matches.titleUpdate === null) {
-                yDoc.matches.titleUpdate = titleUpdate;
+            if (yDocState.matches !== null && yDocState.matches.titleUpdate === null) {
+                yDocState.matches.titleUpdate = titleUpdate;
             } else {
                 // We can't update `titleUpdate` twice. We need React to re-render
                 // between updates.
-                yDoc.matches = null;
+                yDocState.matches = null;
             }
 
             // If `onTitleUpdate()` calls `setState()` we need React to re-render
@@ -135,21 +134,25 @@ export function useTaskTitleModelYDoc(
                 if (isUnsubscribed) return;
 
                 if (
-                    yDoc.matches?.rawTitle !== titleRef.current.raw ||
-                    yDoc.matches.titleUpdate !== null
+                    yDocState.matches?.rawTitle !== titleRef.current.raw ||
+                    yDocState.matches.titleUpdate !== null
                 ) {
-                    setYDoc(createYDoc(titleRef.current));
+                    setYDocState(createYDocState(titleRef.current));
                 }
             });
         };
 
-        yDoc.on("updateV2", handleUpdate);
+        yDocState.doc.on("updateV2", handleUpdate);
 
         return () => {
             isUnsubscribed = true;
-            yDoc.off("updateV2", handleUpdate);
-        };
-    }, [yDoc]);
+            yDocState.doc.off("updateV2", handleUpdate);
 
-    return yDoc;
+            // We are done using this doc. Release it back to the `TaskTitleModel` to be
+            // reused if nothing changed.
+            yDocState.doc.release();
+        };
+    }, [yDocState]);
+
+    return yDocState.doc;
 }

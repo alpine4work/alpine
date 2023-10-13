@@ -11,11 +11,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
-import {
-    TaskTitleProsemirrorSchema,
-    TaskTitleUpdate,
-    getTaskTitleProsemirrorNode,
-} from "~/shared/tasks/task_title.js";
+import {TaskTitleProsemirrorSchema, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 const taskDetailTitleInputAriaLabel = "Title";
 
@@ -47,7 +43,7 @@ export function TaskDetailTitleInput({
 
     const titleRef = useRef(title);
     const isReadOnlyRef = useRef(isReadOnly);
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useInsertionEffect(() => {
         titleRef.current = title;
         isReadOnlyRef.current = isReadOnly;
     });
@@ -76,7 +72,7 @@ export function TaskDetailTitleInput({
                     schema: TaskTitleProsemirrorSchema,
                     // Make sure we start with the correct initial document. After this the
                     // `ySyncPlugin` manages document state.
-                    doc: getTaskTitleProsemirrorNode(titleRef.current.raw),
+                    doc: titleRef.current.getProsemirrorNode(),
                     plugins: [ySyncPlugin(titleYDoc.getXmlFragment("doc"))],
                 }),
 
@@ -197,7 +193,7 @@ export function TaskDetailTitleInput({
                             aria-placeholder={placeholder}
                             dangerouslySetInnerHTML={{
                                 __html: serializeProsemirrorFragmentToHtml(
-                                    getTaskTitleProsemirrorNode(title.raw).content,
+                                    titleRef.current.getProsemirrorNode().content,
                                 ),
                             }}
                         />

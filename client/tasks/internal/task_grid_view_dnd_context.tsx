@@ -29,7 +29,6 @@ import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {getTaskTitleProsemirrorNode} from "~/shared/tasks/task_title.js";
 
 const TaskGridViewHasDndContext = createContext(false);
 
@@ -535,7 +534,7 @@ function TaskRowViewDragOverlay({
                             style={contentSchemaStyles.paragraphFontSize}
                             dangerouslySetInnerHTML={{
                                 __html: serializeProsemirrorFragmentToHtml(
-                                    getTaskTitleProsemirrorNode(data.task.getTitle().raw).content,
+                                    data.task.getTitle().getProsemirrorNode().content,
                                 ),
                             }}
                         />

@@ -45,9 +45,7 @@ import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {
     TaskTitleProsemirrorSchema,
     TaskTitleUpdate,
-    emptyTaskTitle,
     emptyTaskTitleProsemirrorNode,
-    getTaskTitleProsemirrorNode,
 } from "~/shared/tasks/task_title.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
@@ -760,9 +758,7 @@ function TaskRowTitleInput(
         focusSelection,
     }));
 
-    const taskNodeForInitialAppRender = isInitialAppRender
-        ? getTaskTitleProsemirrorNode(title.raw)
-        : null;
+    const taskNodeForInitialAppRender = isInitialAppRender ? title.getProsemirrorNode() : null;
 
     return (
         <div
@@ -902,9 +898,9 @@ function TaskRowTitleParentTaskTitle({
     const parentTaskTitleHtml = useMemo(
         () =>
             serializeProsemirrorFragmentToHtml(
-                getTaskTitleProsemirrorNode(parentTaskTitle?.raw ?? emptyTaskTitle.get()).content,
+                (parentTaskTitle?.getProsemirrorNode() ?? emptyTaskTitleProsemirrorNode).content,
             ),
-        [parentTaskTitle?.raw],
+        [parentTaskTitle],
     );
 
     return (

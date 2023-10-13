@@ -384,7 +384,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     // component (ProseMirror's `EditorView`) so we need to be able to
     // imperatively access props.
     //
-    // Importantly, we set this in a `useLayoutEffect` instead of render! If we
+    // Importantly, we set this in a `useInsertionEffect` instead of render! If we
     // set in render and concurrent React cancels/rebases/retries the render then
     // there may be bugs.
     //
@@ -399,7 +399,7 @@ function ContentEditor<Content extends ContentWithReferences>(
         // eslint-disable-next-line react-hooks/rules-of-hooks
         !import.meta.jest ? useSpaceContext().currentAccount : null;
     const currentAccountRef = useRef(currentAccount);
-    useLayoutEffect(() => {
+    useInsertionEffect(() => {
         propsRef.current = props;
         navigateRef.current = navigate;
         currentAccountRef.current = currentAccount;

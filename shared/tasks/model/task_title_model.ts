@@ -1,12 +1,17 @@
+import {Node} from "prosemirror-model";
+import {yXmlFragmentToProsemirror} from "y-prosemirror";
+import * as Y from "yjs";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {
     TaskTitle,
+    TaskTitleProsemirrorSchema,
     TaskTitleSchema,
     TaskTitleUpdate,
     applyTaskTitleUpdate,
     emptyTaskTitle,
     getTaskTitleText,
+    getYDocGuid,
 } from "~/shared/tasks/task_title.js";
 
 export const emptyTaskTitleModel = new Lazy(() => TaskTitleModel.new(emptyTaskTitle.get()));
@@ -27,7 +32,8 @@ export function addFallbackToTaskTitle(title: string): string {
  * It keeps around the previous update to the task title in web browsers for
  * ~1s as an optimization for text editors.
  *
- * It also caches the title text should you need it.
+ * It also caches the title text, ProseMirror node, and prepares `Y.Doc`s
+ * (on the client) should you need them.
  */
 export class TaskTitleModel {
     public readonly raw: TaskTitle;
@@ -37,6 +43,9 @@ export class TaskTitleModel {
         readonly rawTitle: TaskTitle;
         readonly titleUpdate: TaskTitleUpdate;
     } | null = null;
+
+    private _preparedYDoc: (Y.Doc & {release: () => void}) | null = null;
+    private _prosemirrorNode: Node | null = null;
 
     public static readonly schema = TaskTitleSchema.transform<TaskTitleModel>({
         serialize: title => title.raw,
@@ -115,5 +124,82 @@ export class TaskTitleModel {
      */
     public getPreviousUpdate() {
         return this._previousUpdate;
+    }
+
+    private _createYDoc(): Y.Doc & {release: () => void} {
+        const yDoc = new Y.Doc({guid: getYDocGuid()});
+        Y.applyUpdateV2(yDoc, this.raw);
+
+        let hasUpdated = false;
+
+        const handleUpdate = () => {
+            hasUpdated = true;
+            yDoc.off("updateV2", handleUpdate);
+        };
+
+        yDoc.on("updateV2", handleUpdate);
+
+        (yDoc as any).release = () => {
+            if (!hasUpdated && this._preparedYDoc === null) {
+                this._preparedYDoc = yDoc as any;
+            } else {
+                yDoc.destroy();
+            }
+        };
+
+        return yDoc as any;
+    }
+
+    /**
+     * Create a `Y.Doc`. As an optimization, we may have a `Y.Doc` already prepared
+     * so we return that and create a new `Y.Doc` next time you call this function.
+     *
+     * The `Y.Doc` we return has a `release()` function. If no changes were made to
+     * the `Y.Doc` then releasing will put it back in our `TaskTitleModel` so the
+     * next person who calls `createYDoc()` gets the already existing object
+     * without needing to create a new one. This is nice in our virtualized list
+     * when scrolling since we can reuse `Y.Doc`s after a task is scrolled
+     * offscreen then back onscreen. You should not use the `Y.Doc` after calling
+     * `release()`!
+     */
+    public createYDoc(): Y.Doc & {release: () => void} {
+        if (this._preparedYDoc !== null) {
+            const yDoc = this._preparedYDoc;
+            this._preparedYDoc = null;
+            return yDoc;
+        }
+
+        const yDoc = this._createYDoc();
+
+        // Initialize the ProseMirror node when we create a `Y.Doc` so it's ready
+        // for later.
+        if (this._prosemirrorNode === null) {
+            this._prosemirrorNode = yXmlFragmentToProsemirror(
+                TaskTitleProsemirrorSchema,
+                yDoc.getXmlFragment("doc"),
+            );
+        }
+
+        return yDoc;
+    }
+
+    /**
+     * Gets the ProseMirror node for this title. If we've already computed the node
+     * we immediately return it. Otherwise we need to compute the node and
+     * cache it.
+     */
+    public getProsemirrorNode(): Node {
+        if (this._prosemirrorNode === null) {
+            if (this._preparedYDoc === null) {
+                this._preparedYDoc = this._createYDoc();
+            }
+
+            this._prosemirrorNode = yXmlFragmentToProsemirror(
+                TaskTitleProsemirrorSchema,
+                this._preparedYDoc.getXmlFragment("doc"),
+            );
+        }
+
+        return this._prosemirrorNode;
     }
 }
