@@ -306,7 +306,7 @@ function TaskPriorityInput(
                             }),
                         )}
                         style={{
-                            // `display: inline-block` creates an inline layout which adds extra space
+                            // `display: inline-flex` creates an inline layout which adds extra space
                             // below the element. Adding `vertical-align` stops the space from being added.
                             // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
                             verticalAlign: "top",

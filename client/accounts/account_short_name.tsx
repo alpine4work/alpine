@@ -8,9 +8,11 @@ import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js
 export function AccountShortName({
     account,
     tooltipPlacement,
+    className,
 }: {
-    account: AccountModel;
+    account: AccountModel | AccountModelData;
     tooltipPlacement?: OverlayPlacement;
+    className?: string;
 }) {
     const accountData = useAccountModel(account);
 
@@ -23,7 +25,7 @@ export function AccountShortName({
     // hover of avatar or name.
     return (
         <Tooltip content={accountData.name} placement={tooltipPlacement}>
-            <span>{shortName}</span>
+            <span className={className}>{shortName}</span>
         </Tooltip>
     );
 }

@@ -1157,6 +1157,8 @@ function TaskRowView(
                         ref={assigneeCellRef}
                         store={query.store}
                         task={task}
+                        disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
+                        isFirstRow={isFirstRow}
                         onCellKeyDownCapture={event => handleCellKeyDownCapture("Assignee", event)}
                         focusNextCell={() => focusNextCell("Assignee")}
                         focusPreviousCell={() => focusPreviousCell("Assignee")}
@@ -1165,6 +1167,7 @@ function TaskRowView(
                         ref={priorityCellRef}
                         store={query.store}
                         task={task}
+                        disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         onCellKeyDownCapture={event => handleCellKeyDownCapture("Priority", event)}
                         focusNextCell={() => focusNextCell("Priority")}
                         focusPreviousCell={() => focusPreviousCell("Priority")}
@@ -1173,6 +1176,7 @@ function TaskRowView(
                         ref={dueDateCellRef}
                         store={query.store}
                         task={task}
+                        disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         onCellKeyDownCapture={event => handleCellKeyDownCapture("DueDate", event)}
                         focusNextCell={() => focusNextCell("DueDate")}
                         focusPreviousCell={() => focusPreviousCell("DueDate")}

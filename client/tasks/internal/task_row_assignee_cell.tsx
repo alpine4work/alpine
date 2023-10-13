@@ -1,5 +1,7 @@
 import classNames from "classnames";
 import {KeyboardEvent, Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
+import {AccountAvatar} from "~/client/accounts/account_avatar.js";
+import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -55,16 +57,36 @@ const cellClassName = sprinkles({
     alignItems: "center",
 });
 
+const previewClassName = sprinkles({
+    marginLeft: "-0.5",
+    maxWidth: "full",
+    height: "5",
+    marginY: "-0.5",
+    overflow: "hidden",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "1.5",
+    userSelect: "text",
+});
+
+const previewNameClassName = sprinkles({
+    fontStyle: "truncate",
+});
+
 function TaskRowAssigneeCell(
     {
         store,
         task,
+        disableExpensiveFeaturesDuringScroll,
+        isFirstRow,
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
     }: {
         store: TaskClientStore;
         task: TaskModel | null;
+        disableExpensiveFeaturesDuringScroll: boolean;
+        isFirstRow: boolean;
         onCellKeyDownCapture: (event: KeyboardEvent) => void;
         focusNextCell: () => void;
         focusPreviousCell: () => void;
@@ -99,13 +121,24 @@ function TaskRowAssigneeCell(
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
 
+    // NOTE(calebmer): We haven't implemented read-only task rows yet but when we
+    // do the optimized cell implementation and read-only mode should share an
+    // implementation.
+    const isReadOnly = disableExpensiveFeaturesDuringScroll;
+
     useImperativeHandle(
         ref,
         () => ({
             focusCell: () => assertExists(cellRef.current).focus(),
-            focusCellInput: () => assertExists(inputRef.current).focus(),
+            focusCellInput: () => {
+                if (isReadOnly) {
+                    assertExists(cellRef.current).focus();
+                } else {
+                    assertExists(inputRef.current).focus();
+                }
+            },
         }),
-        [],
+        [isReadOnly],
     );
 
     return (
@@ -116,6 +149,7 @@ function TaskRowAssigneeCell(
                 className={classNames(tasksStyles.textCursorNotInheritedClassName, cellClassName)}
                 style={{opacity: assigneeAccountData || isHovered || isFocusWithin ? 1 : 0}}
                 {...useOutOfBoundsClickSelection({
+                    isDisabled: isReadOnly,
                     onSelect: () => assertExists(inputRef.current).focus(),
                     onSelectAll: () => assertExists(inputRef.current).focus(),
                 })}
@@ -125,42 +159,68 @@ function TaskRowAssigneeCell(
                 }}
                 onKeyDownCapture={onCellKeyDownCapture}
             >
-                <TaskAssigneeInput
-                    ref={inputRef}
-                    aria-label="Assignee"
-                    shouldDisplayShortName={true}
-                    assigneeAccountData={assigneeAccountData}
-                    onAssigneeAccountChange={assigneeAccount => {
-                        if (!task) return;
+                {isReadOnly ? (
+                    assigneeAccountData && (
+                        <div
+                            className={previewClassName}
+                            style={{
+                                // Get around the `textCursorNotInheritedClassName` reset.
+                                cursor: "text",
+                                // `display: inline-flex` creates an inline layout which adds extra space
+                                // below the element. Adding `vertical-align` stops the space from being added.
+                                // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
+                                verticalAlign: "top",
+                            }}
+                        >
+                            <AccountAvatar size="5" account={assigneeAccountData} />
+                            <AccountShortName
+                                className={previewNameClassName}
+                                account={assigneeAccountData}
+                                // Place the first row's tooltip below the name. Since we may have a
+                                // column header with a z-index higher than overlays so it can render
+                                // overlays when scrolled..
+                                tooltipPlacement={isFirstRow ? "bottom" : "top"}
+                            />
+                        </div>
+                    )
+                ) : (
+                    <TaskAssigneeInput
+                        ref={inputRef}
+                        aria-label="Assignee"
+                        shouldDisplayShortName={true}
+                        assigneeAccountData={assigneeAccountData}
+                        onAssigneeAccountChange={assigneeAccount => {
+                            if (!task) return;
 
-                        const time = store.clock.now();
+                            const time = store.clock.now();
 
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateAssignee",
-                                    assignee: assigneeAccount
-                                        ? {
-                                              assigneeId: assigneeAccount.id,
-                                              assignerId: currentAccount.id,
-                                              assignedTime: new TaskFilterableTime({
-                                                  absoluteTime: time,
-                                                  setterTimeZone: timeZone,
-                                              }),
-                                          }
-                                        : null,
+                            store.commitTaskActionTransaction(context, [
+                                {
+                                    type: "UpdateTask",
+                                    time,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateAssignee",
+                                        assignee: assigneeAccount
+                                            ? {
+                                                  assigneeId: assigneeAccount.id,
+                                                  assignerId: currentAccount.id,
+                                                  assignedTime: new TaskFilterableTime({
+                                                      absoluteTime: time,
+                                                      setterTimeZone: timeZone,
+                                                  }),
+                                              }
+                                            : null,
+                                    },
                                 },
-                            },
-                        ]);
-                    }}
-                    // Keyboard navigation in grid view is not done with the tab key.
-                    isTabbable={false}
-                    onArrowLeftLeaveKeyDown={focusPreviousCell}
-                    onArrowRightLeaveKeyDown={focusNextCell}
-                />
+                            ]);
+                        }}
+                        // Keyboard navigation in grid view is not done with the tab key.
+                        isTabbable={false}
+                        onArrowLeftLeaveKeyDown={focusPreviousCell}
+                        onArrowRightLeaveKeyDown={focusNextCell}
+                    />
+                )}
             </div>
         </FocusRing>
     );

@@ -1,4 +1,15 @@
-import {KeyboardEvent, Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
+import {CalendarDate} from "@internationalized/date";
+import classNames from "classnames";
+import {CalendarBlank} from "phosphor-react";
+import {
+    KeyboardEvent,
+    Ref,
+    forwardRef,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {
@@ -7,6 +18,9 @@ import {
 } from "~/client/design/helpers/get_next_focusable_element.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
+import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {
@@ -14,8 +28,9 @@ import {
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 export type TaskRowDueDateCellRef = {
@@ -50,16 +65,44 @@ const cellClassName = sprinkles({
     alignItems: "center",
 });
 
+const previewAfterDueDateClassName = sprinkles({
+    display: "flex",
+    alignItems: "center",
+    paddingX: taskRowViewColumnPaddingX,
+    gap: "1",
+    userSelect: "text",
+    color: "red-60",
+});
+
+const previewBeforeDueDateClassName = sprinkles({
+    display: "flex",
+    alignItems: "center",
+    paddingX: taskRowViewColumnPaddingX,
+    gap: "1",
+    userSelect: "text",
+    color: "grey-text",
+});
+
+const previewIconClassName = sprinkles({
+    flexShrink: "0",
+});
+
+const previewTextClassName = sprinkles({
+    flexGrow: "1",
+});
+
 function TaskRowDueDateCell(
     {
         store,
         task,
+        disableExpensiveFeaturesDuringScroll,
         onCellKeyDownCapture,
         focusPreviousCell,
         focusNextCell,
     }: {
         store: TaskClientStore;
         task: TaskModel | null;
+        disableExpensiveFeaturesDuringScroll: boolean;
         onCellKeyDownCapture: (event: KeyboardEvent) => void;
         focusPreviousCell: () => void;
         focusNextCell: () => void;
@@ -90,6 +133,11 @@ function TaskRowDueDateCell(
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
 
+    // NOTE(calebmer): We haven't implemented read-only task rows yet but when we
+    // do the optimized cell implementation and read-only mode should share an
+    // implementation.
+    const isReadOnly = disableExpensiveFeaturesDuringScroll;
+
     useImperativeHandle(
         ref,
         () => ({
@@ -113,7 +161,11 @@ function TaskRowDueDateCell(
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 tabIndex={-1}
-                className={cellClassName}
+                className={
+                    isReadOnly
+                        ? classNames(tasksStyles.textCursorNotInheritedClassName, cellClassName)
+                        : cellClassName
+                }
                 style={{opacity: dueDate || isHovered || isFocusWithin ? 1 : 0}}
                 onFocus={() => setIsFocusWithin(true)}
                 onBlur={event => {
@@ -121,39 +173,93 @@ function TaskRowDueDateCell(
                 }}
                 onKeyDownCapture={onCellKeyDownCapture}
             >
-                <TaskDateInput
-                    aria-label="Due date"
-                    display="block"
-                    height="full"
-                    paddingX={taskRowViewColumnPaddingX}
-                    overlayPlacement="bottom"
-                    overlayOffset="-1"
-                    focusRingAroundText={true}
-                    shouldIncludeCalendarIcon={true}
-                    shouldWarnIfAfterDate={true}
-                    shouldFormatAroundToday={true}
-                    date={dueDate}
-                    onDateChange={dueDate => {
-                        if (!task) return;
+                {isReadOnly ? (
+                    dueDate && <TaskRowDueDateCellPreview dueDate={dueDate} />
+                ) : (
+                    <TaskDateInput
+                        aria-label="Due date"
+                        display="block"
+                        height="full"
+                        paddingX={taskRowViewColumnPaddingX}
+                        overlayPlacement="bottom"
+                        overlayOffset="-1"
+                        focusRingAroundText={true}
+                        shouldIncludeCalendarIcon={true}
+                        shouldWarnIfAfterDate={true}
+                        shouldFormatAroundToday={true}
+                        date={dueDate}
+                        onDateChange={dueDate => {
+                            if (!task) return;
 
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time: store.clock.now(),
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateDueDate",
-                                    dueDate,
+                            store.commitTaskActionTransaction(context, [
+                                {
+                                    type: "UpdateTask",
+                                    time: store.clock.now(),
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateDueDate",
+                                        dueDate,
+                                    },
                                 },
-                            },
-                        ]);
-                    }}
-                    // Keyboard navigation in grid view is not done with the tab key.
-                    isTabbable={false}
-                    onArrowLeftLeaveKeyDown={focusPreviousCell}
-                    onArrowRightLeaveKeyDown={focusNextCell}
-                />
+                            ]);
+                        }}
+                        // Keyboard navigation in grid view is not done with the tab key.
+                        isTabbable={false}
+                        onArrowLeftLeaveKeyDown={focusPreviousCell}
+                        onArrowRightLeaveKeyDown={focusNextCell}
+                    />
+                )}
             </div>
         </FocusRing>
+    );
+}
+
+function TaskRowDueDateCellPreview({dueDate}: {dueDate: CalendarDate}) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
+    const {timeZone, locale} = useClientInfo();
+    const currentDate = useCurrentDate();
+
+    const formattedDate = useMemo(
+        () =>
+            formatTaskDate({
+                timeZone,
+                locale,
+                currentDate,
+                date: dueDate,
+                shouldFormatAroundToday: true,
+            }),
+        [currentDate, dueDate, locale, timeZone],
+    );
+
+    return (
+        <div
+            className={
+                formattedDate.isAfterDate
+                    ? previewAfterDueDateClassName
+                    : previewBeforeDueDateClassName
+            }
+            style={{
+                // Get around the `textCursorNotInheritedClassName` reset.
+                cursor: "text",
+            }}
+        >
+            <CalendarBlank size={spacing["4"]} className={previewIconClassName} />
+            <div className={previewTextClassName}>{formattedDate.dateString}</div>
+        </div>
     );
 }

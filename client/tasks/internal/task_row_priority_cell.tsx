@@ -4,6 +4,8 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
+import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
 import {
     TaskPriorityInput,
     TaskPriorityInputRef,
@@ -51,16 +53,31 @@ const cellClassName = sprinkles({
     alignItems: "center",
 });
 
+const previewClassName = sprinkles({
+    maxWidth: "full",
+    height: "4",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "1",
+    userSelect: "text",
+});
+
+const previewNameClassName = sprinkles({
+    fontStyle: "truncate",
+});
+
 function TaskRowPriorityCell(
     {
         store,
         task,
+        disableExpensiveFeaturesDuringScroll,
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
     }: {
         store: TaskClientStore;
         task: TaskModel | null;
+        disableExpensiveFeaturesDuringScroll: boolean;
         onCellKeyDownCapture: (event: KeyboardEvent) => void;
         focusNextCell: () => void;
         focusPreviousCell: () => void;
@@ -92,13 +109,24 @@ function TaskRowPriorityCell(
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
 
+    // NOTE(calebmer): We haven't implemented read-only task rows yet but when we
+    // do the optimized cell implementation and read-only mode should share an
+    // implementation.
+    const isReadOnly = disableExpensiveFeaturesDuringScroll;
+
     useImperativeHandle(
         ref,
         () => ({
             focusCell: () => assertExists(cellRef.current).focus(),
-            focusCellInput: () => assertExists(inputRef.current).focus(),
+            focusCellInput: () => {
+                if (isReadOnly) {
+                    assertExists(cellRef.current).focus();
+                } else {
+                    assertExists(inputRef.current).focus();
+                }
+            },
         }),
-        [],
+        [isReadOnly],
     );
 
     return (
@@ -111,6 +139,7 @@ function TaskRowPriorityCell(
                     opacity: priority || isHovered || isFocusWithin ? 1 : 0,
                 }}
                 {...useOutOfBoundsClickSelection({
+                    isDisabled: isReadOnly,
                     onSelect: () => assertExists(inputRef.current).focus(),
                     onSelectAll: () => assertExists(inputRef.current).focus(),
                 })}
@@ -120,30 +149,55 @@ function TaskRowPriorityCell(
                 }}
                 onKeyDownCapture={onCellKeyDownCapture}
             >
-                <TaskPriorityInput
-                    ref={inputRef}
-                    aria-label="Priority"
-                    priority={priority}
-                    onPriorityChange={priority => {
-                        if (!task) return task;
+                {isReadOnly ? (
+                    priority && (
+                        <div
+                            className={previewClassName}
+                            style={{
+                                // Get around the `textCursorNotInheritedClassName` reset.
+                                cursor: "text",
+                                // `display: inline-flex` creates an inline layout which adds extra space
+                                // below the element. Adding `vertical-align` stops the space from being added.
+                                // https://stackoverflow.com/questions/27536428/inline-block-element-height-issue
+                                verticalAlign: "top",
+                            }}
+                        >
+                            <TaskPriorityIcon
+                                size="4"
+                                priority={priority}
+                                shouldHighlightUrgent={true}
+                            />
+                            <span className={previewNameClassName}>
+                                {getTaskPriorityName(priority)}
+                            </span>
+                        </div>
+                    )
+                ) : (
+                    <TaskPriorityInput
+                        ref={inputRef}
+                        aria-label="Priority"
+                        priority={priority}
+                        onPriorityChange={priority => {
+                            if (!task) return task;
 
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time: store.clock.now(),
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdatePriority",
-                                    priority,
+                            store.commitTaskActionTransaction(context, [
+                                {
+                                    type: "UpdateTask",
+                                    time: store.clock.now(),
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdatePriority",
+                                        priority,
+                                    },
                                 },
-                            },
-                        ]);
-                    }}
-                    // Keyboard navigation in grid view is not done with the tab key.
-                    isTabbable={false}
-                    onArrowLeftLeaveKeyDown={focusPreviousCell}
-                    onArrowRightLeaveKeyDown={focusNextCell}
-                />
+                            ]);
+                        }}
+                        // Keyboard navigation in grid view is not done with the tab key.
+                        isTabbable={false}
+                        onArrowLeftLeaveKeyDown={focusPreviousCell}
+                        onArrowRightLeaveKeyDown={focusNextCell}
+                    />
+                )}
             </div>
         </FocusRing>
     );
