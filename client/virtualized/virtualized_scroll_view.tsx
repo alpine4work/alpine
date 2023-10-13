@@ -14,12 +14,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {
-    CallbackNode,
-    unstable_LowPriority,
-    unstable_cancelCallback,
-    unstable_scheduleCallback,
-} from "scheduler";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -793,11 +787,9 @@ function VirtualizedScrollView(
                 render: ({
                     offset,
                     height,
-                    minHeight,
                     getPositionByIndex,
                     viewHeight,
                     originalContentHeight,
-                    wasPreviouslyInRenderedRange,
                 }) => {
                     const ref = getItemContainerRef(index, item.key);
 
@@ -808,11 +800,9 @@ function VirtualizedScrollView(
                             isScrolling: actualState.isScrolling,
                             offset,
                             height,
-                            minHeight,
                             getPositionByIndex,
                             viewHeight,
                             originalContentHeight,
-                            wasPreviouslyInRenderedRange,
                         });
                         return cloneElement(element, {key: item.key});
                     } else {
@@ -984,10 +974,7 @@ function VirtualizedScrollView(
         });
 
         scrollDebounceTimeoutRef.current?.clear();
-
-        const runScrollDebounceTimeout = () => {
-            scrollDebounceTimeoutRef.current = null;
-
+        scrollDebounceTimeoutRef.current = createTimeout(() => {
             // Transition this render because if it's a jump scroll or if items change
             // based on `isScrolling` the render may be expensive and it will be useful to
             // time slice.
@@ -1024,25 +1011,7 @@ function VirtualizedScrollView(
                     });
                 });
             });
-        };
-
-        let timeout2: CallbackNode | null = null;
-
-        const timeout1 = createTimeout(() => {
-            // Schedule a low priority callback to stop scrolling. That way the React
-            // scheduler finishes any current work and can interrupt the stop scroll update
-            // if it gets a higher priority render.
-            timeout2 = unstable_scheduleCallback(unstable_LowPriority, runScrollDebounceTimeout);
         }, perceivedAsInstantLimitMs);
-
-        scrollDebounceTimeoutRef.current = {
-            clear: () => {
-                timeout1.clear();
-                if (timeout2) {
-                    unstable_cancelCallback(timeout2);
-                }
-            },
-        };
 
         // Finally, update the scroll top so we know what the last value was.
         lastScrollTopRef.current = scrollTop;

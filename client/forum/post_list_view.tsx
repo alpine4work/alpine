@@ -2,6 +2,7 @@ import {SpinnerGap} from "phosphor-react";
 import {
     Memo,
     MutableRefObject,
+    ReactElement,
     ReactNode,
     Ref,
     forwardRef,
@@ -48,7 +49,6 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll} from "~/client/virtualized/helpers/render_virtualized_scroll_view_item_with_expensive_features_disabled_during_scroll.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -799,6 +799,149 @@ function PostListView(
                             ? nextItem.postComment
                             : null;
 
+                    const actuallyRender = (
+                        disableExpensiveFeaturesDuringScroll: boolean,
+                    ): ReactElement => {
+                        const messageNode =
+                            item.type === "LoadedPostComment" ||
+                            item.type === "OptimisticPostComment" ? (
+                                <MessageView
+                                    messageNoun="comment"
+                                    message={item.postComment}
+                                    previousMessage={previousComment}
+                                    isFirstMessage={item.postCommentIndex === 0}
+                                    nextMessage={nextComment}
+                                    messages={item.postComments}
+                                    messageEditing={messageEditing}
+                                    shouldHighlightRef={
+                                        highlightPostComment?.postId === item.post.id &&
+                                        highlightPostComment.postCommentIndex ===
+                                            item.postCommentIndex
+                                            ? highlightPostComment.shouldHighlightRef
+                                            : null
+                                    }
+                                    marginX={padding}
+                                    onJumpToMessage={handleJumpToPostComment}
+                                    onReplyToMessage={() => {
+                                        if (item.postComment.isOptimistic) return;
+                                        const postCommentIndex = item.postComment.index;
+
+                                        setReplyingToPostCommentIndexByPostId(
+                                            replyingToPostCommentIndexByPostId => {
+                                                const newReplyingToPostCommentIndexByPostId =
+                                                    new Map(replyingToPostCommentIndexByPostId);
+                                                newReplyingToPostCommentIndexByPostId.set(
+                                                    item.post.id,
+                                                    postCommentIndex,
+                                                );
+                                                return newReplyingToPostCommentIndexByPostId;
+                                            },
+                                        );
+                                    }}
+                                    onDeleteMessage={async () => {
+                                        const procedures = proceduresByPostIdRef.current.get(
+                                            item.post.id,
+                                        );
+                                        if (!procedures)
+                                            throw new InternalError(
+                                                "Post comment input isn't mounted",
+                                            );
+
+                                        await procedures.deleteComment({
+                                            commentIndex: item.postCommentIndex,
+                                        });
+                                    }}
+                                    disableExpensiveFeaturesDuringScroll={
+                                        disableExpensiveFeaturesDuringScroll
+                                    }
+                                    getMessageUrl={messageIndex => {
+                                        return new URL(
+                                            `/s/${item.post.spaceId}/posts/${item.post.id}?comment=${messageIndex}`,
+                                            window.location.href,
+                                        );
+                                    }}
+                                    roomDisplayedCreatedTime={item.post.createdTime}
+                                />
+                            ) : (
+                                <MessageShimmer
+                                    randomSeed={item.post.id}
+                                    index={item.postCommentIndex}
+                                    previousMessage={previousComment}
+                                    nextMessage={nextComment}
+                                    messages={item.postComments}
+                                />
+                            );
+
+                        return (
+                            <div
+                                className={sprinkles({
+                                    display: "flex",
+                                    justifyContent: "center",
+                                    overflow: "hidden",
+                                })}
+                            >
+                                <div
+                                    className={sprinkles({
+                                        width: "full",
+                                        paddingX: hasMargin ? postListViewMarginX : undefined,
+                                        overflow: "hidden",
+                                    })}
+                                    style={{
+                                        maxWidth: postViewMaxWidthWithMarginXRem,
+                                        flex: postViewFlex,
+                                    }}
+                                >
+                                    <div
+                                        className={sprinkles({
+                                            width: "full",
+                                            backgroundColor: "grey-0",
+                                            boxShadow: "elevation-5",
+                                        })}
+                                    >
+                                        {item.postCommentIndex === 0 ? (
+                                            <>
+                                                <Spacer space={messageViewMarginY} />
+                                                {messageNode}
+                                            </>
+                                        ) : (
+                                            messageNode
+                                        )}
+                                    </div>
+                                </div>
+                                {hasAside && (
+                                    <div
+                                        style={{
+                                            width: "100%",
+                                            maxWidth: postListViewAsideMaxWidthWithMarginXRem,
+                                            flex: postListViewAsideFlex,
+                                        }}
+                                    />
+                                )}
+                            </div>
+                        );
+                    };
+
+                    // It's important to reuse nodes across renders because then React won't try to
+                    // re-render the component.
+                    let nodeWithExpensiveFeaturesDisabled: ReactElement | null = null;
+                    let nodeWithoutExpensiveFeaturesDisabled: ReactElement | null = null;
+
+                    const render = (isScrolling: boolean) => {
+                        // If we already rendered the node without expensive features disabled, don't
+                        // render a new version since that will cause a frame drop right at the start
+                        // of the scroll as React re-renders every message.
+                        if (nodeWithoutExpensiveFeaturesDisabled !== null)
+                            return nodeWithoutExpensiveFeaturesDisabled;
+
+                        if (isScrolling) {
+                            nodeWithExpensiveFeaturesDisabled ??= actuallyRender(true);
+                            return nodeWithExpensiveFeaturesDisabled;
+                        } else {
+                            nodeWithoutExpensiveFeaturesDisabled ??= actuallyRender(false);
+                            return nodeWithoutExpensiveFeaturesDisabled;
+                        }
+                    };
+
                     return {
                         key:
                             item.type === "LoadedPostComment"
@@ -811,130 +954,28 @@ function PostListView(
                             ? [item.postCommentInputItemIndex]
                             : [],
                         withManualLayout: true,
-                        render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
-                            disableExpensiveFeaturesDuringScroll => {
-                                const messageNode =
-                                    item.type === "LoadedPostComment" ||
-                                    item.type === "OptimisticPostComment" ? (
-                                        <MessageView
-                                            messageNoun="comment"
-                                            message={item.postComment}
-                                            previousMessage={previousComment}
-                                            isFirstMessage={item.postCommentIndex === 0}
-                                            nextMessage={nextComment}
-                                            messages={item.postComments}
-                                            messageEditing={messageEditing}
-                                            shouldHighlightRef={
-                                                highlightPostComment?.postId === item.post.id &&
-                                                highlightPostComment.postCommentIndex ===
-                                                    item.postCommentIndex
-                                                    ? highlightPostComment.shouldHighlightRef
-                                                    : null
-                                            }
-                                            marginX={padding}
-                                            onJumpToMessage={handleJumpToPostComment}
-                                            onReplyToMessage={() => {
-                                                if (item.postComment.isOptimistic) return;
-                                                const postCommentIndex = item.postComment.index;
-
-                                                setReplyingToPostCommentIndexByPostId(
-                                                    replyingToPostCommentIndexByPostId => {
-                                                        const newReplyingToPostCommentIndexByPostId =
-                                                            new Map(
-                                                                replyingToPostCommentIndexByPostId,
-                                                            );
-                                                        newReplyingToPostCommentIndexByPostId.set(
-                                                            item.post.id,
-                                                            postCommentIndex,
-                                                        );
-                                                        return newReplyingToPostCommentIndexByPostId;
-                                                    },
-                                                );
-                                            }}
-                                            onDeleteMessage={async () => {
-                                                const procedures =
-                                                    proceduresByPostIdRef.current.get(item.post.id);
-                                                if (!procedures)
-                                                    throw new InternalError(
-                                                        "Post comment input isn't mounted",
-                                                    );
-
-                                                await procedures.deleteComment({
-                                                    commentIndex: item.postCommentIndex,
-                                                });
-                                            }}
-                                            disableExpensiveFeaturesDuringScroll={
-                                                disableExpensiveFeaturesDuringScroll
-                                            }
-                                            getMessageUrl={messageIndex => {
-                                                return new URL(
-                                                    `/s/${item.post.spaceId}/posts/${item.post.id}?comment=${messageIndex}`,
-                                                    window.location.href,
-                                                );
-                                            }}
-                                            roomDisplayedCreatedTime={item.post.createdTime}
-                                        />
-                                    ) : (
-                                        <MessageShimmer
-                                            randomSeed={item.post.id}
-                                            index={item.postCommentIndex}
-                                            previousMessage={previousComment}
-                                            nextMessage={nextComment}
-                                            messages={item.postComments}
-                                        />
-                                    );
-
-                                return (
-                                    <div
-                                        className={sprinkles({
-                                            display: "flex",
-                                            justifyContent: "center",
-                                            overflow: "hidden",
-                                        })}
-                                    >
-                                        <div
-                                            className={sprinkles({
-                                                width: "full",
-                                                paddingX: hasMargin
-                                                    ? postListViewMarginX
-                                                    : undefined,
-                                                overflow: "hidden",
-                                            })}
-                                            style={{
-                                                maxWidth: postViewMaxWidthWithMarginXRem,
-                                                flex: postViewFlex,
-                                            }}
-                                        >
-                                            <div
-                                                className={sprinkles({
-                                                    width: "full",
-                                                    backgroundColor: "grey-0",
-                                                    boxShadow: "elevation-5",
-                                                })}
-                                            >
-                                                {item.postCommentIndex === 0 ? (
-                                                    <>
-                                                        <Spacer space={messageViewMarginY} />
-                                                        {messageNode}
-                                                    </>
-                                                ) : (
-                                                    messageNode
-                                                )}
-                                            </div>
-                                        </div>
-                                        {hasAside && (
-                                            <div
-                                                style={{
-                                                    width: "100%",
-                                                    maxWidth:
-                                                        postListViewAsideMaxWidthWithMarginXRem,
-                                                    flex: postListViewAsideFlex,
-                                                }}
-                                            />
-                                        )}
-                                    </div>
-                                );
-                            },
+                        render: ({
+                            ref,
+                            shouldRenderWithRelativePositioning,
+                            offset,
+                            isScrolling,
+                        }) => (
+                            <div
+                                ref={ref}
+                                style={{
+                                    minHeight: messageViewMinHeight,
+                                    ...(shouldRenderWithRelativePositioning
+                                        ? {position: "relative"}
+                                        : {
+                                              position: "absolute",
+                                              top: offset,
+                                              left: 0,
+                                              right: 0,
+                                          }),
+                                }}
+                            >
+                                {render(isScrolling)}
+                            </div>
                         ),
                     };
                 }
