@@ -1,19 +1,17 @@
-// @ts-nocheck NOCOMMIT: This file will be refactored later
-
 import {useRef} from "react";
 import {mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox.js";
-import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor.js";
-import {TaskStatusCircle} from "~/client/tasks/demo_2/internal/task_status_circle.js";
+import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
+import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
+import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryDisplayStatusFilter} from "~/shared/tasks/task_query_filter.js";
 
-export function TaskQueryStatusFilterOperationEditor({
+export function TaskQueryDisplayStatusFilterOperationEditor({
     filter,
     onFilterChange,
 }: {
@@ -28,25 +26,25 @@ export function TaskQueryStatusFilterOperationEditor({
         filter.operation.displayStatuses.has("OpenInactive") &&
             (filter.operation.displayStatuses.has("OpenActive") ? (
                 <>
-                    <TaskStatusCircle status="OpenInactive" size="3" />
+                    <TaskDisplayStatusCircle displayStatus="OpenInactive" size="3" />
                     <Box paddingLeft="1">open</Box>
                 </>
             ) : (
                 <>
-                    <TaskStatusCircle status="OpenInactive" size="3" />
+                    <TaskDisplayStatusCircle displayStatus="OpenInactive" size="3" />
                     <Box paddingLeft="1">inactive</Box>
                 </>
             )),
         filter.operation.displayStatuses.has("OpenActive") &&
             !filter.operation.displayStatuses.has("OpenInactive") && (
                 <>
-                    <TaskStatusCircle status="OpenActive" size="3" />
+                    <TaskDisplayStatusCircle displayStatus="OpenActive" size="3" />
                     <Box paddingLeft="1">active</Box>
                 </>
             ),
         filter.operation.displayStatuses.has("Closed") && (
             <>
-                <TaskStatusCircle status="Closed" size="3" />
+                <TaskDisplayStatusCircle displayStatus="Closed" size="3" />
                 <Box paddingLeft="1">closed</Box>
             </>
         ),
@@ -62,7 +60,7 @@ export function TaskQueryStatusFilterOperationEditor({
                         isSelected: filter.operation.type === "OneOf",
                         onPress: () => {
                             onFilterChange({
-                                type: "Status",
+                                type: "DisplayStatus",
                                 operation: {
                                     type: "OneOf",
                                     displayStatuses: filter.operation.displayStatuses,
@@ -75,7 +73,7 @@ export function TaskQueryStatusFilterOperationEditor({
                         isSelected: filter.operation.type === "NoneOf",
                         onPress: () => {
                             onFilterChange({
-                                type: "Status",
+                                type: "DisplayStatus",
                                 operation: {
                                     type: "NoneOf",
                                     displayStatuses: filter.operation.displayStatuses,
@@ -118,7 +116,7 @@ export function TaskQueryStatusFilterOperationEditor({
                                         filter.operation.displayStatuses.has("OpenActive")
                                     }
                                 />
-                                <TaskStatusCircle status="OpenInactive" size="4" />
+                                <TaskDisplayStatusCircle displayStatus="OpenInactive" size="4" />
                                 <Box>Open</Box>
                                 <Box
                                     position="absolute"
@@ -158,7 +156,7 @@ export function TaskQueryStatusFilterOperationEditor({
                                 <TaskCheckbox
                                     isChecked={filter.operation.displayStatuses.has("OpenInactive")}
                                 />
-                                <TaskStatusCircle status="OpenInactive" size="4" />
+                                <TaskDisplayStatusCircle displayStatus="OpenInactive" size="4" />
                                 <Box>Inactive</Box>
                                 <Box
                                     position="absolute"
@@ -210,7 +208,7 @@ export function TaskQueryStatusFilterOperationEditor({
                                 <TaskCheckbox
                                     isChecked={filter.operation.displayStatuses.has("OpenActive")}
                                 />
-                                <TaskStatusCircle status="OpenActive" size="4" />
+                                <TaskDisplayStatusCircle displayStatus="OpenActive" size="4" />
                                 <Box>Active</Box>
                                 <Box
                                     position="absolute"
@@ -256,7 +254,7 @@ export function TaskQueryStatusFilterOperationEditor({
                                 <TaskCheckbox
                                     isChecked={filter.operation.displayStatuses.has("Closed")}
                                 />
-                                <TaskStatusCircle status="Closed" size="4" />
+                                <TaskDisplayStatusCircle displayStatus="Closed" size="4" />
                                 <Box>Closed</Box>
                             </Box>
                         ),

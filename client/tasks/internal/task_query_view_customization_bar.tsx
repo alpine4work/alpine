@@ -1,21 +1,18 @@
-// @ts-nocheck NOCOMMIT: This file will be refactored later
-
 import {Plus, SortAscending} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {OverlayTriggerButton} from "~/client/design/overlay_trigger.js";
-import {TaskQueryFilterEditor} from "~/client/tasks/demo_2/internal/task_query_filter_editor.js";
-import {TaskQuerySortsEditor} from "~/client/tasks/demo_2/internal/task_query_sorts_editor.js";
-import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
-import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
+import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
+import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
+import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskQueryViewCustomizationBar({
-    state,
     filters,
     filterReferences,
     onFiltersChange,
@@ -24,7 +21,6 @@ export function TaskQueryViewCustomizationBar({
     onSortsChange,
     defaultOrderSentence,
 }: {
-    state: LocalTasksState;
     filters: ReadonlyArray<TaskQueryFilter>;
     filterReferences: TaskQueryFilterReferences;
     onFiltersChange: (
@@ -60,7 +56,6 @@ export function TaskQueryViewCustomizationBar({
                 {filters.map((filter, index) => (
                     <TaskQueryFilterEditor
                         key={index}
-                        state={state}
                         filter={filter}
                         filterReferences={filterReferences}
                         onFilterChange={(filter, mergeFilterReferences) => {
@@ -84,7 +79,7 @@ export function TaskQueryViewCustomizationBar({
                                 label: "Status",
                                 onPress: () => {
                                     addFilter({
-                                        type: "Status",
+                                        type: "DisplayStatus",
                                         operation: {
                                             type: "OneOf",
                                             displayStatuses: new Set([]),
@@ -112,6 +107,18 @@ export function TaskQueryViewCustomizationBar({
                                         operation: {
                                             type: "OneOf",
                                             priorities: new Set(),
+                                        },
+                                    });
+                                },
+                            },
+                            {
+                                label: "Title",
+                                onPress: () => {
+                                    addFilter({
+                                        type: "Title",
+                                        operation: {
+                                            type: "Includes",
+                                            titleQuery: "",
                                         },
                                     });
                                 },
@@ -257,10 +264,10 @@ export function TaskQueryViewCustomizationBar({
                         aria-haspopup={true}
                         overlay={
                             <Box
+                                className={greyElevated2ClassName}
                                 overflow="hidden"
                                 borderRadius="md"
-                                // NOCOMMIT: Overlay colors changed
-                                backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                                backgroundColor="grey-0"
                                 boxShadow="elevation-20"
                             >
                                 <TaskQuerySortsEditor

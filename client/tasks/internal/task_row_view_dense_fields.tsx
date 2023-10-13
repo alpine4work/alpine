@@ -1,100 +1,21 @@
-import {useDraggable} from "@dnd-kit/core";
-import classNames from "classnames";
-import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
-import {Selection} from "prosemirror-state";
-import {
-    KeyboardEvent,
-    Ref,
-    forwardRef,
-    useId,
-    useImperativeHandle,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
-import {mergeProps} from "react-aria";
+import {Ref, forwardRef, useImperativeHandle, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {ContextMenuActions} from "~/client/design/context_menu.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction} from "~/client/design/menu_button.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
-import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
-import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
-import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
-import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
-import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {TaskGridViewDraggableData} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
-import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
-import {
-    TaskRowAssigneeCell,
-    TaskRowAssigneeCellRef,
-} from "~/client/tasks/internal/task_row_assignee_cell.js";
-import {
-    TaskRowCollectionsCell,
-    TaskRowCollectionsCellRef,
-} from "~/client/tasks/internal/task_row_collections_cell.js";
-import {
-    TaskRowDueDateCell,
-    TaskRowDueDateCellRef,
-} from "~/client/tasks/internal/task_row_due_date_cell.js";
-import {
-    TaskRowPriorityCell,
-    TaskRowPriorityCellRef,
-} from "~/client/tasks/internal/task_row_priority_cell.js";
-import {
-    TaskRowTitleInput,
-    TaskRowTitleInputRef,
-} from "~/client/tasks/internal/task_row_title_input.js";
-import {TaskRowViewDroppable} from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
-import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {
-    taskRowViewFirstColumnExtraPaddingLeft,
-    taskRowViewMinHeight,
-} from "~/client/tasks/task_row_shared_styles.js";
-import {Context} from "~/shared/context/context.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
-import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
-import {
-    colorSchemeVars,
-    contentSchemaStyles,
-    sprinkles,
-    tasksStyles,
-} from "~/shared/styles/styles.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {tasksStyles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-import {TaskPosition} from "~/shared/tasks/task_position.js";
-import {
-    TaskQuerySortCursor,
-    getTaskQuerySortCursorTaskId,
-} from "~/shared/tasks/task_query_sort_cursor.js";
-import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 export type TaskRowViewDenseFieldsRef = {
     focusAssigneeInput(): void;

@@ -3,9 +3,9 @@ import {mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox.js";
-import {TaskPriorityIcon} from "~/client/tasks/demo_2/internal/task_priority_icon.js";
-import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor.js";
+import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
+import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
+import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {isNonNullableOrFalse} from "~/shared/helpers/control/is_non_nullable_or_false.js";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryPriorityFilter} from "~/shared/tasks/task_query_filter.js";
@@ -259,7 +259,7 @@ export function TaskQueryPriorityFilterOperationEditor({
                                     </Box>
                                     {priorities[1]}
                                     <Box paddingRight="1.5" color="grey-60">
-                                        , or
+                                        ,&nbsp;or
                                     </Box>
                                     {priorities[2]}
                                 </>
@@ -275,7 +275,7 @@ export function TaskQueryPriorityFilterOperationEditor({
                                     </Box>
                                     {priorities[2]}
                                     <Box paddingRight="1.5" color="grey-60">
-                                        , or
+                                        ,&nbsp;or
                                     </Box>
                                     {priorities[3]}
                                 </>
@@ -295,7 +295,7 @@ export function TaskQueryPriorityFilterOperationEditor({
                                     </Box>
                                     {priorities[3]}
                                     <Box paddingRight="1.5" color="grey-60">
-                                        , or
+                                        ,&nbsp;or
                                     </Box>
                                     {priorities[4]}
                                 </>

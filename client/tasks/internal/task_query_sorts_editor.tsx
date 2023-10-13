@@ -1,5 +1,3 @@
-// @ts-nocheck NOCOMMIT: This file will be refactored later
-
 import {DndContext, DragOverlay, closestCenter, useDndContext} from "@dnd-kit/core";
 import {SortableContext, arrayMove, useSortable} from "@dnd-kit/sortable";
 import {CaretDown, DotsSixVertical, Plus, X} from "phosphor-react";
@@ -11,15 +9,15 @@ import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
-import {TaskMissingAccountAvatar} from "~/client/tasks/demo_2/internal/task_missing_account_avatar.js";
-import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
+import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 let nextSortId = 1;
 
@@ -133,7 +131,7 @@ export function TaskQuerySortsEditor({
                             label: "Status",
                             onPress: () => {
                                 addSort({
-                                    type: "Status",
+                                    type: "DisplayStatus",
                                     direction: "Ascending",
                                 });
                             },
@@ -154,7 +152,7 @@ export function TaskQuerySortsEditor({
                             onPress: () => {
                                 addSort({
                                     type: "Assignee",
-                                    missingAccountSide: "Start",
+                                    missing: "Last",
                                 });
                             },
                         },
@@ -169,7 +167,7 @@ export function TaskQuerySortsEditor({
                             onPress: () => {
                                 addSort({
                                     type: "Assigner",
-                                    missingAccountSide: "Start",
+                                    missing: "Last",
                                 });
                             },
                         },
@@ -188,7 +186,7 @@ export function TaskQuerySortsEditor({
                             label: "Created date",
                             onPress: () => {
                                 addSort({
-                                    type: "CreatedDate",
+                                    type: "CreatedTime",
                                     direction: "Ascending",
                                 });
                             },
@@ -197,7 +195,7 @@ export function TaskQuerySortsEditor({
                             label: "Assigned date",
                             onPress: () => {
                                 addSort({
-                                    type: "AssignedDate",
+                                    type: "AssignedTime",
                                     direction: "Ascending",
                                 });
                             },
@@ -206,7 +204,7 @@ export function TaskQuerySortsEditor({
                             label: "Closed date",
                             onPress: () => {
                                 addSort({
-                                    type: "ClosedDate",
+                                    type: "ClosedTime",
                                     direction: "Ascending",
                                 });
                             },
@@ -215,7 +213,7 @@ export function TaskQuerySortsEditor({
                             label: "Active date",
                             onPress: () => {
                                 addSort({
-                                    type: "ActivatedDate",
+                                    type: "ActivatedTime",
                                     direction: "Ascending",
                                 });
                             },
@@ -251,12 +249,12 @@ function TaskQuerySortsEditorDragPortals({
         <>
             {isPointerDragging &&
                 createPortal(
-                    <Box position="absolute" inset="0" zIndex="70" cursor="grabbing" />,
+                    <Box position="absolute" inset="0" zIndex="80" cursor="grabbing" />,
                     document.body,
                 )}
             {active &&
                 createPortal(
-                    <DragOverlay zIndex={60}>
+                    <DragOverlay zIndex={70}>
                         <TaskQuerySortsEditorRow
                             id={active.id}
                             sort={
@@ -289,7 +287,7 @@ function TaskQuerySortsEditorRow({
     onSortDelete: () => void;
 }) {
     switch (sort.type) {
-        case "Status": {
+        case "DisplayStatus": {
             return (
                 <TaskQuerySortsEditorRowBase
                     id={id}
@@ -327,11 +325,9 @@ function TaskQuerySortsEditorRow({
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
                 >
-                    <TaskQuerySortsEditorRowAccountMissingAccountSide
-                        missingAccountSide={sort.missingAccountSide}
-                        onMissingAccountSideChange={missingAccountSide =>
-                            onSortChange({...sort, missingAccountSide})
-                        }
+                    <TaskQuerySortsEditorRowAccountMissing
+                        missing={sort.missing}
+                        onMissingChange={missing => onSortChange({...sort, missing})}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -354,11 +350,9 @@ function TaskQuerySortsEditorRow({
                     onDelete={onSortDelete}
                     isDragOverlay={isDragOverlay}
                 >
-                    <TaskQuerySortsEditorRowAccountMissingAccountSide
-                        missingAccountSide={sort.missingAccountSide}
-                        onMissingAccountSideChange={missingAccountSide =>
-                            onSortChange({...sort, missingAccountSide})
-                        }
+                    <TaskQuerySortsEditorRowAccountMissing
+                        missing={sort.missing}
+                        onMissingChange={missing => onSortChange({...sort, missing})}
                     />
                 </TaskQuerySortsEditorRowBase>
             );
@@ -378,7 +372,7 @@ function TaskQuerySortsEditorRow({
                 </TaskQuerySortsEditorRowBase>
             );
         }
-        case "CreatedDate": {
+        case "CreatedTime": {
             return (
                 <TaskQuerySortsEditorRowBase
                     id={id}
@@ -393,7 +387,7 @@ function TaskQuerySortsEditorRow({
                 </TaskQuerySortsEditorRowBase>
             );
         }
-        case "AssignedDate": {
+        case "AssignedTime": {
             return (
                 <TaskQuerySortsEditorRowBase
                     id={id}
@@ -408,7 +402,7 @@ function TaskQuerySortsEditorRow({
                 </TaskQuerySortsEditorRowBase>
             );
         }
-        case "ClosedDate": {
+        case "ClosedTime": {
             return (
                 <TaskQuerySortsEditorRowBase
                     id={id}
@@ -423,7 +417,7 @@ function TaskQuerySortsEditorRow({
                 </TaskQuerySortsEditorRowBase>
             );
         }
-        case "ActivatedDate": {
+        case "ActivatedTime": {
             return (
                 <TaskQuerySortsEditorRowBase
                     id={id}
@@ -468,6 +462,7 @@ function TaskQuerySortsEditorRowBase({
     return (
         <Box
             ref={setSortableNodeRef}
+            className={greyElevated2ClassName}
             position="relative"
             zIndex="20" // Renders over dividers
             height="8"
@@ -598,26 +593,26 @@ function TaskQuerySortsEditorRowPriorityDirection({
     );
 }
 
-function TaskQuerySortsEditorRowAccountMissingAccountSide({
-    missingAccountSide,
-    onMissingAccountSideChange,
+function TaskQuerySortsEditorRowAccountMissing({
+    missing,
+    onMissingChange,
 }: {
-    missingAccountSide: "Start" | "End";
-    onMissingAccountSideChange: (missingAccountSide: "Start" | "End") => void;
+    missing: "First" | "Last";
+    onMissingChange: (missing: "First" | "Last") => void;
 }) {
     return (
         <Box marginTop="-0.5">
             <MenuButton
                 actions={[
                     {
-                        label: "Nobody first",
-                        isSelected: missingAccountSide === "Start",
-                        onPress: () => onMissingAccountSideChange("Start"),
+                        label: "Nobody last",
+                        isSelected: missing === "Last",
+                        onPress: () => onMissingChange("Last"),
                     },
                     {
-                        label: "Nobody last",
-                        isSelected: missingAccountSide === "End",
-                        onPress: () => onMissingAccountSideChange("End"),
+                        label: "Nobody first",
+                        isSelected: missing === "First",
+                        onPress: () => onMissingChange("First"),
                     },
                 ]}
             >
@@ -630,7 +625,7 @@ function TaskQuerySortsEditorRowAccountMissingAccountSide({
                 >
                     <Box display="flex" alignItems="center" gap="1">
                         <TaskMissingAccountAvatar size="3" />
-                        <Box>Nobody {missingAccountSide === "Start" ? "first" : "last"}</Box>
+                        <Box>Nobody {missing === "First" ? "first" : "last"}</Box>
                     </Box>
                 </Button>
             </MenuButton>

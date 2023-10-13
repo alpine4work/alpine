@@ -1258,7 +1258,6 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
     );
 });
 
-// NOCOMMIT: Test scrolling into a bunch of unloaded tasks
 const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloadedChildTaskMemo({
     capabilities,
     parentTaskKey,

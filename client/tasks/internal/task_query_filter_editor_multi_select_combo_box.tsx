@@ -13,13 +13,20 @@ import {
 import {ComboBoxState, Item, useListState} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {OverlayTriggerButton} from "~/client/design/overlay_trigger.js";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
+import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {TaskCheckbox} from "~/client/tasks/demo_2/internal/task_checkbox.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {TaskCheckbox} from "~/client/tasks/internal/task_checkbox.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
+import {
+    colorSchemeVars,
+    greyElevated2ClassName,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 export type TaskQueryFilterEditorMultiSelectComboBoxItem<Key extends string> = {
     readonly key: Key;
@@ -55,12 +62,12 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
             aria-haspopup="listbox"
             overlay={({onCloseWithoutAnimation}) => (
                 <Box
+                    className={greyElevated2ClassName}
                     width="64"
                     maxHeight="96"
                     overflow="hidden"
                     borderRadius="md"
-                    // NOCOMMIT: Overlay colors changed
-                    backgroundColor={{light: "grey-0", dark: "grey-5"}}
+                    backgroundColor="grey-0"
                     boxShadow="elevation-20"
                     display="flex"
                     flexDirection="column"
@@ -188,7 +195,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
         // We use multiple selection, there is never one selected key.
         selectedKey: null as any,
         selectedItem: null as any,
-        setSelectedKey: key => selectionManager.select(key),
+        setSelectedKey: key => selectionManager.select(key!),
 
         collection,
         selectionManager,
@@ -282,12 +289,13 @@ function TaskQueryFilterEditorMultiSelectListBox<Key extends string>({
     return (
         <ul
             {...listBoxProps}
-            ref={listBoxRef}
+            ref={useMergedRefs(listBoxRef, useScrollbar())}
             className={sprinkles({
+                position: "relative",
                 flexGrow: "1",
                 padding: "1",
                 overflowX: "hidden",
-                overflowY: "scroll",
+                overflowY: "auto",
             })}
         >
             {comboBoxState.collection.size === 0 ? (
@@ -343,11 +351,7 @@ function TaskQueryFilterEditorMultiSelectListBoxOption<Key extends string>({
                     padding: "1.5",
                     borderRadius: "base",
                     color: "grey-text",
-                    backgroundColor: isPressed
-                        ? {light: "grey-10", dark: "grey-20"}
-                        : isHovered
-                        ? {light: "grey-5", dark: "grey-10"}
-                        : undefined,
+                    backgroundColor: isPressed ? "grey-10" : isHovered ? "grey-5" : undefined,
                     display: "flex",
                     alignItems: "flex-start",
                     gap: "1.5",

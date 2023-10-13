@@ -227,19 +227,6 @@ function TaskRowView(
         isFirstRow: boolean;
         nextIndentation: number;
         titlePlaceholder?: string;
-        // NOCOMMIT:
-        // allCollections: ReadonlyArray<LocalTaskCollection>;
-        // collections: ReadonlyArray<LocalTaskCollection>;
-        // createCollectionAndAddToTask: (collection: {
-        //     id: LocalTaskCollectionId;
-        //     name: string;
-        //     color: ThemeColor;
-        // }) => void;
-        // addCollectionToTask: (collectionId: LocalTaskCollectionId) => void;
-        // removeCollectionFromTask: (collectionId: LocalTaskCollectionId) => void;
-        // isEditingCollections: boolean;
-        // onEditingCollectionsChange: (isEditingCollections: boolean) => void;
-        // editingCollectionsContainerRef: RefCallback<HTMLElement> | null;
         areChildTasksExpandedStore: Store<true | undefined>;
         onAreChildTasksExpandedToggle: () => void;
         withoutPaddingLeft?: boolean;

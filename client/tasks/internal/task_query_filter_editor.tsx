@@ -1,34 +1,30 @@
-// @ts-nocheck NOCOMMIT: This file will be refactored later
-
 import {X} from "phosphor-react";
 import {ReactNode} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_collections_filter_operation_editor.js";
-import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/demo_2/internal/task_query_filter_account_operation_editor.js";
+// NOCOMMIT: import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
+import {TaskQueryDisplayStatusFilterOperationEditor} from "~/client/tasks/internal/task_query_display_status_filter_operation_editor.js";
+import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/internal/task_query_filter_account_operation_editor.js";
 import {
     TaskQueryFilterDateOperationEditor,
     TaskQueryFilterDateOperationValueEditor,
     taskQueryFilterDateOperationGreaterThanOperatorLabel,
     taskQueryFilterDateOperationLessThanOperatorLabel,
-} from "~/client/tasks/demo_2/internal/task_query_filter_date_operation_editor.js";
-import {TaskQueryFilterOperatorEditor} from "~/client/tasks/demo_2/internal/task_query_filter_operator_editor.js";
-import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_priority_filter_operation_editor.js";
-import {TaskQueryStatusFilterOperationEditor} from "~/client/tasks/demo_2/internal/task_query_status_filter_operation_editor.js";
-import {LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+} from "~/client/tasks/internal/task_query_filter_date_operation_editor.js";
+import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
+import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/internal/task_query_priority_filter_operation_editor.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 
 export function TaskQueryFilterEditor({
-    state,
     filter,
     filterReferences,
     onFilterChange,
     onFilterRemove,
 }: {
-    state: LocalTasksState;
     filter: TaskQueryFilter;
     filterReferences: TaskQueryFilterReferences;
     onFilterChange: (
@@ -38,12 +34,12 @@ export function TaskQueryFilterEditor({
     onFilterRemove: () => void;
 }) {
     switch (filter.type) {
-        case "Status": {
+        case "DisplayStatus": {
             return (
                 <TaskQueryFilterEditorBase
                     name="Status"
                     operation={
-                        <TaskQueryStatusFilterOperationEditor
+                        <TaskQueryDisplayStatusFilterOperationEditor
                             filter={filter}
                             onFilterChange={onFilterChange}
                         />
@@ -53,12 +49,13 @@ export function TaskQueryFilterEditor({
             );
         }
         case "Collections": {
+            throw new UnimplementedError("NOCOMMIT");
+
             return (
                 <TaskQueryFilterEditorBase
                     name="Collections"
                     operation={
                         <TaskQueryCollectionsFilterOperationEditor
-                            state={state}
                             filter={filter}
                             onFilterChange={onFilterChange}
                         />
@@ -80,6 +77,10 @@ export function TaskQueryFilterEditor({
                     onFilterRemove={onFilterRemove}
                 />
             );
+        }
+        case "Title": {
+            // NOCOMMIT
+            throw new UnimplementedError("TODO");
         }
         case "Assignee": {
             return (

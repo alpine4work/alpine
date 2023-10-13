@@ -23,9 +23,6 @@ export function TaskCollectionChip({
 }) {
     const collectionEntry = useStore(collectionEntryStore);
 
-    // NOCOMMIT: `authorizationEventNumber` changing causes everything to re-render
-    // which is lame. Can we fix this?
-
     return (
         <TaskCollectionChipBase
             color={collectionEntry.collection?.getColor() ?? null}
