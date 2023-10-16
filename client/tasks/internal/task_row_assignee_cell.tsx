@@ -131,10 +131,26 @@ function TaskRowAssigneeCell(
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
     const [isFocusWithin, setIsFocusWithin] = useState(false);
 
+    // Disable expensive features until the user hovers/focuses the cell in
+    // question while not scrolling.
+    //
+    // This improves scroll performance and initial load performance. Since we only
+    // need to render the read-only version of a cell on initial load.
+    const [_disableExpensiveFeatures, setDisableExpensiveFeatures] = useState(true);
+    let disableExpensiveFeatures = _disableExpensiveFeatures;
+    if (
+        disableExpensiveFeatures &&
+        !disableExpensiveFeaturesDuringScroll &&
+        (isHovered || isFocusWithin)
+    ) {
+        disableExpensiveFeatures = false;
+        setDisableExpensiveFeatures(false);
+    }
+
     // NOTE(calebmer): We haven't implemented read-only task rows yet but when we
     // do the optimized cell implementation and read-only mode should share an
     // implementation.
-    const isReadOnly = disableExpensiveFeaturesDuringScroll;
+    const isReadOnly = disableExpensiveFeatures;
 
     useImperativeHandle(
         ref,
