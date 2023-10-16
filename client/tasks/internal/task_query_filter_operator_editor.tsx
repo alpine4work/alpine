@@ -46,6 +46,7 @@ export function TaskQueryFilterOperatorEditor({
                                 ? "grey-5"
                                 : undefined,
                             borderRadius: "sm",
+                            fontStyle: "truncate",
                             color: "grey-60",
                         })}
                     >

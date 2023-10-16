@@ -13,6 +13,7 @@ import {
 } from "~/client/tasks/internal/task_query_filter_date_operation_editor.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
 import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/internal/task_query_priority_filter_operation_editor.js";
+import {TaskQueryTitleFilterOperationEditor} from "~/client/tasks/internal/task_query_title_filter_operation_editor.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -82,8 +83,18 @@ export function TaskQueryFilterEditor({
             );
         }
         case "Title": {
-            // NOCOMMIT
-            throw new UnimplementedError("TODO");
+            return (
+                <TaskQueryFilterEditorBase
+                    name="Title"
+                    operation={
+                        <TaskQueryTitleFilterOperationEditor
+                            filter={filter}
+                            onFilterChange={onFilterChange}
+                        />
+                    }
+                    onFilterRemove={onFilterRemove}
+                />
+            );
         }
         case "Assignee": {
             return (

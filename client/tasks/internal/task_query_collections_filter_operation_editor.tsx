@@ -337,6 +337,7 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
             return (
                 <Fragment key={collectionResult.collection.id}>
                     <Box
+                        flexShrink="0"
                         width="1.5"
                         height="1.5"
                         borderRadius="full"
@@ -344,7 +345,7 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
                             collectionResult.collection.getColor(),
                         )}
                     />
-                    <Box paddingLeft="1">
+                    <Box paddingLeft="1" fontStyle="truncate">
                         {collectionNameGraphemes.length > collectionNameGraphemeLimit
                             ? `“${collectionNameGraphemes
                                   .slice(0, collectionNameGraphemeLimit)

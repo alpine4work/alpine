@@ -5,11 +5,19 @@ const InputWithAutoGrowingWidthForwardRef = forwardRef(InputWithAutoGrowingWidth
 export {InputWithAutoGrowingWidthForwardRef as InputWithAutoGrowingWidth};
 
 function InputWithAutoGrowingWidth(
-    {textClassName, ...props}: InputHTMLAttributes<HTMLInputElement> & {textClassName?: string},
+    {
+        containerClassName,
+        textClassName,
+        ...props
+    }: InputHTMLAttributes<HTMLInputElement> & {
+        containerClassName?: string;
+        textClassName?: string;
+    },
     ref: Ref<HTMLInputElement>,
 ) {
     return (
         <div
+            className={containerClassName}
             style={{
                 maxWidth: "100%",
                 overflow: "hidden",
