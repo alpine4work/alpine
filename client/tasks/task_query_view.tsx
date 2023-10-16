@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {TaskQueryViewCustomizationBar} from "~/client/tasks/internal/task_query_view_customization_bar.js";
+import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryFilterReferences,
@@ -21,6 +22,9 @@ export function TaskQueryView({
     initialSorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
+    // NOCOMMIT: Get store from query?
+    const store = useTaskClientStore();
+
     const [{filters, filterReferences}, setFiltersState] = useState({
         filters: initialFilters,
         filterReferences: initialFilterReferences,
@@ -64,6 +68,7 @@ export function TaskQueryView({
         >
             <Box paddingTop="5" paddingBottom="7" paddingX="5">
                 <TaskQueryViewCustomizationBar
+                    store={store}
                     shouldCollapseWhenFiltersAreEmpty={false}
                     defaultOrderSentence="By default, tasks are ordered by created date."
                     filters={filters}

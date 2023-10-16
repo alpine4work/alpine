@@ -14,10 +14,9 @@ export default function TasksLayoutRoute() {
 
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
 
-    // NOCOMMIT:
     let isNotepadTabActive = false;
     let isCollectionsTabActive = false;
-    const isViewsTabActive = false;
+    let isViewsTabActive = false;
     let withoutBorderBottom = false;
 
     for (const match of dataRouterStateContext.matches) {
@@ -29,6 +28,11 @@ export default function TasksLayoutRoute() {
         if (match.route.id === "routes/s.$spaceId.tasks.collections.$collectionId") {
             isCollectionsTabActive = true;
             withoutBorderBottom = true;
+        }
+
+        if (match.route.id === "routes/s.$spaceId.tasks.view") {
+            isViewsTabActive = true;
+            withoutBorderBottom = false;
         }
     }
 

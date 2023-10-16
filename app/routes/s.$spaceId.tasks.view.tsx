@@ -29,7 +29,7 @@ export async function loader({request, params, context}: LoaderArgs) {
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
 
     const filterReferences = await getTaskQueryFilterReferences(
-        await context.actor.authenticate(),
+        (await context.actor.authenticate()).actor.authorizeSession(),
         spaceId,
         filters,
     );

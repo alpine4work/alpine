@@ -185,6 +185,20 @@ export abstract class Store<Value> {
     }
 
     /**
+     * Takes an array of stores and creates a single `Store` with all of their
+     * values unwrapped.
+     *
+     * Same as `Store.mapMany()` with the identity function as the map function.
+     */
+    public static many<Stores extends ReadonlyArray<Store<any>>>(
+        stores: Stores,
+    ): Store<{
+        readonly [K in keyof Stores]: StoreType<Stores[K]>;
+    }> {
+        return new MappedManyStore(stores, cast) as any;
+    }
+
+    /**
      * If we have a nested store this function flattens a `Store<Store<Value>>`
      * into just `Store<Value>`.
      *

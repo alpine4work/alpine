@@ -29,6 +29,10 @@ export class StoreMap<Key, Value> {
         this._map = new Map(entries);
     }
 
+    public get sizeSnapshot() {
+        return this._map.size;
+    }
+
     /**
      * Gets a snapshot of the current value for the key. You are only seeing the
      * current value and won't be able to observe changes over time. You should use
@@ -36,6 +40,10 @@ export class StoreMap<Key, Value> {
      */
     public getSnapshot(key: Key): Value | undefined {
         return this._map.get(key);
+    }
+
+    public hasSnapshot(key: Key): boolean {
+        return this._map.has(key);
     }
 
     private readonly _createStore = (key: Key) => {

@@ -172,7 +172,7 @@ export function useTaskCollectionComboBoxSearchState({
                             collectionResult.collection.id,
                         );
 
-                        const collection = collectionEntryStore
+                        const collectionFromStore = collectionEntryStore
                             ? get(collectionEntryStore).collection
                             : null;
 
@@ -181,8 +181,8 @@ export function useTaskCollectionComboBoxSearchState({
                             key: `Collection:${collectionResult.collection.id}`,
                             collectionResult: {
                                 ...collectionResult,
-                                collection: collection
-                                    ? collectionResult.collection.merge(collection)
+                                collection: collectionFromStore
+                                    ? collectionResult.collection.merge(collectionFromStore)
                                     : collectionResult.collection,
                             },
                         });
@@ -267,7 +267,11 @@ export function useTaskCollectionComboBoxSearchState({
 
     return {
         shouldShowSearchLoadingIndicator,
-        items,
+        items: items
+            ? Object.assign(items, {
+                  nameQuery: searchCollectionsOutput?.input.nameQuery ?? currentlyLoadingInputValue,
+              })
+            : null,
     };
 }
 

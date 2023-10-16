@@ -1,5 +1,5 @@
 import _Fuse from "fuse.js";
-import {Memo, MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
+import {Memo, ReactNode, useMemo, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
 import {useAccountClientStore} from "~/client/accounts/account_client_store_context_provider.js";
@@ -17,25 +17,45 @@ import {
 } from "~/client/spaces/use_expensively_load_all_space_accounts.js";
 import {TaskCurrentAccountAvatar} from "~/client/tasks/internal/task_current_account_avatar.js";
 import {TaskMissingAccountAvatar} from "~/client/tasks/internal/task_missing_account_avatar.js";
-import {
-    TaskQueryFilterEditorMultiSelectComboBox,
-    TaskQueryFilterEditorMultiSelectComboBoxItem,
-} from "~/client/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
+import {TaskQueryFilterEditorMultiSelectComboBox} from "~/client/tasks/internal/task_query_filter_editor_multi_select_combo_box.js";
 import {TaskQueryFilterOperatorEditor} from "~/client/tasks/internal/task_query_filter_operator_editor.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
+import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
-import {isId} from "~/shared/id/id.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryFilterAccountOperation} from "~/shared/tasks/task_query_filter.js";
-import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
+import {
+    TaskQueryFilterReferences,
+    emptyTaskQueryFilterReferences,
+} from "~/shared/tasks/task_query_filter_references.js";
 
 // Node.js ESM interop (#node-esm-migration)
 const Fuse = typeof _Fuse === "function" ? _Fuse : _Fuse.default;
+
+type TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem =
+    | {
+          readonly type: "Account";
+          readonly key: AccountId;
+          readonly textValue: string;
+          readonly accountData: AccountModelData;
+          readonly node: ReactNode;
+      }
+    | {
+          readonly type: "CurrentAccount";
+          readonly key: "CurrentAccount";
+          readonly textValue: string;
+          readonly node: ReactNode;
+      }
+    | {
+          readonly type: "MissingAccount";
+          readonly key: "MissingAccount";
+          readonly textValue: string;
+          readonly node: ReactNode;
+      };
 
 export function TaskQueryFilterAccountOperationEditor({
     inputLabel,
@@ -93,8 +113,6 @@ export function TaskQueryFilterAccountOperationEditor({
     const oneOfOperatorLabel = normalizedAccountIds.size > 1 ? "is one of" : "is";
     const noneOfOperatorLabel = normalizedAccountIds.size > 1 ? "is not one of" : "is not";
 
-    const accountByIdRef = useRef<ReadonlyMap<AccountId, AccountModel>>(null);
-
     return (
         <>
             <TaskQueryFilterOperatorEditor
@@ -124,7 +142,7 @@ export function TaskQueryFilterAccountOperationEditor({
                     },
                 ]}
             />
-            <TaskQueryFilterEditorMultiSelectComboBox
+            <TaskQueryFilterEditorMultiSelectComboBox<TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem>
                 inputLabel={inputLabel}
                 preview={
                     <TaskQueryFilterAccountOperationEditorPreview
@@ -133,18 +151,24 @@ export function TaskQueryFilterAccountOperationEditor({
                     />
                 }
                 selectedKeys={accountIds}
-                onSelectedKeysChange={newAccountIds => {
+                onSelectedKeysChange={(newAccountIds, searchedItems) => {
                     const addedAccountIds = new Set(newAccountIds);
                     for (const accountId of accountIds) addedAccountIds.delete(accountId);
 
                     const addedAccountById = new Map<AccountId, AccountModel>();
 
-                    for (const accountId of addedAccountIds) {
-                        if (typeof accountId === "string" && isId<AccountId>(accountId)) {
-                            const account = accountByIdRef.current?.get(accountId);
-                            if (account) addedAccountById.set(account.id, account);
-                        }
+                    for (const item of searchedItems) {
+                        if (item.type !== "Account") continue;
+                        if (!addedAccountIds.delete(item.key)) continue;
+
+                        addedAccountById.set(item.key, new AccountModel(item.accountData));
+
+                        // Once we've found all the added accounts we can exit our loop.
+                        if (addedAccountIds.size === 0) break;
                     }
+
+                    // All `addedAccountIds` should have been found in `searchedItems`.
+                    assert(addedAccountIds.size === 0);
 
                     onOperationChange(
                         {
@@ -159,7 +183,10 @@ export function TaskQueryFilterAccountOperationEditor({
                                 }
                             }),
                         },
-                        {accountById: addedAccountById},
+                        {
+                            ...emptyTaskQueryFilterReferences,
+                            accountById: addedAccountById,
+                        },
                     );
                 }}
                 useSearchedItems={searchInputValue =>
@@ -169,7 +196,6 @@ export function TaskQueryFilterAccountOperationEditor({
                         searchInputValue,
                         shouldHideMissingAccountItem,
                         accountIds,
-                        accountByIdRef,
                     })
                 }
             />
@@ -290,52 +316,40 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
     searchInputValue,
     shouldHideMissingAccountItem,
     accountIds,
-    accountByIdRef,
 }: {
     searchInputValue: string;
     shouldHideMissingAccountItem: boolean;
     accountIds: ReadonlySet<AccountId | "CurrentAccount" | "MissingAccount">;
-    accountByIdRef: MutableRefObject<ReadonlyMap<AccountId, AccountModel> | null>;
 }) {
     const {currentAccount} = useSpaceContext();
     const accountStore = useAccountClientStore();
     const allUnsortedAccounts = useExpensivelyLoadAllSpaceAccounts();
     const isLoading = !allUnsortedAccounts;
 
-    useEffect(() => {
-        accountByIdRef.current = new Map(
-            allUnsortedAccounts?.map(account => [account.id, account]),
-        );
-
-        return () => {
-            accountByIdRef.current = null;
-        };
-    }, [accountByIdRef, allUnsortedAccounts]);
-
-    const [initialAccountIds] = useState(() => accountIds);
+    const [initialAccountIds] = useState(accountIds);
 
     const allItemsStore = useMemo(() => {
         return Store.mapMany(
             (allUnsortedAccounts ?? []).map(account => accountStore.getAccountStore(account)),
             allUnsortedAccountDatas => {
-                const allItems: Array<
-                    TaskQueryFilterEditorMultiSelectComboBoxItem<
-                        AccountId | "CurrentAccount" | "MissingAccount"
-                    >
-                > = allUnsortedAccountDatas.map(account => ({
-                    key: account.id,
-                    textValue: account.name,
-                    node: (
-                        <>
-                            <AccountAvatar size="5" account={account} />
-                            <Box flexGrow="1" fontStyle="truncate">
-                                {account.name}
-                            </Box>
-                        </>
-                    ),
-                }));
+                const allItems: Array<TaskQueryFilterAccountOperationEditorMultiSelectComboBoxItem> =
+                    allUnsortedAccountDatas.map(accountData => ({
+                        type: "Account",
+                        key: accountData.id,
+                        textValue: accountData.name,
+                        accountData,
+                        node: (
+                            <>
+                                <AccountAvatar size="5" account={accountData} />
+                                <Box flexGrow="1" fontStyle="truncate">
+                                    {accountData.name}
+                                </Box>
+                            </>
+                        ),
+                    }));
 
                 allItems.push({
+                    type: "CurrentAccount",
                     key: "CurrentAccount",
                     textValue: "Me (dynamic)",
                     node: (
@@ -358,6 +372,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
 
                 if (!shouldHideMissingAccountItem || initialAccountIds.has("MissingAccount")) {
                     allItems.push({
+                        type: "MissingAccount",
                         key: "MissingAccount",
                         textValue: "Nobody",
                         node: (
@@ -400,7 +415,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                         );
                     }
 
-                    return item1.textValue.localeCompare(item2.textValue);
+                    return 0;
                 });
 
                 return allItems;

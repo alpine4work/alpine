@@ -6,6 +6,7 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
@@ -13,6 +14,7 @@ import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_refere
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskQueryViewCustomizationBar({
+    store,
     filters,
     filterReferences,
     onFiltersChange,
@@ -21,6 +23,7 @@ export function TaskQueryViewCustomizationBar({
     onSortsChange,
     defaultOrderSentence,
 }: {
+    store: TaskClientStore;
     filters: ReadonlyArray<TaskQueryFilter>;
     filterReferences: TaskQueryFilterReferences;
     onFiltersChange: (
@@ -56,6 +59,7 @@ export function TaskQueryViewCustomizationBar({
                 {filters.map((filter, index) => (
                     <TaskQueryFilterEditor
                         key={index}
+                        store={store}
                         filter={filter}
                         filterReferences={filterReferences}
                         onFilterChange={(filter, mergeFilterReferences) => {

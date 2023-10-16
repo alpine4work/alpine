@@ -28,13 +28,15 @@ import {
     sprinkles,
 } from "~/shared/styles/styles.js";
 
-export type TaskQueryFilterEditorMultiSelectComboBoxItem<Key extends string> = {
-    readonly key: Key;
+export type TaskQueryFilterEditorMultiSelectComboBoxItemBase = {
+    readonly key: string;
     readonly textValue: string;
     readonly node: ReactNode;
 };
 
-export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
+export function TaskQueryFilterEditorMultiSelectComboBox<
+    Item extends TaskQueryFilterEditorMultiSelectComboBoxItemBase,
+>({
     inputLabel,
     preview,
     selectedKeys,
@@ -44,12 +46,16 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
 }: {
     inputLabel: string;
     preview: ReactNode;
-    selectedKeys: ReadonlySet<Key>;
-    onSelectedKeysChange: (selectedKeys: ReadonlySet<Key>) => void;
+    selectedKeys: ReadonlySet<Item["key"]>;
+    onSelectedKeysChange: (
+        selectedKeys: ReadonlySet<Item["key"]>,
+        searchedItems: ReadonlyArray<Item>,
+    ) => void;
     useSearchedItems: (searchInputValue: string) =>
         | {
               isLoading: false;
-              searchedItems: ReadonlyArray<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
+              shouldShowSearchLoadingIndicator?: boolean;
+              searchedItems: ReadonlyArray<Item>;
           }
         | {isLoading: true};
     optionCheckboxMarginTop?: Spacing;
@@ -119,7 +125,9 @@ export function TaskQueryFilterEditorMultiSelectComboBox<Key extends string>({
     );
 }
 
-function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
+function TaskQueryFilterEditorMultiSelectComboBoxOverlay<
+    Item extends TaskQueryFilterEditorMultiSelectComboBoxItemBase,
+>({
     inputLabel,
     selectedKeys,
     onSelectedKeysChange,
@@ -128,12 +136,16 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
     optionCheckboxMarginTop,
 }: {
     inputLabel: string;
-    selectedKeys: ReadonlySet<Key>;
-    onSelectedKeysChange: (selectedKeys: ReadonlySet<Key>) => void;
+    selectedKeys: ReadonlySet<Item["key"]>;
+    onSelectedKeysChange: (
+        selectedKeys: ReadonlySet<Item["key"]>,
+        searchedItems: ReadonlyArray<Item>,
+    ) => void;
     useSearchedItems: (searchInputValue: string) =>
         | {
               isLoading: false;
-              searchedItems: ReadonlyArray<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
+              shouldShowSearchLoadingIndicator?: boolean;
+              searchedItems: ReadonlyArray<Item>;
           }
         | {isLoading: true};
     onCloseWithoutAnimation: () => void;
@@ -146,7 +158,10 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
         ? emptyArray
         : searchedItemsResult.searchedItems;
 
-    const renderItem = (item: TaskQueryFilterEditorMultiSelectComboBoxItem<Key>) => (
+    const shouldShowSearchLoadingIndicator =
+        !searchedItemsResult.isLoading && !!searchedItemsResult.shouldShowSearchLoadingIndicator;
+
+    const renderItem = (item: TaskQueryFilterEditorMultiSelectComboBoxItemBase) => (
         <Item textValue={item.textValue}>{item.node}</Item>
     );
 
@@ -160,8 +175,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
             // Ignore "all" selections. Doesn't make sense for this input.
             if (selectedKeys === "all") return;
 
-            onSelectedKeysChange(selectedKeys as Set<Key>);
-            onCloseWithoutAnimation();
+            onSelectedKeysChange(selectedKeys as Set<Item["key"]>, searchedItems);
         },
     });
 
@@ -169,7 +183,7 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
     const popoverRef = useRef<HTMLDivElement>(null);
     const listBoxRef = useRef<HTMLUListElement>(null);
 
-    const comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>> = {
+    const comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItemBase> = {
         inputValue,
         setInputValue,
 
@@ -217,30 +231,41 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
 
     return (
         <>
-            <FocusRing offset="border" isDisabled={!!selectionManager.focusedKey}>
-                <input
-                    {...inputProps}
-                    ref={inputRef}
-                    className={sprinkles({
-                        flexShrink: "0",
-                        display: "block",
-                        width: "full",
-                        height: "8",
-                        paddingX: "2.5",
-                        backgroundColor: "transparent",
-                        borderTopRadius: "md",
-                        borderBottom: "grey-10",
-                    })}
-                    placeholder={inputLabel}
-                    onKeyDown={event => {
-                        // Don't handle a tab keypress with `react-aria`. Instead let our
-                        // `<OverlayTriggerButton>` handle it.
-                        if (event.key === "Tab") return;
+            <Box position="relative">
+                <Box position="absolute" top="2.5" left="2.5" pointerEvents="none" color="grey-70">
+                    <MagnifyingGlass size={spacing["3"]} />
+                </Box>
+                <FocusRing offset="border" isDisabled={!!selectionManager.focusedKey}>
+                    <input
+                        {...inputProps}
+                        ref={inputRef}
+                        className={sprinkles({
+                            flexShrink: "0",
+                            display: "block",
+                            width: "full",
+                            height: "8",
+                            paddingLeft: "7",
+                            paddingRight: shouldShowSearchLoadingIndicator ? "7" : "2.5",
+                            backgroundColor: "transparent",
+                            borderTopRadius: "md",
+                            borderBottom: "grey-10",
+                        })}
+                        placeholder={inputLabel}
+                        onKeyDown={event => {
+                            // Don't handle a tab keypress with `react-aria`. Instead let our
+                            // `<OverlayTriggerButton>` handle it.
+                            if (event.key === "Tab") return;
 
-                        inputProps.onKeyDown?.(event);
-                    }}
-                />
-            </FocusRing>
+                            inputProps.onKeyDown?.(event);
+                        }}
+                    />
+                </FocusRing>
+                {shouldShowSearchLoadingIndicator && (
+                    <Box position="absolute" top="2.5" right="2.5" pointerEvents="none">
+                        <SpinnerGap className={spinAnimationClassName} size={spacing["3"]} />
+                    </Box>
+                )}
+            </Box>
             <Box
                 ref={popoverRef}
                 flexGrow="1"
@@ -269,15 +294,15 @@ function TaskQueryFilterEditorMultiSelectComboBoxOverlay<Key extends string>({
     );
 }
 
-function TaskQueryFilterEditorMultiSelectListBox<Key extends string>({
+function TaskQueryFilterEditorMultiSelectListBox({
     comboBoxState,
     listBoxRef,
     listBoxProps: _listBoxProps,
     optionCheckboxMarginTop,
 }: {
-    comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
+    comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
     listBoxRef: RefObject<HTMLUListElement>;
-    listBoxProps: AriaListBoxOptions<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
+    listBoxProps: AriaListBoxOptions<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
     optionCheckboxMarginTop: Spacing | null;
 }) {
     const {listBoxProps} = useListBox(
@@ -319,13 +344,13 @@ function TaskQueryFilterEditorMultiSelectListBox<Key extends string>({
     );
 }
 
-function TaskQueryFilterEditorMultiSelectListBoxOption<Key extends string>({
+function TaskQueryFilterEditorMultiSelectListBoxOption({
     comboBoxState,
     item,
     optionCheckboxMarginTop,
 }: {
-    comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
-    item: Node<TaskQueryFilterEditorMultiSelectComboBoxItem<Key>>;
+    comboBoxState: ComboBoxState<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
+    item: Node<TaskQueryFilterEditorMultiSelectComboBoxItemBase>;
     optionCheckboxMarginTop: Spacing | null;
 }) {
     const optionRef = useRef(null);

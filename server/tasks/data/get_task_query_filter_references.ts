@@ -1,65 +1,41 @@
-import {ServerActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {getAccount} from "~/server/spaces/spaces_table.js";
+import {assembleTaskCollectionSearchResults} from "~/server/tasks/data/task_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
-import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
+import {
+    TaskQueryFilterReferences,
+    getTaskQueryFiltersReferencedIds,
+} from "~/shared/tasks/task_query_filter_references.js";
 
 /**
  * Load all the data referenced in our task query filters.
  */
 export async function getTaskQueryFilterReferences(
-    context: ServerActionContext,
+    context: ServerSessionActionContext,
     spaceId: SpaceId,
     filters: ReadonlyArray<TaskQueryFilter>,
 ): Promise<TaskQueryFilterReferences> {
-    const accountIds = new Set<AccountId>();
+    const {accountIds, collectionIds} = getTaskQueryFiltersReferencedIds(filters);
 
-    for (const filter of filters) {
-        switch (filter.type) {
-            case "DisplayStatus":
-            case "Collections":
-            case "Priority":
-            case "Title":
-            case "DueDate":
-            case "CreatedDate":
-            case "AssignedDate":
-            case "ClosedDate":
-            case "ActivatedDate": {
-                // No references...
-                break;
-            }
-            case "Assignee":
-            case "Creator":
-            case "Assigner": {
-                for (const account of filter.operation.accounts) {
-                    switch (account.type) {
-                        case "CurrentAccount":
-                        case "MissingAccount": {
-                            // No references...
-                            break;
-                        }
-                        case "Account": {
-                            accountIds.add(account.accountId);
-                            break;
-                        }
-                        default:
-                            throw exhaustive(account);
-                    }
-                }
-                break;
-            }
-            default:
-                throw exhaustive(filter);
-        }
-    }
-
-    const accounts = await runAllPromises(
-        Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
-    );
+    const [accounts, collectionResults] = await runAllPromises([
+        runAllPromises(
+            Array.from(accountIds, accountId => getAccount(context, spaceId, accountId)),
+        ),
+        assembleTaskCollectionSearchResults(
+            context,
+            Array.from(collectionIds, collectionId => ({id: collectionId, score: 0})),
+        ),
+    ]);
 
     return {
         accountById: new Map(accounts.map(account => [account.id, account])),
+        collectionResultById: new Map(
+            collectionResults.map(collectionResult => [
+                collectionResult.collection.id,
+                collectionResult,
+            ]),
+        ),
     };
 }
