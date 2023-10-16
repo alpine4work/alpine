@@ -29,7 +29,7 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const Box = null;
 
-export function TaskRowViewDroppableIndentations({
+export function renderTaskRowViewDroppableIndentations({
     query,
     cursor,
     task,
@@ -49,6 +49,22 @@ export function TaskRowViewDroppableIndentations({
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
 }) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     if (areChildTasksExpanded && task.getChildTaskCount() > 0) {
         return (
             <TaskRowViewDroppable
@@ -170,7 +186,56 @@ export function TaskRowViewDroppableIndentations({
     );
 }
 
-function TaskRowViewDroppable({
+const droppableContainerPositionedAboveClassName = sprinkles({
+    position: "absolute",
+    top: "-6",
+    left: "0",
+    right: "0",
+    zIndex: "10",
+    pointerEvents: "none",
+    height: taskRowViewMinHeight,
+});
+
+const droppableContainerPositionedBelowClassName = sprinkles({
+    position: "absolute",
+    top: "3",
+    bottom: "-3",
+    left: "0",
+    right: "0",
+    zIndex: "10",
+    pointerEvents: "none",
+});
+
+const droppableClassName = sprinkles({
+    position: "absolute",
+    left: "0",
+    top: "0",
+    bottom: "0",
+});
+
+const droppableHorizontalOverIndicatorClassName = sprinkles({
+    position: "absolute",
+    right: "5",
+    bottom: "3",
+    pointerEvents: "none",
+    backgroundColor: {light: "theme-30", dark: "theme-60"},
+});
+
+const droppableVerticalOverIndicatorClassName = sprinkles({
+    position: "absolute",
+    bottom: "3",
+    height: "2",
+    backgroundColor: {light: "theme-30", dark: "theme-60"},
+});
+
+const droppableVerticalOverIndicatorFlippedClassName = sprinkles({
+    position: "absolute",
+    top: "6",
+    height: "2",
+    backgroundColor: {light: "theme-30", dark: "theme-60"},
+});
+
+export function TaskRowViewDroppable({
     indentation,
     nextAdjacentIndentation,
     previousAdjacentIndentation,
@@ -185,6 +250,22 @@ function TaskRowViewDroppable({
     isVerticallyFlipped?: boolean;
     getDropActions: (taskId: TaskId) => Array<TaskAction>;
 }) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     const {isOver, setNodeRef: setDroppableNodeRef} = useDroppable({
         id: useId(),
         data: cast<TaskGridViewDroppableData>({
@@ -197,25 +278,15 @@ function TaskRowViewDroppable({
 
     return (
         <div
-            className={sprinkles({
-                position: "absolute",
-                top: !isPositionedAbove ? "3" : "-6",
-                bottom: !isPositionedAbove ? "-3" : undefined,
-                left: "0",
-                right: "0",
-                zIndex: "10",
-                pointerEvents: "none",
-                height: isPositionedAbove ? taskRowViewMinHeight : undefined,
-            })}
+            className={
+                isPositionedAbove
+                    ? droppableContainerPositionedAboveClassName
+                    : droppableContainerPositionedBelowClassName
+            }
         >
             <div
                 ref={setDroppableNodeRef}
-                className={sprinkles({
-                    position: "absolute",
-                    left: "0",
-                    top: "0",
-                    bottom: "0",
-                })}
+                className={droppableClassName}
                 style={{
                     left:
                         previousAdjacentIndentation !== null
@@ -236,32 +307,32 @@ function TaskRowViewDroppable({
                             : "100%",
                 }}
             />
-            <div
-                className={sprinkles({
-                    position: "absolute",
-                    right: "5",
-                    bottom: "3",
-                    pointerEvents: "none",
-                    backgroundColor: isOver ? {light: "theme-30", dark: "theme-60"} : undefined,
-                })}
-                style={{
-                    height: 1,
-                    left: `${parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation}rem`,
-                }}
-            />
-            <div
-                className={sprinkles({
-                    position: "absolute",
-                    bottom: !isVerticallyFlipped ? "3" : undefined,
-                    top: isVerticallyFlipped ? "6" : undefined,
-                    height: "2",
-                    backgroundColor: isOver ? {light: "theme-30", dark: "theme-60"} : undefined,
-                })}
-                style={{
-                    width: 1,
-                    left: `${parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation}rem`,
-                }}
-            />
+            {isOver && (
+                <div
+                    className={droppableHorizontalOverIndicatorClassName}
+                    style={{
+                        height: 1,
+                        left: `${
+                            parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation
+                        }rem`,
+                    }}
+                />
+            )}
+            {isOver && (
+                <div
+                    className={
+                        isVerticallyFlipped
+                            ? droppableVerticalOverIndicatorFlippedClassName
+                            : droppableVerticalOverIndicatorClassName
+                    }
+                    style={{
+                        width: 1,
+                        left: `${
+                            parseRemLengthNumber(spacing["5"]) + listItemIndent * indentation
+                        }rem`,
+                    }}
+                />
+            )}
         </div>
     );
 }

@@ -57,14 +57,17 @@ import {
     TaskRowViewDenseFields,
     TaskRowViewDenseFieldsRef,
 } from "~/client/tasks/internal/task_row_view_dense_fields.js";
-import {TaskRowViewDroppableIndentations} from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
+import {
+    TaskRowViewDroppable,
+    renderTaskRowViewDroppableIndentations,
+} from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
-    taskRowViewPaddingX,
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
+    taskRowViewPaddingX,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {Context} from "~/shared/context/context.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
@@ -958,18 +961,38 @@ function TaskRowView(
         />
     );
 
-    const droppableIndentationsNode = !disableExpensiveFeaturesDuringScroll &&
+    const droppableIndentationsNode =
+        !disableExpensiveFeaturesDuringScroll &&
         !capabilities.isReadOnly &&
         cursor &&
+        task &&
+        renderTaskRowViewDroppableIndentations({
+            query,
+            cursor,
+            task,
+            parents,
+            nextIndentation,
+            areChildTasksExpanded,
+            getMoveTaskToRootQueryActions,
+        });
+
+    const firstRowDroppableIndentationsNode = !disableExpensiveFeaturesDuringScroll &&
+        !capabilities.isReadOnly &&
+        isFirstRow &&
+        cursor &&
         task && (
-            <TaskRowViewDroppableIndentations
-                query={query}
-                cursor={cursor}
-                task={task}
-                parents={parents}
-                nextIndentation={nextIndentation}
-                areChildTasksExpanded={areChildTasksExpanded}
-                getMoveTaskToRootQueryActions={getMoveTaskToRootQueryActions}
+            <TaskRowViewDroppable
+                indentation={0}
+                nextAdjacentIndentation={null}
+                previousAdjacentIndentation={null}
+                isPositionedAbove={true}
+                isVerticallyFlipped={true}
+                getDropActions={taskId =>
+                    getMoveTaskToRootQueryActions(taskId, {
+                        type: "Above",
+                        taskId: getTaskQuerySortCursorTaskId(cursor),
+                    })
+                }
             />
         );
 
@@ -1207,6 +1230,7 @@ function TaskRowView(
                     onSelectAll: focusTitleAll,
                 })}
             />
+            {!capabilities.hasDenseFields && firstRowDroppableIndentationsNode}
             {!capabilities.hasDenseFields && droppableIndentationsNode}
         </div>
     );
@@ -1245,6 +1269,7 @@ function TaskRowView(
                                 focusTitleAll={focusTitleAll}
                             />
                         )}
+                        {firstRowDroppableIndentationsNode}
                         {droppableIndentationsNode}
                     </div>
                 )}
