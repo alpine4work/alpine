@@ -218,18 +218,17 @@ function TaskQueryViewInstructionalPlaceholder({
                 // TODO(calebmer): Eventually I'd like a real graphic designer to take a look
                 // at this state. We could use a nice illustration here.
                 fontSize="300"
-                color="grey-60"
-                fontStyle="semi-bold"
+                fontStyle="bold"
                 userSelect="text"
             >
                 Start building a view
             </Box>
-            <Spacer space="1.5" />
+            <Spacer space="1" />
             <Box fontSize="100" color="grey-50" userSelect="text">
                 Views must include one of the following filters so you don’t see other people’s
                 private tasks.
             </Box>
-            <Spacer space="9" />
+            <Spacer space="10" />
             <Box
                 style={{
                     display: "grid",
