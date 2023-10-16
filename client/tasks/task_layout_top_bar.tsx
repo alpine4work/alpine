@@ -126,9 +126,23 @@ export function TaskLayoutTopBar({
                             onPress: async () => {
                                 const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
                                     {
+                                        type: "Creator",
+                                        operation: {
+                                            type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
+                                        },
+                                    },
+                                    {
                                         type: "Assigner",
                                         operation: {
                                             type: "OneOf",
+                                            accounts: [{type: "CurrentAccount"}],
+                                        },
+                                    },
+                                    {
+                                        type: "Assignee",
+                                        operation: {
+                                            type: "NoneOf",
                                             accounts: [{type: "CurrentAccount"}],
                                         },
                                     },

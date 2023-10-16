@@ -1,7 +1,7 @@
 import {isFocusVisible, usePress} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {ReactNode, RefObject, useRef, useState} from "react";
+import {ReactNode, Ref, RefObject, useRef, useState} from "react";
 import {
     AriaListBoxOptions,
     mergeProps,
@@ -13,7 +13,10 @@ import {
 import {ComboBoxState, Item, useListState} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
+import {
+    OverlayTriggerButton,
+    OverlayTriggerButtonRef,
+} from "~/client/design/overlay_trigger_button.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -38,6 +41,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
     Item extends TaskQueryFilterEditorMultiSelectComboBoxItemBase,
 >({
     inputLabel,
+    triggerButtonRef,
     preview,
     selectedKeys,
     onSelectedKeysChange,
@@ -45,6 +49,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
     optionCheckboxMarginTop,
 }: {
     inputLabel: string;
+    triggerButtonRef?: Ref<OverlayTriggerButtonRef> | null;
     preview: ReactNode;
     selectedKeys: ReadonlySet<Item["key"]>;
     onSelectedKeysChange: (
@@ -65,6 +70,7 @@ export function TaskQueryFilterEditorMultiSelectComboBox<
 
     return (
         <OverlayTriggerButton
+            ref={triggerButtonRef}
             aria-haspopup="listbox"
             overlay={({onCloseWithoutAnimation}) => (
                 <Box

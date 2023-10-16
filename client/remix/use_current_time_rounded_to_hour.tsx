@@ -91,30 +91,32 @@ export function CurrentTimeContextProvider({
     useEffect(() => {
         let timeout: Timeout;
 
-        const schedule = () => {
-            const currentTime = new Date();
+        const update = () => {
+            const currentTimeRoundedToHour = roundDateToHour(new Date());
 
-            let nextHourTime = new Date();
-            nextHourTime.setHours(nextHourTime.getHours() + 1);
-            nextHourTime = roundDateToHour(nextHourTime);
+            setState(previousState => {
+                if (
+                    currentTimeRoundedToHour.toISOString() ===
+                    previousState.currentTimeRoundedToHour.toISOString()
+                ) {
+                    return previousState;
+                }
+                return {
+                    currentTimeRoundedToHour,
+                    currentDate: toCalendarDate(
+                        parseAbsolute(currentTimeRoundedToHour.toISOString(), timeZone),
+                    ),
+                };
+            });
 
-            // Add 5s in case `setTimeout()` runs a little early.
-            const msToNextHour = nextHourTime.getTime() - currentTime.getTime() + 5 * 1000;
+            let nextTimeRoundedToHour = new Date(currentTimeRoundedToHour.getTime());
+            nextTimeRoundedToHour.setHours(nextTimeRoundedToHour.getHours() + 1);
+            nextTimeRoundedToHour = roundDateToHour(nextTimeRoundedToHour);
 
-            timeout = createTimeout(() => {
-                const currentTimeRoundedToHour = roundDateToHour(initialTime);
-                const currentDate = toCalendarDate(
-                    parseAbsolute(currentTimeRoundedToHour.toISOString(), timeZone),
-                );
-
-                setState({currentTimeRoundedToHour, currentDate});
-
-                // Schedule a timeout for an hour from now...
-                schedule();
-            }, msToNextHour);
+            timeout = createTimeout(update, nextTimeRoundedToHour.getTime() - Date.now());
         };
 
-        schedule();
+        update();
 
         return () => {
             timeout.clear();

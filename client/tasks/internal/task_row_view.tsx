@@ -62,6 +62,7 @@ import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
+    taskRowViewPaddingX,
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
@@ -152,8 +153,8 @@ const borderCoverClassName = sprinkles({
     zIndex: "-10",
     top: "0",
     bottom: "0",
-    left: "5",
-    right: "5",
+    left: taskRowViewPaddingX,
+    right: taskRowViewPaddingX,
     pointerEvents: "none",
 });
 

@@ -2,6 +2,8 @@ import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacin
 
 export const taskRowViewMinHeight: Spacing = "9";
 
+export const taskRowViewPaddingX: Spacing = "5";
+
 export const taskRowViewColumnWidth: Spacing = "32";
 export const taskRowViewCollectionsColumnWidth: Spacing = "48";
 export const taskRowViewColumnPaddingX = "1.5" satisfies Spacing;

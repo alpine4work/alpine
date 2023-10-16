@@ -1,6 +1,7 @@
 import GraphemeSplitter from "grapheme-splitter";
-import {Fragment, ReactNode, useEffect, useMemo, useRef, useState} from "react";
+import {Fragment, ReactNode, Ref, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -41,14 +42,16 @@ export function TaskQueryCollectionsFilterOperationEditor({
     filter,
     filterReferences,
     onFilterChange,
+    valueTriggerButtonRef,
 }: {
     store: TaskClientStore;
     filter: TaskQueryCollectionsFilter;
     filterReferences: TaskQueryFilterReferences;
     onFilterChange: (
         filter: TaskQueryCollectionsFilter,
-        mergeFilterReferences?: TaskQueryFilterReferences,
+        options?: {mergeFilterReferences?: TaskQueryFilterReferences},
     ) => void;
+    valueTriggerButtonRef: Ref<OverlayTriggerButtonRef> | null;
 }) {
     usePreloadAffinitiveTaskCollections();
 
@@ -256,6 +259,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
             {filter.operation.type !== "IsEmpty" && (
                 <TaskQueryFilterEditorMultiSelectComboBox<TaskQueryCollectionsFilterOperationEditorMultiSelectComboBoxItem>
                     inputLabel="Collection"
+                    triggerButtonRef={valueTriggerButtonRef}
                     preview={
                         <TaskQueryCollectionsFilterOperationEditorPreview
                             conjunction={filter.operation.type === "IncludesOneOf" ? "or" : "and"}
@@ -296,8 +300,10 @@ export function TaskQueryCollectionsFilterOperationEditor({
                                 },
                             },
                             {
-                                ...emptyTaskQueryFilterReferences,
-                                collectionResultById: addedCollectionResultById,
+                                mergeFilterReferences: {
+                                    ...emptyTaskQueryFilterReferences,
+                                    collectionResultById: addedCollectionResultById,
+                                },
                             },
                         );
                     }}

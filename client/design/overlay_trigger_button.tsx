@@ -5,6 +5,7 @@ import {
     forwardRef,
     useCallback,
     useEffect,
+    useImperativeHandle,
     useLayoutEffect,
     useMemo,
     useRef,
@@ -37,6 +38,10 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {overlayFadeOutAnimationDurationMs} from "~/shared/styles/styles.js";
+
+export type OverlayTriggerButtonRef = {
+    open(): void;
+};
 
 export type OverlayTriggerButtonState =
     | {
@@ -82,6 +87,9 @@ let recentOverlayTransitionCoordination:
 export const onTriggeredOverlayOpenSymbol = Symbol("onTriggeredOverlayOpen");
 export const onTriggeredOverlayCloseSymbol = Symbol("onTriggeredOverlayClose");
 
+const OverlayTriggerButtonForwardRef = forwardRef(OverlayTriggerButton);
+export {OverlayTriggerButtonForwardRef as OverlayTriggerButton};
+
 /**
  * An overlay trigger button opens an overlay when pressed and moves focus into
  * that overlay.
@@ -94,60 +102,63 @@ export const onTriggeredOverlayCloseSymbol = Symbol("onTriggeredOverlayClose");
 // this source code.
 //
 // [1]: https://www.w3.org/TR/wai-aria-practices-1.2/#menubutton
-export function OverlayTriggerButton({
-    overlay,
-    "aria-haspopup": ariaHasPopup,
-    placement = "bottom-start",
-    offset = defaultTooltipOffset,
-    offsetAlong,
-    children: actualChildren,
-    onStateChange: _onStateChange,
-}: {
-    /**
-     * The overlay element the trigger will render. Must provide a ref to an
-     * HTML element or we will throw an error.
-     */
-    overlay: ReactElement | ((props: OverlayTriggerButtonOverlayProps) => ReactElement);
+function OverlayTriggerButton(
+    {
+        overlay,
+        "aria-haspopup": ariaHasPopup,
+        placement = "bottom-start",
+        offset = defaultTooltipOffset,
+        offsetAlong,
+        children: actualChildren,
+        onStateChange: _onStateChange,
+    }: {
+        /**
+         * The overlay element the trigger will render. Must provide a ref to an
+         * HTML element or we will throw an error.
+         */
+        overlay: ReactElement | ((props: OverlayTriggerButtonOverlayProps) => ReactElement);
 
-    /**
-     * You must specify the kind of popup opened by the trigger based on the
-     * aria specification.
-     */
-    "aria-haspopup": NonNullable<AriaAttributes["aria-haspopup"]>;
+        /**
+         * You must specify the kind of popup opened by the trigger based on the
+         * aria specification.
+         */
+        "aria-haspopup": NonNullable<AriaAttributes["aria-haspopup"]>;
 
-    /**
-     * Where should the overlay be placed relative to the target element?
-     * Defaults to `bottom-start`.
-     */
-    placement?: OverlayPlacement;
+        /**
+         * Where should the overlay be placed relative to the target element?
+         * Defaults to `bottom-start`.
+         */
+        placement?: OverlayPlacement;
 
-    /**
-     * Offset of the overlay from the target.
-     *
-     * Defaults to the same thing as tooltips.
-     */
-    offset?: Spacing;
+        /**
+         * Offset of the overlay from the target.
+         *
+         * Defaults to the same thing as tooltips.
+         */
+        offset?: Spacing;
 
-    /**
-     * How far the overlay should move along the reference.
-     *
-     * See the [demo][1] here.
-     *
-     * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
-     */
-    offsetAlong?: Spacing | `-${Spacing}`;
+        /**
+         * How far the overlay should move along the reference.
+         *
+         * See the [demo][1] here.
+         *
+         * [1]: https://popper.js.org/docs/v2/modifiers/offset/#demo
+         */
+        offsetAlong?: Spacing | `-${Spacing}`;
 
-    /**
-     * The button element which opens and closes the overlay. Must provide a ref to
-     * an HTML `<button>` element or we will throw an error.
-     */
-    children: ReactElement | ((props: OverlayTriggerButtonChildrenProps) => ReactElement);
+        /**
+         * The button element which opens and closes the overlay. Must provide a ref to
+         * an HTML `<button>` element or we will throw an error.
+         */
+        children: ReactElement | ((props: OverlayTriggerButtonChildrenProps) => ReactElement);
 
-    /**
-     * Observe the overlay trigger's internal state.
-     */
-    onStateChange?: (state: OverlayTriggerButtonState) => void;
-}) {
+        /**
+         * Observe the overlay trigger's internal state.
+         */
+        onStateChange?: (state: OverlayTriggerButtonState) => void;
+    },
+    ref: Ref<OverlayTriggerButtonRef>,
+) {
     const overlayTriggerRef = useRef<HTMLButtonElement>(null);
     const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -174,6 +185,14 @@ export function OverlayTriggerButton({
             timeout.clear();
         };
     }, [state.isExpanded, state.isFadingOut]);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            open: () => setState({isExpanded: true}),
+        }),
+        [],
+    );
 
     const isWaitingForOverlayPortalElement = useIsWaitingForOverlayPortalElement(state.isExpanded);
 

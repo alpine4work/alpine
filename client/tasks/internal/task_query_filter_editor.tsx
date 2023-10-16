@@ -1,7 +1,8 @@
 import {X} from "phosphor-react";
-import {ReactNode} from "react";
+import {ReactNode, Ref} from "react";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {TaskQueryCollectionsFilterOperationEditor} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {TaskQueryDisplayStatusFilterOperationEditor} from "~/client/tasks/internal/task_query_display_status_filter_operation_editor.js";
 import {TaskQueryFilterAccountOperationEditor} from "~/client/tasks/internal/task_query_filter_account_operation_editor.js";
@@ -16,7 +17,6 @@ import {TaskQueryPriorityFilterOperationEditor} from "~/client/tasks/internal/ta
 import {TaskQueryTitleFilterOperationEditor} from "~/client/tasks/internal/task_query_title_filter_operation_editor.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {UnimplementedError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
@@ -27,15 +27,17 @@ export function TaskQueryFilterEditor({
     filterReferences,
     onFilterChange,
     onFilterRemove,
+    collectionsOperationValueTriggerButtonRef,
 }: {
     store: TaskClientStore;
     filter: TaskQueryFilter;
     filterReferences: TaskQueryFilterReferences;
     onFilterChange: (
         filter: TaskQueryFilter,
-        mergeFilterReferences?: TaskQueryFilterReferences,
+        options?: {mergeFilterReferences?: TaskQueryFilterReferences},
     ) => void;
     onFilterRemove: () => void;
+    collectionsOperationValueTriggerButtonRef: Ref<OverlayTriggerButtonRef> | null;
 }) {
     switch (filter.type) {
         case "DisplayStatus": {
@@ -62,6 +64,7 @@ export function TaskQueryFilterEditor({
                             filter={filter}
                             filterReferences={filterReferences}
                             onFilterChange={onFilterChange}
+                            valueTriggerButtonRef={collectionsOperationValueTriggerButtonRef}
                         />
                     }
                     onFilterRemove={onFilterRemove}
@@ -105,8 +108,8 @@ export function TaskQueryFilterEditor({
                             inputLabel="Assignee"
                             filterReferences={filterReferences}
                             operation={filter.operation}
-                            onOperationChange={(operation, mergeFilterReferences) =>
-                                onFilterChange({...filter, operation}, mergeFilterReferences)
+                            onOperationChange={(operation, options) =>
+                                onFilterChange({...filter, operation}, options)
                             }
                         />
                     }
@@ -125,8 +128,8 @@ export function TaskQueryFilterEditor({
                             shouldHideMissingAccountItem={true}
                             filterReferences={filterReferences}
                             operation={filter.operation}
-                            onOperationChange={(operation, mergeFilterReferences) =>
-                                onFilterChange({...filter, operation}, mergeFilterReferences)
+                            onOperationChange={(operation, options) =>
+                                onFilterChange({...filter, operation}, options)
                             }
                         />
                     }
@@ -143,8 +146,8 @@ export function TaskQueryFilterEditor({
                             inputLabel="Assigner"
                             filterReferences={filterReferences}
                             operation={filter.operation}
-                            onOperationChange={(operation, mergeFilterReferences) =>
-                                onFilterChange({...filter, operation}, mergeFilterReferences)
+                            onOperationChange={(operation, options) =>
+                                onFilterChange({...filter, operation}, options)
                             }
                         />
                     }

@@ -1,45 +1,75 @@
 import {Plus, SortAscending} from "phosphor-react";
+import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
+import {
+    OverlayTriggerButton,
+    OverlayTriggerButtonRef,
+} from "~/client/design/overlay_trigger_button.js";
 import {TaskQueryFilterEditor} from "~/client/tasks/internal/task_query_filter_editor.js";
 import {TaskQuerySortsEditor} from "~/client/tasks/internal/task_query_sorts_editor.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {greyElevated2ClassName} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-export function TaskQueryViewCustomizationBar({
-    store,
-    filters,
-    filterReferences,
-    onFiltersChange,
-    shouldCollapseWhenFiltersAreEmpty,
-    sorts,
-    onSortsChange,
-    defaultOrderSentence,
-}: {
-    store: TaskClientStore;
-    filters: ReadonlyArray<TaskQueryFilter>;
-    filterReferences: TaskQueryFilterReferences;
-    onFiltersChange: (
-        filters: ReadonlyArray<TaskQueryFilter>,
-        mergeFilterReferences?: TaskQueryFilterReferences,
-    ) => void;
-    shouldCollapseWhenFiltersAreEmpty: boolean;
-    sorts: ReadonlyArray<TaskQuerySort>;
-    onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
-    defaultOrderSentence: string;
-}) {
+export type TaskQueryViewCustomizationBarRef = {
+    // Throws if no collection filter editor component is mounted. So be careful
+    // when calling this function.
+    openFirstCollectionsFilterOperationValue(): void;
+};
+
+const TaskQueryViewCustomizationBarForwardRef = forwardRef(TaskQueryViewCustomizationBar);
+export {TaskQueryViewCustomizationBarForwardRef as TaskQueryViewCustomizationBar};
+
+function TaskQueryViewCustomizationBar(
+    {
+        store,
+        filters,
+        filterReferences,
+        onFiltersChange,
+        shouldCollapseWhenFiltersAreEmpty,
+        sorts,
+        onSortsChange,
+        defaultOrderSentence,
+    }: {
+        store: TaskClientStore;
+        filters: ReadonlyArray<TaskQueryFilter>;
+        filterReferences: TaskQueryFilterReferences;
+        onFiltersChange: (
+            filters: ReadonlyArray<TaskQueryFilter>,
+            options?: {mergeFilterReferences?: TaskQueryFilterReferences},
+        ) => void;
+        shouldCollapseWhenFiltersAreEmpty: boolean;
+        sorts: ReadonlyArray<TaskQuerySort>;
+        onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
+        defaultOrderSentence: string;
+    },
+    ref: Ref<TaskQueryViewCustomizationBarRef>,
+) {
     const addFilter = (filter: TaskQueryFilter) => {
         onFiltersChange([...filters, filter]);
     };
 
     const shouldCollapse = shouldCollapseWhenFiltersAreEmpty && filters.length === 0;
+
+    const firstCollectionsFilterOperationValueTriggerButtonRef =
+        useRef<OverlayTriggerButtonRef>(null);
+    let hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = false;
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            openFirstCollectionsFilterOperationValue: () =>
+                assertExists(firstCollectionsFilterOperationValueTriggerButtonRef.current).open(),
+        }),
+        [],
+    );
 
     return (
         <Box display="flex" alignItems="flex-start">
@@ -56,26 +86,42 @@ export function TaskQueryViewCustomizationBar({
                 gap="2"
                 marginLeft={shouldCollapse ? "-2" : undefined}
             >
-                {filters.map((filter, index) => (
-                    <TaskQueryFilterEditor
-                        key={index}
-                        store={store}
-                        filter={filter}
-                        filterReferences={filterReferences}
-                        onFilterChange={(filter, mergeFilterReferences) => {
-                            const newFilters = [...filters];
-                            newFilters[index] = filter;
+                {filters.map((filter, index) => {
+                    // The first collections filter should get our ref.
+                    let collectionsOperationValueTriggerButtonRef = null;
+                    if (
+                        filter.type === "Collections" &&
+                        !hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef
+                    ) {
+                        hasUsedFirstCollectionsFilterOperationValueTriggerButtonRef = true;
+                        collectionsOperationValueTriggerButtonRef =
+                            firstCollectionsFilterOperationValueTriggerButtonRef;
+                    }
 
-                            onFiltersChange(newFilters, mergeFilterReferences);
-                        }}
-                        onFilterRemove={() => {
-                            const newFilters = [...filters];
-                            newFilters.splice(index, 1);
+                    return (
+                        <TaskQueryFilterEditor
+                            key={index}
+                            store={store}
+                            filter={filter}
+                            filterReferences={filterReferences}
+                            onFilterChange={(filter, options) => {
+                                const newFilters = [...filters];
+                                newFilters[index] = filter;
 
-                            onFiltersChange(newFilters);
-                        }}
-                    />
-                ))}
+                                onFiltersChange(newFilters, options);
+                            }}
+                            onFilterRemove={() => {
+                                const newFilters = [...filters];
+                                newFilters.splice(index, 1);
+
+                                onFiltersChange(newFilters);
+                            }}
+                            collectionsOperationValueTriggerButtonRef={
+                                collectionsOperationValueTriggerButtonRef
+                            }
+                        />
+                    );
+                })}
                 <MenuButton
                     actions={[
                         [

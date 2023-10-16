@@ -70,7 +70,7 @@ export function TaskQueryFilterAccountOperationEditor({
     operation: TaskQueryFilterAccountOperation;
     onOperationChange: (
         operation: TaskQueryFilterAccountOperation,
-        mergeFilterReferences?: TaskQueryFilterReferences,
+        options?: {mergeFilterReferences?: TaskQueryFilterReferences},
     ) => void;
 }) {
     useExpensivelyPreloadAllSpaceAccounts();
@@ -184,8 +184,10 @@ export function TaskQueryFilterAccountOperationEditor({
                             }),
                         },
                         {
-                            ...emptyTaskQueryFilterReferences,
-                            accountById: addedAccountById,
+                            mergeFilterReferences: {
+                                ...emptyTaskQueryFilterReferences,
+                                accountById: addedAccountById,
+                            },
                         },
                     );
                 }}
