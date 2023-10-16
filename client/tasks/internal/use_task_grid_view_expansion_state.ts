@@ -1,14 +1,17 @@
-import {Memo, RefObject, useEffect, useRef, useState} from "react";
+import {RefObject, useEffect, useMemo, useRef} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore, getParentTaskIdIfChildrenQuery} from "~/client/tasks/task_client_store.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -309,6 +312,8 @@ function createTaskGridViewExpansionStateManager({
     };
 }
 
+const undefinedConstStore = new ConstStore(undefined);
+
 /**
  * Manages the expansion state of tasks in a grid view.
  *
@@ -335,47 +340,31 @@ export function useTaskGridViewExpansionState({
     query,
     initialState,
 }: {
-    query: TaskClientQuery;
+    query: TaskClientQuery | null;
     initialState: TaskGridViewExpansionState;
 }) {
-    const {store, filters, sorts} = query;
     const context = useAppContext();
     const getContext = useEvent(() => context);
     const browserId = useBrowserId();
 
     const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
 
-    const [stateManager, setStateManager] = useState(() =>
-        createTaskGridViewExpansionStateManager({
-            getContext,
-            store,
-            browserId,
-            filters,
-            sorts,
-            initialState,
-            broadcastChannelRef,
-        }),
+    // When `query` changes we need to reset our state.
+    const [stateManager] = useStateWithDependencies(
+        query =>
+            query
+                ? createTaskGridViewExpansionStateManager({
+                      getContext,
+                      store: query.store,
+                      browserId,
+                      filters: query.filters,
+                      sorts: query.sorts,
+                      initialState,
+                      broadcastChannelRef,
+                  })
+                : null,
+        [query],
     );
-
-    // If filters/sorts changed since we mounted then we need to reset our state.
-    if (
-        stateManager.store !== store ||
-        stateManager.browserId !== browserId ||
-        stateManager.filters !== filters ||
-        stateManager.sorts !== sorts
-    ) {
-        setStateManager(
-            createTaskGridViewExpansionStateManager({
-                getContext,
-                store,
-                browserId,
-                filters,
-                sorts,
-                initialState,
-                broadcastChannelRef,
-            }),
-        );
-    }
 
     // When we mount, retain a reference to all children queries for expanded
     // tasks. When we unmount release references to children queries for
@@ -384,12 +373,14 @@ export function useTaskGridViewExpansionState({
     // On initial load our server is responsible for preloading some child query
     // tasks so they'll be available for us in the store.
     useEffect(() => {
-        stateManager.mount();
-        return () => stateManager.unmount();
+        stateManager?.mount();
+        return () => stateManager?.unmount();
     }, [stateManager]);
 
     const toggleAreChildTasksExpanded = useEvent(
         (taskPath: ReadonlyArray<TaskId>, {onFinish}: {onFinish?: () => void} = {}) => {
+            if (!stateManager) return;
+
             batchStoreUpdates(() => {
                 assert(taskPath.length > 0);
                 const taskId = taskPath[taskPath.length - 1]!;
@@ -398,7 +389,7 @@ export function useTaskGridViewExpansionState({
                     stateManager.update(state => collapseChildTaskInGridView(state, taskPath));
                     onFinish?.();
                 } else if (
-                    store
+                    stateManager.store
                         .getTaskEntryStoreIfExists(taskId)
                         ?.getSnapshot()
                         .task?.getChildTaskCount() === 0
@@ -418,8 +409,27 @@ export function useTaskGridViewExpansionState({
                     // visible once the task is expanded. We wait a bit for these tasks to load
                     // then actually expand.
                     const queries = Array.from(taskIdsToLoad, taskId =>
-                        store.ensureAndRetainTaskChildrenQuery(taskId),
+                        stateManager.store.ensureAndRetainTaskChildrenQuery(taskId),
                     );
+
+                    const actuallyExpand = () => {
+                        batchStoreUpdates(() => {
+                            try {
+                                stateManager.update(state =>
+                                    expandChildTaskInGridView(state, taskPath),
+                                );
+
+                                onFinish?.();
+                            } finally {
+                                // `stateManager` should have taken its own reference on queries we're actually
+                                // using. Since the expanded state could change while we're waiting on our
+                                // queries to load. Release the reference we held while loading the query.
+                                for (const query of queries) {
+                                    query.release();
+                                }
+                            }
+                        });
+                    };
 
                     // If all the children queries are loaded, expand immediately!
                     if (
@@ -438,25 +448,6 @@ export function useTaskGridViewExpansionState({
                             wait(delayLoadingIndicatorLimitMs),
                         ]).finally(actuallyExpand);
                     }
-
-                    function actuallyExpand() {
-                        batchStoreUpdates(() => {
-                            try {
-                                stateManager.update(state =>
-                                    expandChildTaskInGridView(state, taskPath),
-                                );
-
-                                onFinish?.();
-                            } finally {
-                                // `stateManager` should have taken its own reference on queries we're actually
-                                // using. Since the expanded state could change while we're waiting on our
-                                // queries to load. Release the reference we held while loading the query.
-                                for (const query of queries) {
-                                    query.release();
-                                }
-                            }
-                        });
-                    }
                 }
             });
         },
@@ -472,10 +463,12 @@ export function useTaskGridViewExpansionState({
     // same state as I'll get if I reload the page". It's not a big deal if there
     // are temporary inconsistencies between the expansion state of two tabs.
     useEffect(() => {
+        if (!stateManager) return;
+
         const broadcastChannel = new BroadcastChannel(
             `TaskGridViewExpansionState:${browserId}:${stringifyForDeepEqualCheck({
-                filters,
-                sorts,
+                filters: stateManager.filters,
+                sorts: stateManager.sorts,
             })}`,
         );
         broadcastChannelRef.current = broadcastChannel;
@@ -492,7 +485,7 @@ export function useTaskGridViewExpansionState({
             broadcastChannelRef.current = null;
             broadcastChannel.close();
         };
-    }, [browserId, filters, sorts, stateManager]);
+    }, [browserId, stateManager]);
 
     // Watch for any change to a task that updates its parent `TaskId`. When the
     // parent `TaskId` changes we want to move our task's expansion state from its
@@ -503,9 +496,11 @@ export function useTaskGridViewExpansionState({
     // around. This is acceptable. When the user returns some tasks may be
     // unexpectedly collapsed but it's unlikely they'll notice or care.
     useEffect(() => {
-        const queryParentTaskId = getParentTaskIdIfChildrenQuery(query);
+        if (!stateManager) return;
 
-        return store.subscribeToBatchUpdate(({taskEntryUpdateById}) => {
+        const queryParentTaskId = getParentTaskIdIfChildrenQuery(stateManager);
+
+        return stateManager.store.subscribeToBatchUpdate(({taskEntryUpdateById}) => {
             for (const {oldTaskEntry, newTaskEntry} of taskEntryUpdateById.values()) {
                 if (!oldTaskEntry?.task || !newTaskEntry.task) continue;
 
@@ -530,7 +525,7 @@ export function useTaskGridViewExpansionState({
                         oldTaskPath.push(oldGrandParentTaskId);
 
                         oldGrandParentTaskId =
-                            store
+                            stateManager.store
                                 .getTaskEntryStoreIfExists(oldGrandParentTaskId)
                                 ?.getSnapshot()
                                 .task?.getParent()?.taskId ?? null;
@@ -557,7 +552,7 @@ export function useTaskGridViewExpansionState({
                         newTaskPath.push(newGrandParentTaskId);
 
                         newGrandParentTaskId =
-                            store
+                            stateManager.store
                                 .getTaskEntryStoreIfExists(newGrandParentTaskId)
                                 ?.getSnapshot()
                                 .task?.getParent()?.taskId ?? null;
@@ -586,12 +581,12 @@ export function useTaskGridViewExpansionState({
                         oldTaskPath.every((taskId, i) => newTaskPath[i] === taskId) &&
                         stateManager.areChildTasksExpanded(oldTaskPath) &&
                         !stateManager.areChildTasksExpanded(newTaskPath) &&
-                        store
+                        stateManager.store
                             .getTaskEntryStoreIfExists(newTaskPath[newTaskPath.length - 1]!)
                             ?.getSnapshot()
                             .task?.getChildTaskCount() === 1
                     ) {
-                        const query = store.ensureAndRetainTaskChildrenQuery(
+                        const query = stateManager.store.ensureAndRetainTaskChildrenQuery(
                             newTaskPath[newTaskPath.length - 1]!,
                         );
 
@@ -600,7 +595,7 @@ export function useTaskGridViewExpansionState({
                         finallyCallbacks.push(() => query.release());
 
                         if (query.loadedStateStore.getSnapshot() === "Unloaded") {
-                            store.loadTasksIntoQuery(query, {
+                            stateManager.store.loadTasksIntoQuery(query, {
                                 limit: 1,
                                 loadedState: {type: "Full"},
                                 previouslyBackfilledTaskIds: [newTaskEntry.task.id],
@@ -625,7 +620,7 @@ export function useTaskGridViewExpansionState({
                 }
             }
         });
-    }, [query, stateManager, store]);
+    }, [stateManager]);
 
     // After we mount and then every ~3 minutes after that, remove incorrect
     // expansion state paths. You see when the user changes the parentage of a task
@@ -636,6 +631,8 @@ export function useTaskGridViewExpansionState({
     //
     // So instead we "garbage collect" expansion state when we have some idle time.
     useEffect(() => {
+        if (!query || !stateManager) return;
+
         let isCancelled = false;
 
         const scheduleCleanup = () => {
@@ -731,11 +728,13 @@ export function useTaskGridViewExpansionState({
 
     return {
         toggleAreChildTasksExpanded,
-        getAreChildTasksExpandedStore: stateManager.getAreChildTasksExpandedStore as Memo<
-            typeof stateManager.getAreChildTasksExpandedStore
-        >,
-        iterateExpandedTaskIdsUnderPath: stateManager.iterateExpandedTaskIdsUnderPath as Memo<
-            typeof stateManager.iterateExpandedTaskIdsUnderPath
-        >,
+        getAreChildTasksExpandedStore: useMemo(
+            () => stateManager?.getAreChildTasksExpandedStore ?? (() => undefinedConstStore),
+            [stateManager?.getAreChildTasksExpandedStore],
+        ),
+        iterateExpandedTaskIdsUnderPath: useMemo(
+            () => stateManager?.iterateExpandedTaskIdsUnderPath ?? (() => emptyArray),
+            [stateManager?.iterateExpandedTaskIdsUnderPath],
+        ),
     };
 }

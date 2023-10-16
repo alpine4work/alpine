@@ -120,7 +120,7 @@ export function useTaskGridViewVirtualizedList({
     withColumnHeaderExtraScrollSpace = "0",
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
-    query: TaskClientQuery;
+    query: TaskClientQuery | null;
     initialExpansionState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
@@ -190,7 +190,8 @@ export function useTaskGridViewVirtualizedList({
         initialState: initialExpansionState,
     });
 
-    const loadedState = useStore(rootQuery.loadedStateStore);
+    // Consider a null `rootQuery` as a fully loaded empty query.
+    const loadedState = useStore(rootQuery?.loadedStateStore ?? null) ?? "FullyLoaded";
 
     const stateStore = useMemo(
         () => TaskGridViewVirtualizedListState.new(rootQuery, getAreChildTasksExpandedStore),
@@ -261,6 +262,9 @@ export function useTaskGridViewVirtualizedList({
     const tryLoadingMoreData = useEvent(
         (renderedRange: {startIndex: number; endIndex: number} | null) => {
             if (!renderedRange) return;
+
+            // If we have an empty query then there's no data to load.
+            if (!rootQuery) return;
 
             batchStoreUpdates(() => {
                 // If we are rendering the `MoreUnloadedTasks` item then load more tasks into
@@ -749,53 +753,60 @@ export function useTaskGridViewVirtualizedList({
                     };
                 }
 
-                if (relativeItemIndex === 0) {
-                    return {
-                        // We want to use the same key and component as a regular task so we can turn a
-                        // ghost task into a regular task without losing focus.
-                        key: `Task:${bottomGhostTaskId}`,
-                        minHeight: spacing[taskRowViewMinHeight],
-                        withManualLayout: true,
-                        render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
-                            disableExpensiveFeaturesDuringScroll => (
-                                <TaskRowViewMemo
-                                    context={context}
-                                    capabilities={capabilities}
-                                    rootQuery={rootQuery}
-                                    query={rootQuery}
-                                    taskKey={bottomGhostTaskId}
-                                    cursor={null}
-                                    ghostTaskId={bottomGhostTaskId}
-                                    parents={emptyArray}
-                                    disableExpensiveFeaturesDuringScroll={
-                                        disableExpensiveFeaturesDuringScroll
-                                    }
-                                    isFirstRow={stateItemCount === 0}
-                                    nextIndentation={0}
-                                    // NOCOMMIT: Ghost row placeholder sequence!
-                                    titlePlaceholder={
-                                        !capabilities.isReadOnly ? "Add a task…" : undefined
-                                    }
-                                    viewRef={viewRef}
-                                    events={events}
-                                    taskRowByTaskKeyRef={taskRowByTaskKeyRef}
-                                    getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
-                                    toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
-                                    setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
-                                    onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
-                                        onTaskDeleteConfirmationModalDialogClosedCallbacksRef
-                                    }
-                                    // If there are no task rows, the padding just makes our ghost row placeholder
-                                    // look misaligned. So remove it.
-                                    withoutPaddingLeft={stateItemCount === 0}
-                                    withPaddingBottom={itemIndex === itemCount - 1}
-                                />
+                // No ghost task if `rootQuery` is null.
+                if (rootQuery) {
+                    if (relativeItemIndex === 0) {
+                        return {
+                            // We want to use the same key and component as a regular task so we can turn a
+                            // ghost task into a regular task without losing focus.
+                            key: `Task:${bottomGhostTaskId}`,
+                            minHeight: spacing[taskRowViewMinHeight],
+                            withManualLayout: true,
+                            render: renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll(
+                                disableExpensiveFeaturesDuringScroll => (
+                                    <TaskRowViewMemo
+                                        context={context}
+                                        capabilities={capabilities}
+                                        rootQuery={rootQuery}
+                                        query={rootQuery}
+                                        taskKey={bottomGhostTaskId}
+                                        cursor={null}
+                                        ghostTaskId={bottomGhostTaskId}
+                                        parents={emptyArray}
+                                        disableExpensiveFeaturesDuringScroll={
+                                            disableExpensiveFeaturesDuringScroll
+                                        }
+                                        isFirstRow={stateItemCount === 0}
+                                        nextIndentation={0}
+                                        // NOCOMMIT: Ghost row placeholder sequence!
+                                        titlePlaceholder={
+                                            !capabilities.isReadOnly ? "Add a task…" : undefined
+                                        }
+                                        viewRef={viewRef}
+                                        events={events}
+                                        taskRowByTaskKeyRef={taskRowByTaskKeyRef}
+                                        getAreChildTasksExpandedStore={
+                                            getAreChildTasksExpandedStore
+                                        }
+                                        toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
+                                        setTaskDeleteConfirmationState={
+                                            setTaskDeleteConfirmationState
+                                        }
+                                        onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
+                                            onTaskDeleteConfirmationModalDialogClosedCallbacksRef
+                                        }
+                                        // If there are no task rows, the padding just makes our ghost row placeholder
+                                        // look misaligned. So remove it.
+                                        withoutPaddingLeft={stateItemCount === 0}
+                                        withPaddingBottom={itemIndex === itemCount - 1}
+                                    />
+                                ),
                             ),
-                        ),
-                    };
-                }
+                        };
+                    }
 
-                relativeItemIndex -= 1;
+                    relativeItemIndex -= 1;
+                }
 
                 return {
                     key: `DecorativeGhostTask:${relativeItemIndex}`,
@@ -831,7 +842,8 @@ export function useTaskGridViewVirtualizedList({
                             <TaskRowViewMemo
                                 context={context}
                                 capabilities={capabilities}
-                                rootQuery={rootQuery}
+                                // If we have a task item then that must mean we have a query.
+                                rootQuery={rootQuery!}
                                 query={item.query}
                                 taskKey={taskKey}
                                 cursor={item.cursor}
@@ -928,7 +940,7 @@ export function useTaskGridViewVirtualizedList({
             [capabilities.hasColumns],
         ),
         insetScrollbarItemIndex: capabilities.hasColumns ? 0 : undefined,
-        modals: taskDeleteConfirmationState && (
+        modals: taskDeleteConfirmationState && rootQuery && (
             <TaskDeleteConfirmationModalDialog
                 store={rootQuery.store}
                 taskId={taskDeleteConfirmationState.taskId}

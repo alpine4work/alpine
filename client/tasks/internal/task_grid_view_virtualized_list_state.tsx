@@ -164,8 +164,7 @@ export type TaskGridViewVirtualizedListStateItem =
  * change O(log(n)) instead of O(n).
  */
 export class TaskGridViewVirtualizedListState {
-    private readonly _query: TaskClientQuery;
-    private readonly _tree: TaskGridViewVirtualizedTaskTree;
+    private readonly _tree: TaskGridViewVirtualizedTaskTree | null;
 
     /**
      * Cache of the item count in `tree` subtrees.
@@ -176,20 +175,18 @@ export class TaskGridViewVirtualizedListState {
     >;
 
     private constructor(
-        query: TaskClientQuery,
-        tree: TaskGridViewVirtualizedTaskTree,
+        tree: TaskGridViewVirtualizedTaskTree | null,
         itemCountSubtreeCache: WeakMap<
             TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>,
             number
         >,
     ) {
-        this._query = query;
         this._tree = tree;
         this._itemCountSubtreeCache = itemCountSubtreeCache;
     }
 
     public static new(
-        query: TaskClientQuery,
+        query: TaskClientQuery | null,
         getAreChildTasksExpandedStore: (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>,
     ): Store<TaskGridViewVirtualizedListState> {
         // Share the item count subtree cache across all virtualized lists that
@@ -199,8 +196,14 @@ export class TaskGridViewVirtualizedListState {
             number
         >();
 
+        if (!query) {
+            return new ConstStore(
+                new TaskGridViewVirtualizedListState(null, itemCountSubtreeCache),
+            );
+        }
+
         return createTaskGridViewVirtualizedTaskTree(query, getAreChildTasksExpandedStore, []).map(
-            tree => new TaskGridViewVirtualizedListState(query, tree, itemCountSubtreeCache),
+            tree => new TaskGridViewVirtualizedListState(tree, itemCountSubtreeCache),
         );
     }
 
@@ -257,6 +260,7 @@ export class TaskGridViewVirtualizedListState {
      * The total number of items in our tree. Includes all expanded child tasks.
      */
     public getItemCount(): number {
+        if (this._tree === null) return 0;
         return this._getSubtreeItemCount(this._tree.tasks.root);
     }
 
@@ -310,6 +314,9 @@ export class TaskGridViewVirtualizedListState {
     }
 
     private _getItem(itemIndex: number) {
+        // A null tree is empty so throw since this is an out-bounds-read.
+        assert(this._tree);
+
         const stack: Array<{
             tree: TaskGridViewVirtualizedTaskTree;
             iterator: TreeIterator<
