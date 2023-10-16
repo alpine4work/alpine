@@ -76,11 +76,13 @@ export class LoaderContextModule extends ContextModuleBase {
         browserId: BrowserId | null;
         clientInfo: ClientInfo | null;
         addResponseHeaders: Array<(headers: Headers) => void> | null;
+        initialTime: Date | null;
     } = {
         parsedCookieHeader: null,
         browserId: null,
         clientInfo: null,
         addResponseHeaders: [],
+        initialTime: null,
     };
 
     constructor(
@@ -229,5 +231,13 @@ export class LoaderContextModule extends ContextModuleBase {
         }
 
         return this._state.clientInfo;
+    }
+
+    /**
+     * Get the initial time we use when server rendering our app. We'll update the
+     * time on the client as time passes.
+     */
+    public getInitialTime() {
+        return (this._state.initialTime ??= new Date());
     }
 }

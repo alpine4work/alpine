@@ -5,45 +5,111 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
+import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
-import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
+import {taskRowViewMinHeight, taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
+import {
+    VirtualizedScrollView,
+    VirtualizedScrollViewRef,
+} from "~/client/virtualized/virtualized_scroll_view.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {inputPlaceholderStyles} from "~/shared/styles/styles.js";
+import {generateId} from "~/shared/id/id.js";
+import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {inputPlaceholderStyles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryFilterReferences,
     mergeTaskQueryFilterReferences,
 } from "~/shared/tasks/task_query_filter_references.js";
-import {normalizeTaskQueryFilters} from "~/shared/tasks/task_query_normalized_filters.js";
+import {
+    TaskQueryNormalizedFilters,
+    normalizeTaskQueryFilters,
+} from "~/shared/tasks/task_query_normalized_filters.js";
+import {
+    TaskQueryNormalizedSort,
+    normalizeTaskQuerySorts,
+} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
+// NOCOMMIT: Improve initial grid view rendering performance by not mounting
+// cell editors until interaction
+
+export function isTaskQueryMissingRequiredFiltersForQueryView(
+    currentAccountId: AccountId,
+    filters: TaskQueryNormalizedFilters,
+): boolean {
+    if (
+        filters.creatorFilter?.type === "OneOf" &&
+        filters.creatorFilter.accountIds.size === 1 &&
+        filters.creatorFilter.accountIds.has(currentAccountId)
+    ) {
+        return false;
+    }
+
+    if (
+        filters.assigneeFilter?.type === "OneOf" &&
+        filters.assigneeFilter.accountIds.size === 1 &&
+        filters.assigneeFilter.accountIds.has(currentAccountId)
+    ) {
+        return false;
+    }
+
+    // Assume that if the user filtered on a collection that they have access to
+    // the collection.
+    if (
+        filters.collectionsFilter?.some(clause =>
+            iterableEvery(clause, ([term, not]) => term !== "IsEmpty" && !not),
+        )
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
 export function TaskQueryView({
+    initialQuery,
+    initialBottomGhostTaskId,
     initialFilters,
     initialFilterReferences,
     onFiltersChange,
     initialSorts,
     onSortsChange,
 }: {
+    initialQuery: TaskClientQuery | null;
+    initialBottomGhostTaskId: TaskId;
     initialFilters: ReadonlyArray<TaskQueryFilter>;
     initialFilterReferences: TaskQueryFilterReferences;
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
     initialSorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
-    // NOCOMMIT: Get store from query?
     const store = useTaskClientStore();
     const currentDate = useCurrentDate();
     const {currentAccount} = useSpaceContext();
 
     const customizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
+
+    /* ========================================================================== *\
+     *                                  Filters                                   *
+    \* ========================================================================== */
 
     const [
         {filters, filterReferences, shouldOpenFirstCollectionsFilterOperationValueRef},
@@ -71,58 +137,6 @@ export function TaskQueryView({
         assertExists(customizationBarRef.current).openFirstCollectionsFilterOperationValue();
     }, [shouldOpenFirstCollectionsFilterOperationValueRef]);
 
-    const [sorts, setSorts] = useState(initialSorts);
-
-    const lastSortsRef = useRef(sorts);
-    useEffect(() => {
-        if (lastSortsRef.current !== sorts) {
-            onSortsChange(sorts);
-            lastSortsRef.current = sorts;
-        }
-    }, [onSortsChange, sorts]);
-
-    const normalizedFiltersResult = useMemo(
-        () =>
-            normalizeTaskQueryFilters(filters, {currentDate, currentAccountId: currentAccount.id}),
-        [currentAccount.id, currentDate, filters],
-    );
-
-    // Custom views must start with a filter we know the user has access to. We
-    // don't yet support querying any set of tasks and dynamically filtering out
-    // ones the user doesn't have access to.
-    const hasAccess = useMemo(() => {
-        if (normalizedFiltersResult.type !== "Possible") return false;
-        const {normalizedFilters} = normalizedFiltersResult;
-
-        if (
-            normalizedFilters.creatorFilter?.type === "OneOf" &&
-            normalizedFilters.creatorFilter.accountIds.size === 1 &&
-            normalizedFilters.creatorFilter.accountIds.has(currentAccount.id)
-        ) {
-            return true;
-        }
-
-        if (
-            normalizedFilters.assigneeFilter?.type === "OneOf" &&
-            normalizedFilters.assigneeFilter.accountIds.size === 1 &&
-            normalizedFilters.assigneeFilter.accountIds.has(currentAccount.id)
-        ) {
-            return true;
-        }
-
-        // Assume that if the user filtered on a collection that they have access to
-        // the collection.
-        if (
-            normalizedFilters.collectionsFilter?.some(clause =>
-                iterableEvery(clause, ([term, not]) => term !== "IsEmpty" && !not),
-            )
-        ) {
-            return true;
-        }
-
-        return false;
-    }, [currentAccount.id, normalizedFiltersResult]);
-
     const updateFilters = (
         filters: ReadonlyArray<TaskQueryFilter>,
         {
@@ -149,55 +163,259 @@ export function TaskQueryView({
         });
     };
 
+    /* ========================================================================== *\
+     *                                   Sorts                                    *
+    \* ========================================================================== */
+
+    const [sorts, setSorts] = useState(initialSorts);
+
+    const lastSortsRef = useRef(sorts);
+    useEffect(() => {
+        if (lastSortsRef.current !== sorts) {
+            onSortsChange(sorts);
+            lastSortsRef.current = sorts;
+        }
+    }, [onSortsChange, sorts]);
+
+    const normalizedFiltersResult = useMemo(
+        () =>
+            normalizeTaskQueryFilters(filters, {currentDate, currentAccountId: currentAccount.id}),
+        [currentAccount.id, currentDate, filters],
+    );
+
+    const normalizedSorts: ReadonlyArray<TaskQueryNormalizedSort> = normalizeTaskQuerySorts(sorts);
+
+    // Custom views must start with a filter we know the user has access to. We
+    // don't yet support querying any set of tasks and dynamically filtering out
+    // ones the user doesn't have access to.
+    const isMissingRequiredFilters = useMemo(() => {
+        if (normalizedFiltersResult.type !== "Possible") return true;
+        const {normalizedFilters} = normalizedFiltersResult;
+        return isTaskQueryMissingRequiredFiltersForQueryView(currentAccount.id, normalizedFilters);
+    }, [currentAccount.id, normalizedFiltersResult]);
+
+    /* ========================================================================== *\
+     *                              Query Management                              *
+    \* ========================================================================== */
+
+    const [queryState, setQueryState] = useState<{
+        activeQuery: TaskClientQuery | null;
+        pendingQuery: TaskClientQuery | null;
+        initialBottomGhostTaskId: TaskId;
+    }>({
+        activeQuery: initialQuery,
+        pendingQuery: null,
+        // Should change whenever `activeQuery` changes.
+        initialBottomGhostTaskId,
+    });
+
+    // Make sure the queries in `queryState` stay retained during this
+    // component's lifetime.
+    useEffect(() => {
+        queryState.activeQuery?.retain();
+        queryState.pendingQuery?.retain();
+
+        return () => {
+            // Release after a microtask in case the component is re-rendering which will
+            // synchronously call `retain()` again.
+            scheduleMicrotask(() => {
+                batchStoreUpdates(() => {
+                    queryState.activeQuery?.release();
+                    queryState.pendingQuery?.release();
+                });
+            });
+        };
+    }, [queryState.pendingQuery, queryState.activeQuery]);
+
+    // If the filters/sorts set by the user differ from the filters/sorts of the
+    // active query we're presenting then we need to start a new pending query in the
+    // background we'll swap out.
+    useEffect(() => {
+        const actualActiveQuery = queryState.activeQuery
+            ? {filters: queryState.activeQuery.filters, sorts: queryState.activeQuery.sorts}
+            : null;
+
+        const actualPendingQuery = queryState.pendingQuery
+            ? {filters: queryState.pendingQuery.filters, sorts: queryState.pendingQuery.sorts}
+            : null;
+
+        const expectedQuery =
+            normalizedFiltersResult.type === "Possible" && !isMissingRequiredFilters
+                ? {filters: normalizedFiltersResult.normalizedFilters, sorts: normalizedSorts}
+                : null;
+
+        // Make sure comparing with `isDeepEqual()` is ok by checking that the types
+        // are equal.
+        assertEqualTypes<typeof actualActiveQuery, typeof expectedQuery>();
+        assertEqualTypes<typeof actualPendingQuery, typeof expectedQuery>();
+
+        // If our filters/sorts do not equal the active query or the pending query then
+        // we need to start a new pending query.
+        if (isDeepEqual(actualActiveQuery, expectedQuery)) return;
+        if (isDeepEqual(actualPendingQuery, expectedQuery)) return;
+
+        if (!expectedQuery) {
+            setQueryState({
+                activeQuery: null,
+                pendingQuery: null,
+                initialBottomGhostTaskId: generateId(),
+            });
+            return;
+        }
+
+        const newPendingQuery = store.createAndRetainQuery(expectedQuery);
+        newPendingQuery.loadMoreTasks(
+            getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+        );
+
+        setQueryState({
+            activeQuery: queryState.activeQuery,
+            pendingQuery: newPendingQuery,
+            initialBottomGhostTaskId: queryState.initialBottomGhostTaskId,
+        });
+
+        return () => {
+            // Release after a microtask since when the component re-renders we
+            // synchronously call `retain()` in the above hook keeping the query alive.
+            scheduleMicrotask(() => {
+                newPendingQuery.release();
+            });
+        };
+    }, [isMissingRequiredFilters, normalizedFiltersResult, normalizedSorts, queryState, store]);
+
+    // Once the pending query has finished loading, swap it out as the new
+    // active query.
+    useEffect(() => {
+        const pendingQueryPromise = queryState.pendingQuery?.waitForLoaded();
+        if (!pendingQueryPromise) return;
+
+        let isCancelled = false;
+
+        pendingQueryPromise.finally(() => {
+            if (isCancelled) return;
+
+            setQueryState({
+                activeQuery: queryState.pendingQuery,
+                pendingQuery: null,
+                initialBottomGhostTaskId: generateId(),
+            });
+        });
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [queryState.activeQuery, queryState.pendingQuery]);
+
+    /* ========================================================================== *\
+     *                                 Grid View                                  *
+    \* ========================================================================== */
+
+    const viewRef = useRef<VirtualizedScrollViewRef>(null);
+
+    const {
+        modals: gridViewModals,
+        itemCount: gridViewItemCount,
+        renderItem: renderGridViewItem,
+        onRenderedRangeChange: onGridViewRenderedRangeChange,
+        alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
+        insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
+        focusEnd: focusGridViewEnd,
+    } = useTaskGridViewVirtualizedList({
+        capabilities: useMemo(
+            () => ({
+                isReadOnly: false,
+                hasParentTaskTitle: true,
+                hasMultilineTitle: false,
+                hasDenseFields: false,
+                hasColumns: true,
+            }),
+            [],
+        ),
+        query: queryState.activeQuery,
+        // NOCOMMIT: `initialExpansionState`
+        initialExpansionState: null,
+        // NOCOMMIT: `initialBottomGhostTaskId`
+        initialBottomGhostTaskId: queryState.initialBottomGhostTaskId,
+        viewRef,
+        // NOCOMMIT
+        getMoveTaskToQueryActions: () => [],
+        // NOCOMMIT
+        getMaybeRemoveTaskFromQueryActions: () => [],
+        withColumnHeaderBorderTop: true,
+    });
+
     return (
         <Box
             flexGrow="1"
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            // NOCOMMIT
-            // className={tasksStyles.textCursorNotInherited2ClassName}
-            // {...useOutOfBoundsClickSelection({
-            //     // Accept clicks on our `<VirtualizedScrollView>` child too.
-            //     accept: event =>
-            //         event.target === event.currentTarget ||
-            //         (event.target instanceof Element &&
-            //             event.target.parentElement === event.currentTarget),
-            //     onSelect: () => focusGridViewEnd(),
-            //     onSelectAll: () => focusGridViewEnd(),
-            // })}
+            className={tasksStyles.textCursorNotInherited2ClassName}
+            {...useOutOfBoundsClickSelection({
+                // Accept clicks on our `<VirtualizedScrollView>` child too.
+                accept: event =>
+                    event.target === event.currentTarget ||
+                    (event.target instanceof Element &&
+                        event.target.parentElement === event.currentTarget),
+                onSelect: () => focusGridViewEnd(),
+                onSelectAll: () => focusGridViewEnd(),
+            })}
         >
-            <Box paddingY="5" paddingX={taskRowViewPaddingX}>
-                <TaskQueryViewCustomizationBar
-                    ref={customizationBarRef}
-                    store={store}
-                    shouldCollapseWhenFiltersAreEmpty={false}
-                    defaultOrderSentence="By default, tasks are ordered by created date."
-                    filters={filters}
-                    filterReferences={filterReferences}
-                    onFiltersChange={updateFilters}
-                    sorts={sorts}
-                    onSortsChange={setSorts}
+            <TaskGridViewDndContext store={store}>
+                {gridViewModals}
+                <VirtualizedScrollView
+                    ref={viewRef}
+                    bufferedItemHeight={spacing[taskRowViewMinHeight]}
+                    itemCount={gridViewItemCount}
+                    alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
+                    insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
+                    renderItem={renderGridViewItem}
+                    onRenderedRangeChange={onGridViewRenderedRangeChange}
                 />
-            </Box>
-            {!hasAccess && (
-                <Box paddingX={taskRowViewPaddingX} height="128">
-                    <Box
-                        height="full"
-                        borderTop="grey-5"
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                    >
-                        <TaskQueryViewInstructionalPlaceholder
-                            filters={filters}
-                            onFiltersChange={updateFilters}
-                        />
-                    </Box>
-                </Box>
-            )}
+            </TaskGridViewDndContext>
         </Box>
     );
+
+    // NOCOMMIT:
+    //
+    // return (
+    //     <Box
+    //         flexGrow="1"
+    //         width="full"
+    //         overflow="hidden"
+    //         backgroundColor="grey-0"
+    //     >
+    //         <Box paddingY="5" paddingX={taskRowViewPaddingX}>
+    //             <TaskQueryViewCustomizationBar
+    //                 ref={customizationBarRef}
+    //                 store={store}
+    //                 shouldCollapseWhenFiltersAreEmpty={false}
+    //                 defaultOrderSentence="By default, tasks are ordered by created date."
+    //                 filters={filters}
+    //                 filterReferences={filterReferences}
+    //                 onFiltersChange={updateFilters}
+    //                 sorts={sorts}
+    //                 onSortsChange={setSorts}
+    //             />
+    //         </Box>
+    //         {isMissingRequiredFilters && (
+    //             <Box paddingX={taskRowViewPaddingX} height="128">
+    //                 <Box
+    //                     height="full"
+    //                     borderTop="grey-5"
+    //                     display="flex"
+    //                     justifyContent="center"
+    //                     alignItems="center"
+    //                 >
+    //                     <TaskQueryViewInstructionalPlaceholder
+    //                         filters={filters}
+    //                         onFiltersChange={updateFilters}
+    //                     />
+    //                 </Box>
+    //             </Box>
+    //         )}
+    //     </Box>
+    // );
 }
 
 function TaskQueryViewInstructionalPlaceholder({

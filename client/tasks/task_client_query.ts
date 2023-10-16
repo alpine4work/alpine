@@ -248,6 +248,49 @@ export class TaskClientQuery {
     public loadMoreTasks(limit: number): void {
         this._internal.loadMoreTasks(limit);
     }
+
+    /**
+     * Return a promise that resolves when the query has some tasks loaded. Queries
+     * start in an unloaded state with no data. This allows you to wait until the
+     * query has some data you can display to the user.
+     */
+    public waitForLoaded(): Promise<void> {
+        return new Promise(resolve => {
+            {
+                let loadedState;
+                try {
+                    loadedState = this.loadedStateStore.getSnapshot();
+                } catch {
+                    // If our query is in an error state then `getSnapshot()` will throw (maybe the
+                    // user lost access to the query we're trying to subscribe to). That's enough
+                    // progress for us to resolve this promise. We don't want to throw an uncaught
+                    // error here.
+                }
+
+                if (loadedState !== "Unloaded") {
+                    resolve();
+                    return;
+                }
+            }
+
+            const unsubscribe = this.loadedStateStore.subscribe(() => {
+                let loadedState;
+                try {
+                    loadedState = this.loadedStateStore.getSnapshot();
+                } catch {
+                    // If our query is in an error state then `getSnapshot()` will throw (maybe the
+                    // user lost access to the query we're trying to subscribe to). That's enough
+                    // progress for us to resolve this promise. We don't want to throw an uncaught
+                    // error here.
+                }
+
+                if (loadedState !== "Unloaded") {
+                    unsubscribe();
+                    resolve();
+                }
+            });
+        });
+    }
 }
 
 export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptionBase {

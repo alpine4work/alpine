@@ -4,7 +4,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
+import {TimeZone, defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 
 /**
  * Round the provided date to the start of the current hour.
@@ -69,6 +69,30 @@ export function useCurrentDate(): CalendarDate {
     }
 
     return context.currentDate;
+}
+
+/**
+ * Get the current time rounded to the nearest hour using a server context
+ * (with `LoaderContextModule`). Returns the same value as
+ * `useCurrentTimeRoundedToHour()`.
+ */
+export function getCurrentTimeRoundedToHour(context: {loader: {getInitialTime: () => Date}}) {
+    return roundDateToHour(context.loader.getInitialTime()).toISOString();
+}
+
+/**
+ * Get the current date using a server context (with `LoaderContextModule`).
+ * Returns the same value as `useCurrentDate()`.
+ */
+export function getCurrentDate(context: {
+    loader: {getInitialTime: () => Date; getClientInfo: () => {timeZone: TimeZone}};
+}) {
+    return toCalendarDate(
+        parseAbsolute(
+            getCurrentTimeRoundedToHour(context),
+            context.loader.getClientInfo().timeZone,
+        ),
+    );
 }
 
 export function CurrentTimeContextProvider({

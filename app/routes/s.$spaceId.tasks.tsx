@@ -32,7 +32,7 @@ export default function TasksLayoutRoute() {
 
         if (match.route.id === "routes/s.$spaceId.tasks.view") {
             isViewsTabActive = true;
-            withoutBorderBottom = false;
+            withoutBorderBottom = true;
         }
     }
 
