@@ -53,7 +53,7 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {Spacing, addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -117,6 +117,7 @@ export function useTaskGridViewVirtualizedList({
     getMoveTaskToQueryActions: _getMoveTaskToRootQueryActions,
     getMaybeRemoveTaskFromQueryActions: _getMaybeRemoveTaskFromRootQueryActions,
     withColumnHeaderBorderTop = false,
+    withColumnHeaderExtraScrollSpace = "0",
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     query: TaskClientQuery;
@@ -129,6 +130,7 @@ export function useTaskGridViewVirtualizedList({
     ) => Array<TaskAction>;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     withColumnHeaderBorderTop?: boolean;
+    withColumnHeaderExtraScrollSpace?: Spacing | "px";
 }): {
     /**
      * The number of items. Should be passed to `<VirtualizedScrollView>`.
@@ -694,8 +696,16 @@ export function useTaskGridViewVirtualizedList({
         return (itemIndex: number): VirtualizedScrollViewItem => {
             // If this item is above our task list then render it.
             if (itemIndex < itemCountBeforeState) {
+                const withColumnHeaderExtraScrollSpacePx =
+                    withColumnHeaderExtraScrollSpace === "0"
+                        ? 0
+                        : withColumnHeaderExtraScrollSpace === "px"
+                        ? 1
+                        : convertRemLengthToPx(spacing[withColumnHeaderExtraScrollSpace], remPx);
+
                 const minHeight =
                     convertRemLengthToPx("1.25rem", remPx) +
+                    withColumnHeaderExtraScrollSpacePx +
                     // We add one extra pixel of bottom padding so the focus ring on the first row
                     // is not covered by our header.
                     1;
@@ -707,6 +717,7 @@ export function useTaskGridViewVirtualizedList({
                     render: ({ref, offset, height, shouldRenderWithRelativePositioning}) => (
                         <TaskGridViewColumnHeaderMemo
                             withColumnHeaderBorderTop={withColumnHeaderBorderTop}
+                            withColumnHeaderExtraScrollSpace={withColumnHeaderExtraScrollSpacePx}
                             minHeight={minHeight}
                             virtualizedItemRef={ref}
                             offset={offset}
@@ -896,6 +907,7 @@ export function useTaskGridViewVirtualizedList({
         toggleAreChildTasksExpanded,
         viewRef,
         withColumnHeaderBorderTop,
+        withColumnHeaderExtraScrollSpace,
     ]);
 
     return {
@@ -963,6 +975,7 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
 
 const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo({
     withColumnHeaderBorderTop,
+    withColumnHeaderExtraScrollSpace,
     minHeight,
     virtualizedItemRef,
     offset,
@@ -970,6 +983,7 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
     shouldRenderWithRelativePositioning,
 }: {
     withColumnHeaderBorderTop: boolean;
+    withColumnHeaderExtraScrollSpace: number;
     minHeight: number;
     virtualizedItemRef: Ref<HTMLDivElement>;
     offset: number;
@@ -978,7 +992,7 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
 }) {
     return (
         <>
-            {withColumnHeaderBorderTop && (
+            {offset + withColumnHeaderExtraScrollSpace > 0 && withColumnHeaderBorderTop && (
                 // `grey-10` top border that replaces `<TaskLayoutTopBar>` border when column
                 // header is not overlaying tasks. You should configure `<TaskLayoutTopBar>` to
                 // not have a bottom border and this will render instead.
@@ -995,9 +1009,9 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
                     left="0"
                     right="0"
                     top="0"
-                    style={{height: offset}}
+                    style={{height: offset + withColumnHeaderExtraScrollSpace}}
                     // Render above overlays which are at `zIndex="50"`
-                    zIndex="60"
+                    zIndex="80"
                     pointerEvents="none"
                 >
                     <Box position="sticky" top="0" left="0" right="0" borderBottom="grey-10" />
@@ -1012,30 +1026,28 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
                     left="0"
                     right="0"
                     bottom="0"
-                    style={{top: offset}}
+                    style={{top: offset - 1 + withColumnHeaderExtraScrollSpace}}
                     // Render above overlays which are at `zIndex="50"`
-                    zIndex="80"
+                    zIndex="60"
                     pointerEvents="none"
                 >
-                    <Box
-                        position="sticky"
-                        top="0"
-                        left="0"
-                        right="0"
-                        zIndex="10"
-                        borderBottom="grey-5"
-                    />
-                    {offset > 0 && (
-                        <Box
-                            position="absolute"
-                            top="0"
-                            left="0"
-                            right="0"
-                            zIndex="20"
-                            borderBottom="grey-0"
-                        />
-                    )}
+                    <Box position="sticky" top="0" left="0" right="0" borderBottom="grey-5" />
                 </Box>
+            )}
+            {withColumnHeaderBorderTop && (
+                // `grey-0` top border that hides `<TaskLayoutTopBar>` border when column
+                // header doesn't overlay tasks that scrolls out-of-bounds once column
+                // header does overlay tasks.
+                <Box
+                    position="absolute"
+                    left="0"
+                    right="0"
+                    style={{top: offset - 1 + withColumnHeaderExtraScrollSpace}}
+                    // Render above overlays which are at `zIndex="50"`
+                    zIndex="70"
+                    pointerEvents="none"
+                    borderBottom="grey-0"
+                />
             )}
             <Box
                 // `grey-10` bottom border of column header that slides in when the column
@@ -1044,43 +1056,40 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
                 left="0"
                 right="0"
                 bottom="0"
-                style={{top: offset - 1}}
-                // Render above overlays which are at `zIndex="50"`
-                zIndex="60"
-                pointerEvents="none"
-            >
-                <Box
-                    position="sticky"
-                    top="0"
-                    left="0"
-                    right="0"
-                    borderBottom="grey-10"
-                    style={{height: height - 1}}
-                />
-            </Box>
-            <Box
-                style={{
-                    minHeight,
-                    ...(shouldRenderWithRelativePositioning
-                        ? {position: "relative"}
-                        : {
-                              position: "absolute",
-                              top: offset,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                          }),
-                }}
+                style={{top: offset + height - 3}}
                 // Render above overlays which are at `zIndex="50"`
                 zIndex="70"
                 pointerEvents="none"
             >
                 <Box
+                    position="sticky"
+                    left="0"
+                    right="0"
+                    borderBottom="grey-10"
+                    style={{top: height - 2 - withColumnHeaderExtraScrollSpace}}
+                />
+            </Box>
+            <Box
+                style={{
+                    minHeight,
+                    position: "absolute",
+                    top: offset + withColumnHeaderExtraScrollSpace,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    marginTop: -withColumnHeaderExtraScrollSpace,
+                }}
+                // Render above overlays which are at `zIndex="50"`
+                zIndex="80"
+                pointerEvents="none"
+            >
+                <Box
                     ref={virtualizedItemRef}
                     position="sticky"
-                    top="0"
                     pointerEvents="auto"
                     style={{
+                        top: -withColumnHeaderExtraScrollSpace,
+                        paddingTop: withColumnHeaderExtraScrollSpace,
                         // One pixel of bottom padding so the focus ring on the first row is not covered
                         // by our header.
                         paddingBottom: 1,
@@ -1092,9 +1101,12 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
                         top="0"
                         left="0"
                         right="0"
-                        // Render background color with an absolute positioned `<div>` so we don't
-                        // cover the border rendered by `<TaskRowView>` (or our separate sticky div).
-                        style={{bottom: 2}}
+                        style={{
+                            top: 1 + withColumnHeaderExtraScrollSpace,
+                            // Render background color with an absolute positioned `<div>` so we don't
+                            // cover the border rendered by `<TaskRowView>` (or our separate sticky div).
+                            bottom: 2,
+                        }}
                         backgroundColor="grey-0"
                     />
                     <Box paddingTop="0.5" display="flex">
@@ -1157,6 +1169,11 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
                     </Box>
                 </Box>
             </Box>
+            {shouldRenderWithRelativePositioning && (
+                // When rendering with relative positioning, include a box the height of the
+                // header so layout doesn't jump around.
+                <Box style={{height}} />
+            )}
         </>
     );
 });

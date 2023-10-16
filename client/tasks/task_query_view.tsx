@@ -342,6 +342,7 @@ export function TaskQueryView({
         // NOCOMMIT
         getMaybeRemoveTaskFromQueryActions: () => [],
         withColumnHeaderBorderTop: true,
+        withColumnHeaderExtraScrollSpace: "4",
     });
 
     return (
