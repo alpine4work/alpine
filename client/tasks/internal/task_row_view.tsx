@@ -195,6 +195,7 @@ function TaskRowView(
     {
         capabilities,
         query,
+        isQueryManuallySorted,
         cursor,
         ghostTaskId = null,
         onGhostTaskCreated,
@@ -225,6 +226,7 @@ function TaskRowView(
     }: {
         capabilities: TaskGridViewCapabilities;
         query: TaskClientQuery;
+        isQueryManuallySorted: boolean;
         cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
@@ -966,6 +968,7 @@ function TaskRowView(
     const droppableIndentationsNode =
         !disableExpensiveFeaturesDuringScroll &&
         !capabilities.isReadOnly &&
+        isQueryManuallySorted &&
         cursor &&
         task &&
         renderTaskRowViewDroppableIndentations({
@@ -980,6 +983,7 @@ function TaskRowView(
 
     const firstRowDroppableIndentationsNode = !disableExpensiveFeaturesDuringScroll &&
         !capabilities.isReadOnly &&
+        isQueryManuallySorted &&
         isFirstRow &&
         cursor &&
         task && (
@@ -1035,6 +1039,7 @@ function TaskRowView(
                 {!withoutPaddingLeft &&
                     (!disableExpensiveFeaturesDuringScroll &&
                     !capabilities.isReadOnly &&
+                    isQueryManuallySorted &&
                     hasTask ? (
                         <TaskRowViewDragHandle
                             task={task}
@@ -1048,7 +1053,11 @@ function TaskRowView(
                                 width: taskRowViewDragHandleWidth,
                                 paddingRight: spacing["0.5"],
                             }}
-                        />
+                        >
+                            {hasTask && !isQueryManuallySorted && (
+                                <div className={tasksStyles.rowNumberClassName} />
+                            )}
+                        </div>
                     ))}
                 {!withoutPaddingLeft &&
                     (!disableExpensiveFeaturesDuringScroll && hasTask ? (

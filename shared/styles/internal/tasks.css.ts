@@ -1,7 +1,8 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {colorSchemeVars} from "~/shared/styles/internal/color_scheme.css.js";
+import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
 import {sprinkles} from "~/shared/styles/internal/sprinkles.css.js";
 
@@ -120,4 +121,36 @@ globalStyle(`${taskDateInputTextSegmentClassName}::selection`, {
     // When a text segment is selected we already apply the selection background
     // color. Don't apply it again with the proper text selection highlight.
     background: "none",
+});
+
+export const rowNumberCounterName = "task-row-number";
+
+// When server-side rendering, start the counter at 0.
+globalStyle(":root", {
+    counterReset: rowNumberCounterName,
+});
+
+export const rowNumberClassName = style({
+    selectors: {
+        "&::before": {
+            counterIncrement: rowNumberCounterName,
+            content: `counter(${rowNumberCounterName})`,
+            position: "absolute",
+            left: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            pointerEvents: "none",
+            display: "block",
+            minWidth: addRemLengths(spacing["4"], spacing["0.5"]),
+            maxWidth: spacing["8"],
+            ...fontSizes["50"],
+            ...fontStyles["truncate"],
+            // The right-most digits are most significant. Truncate at the start instead of
+            // the end.
+            direction: "rtl",
+            color: colorSchemeVars["grey-30"],
+            textAlign: "right",
+            fontVariantNumeric: "tabular-nums",
+        },
+    },
 });

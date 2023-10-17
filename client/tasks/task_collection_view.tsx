@@ -128,6 +128,7 @@ export function TaskCollectionView({
                         scrollOffset,
                     ),
                 ),
+            getContentElement: () => assertExists(viewRef.current).getContentElement(),
         }),
         [shiftRenderedRangeForGridView],
     );

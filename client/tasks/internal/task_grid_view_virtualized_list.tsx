@@ -71,9 +71,10 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
+import {colorSchemeVars, spinAnimationClassName, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
@@ -102,12 +103,24 @@ export type TaskGridViewVirtualizedListViewRef = {
     peekRenderedRangeAfterSetScrollOffset: (
         scrollOffset: number,
     ) => {startIndex: number; endIndex: number} | null;
+    getContentElement: () => HTMLElement;
 };
 
 // Should be able to pass `VirtualizedScrollViewRef` in for
 // `TaskGridViewVirtualizedListViewRef`. Often our virtualized grid view will
 // have other stuff besides tasks so a modified ref object may be passed in.
 assertAssignableTypes<VirtualizedScrollViewRef, TaskGridViewVirtualizedListViewRef>();
+
+function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormalizedSort>): boolean {
+    if (sorts.length === 0) return false;
+    const firstSort = sorts[0]!;
+    return (
+        firstSort.type === "ParentPosition" ||
+        firstSort.type === "CollectionPosition" ||
+        firstSort.type === "NotepadPagePosition" ||
+        firstSort.type === "AssigneeActivePosition"
+    );
+}
 
 /**
  * Encapsulates the ability to render a virtualized list of tasks. You are
@@ -188,8 +201,10 @@ export function useTaskGridViewVirtualizedList({
     const context = useAppContext();
     const remPx = useRemPx();
 
-    const isRootQueryNull = rootQuery === null;
     const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
+
+    const isRootQueryNull = rootQuery === null;
+    const isRootQueryManuallySorted = isTaskQueryManuallySorted(rootQuery?.sorts ?? emptyArray);
 
     const {
         getAreChildTasksExpandedStore,
@@ -269,7 +284,7 @@ export function useTaskGridViewVirtualizedList({
             ? stateItemCount + 1
             : Math.max(stateItemCount + (!capabilities.isReadOnly ? 1 : 0), 3));
 
-    const tryLoadingMoreData = useEvent(
+    const tryLoadingMoreDataAndUpdatingRowNumberCounter = useEvent(
         (renderedRange: {startIndex: number; endIndex: number} | null) => {
             if (!renderedRange) return;
 
@@ -296,6 +311,8 @@ export function useTaskGridViewVirtualizedList({
                 // child items.
                 const parentTaskIdsToLoad = new Set<TaskId>();
 
+                let hasResetRowNumberCounter = false;
+
                 for (
                     let i = Math.max(renderedRange.startIndex, itemCountBeforeState);
                     i < Math.min(renderedRange.endIndex, stateItemCount + itemCountBeforeState);
@@ -309,6 +326,24 @@ export function useTaskGridViewVirtualizedList({
                                 item.parents[item.parents.length - 1]!.cursor,
                             ),
                         );
+                    } else if (item.parents.length === 0) {
+                        // Reset the row number counter to start with the first row in our
+                        // rendered range.
+                        if (!hasResetRowNumberCounter) {
+                            hasResetRowNumberCounter = true;
+
+                            // NOTE(calebmer): It's important that we set this style on the virtualized
+                            // view's `contentElement` and not the `viewElement`! This is because
+                            // `useScrollbar()` listens for mutations on scrollable elements and will
+                            // measure the height to see if the scrollbar needs to be adjusted. Measuring
+                            // height triggers a browser layout. Browser layouts are expensive so we avoid
+                            // triggering a browser layout by updating the content element instead.
+                            assertExists(
+                                viewRef.current,
+                            ).getContentElement().style.counterReset = `${
+                                tasksStyles.rowNumberCounterName
+                            } ${item.query.getLoadedTaskIndex(item.cursor)}`;
+                        }
                     }
                 }
 
@@ -365,8 +400,8 @@ export function useTaskGridViewVirtualizedList({
         state;
 
         const view = assertExists(viewRef.current);
-        tryLoadingMoreData(view.getRenderedRange());
-    }, [state, tryLoadingMoreData, viewRef]);
+        tryLoadingMoreDataAndUpdatingRowNumberCounter(view.getRenderedRange());
+    }, [state, tryLoadingMoreDataAndUpdatingRowNumberCounter, viewRef]);
 
     const events: TaskGridViewVirtualizedListEvents = useEvents({
         getMoveTaskToRootQueryActions: _getMoveTaskToRootQueryActions,
@@ -794,6 +829,7 @@ export function useTaskGridViewVirtualizedList({
                                         context={context}
                                         capabilities={capabilities}
                                         rootQuery={rootQuery}
+                                        isRootQueryManuallySorted={isRootQueryManuallySorted}
                                         query={rootQuery}
                                         taskKey={bottomGhostTaskId}
                                         cursor={null}
@@ -871,6 +907,7 @@ export function useTaskGridViewVirtualizedList({
                                 capabilities={capabilities}
                                 // If we have a task item then that must mean we have a query.
                                 rootQuery={rootQuery!}
+                                isRootQueryManuallySorted={isRootQueryManuallySorted}
                                 query={item.query}
                                 taskKey={taskKey}
                                 cursor={item.cursor}
@@ -937,6 +974,7 @@ export function useTaskGridViewVirtualizedList({
         context,
         events,
         getAreChildTasksExpandedStore,
+        isRootQueryManuallySorted,
         isRootQueryNull,
         itemCount,
         itemCountBeforeState,
@@ -955,7 +993,7 @@ export function useTaskGridViewVirtualizedList({
         itemCount,
         renderItem,
         onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => {
-            tryLoadingMoreData(renderedRange);
+            tryLoadingMoreDataAndUpdatingRowNumberCounter(renderedRange);
 
             const callbacks = onRenderedRangeChangeCallbacksRef.current;
             onRenderedRangeChangeCallbacksRef.current = [];
@@ -1397,6 +1435,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     context,
     capabilities,
     rootQuery,
+    isRootQueryManuallySorted,
     query,
     taskKey,
     cursor,
@@ -1419,6 +1458,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     context: AppContext;
     capabilities: Memo<TaskGridViewCapabilities>;
     rootQuery: TaskClientQuery;
+    isRootQueryManuallySorted: boolean;
     query: TaskClientQuery;
     taskKey: TaskGridViewTaskKey;
     cursor: TaskQuerySortCursor | null;
@@ -1766,6 +1806,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             // It's important we use the `query` property from `item` since child tasks
             // come from a different query than our root query.
             query={query}
+            isQueryManuallySorted={query !== rootQuery || isRootQueryManuallySorted}
             cursor={cursor}
             ghostTaskId={ghostTaskId}
             onGhostTaskCreated={events.onGhostTaskCreated}

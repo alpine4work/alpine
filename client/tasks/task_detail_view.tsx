@@ -135,6 +135,7 @@ export function TaskDetailView({
                         scrollOffset,
                     ),
                 ),
+            getContentElement: () => assertExists(viewRef.current).getContentElement(),
         }),
         [shiftRenderedRangeForChildrenGridView],
     );

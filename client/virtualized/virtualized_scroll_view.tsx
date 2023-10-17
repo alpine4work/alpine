@@ -273,6 +273,16 @@ export type VirtualizedScrollViewRef = {
     peekRenderedRangeAfterSetScrollOffset(
         scrollOffset: number,
     ): {startIndex: number; endIndex: number} | null;
+
+    /**
+     * Return the underlying view HTML element.
+     */
+    getViewElement(): HTMLDivElement;
+
+    /**
+     * Return the underlying content container HTML element.
+     */
+    getContentElement(): HTMLDivElement;
 };
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
@@ -1384,6 +1394,8 @@ function VirtualizedScrollView(
 
                     return peekState.getRenderedRange();
                 },
+                getViewElement: () => assertExists(scrollRef.current),
+                getContentElement: () => assertExists(contentRef.current),
             };
         },
         [],
