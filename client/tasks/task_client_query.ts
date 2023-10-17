@@ -1,8 +1,4 @@
-import createTree, {
-    Tree,
-    Iterator as TreeIterator,
-    Node as TreeNode,
-} from "functional-red-black-tree";
+import createTree, {Tree} from "functional-red-black-tree";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
@@ -332,14 +328,6 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     >({hasError: false});
 
     /**
-     * Cache of the item count in `taskOrder` subtrees.
-     */
-    private readonly _itemCountSubtreeCache = new WeakMap<
-        TreeNode<TaskQuerySortCursor, null>,
-        number
-    >();
-
-    /**
      * The current loaded state of the query.
      */
     public readonly loadedStateStore: Store<"Unloaded" | "PartiallyLoaded" | "FullyLoaded">;
@@ -590,59 +578,6 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     }
 
     /**
-     * Get the number of items in the provided subtree.
-     *
-     * WARNING: If you want to get the count of all items before the node you
-     * are looking at, do not use `_getSubtreeItemCount(iterator.node.left)`,
-     * instead use `_getPreviousItemCount(iterator)`. The former does not count
-     * items in parent nodes.
-     *
-     * This function is cached and takes advantage of the structural sharing in our
-     * binary tree. When the tree is updated, some subtrees are left untouched so
-     * we maintain the cached value for those subtrees. Running this function on a
-     * new tree is O(n) but running this function on an updated tree is O(log(n)).
-     */
-    private _getSubtreeItemCount(node: TreeNode<TaskQuerySortCursor, null> | null): number {
-        if (node === null) return 0;
-
-        // Don't spend memory caching nodes with no subtrees.
-        if (node.left === null && node.right === null) return 1;
-
-        let itemCount = this._itemCountSubtreeCache.get(node);
-
-        if (itemCount === undefined) {
-            const leftItemCount = node.left !== null ? this._getSubtreeItemCount(node.left) : 0;
-            const rightItemCount = node.right !== null ? this._getSubtreeItemCount(node.right) : 0;
-
-            itemCount = leftItemCount + 1 + rightItemCount;
-            this._itemCountSubtreeCache.set(node, itemCount);
-        }
-
-        return itemCount;
-    }
-
-    /**
-     * Get the item count of all entries before the node the iterator is
-     * looking at.
-     */
-    private _getPreviousItemCount(iterator: TreeIterator<TaskQuerySortCursor, null>): number {
-        if (!iterator.node) return 0;
-        let itemCount = this._getSubtreeItemCount(iterator.node.left);
-        const beforeOrderKey = iterator.node.key;
-
-        for (let i = iterator._stack.length - 2; i >= 0; i--) {
-            const parentNode = iterator._stack[i]!;
-
-            if (parentNode.key < beforeOrderKey) {
-                itemCount += 1;
-                itemCount += this._getSubtreeItemCount(parentNode.left);
-            }
-        }
-
-        return itemCount;
-    }
-
-    /**
      * Get the index of the `cursor` for a loaded task in our query. Will throw an
      * error if the cursor is not a valid cursor for a task currently loaded in
      * our query.
@@ -650,7 +585,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
     public getLoadedTaskIndex(cursor: TaskQuerySortCursor): number {
         const iterator = this._taskOrderAndLoadedStateStore.getSnapshot().taskOrder.find(cursor);
         assert(iterator.valid);
-        return this._getPreviousItemCount(iterator);
+        return iterator.index;
     }
 
     public loadMoreTasks(limit: number) {
