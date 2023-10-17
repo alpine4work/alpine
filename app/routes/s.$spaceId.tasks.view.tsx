@@ -1,4 +1,4 @@
-import {useMemo, useState} from "react";
+import {useState} from "react";
 import {useLocation} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -17,9 +17,7 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
@@ -162,7 +160,8 @@ export default function TaskQueryRoute() {
 
 function TaskQueryRouteInner() {
     const [searchParams] = useSearchParams();
-    const {initialBottomGhostTaskId} = useLoaderDataWithSchema(LoaderSchema);
+    const {gridViewExpansionState: initialGridViewExpansionState, initialBottomGhostTaskId} =
+        useLoaderDataWithSchema(LoaderSchema);
     const {
         queries: [initialQuery],
     } = useTaskStoreLoaderDataWithoutRetaining();
@@ -184,6 +183,7 @@ function TaskQueryRouteInner() {
     return (
         <TaskQueryView
             initialQuery={initialQuery ?? null}
+            initialGridViewExpansionState={initialGridViewExpansionState}
             initialBottomGhostTaskId={initialBottomGhostTaskId}
             initialFilters={initialFilters}
             initialFilterReferences={initialFilterReferences}

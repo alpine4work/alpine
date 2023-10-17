@@ -364,8 +364,10 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         this.filters = filters;
         this.sorts = sorts;
         this._taskOrderAndLoadedStateStore = new ValueStore<{
-            loadedState: TaskRealtimeQueryLoadedState | null;
-            taskOrder: Tree<TaskQuerySortCursor, null>;
+            // `loadedState` is null when the query has not finished loading for the
+            // first time.
+            readonly loadedState: TaskRealtimeQueryLoadedState | null;
+            readonly taskOrder: Tree<TaskQuerySortCursor, null>;
         }>({
             loadedState: null,
             taskOrder: createTree<TaskQuerySortCursor, null>((cursor1, cursor2) =>
@@ -772,7 +774,10 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         }
 
         if (taskOrder !== previousTaskOrder) {
-            this._taskOrderAndLoadedStateStore.set({loadedState, taskOrder});
+            this._taskOrderAndLoadedStateStore.set({
+                loadedState,
+                taskOrder,
+            });
         }
 
         // Make sure our query is well formed in test environments.

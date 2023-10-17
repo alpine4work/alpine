@@ -7,12 +7,16 @@ import {useShowToast} from "~/client/design/toast.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
-import {TaskRealtimeClient} from "~/client/tasks/task_realtime_client.js";
+import {
+    TaskRealtimeClient,
+    unknownTaskQueryFromServerRetentionPeriodMs,
+} from "~/client/tasks/task_realtime_client.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -39,7 +43,9 @@ const taskRealtimeClientBySpaceIdForClient =
  * the `<TaskRealtimeClientContextProvider>` component which enforces this
  * constraint.
  */
-function getTaskRealtimeClientIfExistsForClient(spaceId: SpaceId): TaskRealtimeClient | null {
+export function getTaskRealtimeClientIfExistsForClient(
+    spaceId: SpaceId,
+): TaskRealtimeClient | null {
     assert(typeof window !== "undefined");
     assert(taskRealtimeClientBySpaceIdForClient);
     return taskRealtimeClientBySpaceIdForClient.get(spaceId)?.client ?? null;
@@ -103,7 +109,7 @@ function loadTaskDataIntoClient(client: TaskRealtimeClient, loaderData: SchemaSe
                     collectionSubscription.release();
                 }
             });
-        }, 1000 * 5);
+        }, unknownTaskQueryFromServerRetentionPeriodMs);
     });
 }
 
@@ -182,6 +188,8 @@ export function TaskRealtimeClientContextProvider({
     const dataRouterStateContext = useContext(DataRouterStateContext);
     assert(dataRouterStateContext, "Expected data router state context");
 
+    const browserId = useBrowserId();
+
     const context = useAppContext();
     const contextRef = useRef(context);
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -201,6 +209,7 @@ export function TaskRealtimeClientContextProvider({
                 // the account store doesn't change.
                 accountStore,
                 spaceId,
+                browserId,
                 onDisplayError: ({title, error}) => showToast({type: "Error", title, error}),
             });
 

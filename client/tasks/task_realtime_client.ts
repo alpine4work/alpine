@@ -16,12 +16,29 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {
+    BrowserId,
     SpaceId,
     TaskRealtimeCollectionSubscriptionId,
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
 } from "~/shared/id/types/id_types.js";
+import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
+
+/**
+ * How long we should retain queries from the server that we don't know the
+ * immediate purpose of. It's expected that UI code will find these queries and
+ * take their own reference during this period. If the query was over-fetched
+ * and the UI doesn't need it then once the retention period is up we'll
+ * unsubscribe.
+ *
+ * Most commonly preloaded task children queries for grid view fall into this
+ * bucket. We preload some children queries on the server in a best effort
+ * fashion. We may use stale data and load a query for a task that's not
+ * actually visible in the grid view. We unsubscribe from these unused queries
+ * at the end of this retention period.
+ */
+export const unknownTaskQueryFromServerRetentionPeriodMs = 1000 * 5;
 
 /**
  * Manages the client's realtime connection to `TaskRealtimeService` and owns
@@ -32,26 +49,36 @@ import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 export class TaskRealtimeClient {
     private readonly _getContext: () => AppContext;
     public readonly spaceId: SpaceId;
+    private readonly _browserId: BrowserId;
     private readonly _onDisplayError: (options: {title: string; error: unknown}) => void;
     private readonly _client: WebSocketClient<typeof TaskRealtimeProtocol>;
     private _disconnect: (() => void) | null = null;
 
     public readonly store: TaskClientStore;
 
+    private readonly _shouldLoadGridViewExpansionStateForQuery = new WeakSet<TaskClientQuery>();
+    private readonly _initialGridViewExpansionStateByQuery = new WeakMap<
+        TaskClientQuery,
+        TaskGridViewExpansionState
+    >();
+
     constructor(
         getContext: () => AppContext,
         {
             accountStore,
             spaceId,
+            browserId,
             onDisplayError,
         }: {
             accountStore: AccountClientStore;
             spaceId: SpaceId;
+            browserId: BrowserId;
             onDisplayError: (options: {title: string; error: unknown}) => void;
         },
     ) {
         this._getContext = getContext;
         this.spaceId = spaceId;
+        this._browserId = browserId;
         this._onDisplayError = onDisplayError;
 
         this._client = new WebSocketClient(
@@ -232,6 +259,10 @@ export class TaskRealtimeClient {
                             limit: newQueryLimits[i]!,
                             filters: query.filters,
                             sorts: query.sorts,
+                            shouldLoadGridViewExpandedChildTasksForBrowserId:
+                                this._shouldLoadGridViewExpansionStateForQuery.delete(query)
+                                    ? this._browserId
+                                    : undefined,
                         })),
                         taskIds: newTaskSubscriptionsArray.map(
                             taskSubscription => taskSubscription.taskId,
@@ -241,6 +272,16 @@ export class TaskRealtimeClient {
                         ),
                     })
                     .then(output => {
+                        const extraQueriesToRelease: Array<TaskClientQuery> = [];
+
+                        // After some period, release our reference to extra queries we received from
+                        // the server. We hope our UI code has taken a reference to these queries.
+                        setTimeout(() => {
+                            for (const extraQuery of extraQueriesToRelease) {
+                                extraQuery.release();
+                            }
+                        }, unknownTaskQueryFromServerRetentionPeriodMs);
+
                         batchStoreUpdates(() => {
                             for (let i = 0; i < output.querySubscriptionResults.length; i++) {
                                 const query = newQueriesArray[i]!;
@@ -257,6 +298,40 @@ export class TaskRealtimeClient {
                                         previouslyBackfilledTaskIds:
                                             result.previouslyBackfilledTaskIds,
                                     });
+
+                                    if (result.gridViewExpansionState) {
+                                        this._initialGridViewExpansionStateByQuery.set(
+                                            query,
+                                            result.gridViewExpansionState,
+                                        );
+                                    }
+
+                                    // The server may have subscribed us to some extra queries. Let's create query
+                                    // models for these queries in our store. We retain them for ~5s then
+                                    // unsubscribe from them if UI code doesn't retain the query.
+                                    for (const extraQueryResult of result.extraQueries) {
+                                        const extraQuery = this.store.createAndRetainQuery({
+                                            filters: extraQueryResult.filters,
+                                            sorts: extraQueryResult.sorts,
+                                        });
+
+                                        this.store.loadTasksIntoQuery(extraQuery, {
+                                            limit: extraQueryResult.limit,
+                                            loadedState: extraQueryResult.loadedState,
+                                            previouslyBackfilledTaskIds: extraQueryResult.taskIds,
+                                        });
+
+                                        subscribedQueries.add(
+                                            createQuerySubscription({
+                                                query: extraQuery,
+                                                querySubscriptionIdPromise: Promise.resolve(
+                                                    extraQueryResult.querySubscriptionId,
+                                                ),
+                                            }),
+                                        );
+
+                                        extraQueriesToRelease.push(extraQuery);
+                                    }
                                 }
                             }
 
@@ -300,69 +375,12 @@ export class TaskRealtimeClient {
                     // they matter.
                     querySubscriptionIdPromise.catch(() => {});
 
-                    const loadMoreTasksMutex = new Mutex();
-
-                    const loadMoreTasks = () => {
-                        // Use a mutex to only let one `loadMoreQueryTasks` call run at a time. A
-                        // previous `loadMoreQueryTasks` call may fulfill the next one.
-                        const loadMoreTasksPromise = loadMoreTasksMutex.withLock(async () => {
-                            // If a query was unsubscribed then don't load more tasks.
-                            if (!subscriptionsStore.getSnapshot().queries.has(query)) return;
-
-                            const querySubscriptionId = await querySubscriptionIdPromise;
-
-                            const loadMoreTaskCount = query.loadMoreTaskCountStore.getSnapshot();
-
-                            // Don't proceed if there are no more tasks to load. May happen if a previous
-                            // `loadMoreTasks` call fully loaded our query.
-                            if (loadMoreTaskCount === 0) return;
-
-                            const {loadedState, previouslyBackfilledTaskIds} =
-                                await this._client.procedures.loadMoreQueryTasks({
-                                    clientTime: this.store.clock.now(),
-                                    querySubscriptionId,
-                                    limit: loadMoreTaskCount,
-                                });
-
-                            this.store.loadTasksIntoQuery(query, {
-                                limit: loadMoreTaskCount,
-                                loadedState,
-                                previouslyBackfilledTaskIds,
-                            });
-                        });
-
-                        loadMoreTasksPromise.catch(error => {
-                            // If this promise fails after the query unsubscribes then that's expected! Not
-                            // a glitch, don't present to the user. `unsubscribe` will cause any pending
-                            // loads to fail with `CancelledError`. Still log the exception for tracking
-                            // though. Maybe it was a system error?
-                            if (!subscriptionsStore.getSnapshot().queries.has(query)) {
-                                this._getContext()
-                                    .tracer.getRoot()
-                                    .logUncaughtException(
-                                        "Loading more tasks for query failed after query was unsubscribed",
-                                        error,
-                                    );
-                                return;
-                            }
-
-                            this._onDisplayError({
-                                title: "Couldn’t get more tasks",
-                                error,
-                            });
-                        });
-                    };
-
-                    // When the query's `loadMoreTask` property changes that triggers a data load
-                    // here in our realtime client to...load more tasks.
-                    const unsubscribeFromLoadMoreTaskCount =
-                        query.loadMoreTaskCountStore.subscribe(loadMoreTasks);
-
-                    subscribedQueries.add({
-                        query,
-                        querySubscriptionIdPromise,
-                        unsubscribeFromLoadMoreTaskCount,
-                    });
+                    subscribedQueries.add(
+                        createQuerySubscription({
+                            query,
+                            querySubscriptionIdPromise,
+                        }),
+                    );
                 }
 
                 for (let i = 0; i < newTaskSubscriptionsArray.length; i++) {
@@ -547,11 +565,118 @@ export class TaskRealtimeClient {
             unsubscribeFromQueriesStore();
             this._client.disconnect();
         };
+
+        const createQuerySubscription = ({
+            query,
+            querySubscriptionIdPromise,
+        }: {
+            query: TaskClientQuery;
+            querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
+        }): {
+            query: TaskClientQuery;
+            querySubscriptionIdPromise: Promise<TaskRealtimeQuerySubscriptionId>;
+            unsubscribeFromLoadMoreTaskCount: () => void;
+        } => {
+            const loadMoreTasksMutex = new Mutex();
+
+            const loadMoreTasks = () => {
+                // Use a mutex to only let one `loadMoreQueryTasks` call run at a time. A
+                // previous `loadMoreQueryTasks` call may fulfill the next one.
+                const loadMoreTasksPromise = loadMoreTasksMutex.withLock(async () => {
+                    // If a query was unsubscribed then don't load more tasks.
+                    if (!subscriptionsStore.getSnapshot().queries.has(query)) return;
+
+                    const querySubscriptionId = await querySubscriptionIdPromise;
+
+                    const loadMoreTaskCount = query.loadMoreTaskCountStore.getSnapshot();
+
+                    // Don't proceed if there are no more tasks to load. May happen if a previous
+                    // `loadMoreTasks` call fully loaded our query.
+                    if (loadMoreTaskCount === 0) return;
+
+                    const {loadedState, previouslyBackfilledTaskIds} =
+                        await this._client.procedures.loadMoreQueryTasks({
+                            clientTime: this.store.clock.now(),
+                            querySubscriptionId,
+                            limit: loadMoreTaskCount,
+                        });
+
+                    this.store.loadTasksIntoQuery(query, {
+                        limit: loadMoreTaskCount,
+                        loadedState,
+                        previouslyBackfilledTaskIds,
+                    });
+                });
+
+                loadMoreTasksPromise.catch(error => {
+                    // If this promise fails after the query unsubscribes then that's expected! Not
+                    // a glitch, don't present to the user. `unsubscribe` will cause any pending
+                    // loads to fail with `CancelledError`. Still log the exception for tracking
+                    // though. Maybe it was a system error?
+                    if (!subscriptionsStore.getSnapshot().queries.has(query)) {
+                        this._getContext()
+                            .tracer.getRoot()
+                            .logUncaughtException(
+                                "Loading more tasks for query failed after query was unsubscribed",
+                                error,
+                            );
+                        return;
+                    }
+
+                    this._onDisplayError({
+                        title: "Couldn’t get more tasks",
+                        error,
+                    });
+                });
+            };
+
+            // When the query's `loadMoreTask` property changes that triggers a data load
+            // here in our realtime client to...load more tasks.
+            const unsubscribeFromLoadMoreTaskCount =
+                query.loadMoreTaskCountStore.subscribe(loadMoreTasks);
+
+            return {
+                query,
+                querySubscriptionIdPromise,
+                unsubscribeFromLoadMoreTaskCount,
+            };
+        };
     }
 
     public disconnect() {
         assert(this._disconnect !== null, "WebSocket is already disconnected");
         this._disconnect();
         this._disconnect = null;
+    }
+
+    /**
+     * Should we load the initial `TaskGridViewExpansionState` for this query and
+     * preload children queries along with it? If you call this BEFORE our realtime
+     * client attempts to subscribe to the query (you'll need to use
+     * `batchStoreUpdates()` to delay the subscription listener firing) then we'll
+     * load the query's initial grid view expansion state.
+     *
+     * Grid view expansion state is best effort and is not kept up-to-date in
+     * realtime. Because of grid view expansion state's limitations we have you
+     * fetch/retrieve it through these janky methods on `TaskRealtimeClient`.
+     */
+    public setShouldLoadGridViewExpansionStateForQuery(query: TaskClientQuery) {
+        this._shouldLoadGridViewExpansionStateForQuery.add(query);
+    }
+
+    /**
+     * If you loaded the grid view expansion state for a query (with
+     * `setShouldLoadGridViewExpansionStateForQuery()`) then you may retrieve it
+     * with this function. You may only call this function once, subsequent calls
+     * will return null.
+     *
+     * Grid view expansion state is best effort and is not kept up-to-date in
+     * realtime. Because of grid view expansion state's limitations we have you
+     * fetch/retrieve it through these janky methods on `TaskRealtimeClient`.
+     */
+    public takeInitialGridViewExpansionStateForQueryIfExists(query: TaskClientQuery) {
+        const gridViewExpansionState = this._initialGridViewExpansionStateByQuery.get(query);
+        if (gridViewExpansionState) this._initialGridViewExpansionStateByQuery.delete(query);
+        return gridViewExpansionState;
     }
 }

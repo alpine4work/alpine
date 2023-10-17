@@ -7,7 +7,7 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfoWithoutListening, useBrowserId} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -20,7 +20,10 @@ import {
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {
+    getTaskRealtimeClientIfExistsForClient,
+    useTaskClientStore,
+} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {taskRowViewMinHeight, taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {
     VirtualizedScrollView,
@@ -37,6 +40,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {Id, generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, tasksStyles} from "~/shared/styles/styles.js";
+import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
     TaskQueryFilterReferences,
@@ -92,6 +96,7 @@ const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, 
 
 export function TaskQueryView({
     initialQuery,
+    initialGridViewExpansionState,
     initialBottomGhostTaskId,
     initialFilters,
     initialFilterReferences,
@@ -100,6 +105,7 @@ export function TaskQueryView({
     onSortsChange,
 }: {
     initialQuery: TaskClientQuery | null;
+    initialGridViewExpansionState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
     initialFilters: ReadonlyArray<TaskQueryFilter>;
     initialFilterReferences: TaskQueryFilterReferences;
@@ -107,10 +113,11 @@ export function TaskQueryView({
     initialSorts: ReadonlyArray<TaskQuerySort>;
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
+    const browserId = useBrowserId();
     const remPx = useRemPx();
     const store = useTaskClientStore();
     const currentDate = useCurrentDate();
-    const {currentAccount} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     const customizationBarRef = useRef<TaskQueryViewCustomizationBarRef>(null);
 
@@ -210,12 +217,14 @@ export function TaskQueryView({
             | {isAvailable: true; query: TaskClientQuery}
             | {isAvailable: false; isMissingRequiredFilters: boolean; query: null};
         readonly pendingQuery: TaskClientQuery | null;
+        readonly initialGridViewExpansionState: TaskGridViewExpansionState;
         readonly initialBottomGhostTaskId: TaskId;
     }>({
         activeQuery: initialQuery
             ? {isAvailable: true, query: initialQuery}
             : {isAvailable: false, isMissingRequiredFilters, query: null},
         pendingQuery: null,
+        initialGridViewExpansionState,
         // Should change whenever `activeQuery` changes.
         initialBottomGhostTaskId,
     });
@@ -290,19 +299,34 @@ export function TaskQueryView({
             setQueryState({
                 activeQuery: expectedQuery,
                 pendingQuery: null,
+                initialGridViewExpansionState: null,
                 initialBottomGhostTaskId: generateId(),
             });
             return;
         }
 
-        const newPendingQuery = store.createAndRetainQuery(expectedQuery.query);
-        newPendingQuery.loadMoreTasks(
-            getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
-        );
+        const newPendingQuery = batchStoreUpdates(() => {
+            const newPendingQuery = store.createAndRetainQuery({
+                filters: expectedQuery.query.filters,
+                sorts: expectedQuery.query.sorts,
+            });
+            newPendingQuery.loadMoreTasks(
+                getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+            );
+
+            // This needs to be called in `batchStoreUpdates()` since it delays our
+            // `TaskRealtimeClient` subscribing to the query.
+            getTaskRealtimeClientIfExistsForClient(
+                space.id,
+            )?.setShouldLoadGridViewExpansionStateForQuery(newPendingQuery);
+
+            return newPendingQuery;
+        });
 
         setQueryState({
             activeQuery: queryState.activeQuery,
             pendingQuery: newPendingQuery,
+            initialGridViewExpansionState: queryState.initialGridViewExpansionState,
             initialBottomGhostTaskId: queryState.initialBottomGhostTaskId,
         });
 
@@ -313,7 +337,15 @@ export function TaskQueryView({
                 newPendingQuery.release();
             });
         };
-    }, [isMissingRequiredFilters, normalizedFiltersResult, normalizedSorts, queryState, store]);
+    }, [
+        browserId,
+        isMissingRequiredFilters,
+        normalizedFiltersResult,
+        normalizedSorts,
+        queryState,
+        space.id,
+        store,
+    ]);
 
     // Once the pending query has finished loading, swap it out as the new
     // active query.
@@ -333,6 +365,10 @@ export function TaskQueryView({
             setQueryState({
                 activeQuery: {isAvailable: true, query: pendingQuery},
                 pendingQuery: null,
+                initialGridViewExpansionState:
+                    getTaskRealtimeClientIfExistsForClient(
+                        space.id,
+                    )?.takeInitialGridViewExpansionStateForQueryIfExists(pendingQuery) ?? null,
                 initialBottomGhostTaskId: generateId(),
             });
         });
@@ -340,7 +376,7 @@ export function TaskQueryView({
         return () => {
             isCancelled = true;
         };
-    }, [queryState]);
+    }, [queryState, space.id]);
 
     /* ========================================================================== *\
      *                                 Grid View                                  *
@@ -368,9 +404,7 @@ export function TaskQueryView({
             [],
         ),
         query: queryState.activeQuery.query,
-        // NOCOMMIT: `initialExpansionState`
-        initialExpansionState: null,
-        // NOCOMMIT: `initialBottomGhostTaskId`
+        initialExpansionState: queryState.initialGridViewExpansionState,
         initialBottomGhostTaskId: queryState.initialBottomGhostTaskId,
         viewRef,
         // NOCOMMIT
