@@ -145,6 +145,7 @@ export const rowNumberClassName = style({
             maxWidth: spacing["8"],
             ...fontSizes["50"],
             ...fontStyles["truncate"],
+            letterSpacing: "-0.1ch",
             // The right-most digits are most significant. Truncate at the start instead of
             // the end.
             direction: "rtl",
