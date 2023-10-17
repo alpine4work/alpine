@@ -482,7 +482,13 @@ function VirtualizedScrollView(
          * to add `pointerEvents: "auto"` on elements you want to be interactive with
          * a pointer.
          */
-        extraChildren?: ReactNode;
+        extraChildren?:
+            | ReactNode
+            | ((props: {
+                  contentHeight: number;
+                  viewHeight: number;
+                  shouldRenderWithRelativePositioning: boolean;
+              }) => ReactNode);
     },
     ref: Ref<VirtualizedScrollViewRef>,
 ) {
@@ -1442,7 +1448,13 @@ function VirtualizedScrollView(
                                     pointerEvents: "none",
                                 }}
                             >
-                                {extraChildren}
+                                {typeof extraChildren === "function"
+                                    ? extraChildren({
+                                          contentHeight,
+                                          viewHeight: state.getViewHeight(),
+                                          shouldRenderWithRelativePositioning,
+                                      })
+                                    : extraChildren}
                             </div>
                         )}
                         {shouldRenderWithRelativePositioning &&

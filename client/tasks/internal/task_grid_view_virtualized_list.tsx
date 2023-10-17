@@ -188,6 +188,7 @@ export function useTaskGridViewVirtualizedList({
     const context = useAppContext();
     const remPx = useRemPx();
 
+    const isRootQueryNull = rootQuery === null;
     const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
 
     const {
@@ -839,6 +840,7 @@ export function useTaskGridViewVirtualizedList({
                     node: (
                         <TaskGridViewDecorativeGhostTaskMemo
                             capabilities={capabilities}
+                            isRootQueryNull={isRootQueryNull}
                             relativeItemIndex={relativeItemIndex}
                             isLastItem={itemIndex === itemCount - 1}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
@@ -935,6 +937,7 @@ export function useTaskGridViewVirtualizedList({
         context,
         events,
         getAreChildTasksExpandedStore,
+        isRootQueryNull,
         itemCount,
         itemCountBeforeState,
         loadedState,
@@ -1304,17 +1307,21 @@ const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreUnloaded
 
 const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorativeGhostTaskMemo({
     capabilities,
+    isRootQueryNull,
     relativeItemIndex,
     isLastItem,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
+    isRootQueryNull: boolean;
     relativeItemIndex: number;
     isLastItem: boolean;
     focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
     focusPreviousTaskTitleAll: Memo<(key: string) => void>;
 }) {
+    const isInert = capabilities.isReadOnly || isRootQueryNull;
+
     return (
         <Box
             paddingX="5"
@@ -1325,9 +1332,9 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
             //
             // This is an affordance for mouse users, does not need to be usable
             // by keyboard.
-            cursor={!capabilities.isReadOnly ? "text" : undefined}
+            cursor={!isInert ? "text" : undefined}
             {...useOutOfBoundsClickSelection({
-                isDisabled: capabilities.isReadOnly,
+                isDisabled: isInert,
                 onSelect: () =>
                     focusPreviousTaskTitleEnd(`DecorativeGhostTask:${relativeItemIndex}`),
                 onSelectAll: () =>
