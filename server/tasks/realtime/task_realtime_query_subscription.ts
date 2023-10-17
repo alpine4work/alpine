@@ -121,6 +121,10 @@ export class TaskRealtimeQuerySubscription {
         return this._internal.query.sorts;
     }
 
+    public getLoadedTasks() {
+        return this._internal.getLoadedTasks();
+    }
+
     /**
      * Load more tasks into our subscription.
      *
@@ -241,6 +245,16 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
         }
 
         return eventBuilder.waitWithoutSending();
+    }
+
+    /**
+     * Get the tasks currently loaded in our subscription.
+     */
+    public getLoadedTasks() {
+        return this.query.getLoadedTasks({
+            limit: this._loadedCount,
+            afterCursor: null,
+        });
     }
 
     /**

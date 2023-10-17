@@ -636,6 +636,7 @@ export class WebSocketServer<
                     connection.executeProcedure(procedureName, input),
             ) as any,
             takeEvents: () => connection.takeEvents(),
+            peekEvents: () => connection.peekEvents(),
             subscribeToEvents: listener => connection.subscribeToEvents(listener),
             authorize: () => connection.authorize(),
             isClosed: () => connection.isClosed(),
@@ -1396,6 +1397,16 @@ export interface WebSocketServerTestConnection<
     takeEvents(): Array<WebSocketProtocolEventType<Protocol>>;
 
     /**
+     * Get all events sent by the WebSocket server to the client since the last
+     * `takeEvents()` call.
+     *
+     * Unlike `takeEvents()`, calling this function won't clear the buffered event
+     * array. You can keep calling `peekEvents()` repeatedly and get the same
+     * result.
+     */
+    peekEvents(): Array<WebSocketProtocolEventType<Protocol>>;
+
+    /**
      * Subscribe to events from the server as they are published. Returns a
      * function that lets you unsubscribe.
      */
@@ -1514,6 +1525,10 @@ class WebSocketServerTestConnectionWrapper<
         const messages = this._bufferedEvents;
         this._bufferedEvents = [];
         return messages;
+    }
+
+    public peekEvents(): Array<WebSocketProtocolEventType<Protocol>> {
+        return this._bufferedEvents.slice();
     }
 
     public subscribeToEvents(listener: (event: WebSocketProtocolEventType<Protocol>) => void) {

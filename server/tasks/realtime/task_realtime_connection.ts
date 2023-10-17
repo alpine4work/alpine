@@ -1,3 +1,4 @@
+import {inspect} from "util";
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {
     ServerSessionActionContext,
@@ -5,6 +6,7 @@ import {
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
@@ -14,9 +16,11 @@ import {
     prepareTaskForClient,
 } from "~/server/tasks/data/task_realtime_protocol_helpers.js";
 import {
+    getTaskGridViewExpansionState,
     isTaskCollectionIndexDocAccessAuthorized,
     isTaskIndexDocAccessAuthorized,
 } from "~/server/tasks/data/task_table.js";
+import {getTaskGridViewExpansionStateChildrenQueries} from "~/server/tasks/realtime/get_task_grid_view_expansion_state_children_queries.js";
 import {
     TaskRealtimeCollectionSubscription,
     TaskRealtimeCollectionSubscriptionCallbacks,
@@ -48,12 +52,14 @@ import {
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
+    BrowserId,
     SpaceId,
     TaskCollectionId,
     TaskId,
@@ -63,6 +69,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
+import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
@@ -71,6 +78,9 @@ import {
     TaskRealtimeProtocol,
     TaskRealtimeQueryLoadedState,
 } from "~/shared/tasks/task_realtime_protocol.js";
+
+export const taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint =
+    new TestCheckpoint<SpaceId>();
 
 /**
  * Manages a client's WebSocket connection with `TaskRealtimeService`. A client
@@ -209,81 +219,222 @@ export class TaskRealtimeConnection {
         sessionContext: ServerSessionActionContext,
         systemContext: TaskRealtimeSystemActionContext,
         eventBuilder: TaskRealtimeUpdateEventBuilder,
+        input: {
+            limit: number;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
+        },
+    ) {
+        return systemContext.tracer.withSpan("Subscribe to task query", (systemContext, span) => {
+            sessionContext = sessionContext.clone({tracer: new TracerContextModule(span)});
+
+            return this._actuallySubscribeToQuery(
+                sessionContext,
+                systemContext,
+                eventBuilder,
+                input,
+            );
+        });
+    }
+
+    private async _actuallySubscribeToQuery(
+        sessionContext: ServerSessionActionContext,
+        systemContext: TaskRealtimeSystemActionContext,
+        eventBuilder: TaskRealtimeUpdateEventBuilder,
         {
             limit,
             filters,
             sorts,
+            shouldLoadGridViewExpandedChildTasksForBrowserId,
         }: {
             limit: number;
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
         },
     ): Promise<{
         querySubscriptionId: TaskRealtimeQuerySubscriptionId;
         loadedState: TaskRealtimeQueryLoadedState;
         getPreviouslyBackfilledTaskIds: () => ReadonlyArray<TaskId>;
+        gridViewExpansionState: TaskGridViewExpansionState | null;
+        extraQueries: ReadonlyArray<{
+            querySubscriptionId: TaskRealtimeQuerySubscriptionId;
+            filters: TaskQueryNormalizedFilters;
+            sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
+            loadedState: TaskRealtimeQueryLoadedState;
+            getTaskIds: () => ReadonlyArray<TaskId>;
+        }>;
     }> {
-        return systemContext.tracer.withSpan(
-            "Subscribe to task query",
-            async (systemContext, span) => {
-                sessionContext = sessionContext.clone({tracer: new TracerContextModule(span)});
+        const gridViewExpansionStatePromise = shouldLoadGridViewExpandedChildTasksForBrowserId
+            ? getTaskGridViewExpansionState(sessionContext, {
+                  spaceId: this._spaceId,
+                  browserId: shouldLoadGridViewExpandedChildTasksForBrowserId,
+                  filters,
+                  sorts,
+              })
+            : null;
 
-                // Must authorize before using system context.
-                await this._server.authorizeQueryAccess(sessionContext, {
-                    spaceId: this._spaceId,
-                    filters,
-                    sorts,
-                });
+        const promise = (async () => {
+            // Must authorize before using system context.
+            await this._server.authorizeQueryAccess(sessionContext, {
+                spaceId: this._spaceId,
+                filters,
+                sorts,
+            });
 
-                const querySubscription = await this._server.subscribeToQuery(systemContext, {
-                    spaceId: this._spaceId,
-                    filters,
-                    sorts,
-                    callbacks: this._subscriptionCallbacks,
-                });
+            const querySubscription = await this._server.subscribeToQuery(systemContext, {
+                spaceId: this._spaceId,
+                filters,
+                sorts,
+                callbacks: this._subscriptionCallbacks,
+            });
 
-                const querySubscriptionId = generateId<TaskRealtimeQuerySubscriptionId>();
+            const querySubscriptionId = generateId<TaskRealtimeQuerySubscriptionId>();
 
-                assert(!this._querySubscriptionById.has(querySubscriptionId));
-                this._querySubscriptionById.set(querySubscriptionId, querySubscription);
+            assert(!this._querySubscriptionById.has(querySubscriptionId));
+            this._querySubscriptionById.set(querySubscriptionId, querySubscription);
 
-                try {
-                    const {loadedState, tasks} = await querySubscription.loadMoreTasks(
-                        systemContext,
-                        eventBuilder,
+            const childrenQuerySubscriptionById = new Map<
+                TaskRealtimeQuerySubscriptionId,
+                TaskRealtimeQuerySubscription
+            >();
+
+            try {
+                const {loadedState, tasks} = await querySubscription.loadMoreTasks(
+                    systemContext,
+                    eventBuilder,
+                    limit,
+                );
+
+                const gridViewExpansionState = await gridViewExpansionStatePromise;
+
+                const childrenQueryPromises = getTaskGridViewExpansionStateChildrenQueries(
+                    systemContext,
+                    {
+                        server: this._server,
+                        spaceId: this._spaceId,
+                        accountId: this._accountId,
                         limit,
-                    );
+                        tasks,
+                        gridViewExpansionState,
+                        loadQuery: async ({
+                            filters: childrenFilters,
+                            sorts: childrenSorts,
+                            limit: childrenLimit,
+                        }) => {
+                            await this._server.authorizeQueryAccess(sessionContext, {
+                                spaceId: this._spaceId,
+                                filters: childrenFilters,
+                                sorts: childrenSorts,
+                            });
 
-                    return {
-                        querySubscriptionId,
-                        loadedState,
-                        // This property can only be computed after `eventBuilder.send()` which is why
-                        // it's in a function.
-                        getPreviouslyBackfilledTaskIds: () => {
-                            // All the tasks we loaded that weren't backfilled we send in a
-                            // `previouslyBackfilledTaskIds` array so the client can add them to its local
-                            // query model.
-                            const backfillAuthorizedTaskIds =
-                                eventBuilder.getBackfillAuthorizedTaskIds(this._sender);
-                            const previouslyBackfilledTaskIds: Array<TaskId> = [];
+                            const childrenQuerySubscription = await this._server.subscribeToQuery(
+                                systemContext,
+                                {
+                                    spaceId: this._spaceId,
+                                    filters: childrenFilters,
+                                    sorts: childrenSorts,
+                                    callbacks: this._subscriptionCallbacks,
+                                },
+                            );
 
-                            for (const task of tasks) {
-                                if (backfillAuthorizedTaskIds.has(task.id)) continue;
-                                previouslyBackfilledTaskIds.push(task.id);
-                            }
+                            const childrenQuerySubscriptionId =
+                                generateId<TaskRealtimeQuerySubscriptionId>();
 
-                            return previouslyBackfilledTaskIds;
+                            assert(!this._querySubscriptionById.has(childrenQuerySubscriptionId));
+                            this._querySubscriptionById.set(
+                                childrenQuerySubscriptionId,
+                                childrenQuerySubscription,
+                            );
+
+                            // Immediately keep track of the new subscription. If there's an error we want
+                            // to unsubscribe.
+                            childrenQuerySubscriptionById.set(
+                                childrenQuerySubscriptionId,
+                                childrenQuerySubscription,
+                            );
+
+                            const {loadedState: childrenLoadedState} =
+                                await childrenQuerySubscription.loadMoreTasks(
+                                    systemContext,
+                                    eventBuilder,
+                                    childrenLimit,
+                                );
+
+                            return {
+                                querySubscriptionId: childrenQuerySubscriptionId,
+                                filters: childrenFilters,
+                                sorts: childrenSorts,
+                                limit: childrenLimit,
+                                loadedState: childrenLoadedState,
+                                // This property can only be computed right before we send our procedure
+                                // response which is why it's in a function. Otherwise we may miss
+                                // realtime updates.
+                                getTaskIds: () =>
+                                    childrenQuerySubscription
+                                        .getLoadedTasks()
+                                        .tasks.map(task => task.id),
+                            };
                         },
-                    };
-                } catch (error) {
-                    this._querySubscriptionById.delete(querySubscriptionId);
+                    },
+                );
 
-                    await querySubscription.unsubscribe(systemContext);
+                const extraQueries = await runAllPromises(childrenQueryPromises);
 
-                    throw error;
-                }
-            },
-        );
+                await taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint.waitForTest(
+                    this._spaceId,
+                );
+
+                return {
+                    querySubscriptionId,
+                    loadedState,
+                    // This property can only be computed after `eventBuilder.send()` which is why
+                    // it's in a function.
+                    getPreviouslyBackfilledTaskIds: () => {
+                        // All the tasks we loaded that weren't backfilled we send in a
+                        // `previouslyBackfilledTaskIds` array so the client can add them to its local
+                        // query model.
+                        const backfillAuthorizedTaskIds = eventBuilder.getBackfillAuthorizedTaskIds(
+                            this._sender,
+                        );
+                        const previouslyBackfilledTaskIds: Array<TaskId> = [];
+
+                        for (const task of tasks) {
+                            if (backfillAuthorizedTaskIds.has(task.id)) continue;
+                            previouslyBackfilledTaskIds.push(task.id);
+                        }
+
+                        return previouslyBackfilledTaskIds;
+                    },
+                    gridViewExpansionState,
+                    extraQueries: extraQueries.filter(isNonNullable),
+                };
+            } catch (error) {
+                // If we erred before we could return our subscription IDs to the client then
+                // we need to unsubscribe from all our subscriptions here so we don't have a
+                // memory leak.
+                await runAllPromises(
+                    mapIterable(
+                        concatIterables(
+                            [[querySubscriptionId, querySubscription] as const],
+                            childrenQuerySubscriptionById,
+                        ),
+                        async ([querySubscriptionId, querySubscription]) => {
+                            this._querySubscriptionById.delete(querySubscriptionId);
+                            await querySubscription.unsubscribe(systemContext);
+                        },
+                    ),
+                );
+
+                throw error;
+            }
+        })();
+
+        const [, result] = await runAllPromises([gridViewExpansionStatePromise, promise]);
+
+        return result;
     }
 
     private async _unsubscribeFromQuery(
@@ -420,13 +571,18 @@ export class TaskRealtimeConnection {
                         actionReferencedAccountById: null,
                     });
 
-                    const {querySubscriptionId, loadedState, getPreviouslyBackfilledTaskIds} =
-                        await this._subscribeToQuery(
-                            sessionContext,
-                            systemContext,
-                            eventBuilder,
-                            input,
-                        );
+                    const {
+                        querySubscriptionId,
+                        loadedState,
+                        getPreviouslyBackfilledTaskIds,
+                        gridViewExpansionState,
+                        extraQueries,
+                    } = await this._subscribeToQuery(
+                        sessionContext,
+                        systemContext,
+                        eventBuilder,
+                        input,
+                    );
 
                     try {
                         await eventBuilder.send(systemContext, this._spaceId);
@@ -435,6 +591,11 @@ export class TaskRealtimeConnection {
                             querySubscriptionId,
                             loadedState,
                             previouslyBackfilledTaskIds: getPreviouslyBackfilledTaskIds(),
+                            gridViewExpansionState,
+                            extraQueries: extraQueries.map(({getTaskIds, ...extraQuery}) => ({
+                                ...extraQuery,
+                                taskIds: getTaskIds(),
+                            })),
                         };
                     } catch (error) {
                         await this._unsubscribeFromQuery(systemContext, querySubscriptionId);
@@ -626,6 +787,13 @@ export class TaskRealtimeConnection {
                                         loadedState: result.value.loadedState,
                                         previouslyBackfilledTaskIds:
                                             result.value.getPreviouslyBackfilledTaskIds(),
+                                        gridViewExpansionState: result.value.gridViewExpansionState,
+                                        extraQueries: result.value.extraQueries.map(
+                                            ({getTaskIds, ...extraQuery}) => ({
+                                                ...extraQuery,
+                                                taskIds: getTaskIds(),
+                                            }),
+                                        ),
                                     };
                                 }
                             }),
@@ -663,9 +831,21 @@ export class TaskRealtimeConnection {
                             runAllPromises(
                                 querySubscriptionResults.map(async queryResult => {
                                     if (queryResult.status === "fulfilled") {
-                                        await this._unsubscribeFromQuery(
-                                            systemContext,
-                                            queryResult.value.querySubscriptionId,
+                                        await runAllPromises(
+                                            mapIterable(
+                                                concatIterables(
+                                                    [queryResult.value.querySubscriptionId],
+                                                    queryResult.value.extraQueries.map(
+                                                        extraQuery =>
+                                                            extraQuery.querySubscriptionId,
+                                                    ),
+                                                ),
+                                                querySubscriptionId =>
+                                                    this._unsubscribeFromQuery(
+                                                        systemContext,
+                                                        querySubscriptionId,
+                                                    ),
+                                            ),
                                         );
                                     }
                                 }),

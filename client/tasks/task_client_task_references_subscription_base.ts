@@ -30,7 +30,7 @@ const previousReferencedTaskByIdBySubscriptionForTest =
  * references in realtime.
  */
 export abstract class TaskClientTaskReferencesSubscriptionBase {
-    protected _onBeforeReferencedTaskRemove: ((taskId: TaskId) => void) | null = null;
+    protected _onBeforeReferencedTaskAddOrRemove: ((taskId: TaskId) => void) | null = null;
 
     protected abstract _getStore(): TaskClientStoreInternal;
 
@@ -105,6 +105,14 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
     }
 
     private _onReferencedTaskAdd(taskId: TaskId, newTaskEntry: TaskClientStoreTaskEntry) {
+        // Makes sure we apply any updates to this task before adding it. See the
+        // comment on our `onReferencedTaskRemove()` call below for more information.
+        //
+        // While it's ok for this class to see an add with an old task then an update
+        // with the new task, our subscribed callbacks may be confused to see an old
+        // task from this call when it's seen a new task from another subscription.
+        this._onBeforeReferencedTaskAddOrRemove?.(taskId);
+
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
@@ -170,7 +178,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
         // implementation for this function that if we're removing a task that has a
         // pending update the class can tell us about the update immediately before
         // continuing with the remove.
-        this._onBeforeReferencedTaskRemove?.(taskId);
+        this._onBeforeReferencedTaskAddOrRemove?.(taskId);
 
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.

@@ -625,7 +625,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
         const alreadyUpdatedReferencedTaskIds = new Set<TaskId>();
 
-        const onBeforeReferencedTaskRemove = (taskId: TaskId) => {
+        const onBeforeReferencedTaskAddOrRemove = (taskId: TaskId) => {
             if (alreadyUpdatedReferencedTaskIds.has(taskId)) return;
             alreadyUpdatedReferencedTaskIds.add(taskId);
 
@@ -643,8 +643,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             );
         };
 
-        assert(this._onBeforeReferencedTaskRemove === null);
-        this._onBeforeReferencedTaskRemove = onBeforeReferencedTaskRemove;
+        assert(this._onBeforeReferencedTaskAddOrRemove === null);
+        this._onBeforeReferencedTaskAddOrRemove = onBeforeReferencedTaskAddOrRemove;
         try {
             // Get the referenced `TaskId`s we need to update.
             const updatedOriginalReferencedTaskIds = new Set<TaskId>();
@@ -766,7 +766,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                 taskOrder = taskOrder.remove(oldCursor).insert(newCursor, null);
             }
         } finally {
-            this._onBeforeReferencedTaskRemove = null;
+            this._onBeforeReferencedTaskAddOrRemove = null;
         }
 
         if (taskOrder !== previousTaskOrder) {

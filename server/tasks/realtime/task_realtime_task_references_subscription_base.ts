@@ -157,6 +157,14 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
         eventBuilder: TaskRealtimeUpdateEventBuilder,
         newTask: TaskIndexDoc,
     ) {
+        // Makes sure we apply any updates to this task before adding it. See the
+        // comment on our `onReferencedTaskRemove()` call below for more information.
+        //
+        // While it's ok for this class to see an add with an old task then an update
+        // with the new task, our subscribed callbacks may be confused to see an old
+        // task from this call when it's seen a new task from another subscription.
+        this._getStore().onReferencedTaskAddOrRemove(newTask.id);
+
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.
         if (process.env.NODE_ENV !== "production") {
@@ -242,7 +250,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
         // implementation for this function that if we're removing a task that has a
         // pending update the store can tell us about the update immediately before
         // continuing with the remove.
-        this._getStore().onReferencedTaskRemove(oldTask.id);
+        this._getStore().onReferencedTaskAddOrRemove(oldTask.id);
 
         // When testing, keep track of the tasks we've seen so we can guarantee we've
         // seen every relevant update for a task.

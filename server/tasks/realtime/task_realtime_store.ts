@@ -983,7 +983,7 @@ export class TaskRealtimeStoreInternal {
             }
         };
 
-        const onReferencedTaskRemove = (taskId: TaskId) => {
+        const onReferencedTaskAddOrRemove = (taskId: TaskId) => {
             const taskEntryUpdate = taskEntryUpdateById.get(taskId);
 
             if (taskEntryUpdate) {
@@ -991,8 +991,8 @@ export class TaskRealtimeStoreInternal {
             }
         };
 
-        assert(this._onReferencedTaskRemove === null);
-        this._onReferencedTaskRemove = onReferencedTaskRemove;
+        assert(this._onReferencedTaskAddOrRemove === null);
+        this._onReferencedTaskAddOrRemove = onReferencedTaskAddOrRemove;
         try {
             // 2. Process task updates in task references subscriptions (query
             // subscriptions and task subscriptions), direct task subscriptions, and direct
@@ -1001,7 +1001,7 @@ export class TaskRealtimeStoreInternal {
                 applyTaskEntryUpdate(taskEntryUpdate);
             }
         } finally {
-            this._onReferencedTaskRemove = null;
+            this._onReferencedTaskAddOrRemove = null;
         }
 
         return queriesByMaybeAddVisibleTaskIdToLoad;
@@ -1041,10 +1041,10 @@ export class TaskRealtimeStoreInternal {
         await eventBuilder.send(context, this.spaceId);
     }
 
-    private _onReferencedTaskRemove: ((taskId: TaskId) => void) | null = null;
+    private _onReferencedTaskAddOrRemove: ((taskId: TaskId) => void) | null = null;
 
-    public onReferencedTaskRemove(taskId: TaskId) {
-        this._onReferencedTaskRemove?.(taskId);
+    public onReferencedTaskAddOrRemove(taskId: TaskId) {
+        this._onReferencedTaskAddOrRemove?.(taskId);
     }
 
     /**

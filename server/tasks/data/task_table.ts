@@ -3970,6 +3970,8 @@ export async function getTaskGridViewExpansionState(
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     },
 ): Promise<TaskGridViewExpansionState> {
+    await authorizeSpaceAccess(context, spaceId);
+
     const item = await TaskTable.getItemIfExists(context, {
         partitionType: "TaskGridViewExpansionState",
         sortRangeType: "Attributes",

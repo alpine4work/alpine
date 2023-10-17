@@ -7,8 +7,14 @@ import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {queryTaskIndexTestCounter} from "~/server/tasks/data/task_index.js";
-import {deleteTaskAndAllChildren} from "~/server/tasks/data/task_table.js";
-import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
+import {
+    deleteTaskAndAllChildren,
+    updateTaskGridViewExpansionState,
+} from "~/server/tasks/data/task_table.js";
+import {
+    TaskRealtimeConnection,
+    taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint,
+} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {
     taskRealtimeStoreBeforeLoadCollectionTestCheckpoint,
     taskRealtimeStoreBeforeLoadTaskTestCheckpoint,
@@ -36,9 +42,10 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {BrowserId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -204,6 +211,8 @@ test("can load a query when there are no tasks", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -241,6 +250,8 @@ test("can load a query with some tasks", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -296,6 +307,8 @@ test("can paginate a query with many tasks", async () => {
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -409,6 +422,8 @@ test("can load a query with filters", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -446,6 +461,8 @@ test("can load a query with filters", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -502,6 +519,8 @@ test("can load a query with sorts", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -574,6 +593,8 @@ test("two subscriptions with identical queries use the same underlying query", a
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -613,6 +634,8 @@ test("two subscriptions with identical queries use the same underlying query", a
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -718,6 +741,8 @@ test("two subscriptions with different queries load different queries", async ()
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -758,6 +783,8 @@ test("two subscriptions with different queries load different queries", async ()
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(2);
@@ -822,6 +849,8 @@ test("will send actions for updated tasks in the subscription's loaded range", a
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -941,6 +970,8 @@ test("will send actions for removed tasks in the subscription's loaded range", a
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -1060,6 +1091,8 @@ test("will backfill added tasks in the subscription's loaded range", async () =>
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -1184,6 +1217,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -1204,6 +1239,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -1224,6 +1261,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -1244,6 +1283,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -1264,6 +1305,8 @@ test("will send actions for updated tasks in multiple connections", async () => 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [task2.id, task3.id, task4.id],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -1629,6 +1672,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -1649,6 +1694,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -1669,6 +1716,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -1689,6 +1738,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -1709,6 +1760,8 @@ test("will send actions for removed/added tasks in multiple connections", async 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [task2.id, task3.id, task4.id],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2163,6 +2216,8 @@ test("visible task added out of loaded range ignored", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2184,6 +2239,8 @@ test("visible task added out of loaded range ignored", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2204,6 +2261,8 @@ test("visible task added out of loaded range ignored", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2307,6 +2366,8 @@ test("visible task updated out of loaded range ignored", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2328,6 +2389,8 @@ test("visible task updated out of loaded range ignored", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2348,6 +2411,8 @@ test("visible task updated out of loaded range ignored", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2462,6 +2527,8 @@ test("visible task removed out of loaded range ignored", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2483,6 +2550,8 @@ test("visible task removed out of loaded range ignored", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2503,6 +2572,8 @@ test("visible task removed out of loaded range ignored", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2624,6 +2695,8 @@ test("visible task moved into loaded range", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [50, expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2646,6 +2719,8 @@ test("visible task moved into loaded range", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2667,6 +2742,8 @@ test("visible task moved into loaded range", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2798,6 +2875,8 @@ test("visible task moved out of loaded range", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: [25, expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2820,6 +2899,8 @@ test("visible task moved out of loaded range", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Partial", endCursor: null},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2841,6 +2922,8 @@ test("visible task moved out of loaded range", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -2964,6 +3047,8 @@ test("unsubscribe stops sending actions to connection", async () => {
     expect(result).toEqual({
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(
@@ -2984,6 +3069,8 @@ test("unsubscribe stops sending actions to connection", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -3132,6 +3219,8 @@ test("loading tasks with zero limit is fine", async () => {
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: null},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -3177,6 +3266,8 @@ test("loading tasks with zero limit when there are no tasks", async () => {
     expect(result).toEqual({
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -3271,6 +3362,8 @@ test("all referenced collections will be backfilled in the query when loaded", a
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -3402,6 +3495,8 @@ test("all referenced collections will be backfilled in the query when added", as
     expect(result).toEqual({
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -3538,6 +3633,8 @@ test("when a collection is added it will be backfilled", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -3662,6 +3759,8 @@ test("if a collection is referenced then the connection will receive actions for
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -3793,6 +3892,8 @@ test("if a collection is referenced then the all references must be removed to n
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4025,6 +4126,8 @@ test("collections unreferenced by removing loaded task do not receive actions", 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4149,6 +4252,8 @@ test("collections can be referenced, unreferenced, then referenced again", async
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4309,6 +4414,8 @@ test("parent tasks are backfilled when query is initially loaded", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4383,6 +4490,8 @@ test("parent tasks are backfilled when more is loaded from query", async () => {
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4474,6 +4583,8 @@ test("parent tasks are backfilled when task is made visible", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4548,6 +4659,8 @@ test("parent tasks is backfilled when task is updated", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4669,6 +4782,8 @@ test("parents of loaded tasks receive update actions", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -4847,6 +4962,8 @@ test("parents of loaded tasks receive update actions until all references are re
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5087,6 +5204,8 @@ test("grandparent tasks are backfilled when query is initially loaded", async ()
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5162,6 +5281,8 @@ test("grandparent tasks are backfilled when more is loaded from query", async ()
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5258,6 +5379,8 @@ test("grandparent tasks are backfilled when task is made visible", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5341,6 +5464,8 @@ test("grandparent tasks are backfilled when task is updated", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5570,6 +5695,8 @@ test("grandparents of loaded tasks receive update actions", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -5758,6 +5885,8 @@ test("grandparents of loaded tasks receive update actions until all references a
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6017,6 +6146,8 @@ test("collections of parent tasks are backfilled when query is initially loaded"
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6111,6 +6242,8 @@ test("collections of parent tasks are backfilled when more is loaded from query"
     expect(result).toEqual({
         loadedState: {type: "Partial", endCursor: [expect.any(Array), task3.id]},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6210,6 +6343,8 @@ test("collections of parent tasks are backfilled when task is made visible", asy
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6292,6 +6427,8 @@ test("collections of parent tasks are backfilled when task is updated", async ()
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6519,6 +6656,8 @@ test("collections of parents of loaded tasks receive update actions", async () =
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6737,6 +6876,8 @@ test("collections of parents of loaded tasks receive update actions until all re
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -6974,6 +7115,8 @@ test("race condition: parent task can change before previous parent task has loa
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -7171,6 +7314,8 @@ test("race condition: parent task can change before previous grandparent task ha
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -7371,6 +7516,8 @@ test("race condition: parent task is removed before it's loaded", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -7517,6 +7664,8 @@ test("race condition: collection can be removed before previous collection has l
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -7659,6 +7808,8 @@ test("race condition: parent task can change before previous collection of paren
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -7842,6 +7993,8 @@ test("multiple subscriptions that receive the same actions only show action once
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -7877,6 +8030,8 @@ test("multiple subscriptions that receive the same actions only show action once
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [task3.id],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8010,6 +8165,8 @@ test("referenced task may be unauthorized", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8102,6 +8259,8 @@ test("unauthorized referenced task will be authorized if later loaded", async ()
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8275,6 +8434,8 @@ test("authorized referenced task may be loaded later", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8470,6 +8631,8 @@ test("a loaded task may then become referenced", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8631,6 +8794,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8663,6 +8828,8 @@ test("loaded task may be loaded by two subscriptions", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [task1.id, task2.id],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8912,6 +9079,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -8944,6 +9113,8 @@ test("authorized referenced task may be referenced multiple times", async () => 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [task1.id, task2.id],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -9081,6 +9252,8 @@ test("unauthorized referenced task may be referenced multiple times", async () =
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9113,6 +9286,8 @@ test("unauthorized referenced task may be referenced multiple times", async () =
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [task1.id, task2.id],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -9234,6 +9409,8 @@ test("may reference unauthorized collections", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9334,6 +9511,8 @@ test("authorized referenced collection may be referenced multiple times", async 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9366,6 +9545,8 @@ test("authorized referenced collection may be referenced multiple times", async 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [task1.id, task2.id],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -9496,6 +9677,8 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9528,6 +9711,8 @@ test("unauthorized referenced collection may be referenced multiple times", asyn
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [task1.id, task2.id],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([]);
@@ -9635,6 +9820,8 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9750,6 +9937,8 @@ test("will reauthorize an authorized referenced task to unauthorized", async () 
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9904,6 +10093,8 @@ test("reauthorize will noop if an unauthorized referenced task is still unauthor
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -9979,6 +10170,8 @@ test("reauthorize will noop if an authorized referenced task is still authorized
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10093,6 +10286,8 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10206,6 +10401,8 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10358,6 +10555,8 @@ test("reauthorize will noop if an unauthorized referenced collection is still un
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10431,6 +10630,8 @@ test("reauthorize will noop if an authorized referenced collection is still auth
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection.takeEvents()).toEqual([
@@ -10552,6 +10753,8 @@ test("referenced data is not evicted", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -10658,6 +10861,8 @@ test("referenced data is not evicted", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -10731,6 +10936,8 @@ test("unreferenced data is evicted", async () => {
     expect(result).toEqual({
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -10803,6 +11010,8 @@ test("unreferenced data is evicted", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(2);
@@ -10876,6 +11085,8 @@ test("unreferenced data can be reused when no eviction", async () => {
     expect(result).toEqual({
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -10944,6 +11155,8 @@ test("unreferenced data can be reused when no eviction", async () => {
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(getCount()).toEqual(1);
@@ -11012,6 +11225,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection1.takeEvents()).toEqual([
@@ -11105,6 +11320,8 @@ test("can handle temporary cycle involving loaded tasks when actions are applied
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection2.takeEvents()).toEqual([
@@ -11322,6 +11539,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     server.pauseApplyActionTransactions();
@@ -11399,6 +11618,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     expect(connection2.takeEvents()).toEqual([
@@ -11648,6 +11869,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     server.pauseApplyActionTransactions();
@@ -11847,6 +12070,8 @@ test("can handle temporary cycle not involving loaded tasks when actions are app
         querySubscriptionId: expect.any(String),
         loadedState: {type: "Full"},
         previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
     });
 
     server.pauseApplyActionTransactions();
@@ -13279,4 +13504,768 @@ test("deleting task and all children when subscribed to task and its children", 
     await deleteTaskAndAllChildren(TestTask.action(session), task1.id, testClock.nowLogical());
 
     await server.wait();
+});
+
+test("will load some expanded task queries if requested", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const browserId = generateId<BrowserId>();
+
+    const [
+        task1,
+        task2,
+        task2a,
+        task2b,
+        task2b1,
+        task2c,
+        task3,
+        task3a,
+        task4a,
+        task5,
+        task5a,
+        task5b,
+        task6,
+        task6a,
+        task4,
+        collection,
+    ] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    await task4.addCollection(session2, collection);
+
+    await runAllPromises([
+        task1.updatePriority(session1, "High"),
+        task2.updatePriority(session1, "High"),
+        task3.updatePriority(session1, "High"),
+        task4.updatePriority(session1, "High"),
+        task5.updatePriority(session1, "High"),
+        task6.updatePriority(session1, "High"),
+        task2a.updateParentTask(session1, task2),
+        task2b.updateParentTask(session1, task2),
+        task2c.updateParentTask(session1, task2),
+        task2b1.updateParentTask(session1, task2b),
+        task3a.updateParentTask(session1, task3),
+        task4a.updateParentTask(session1, task4),
+        task5a.updateParentTask(session1, task5),
+        task5b.updateParentTask(session1, task5),
+        task6a.updateParentTask(session1, task6),
+    ]);
+
+    const highPriorityQuery = query(session1, {
+        filters: [
+            {
+                type: "Creator",
+                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+            },
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["High"])},
+            },
+        ],
+    });
+
+    const server = createWebSocketServer(space);
+    await server.wait();
+
+    const gridViewExpansionState1: TaskGridViewExpansionState = new Map([
+        [
+            task2.id,
+            {
+                isExpanded: true,
+                childTasks: new Map([
+                    [task4.id, {isExpanded: true, childTasks: null}],
+                    [task2b.id, {isExpanded: true, childTasks: null}],
+                ]),
+            },
+        ],
+        [task5.id, {isExpanded: true, childTasks: null}],
+        [task6.id, {isExpanded: true, childTasks: null}],
+    ]);
+
+    await updateTaskGridViewExpansionState(session1.action(), {
+        spaceId: space.id,
+        browserId,
+        filters: highPriorityQuery.filters,
+        sorts: highPriorityQuery.sorts,
+        state: gridViewExpansionState1,
+    });
+
+    {
+        const connection = await server.connectForTest(context.action(session1));
+
+        expect(connection.takeEvents()).toEqual([]);
+
+        expect(
+            await connection.procedures.subscribeToQuery({
+                ...highPriorityQuery,
+                limit: 9,
+            }),
+        ).toEqual({
+            querySubscriptionId: expect.any(String),
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [],
+            gridViewExpansionState: null,
+            extraQueries: [],
+        });
+
+        expect(connection.takeEvents()).toEqual([
+            {
+                type: "Update",
+                originClientId: null,
+                defaultAuthorizationStateVersion: expect.any(Array),
+                actions: [],
+                backfillTasks: [
+                    expectAuthorizedTask(task1.id),
+                    expectAuthorizedTask(task2.id),
+                    expectAuthorizedTask(task3.id),
+                    expectAuthorizedTask(task5.id),
+                    expectAuthorizedTask(task6.id),
+                ],
+                backfillCollections: [],
+                referencedAccounts: [await session1.get()],
+            },
+        ]);
+    }
+
+    {
+        const connection = await server.connectForTest(context.action(session1));
+
+        expect(connection.takeEvents()).toEqual([]);
+
+        expect(
+            await connection.procedures.subscribeToQuery({
+                ...highPriorityQuery,
+                limit: 9,
+                shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
+            }),
+        ).toEqual({
+            querySubscriptionId: expect.any(String),
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [],
+            gridViewExpansionState: gridViewExpansionState1,
+            extraQueries: [
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task2.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task2a.id, task2b.id, task2c.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task4.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task4a.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task2b.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task2b1.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task5.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task5a.id, task5b.id],
+                },
+            ],
+        });
+
+        const events = connection.takeEvents();
+
+        (events[0]?.backfillTasks as Array<{task: TaskModel}> | undefined)?.sort((task1, task2) =>
+            defaultCompareStrings(task1.task.id, task2.task.id),
+        );
+
+        expect(events).toEqual([
+            {
+                type: "Update",
+                originClientId: null,
+                defaultAuthorizationStateVersion: expect.any(Array),
+                actions: [],
+                backfillTasks: [
+                    task1.id,
+                    task2.id,
+                    task3.id,
+                    task5.id,
+                    task6.id,
+                    task2a.id,
+                    task2b.id,
+                    task2c.id,
+                    task2b1.id,
+                    task4.id,
+                    task4a.id,
+                    task5a.id,
+                    task5b.id,
+                ]
+                    .sort(defaultCompareStrings)
+                    .map(expectAuthorizedTask),
+                backfillCollections: [expectAuthorizedCollection(collection.id)],
+                referencedAccounts: [await session1.get(), await session2.get()],
+            },
+        ]);
+    }
+
+    await task4.removeCollection(session2, collection);
+    await server.wait();
+
+    {
+        const connection = await server.connectForTest(context.action(session1));
+
+        expect(connection.takeEvents()).toEqual([]);
+
+        expect(
+            await connection.procedures.subscribeToQuery({
+                ...highPriorityQuery,
+                limit: 9,
+                shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
+            }),
+        ).toEqual({
+            querySubscriptionId: expect.any(String),
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [],
+            gridViewExpansionState: gridViewExpansionState1,
+            extraQueries: [
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task2.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task2a.id, task2b.id, task2c.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task2b.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task2b1.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task5.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task5a.id, task5b.id],
+                },
+            ],
+        });
+
+        const events = connection.takeEvents();
+
+        (events[0]?.backfillTasks as Array<{task: TaskModel}> | undefined)?.sort((task1, task2) =>
+            defaultCompareStrings(task1.task.id, task2.task.id),
+        );
+
+        expect(events).toEqual([
+            {
+                type: "Update",
+                originClientId: null,
+                defaultAuthorizationStateVersion: expect.any(Array),
+                actions: [],
+                backfillTasks: [
+                    task1.id,
+                    task2.id,
+                    task3.id,
+                    task5.id,
+                    task6.id,
+                    task2a.id,
+                    task2b.id,
+                    task2c.id,
+                    task2b1.id,
+                    task5a.id,
+                    task5b.id,
+                ]
+                    .sort(defaultCompareStrings)
+                    .map(expectAuthorizedTask),
+                backfillCollections: [],
+                referencedAccounts: [await session1.get()],
+            },
+        ]);
+    }
+
+    const gridViewExpansionState2 = new Map([
+        [
+            task2.id,
+            {
+                isExpanded: true,
+                childTasks: new Map([[task2b.id, {isExpanded: true, childTasks: null}]]),
+            },
+        ],
+        [task5.id, {isExpanded: true, childTasks: null}],
+        [task6.id, {isExpanded: true, childTasks: null}],
+    ]);
+
+    await updateTaskGridViewExpansionState(session1.action(), {
+        spaceId: space.id,
+        browserId,
+        filters: highPriorityQuery.filters,
+        sorts: highPriorityQuery.sorts,
+        state: gridViewExpansionState2,
+    });
+
+    {
+        const connection = await server.connectForTest(context.action(session1));
+
+        expect(connection.takeEvents()).toEqual([]);
+
+        expect(
+            await connection.procedures.subscribeToQuery({
+                ...highPriorityQuery,
+                limit: 9,
+                shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
+            }),
+        ).toEqual({
+            querySubscriptionId: expect.any(String),
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [],
+            gridViewExpansionState: gridViewExpansionState2,
+            extraQueries: [
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task2.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task2a.id, task2b.id, task2c.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task2b.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task2b1.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task5.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task5a.id, task5b.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task6.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    taskIds: [task6a.id],
+                },
+            ],
+        });
+
+        const events = connection.takeEvents();
+
+        (events[0]?.backfillTasks as Array<{task: TaskModel}> | undefined)?.sort((task1, task2) =>
+            defaultCompareStrings(task1.task.id, task2.task.id),
+        );
+
+        expect(events).toEqual([
+            {
+                type: "Update",
+                originClientId: null,
+                defaultAuthorizationStateVersion: expect.any(Array),
+                actions: [],
+                backfillTasks: [
+                    task1.id,
+                    task2.id,
+                    task3.id,
+                    task5.id,
+                    task6.id,
+                    task2a.id,
+                    task2b.id,
+                    task2c.id,
+                    task2b1.id,
+                    task5a.id,
+                    task5b.id,
+                    task6a.id,
+                ]
+                    .sort(defaultCompareStrings)
+                    .map(expectAuthorizedTask),
+                backfillCollections: [],
+                referencedAccounts: [await session1.get()],
+            },
+        ]);
+    }
+});
+
+test("race condition: extra query task ids includes task from action that happens during subscribe", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+    const browserId = generateId<BrowserId>();
+
+    const [task1, task2, task2a, task2b, task3, collection] = await runAllPromises([
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTask.create(session),
+        TestTaskCollection.createPrivate(session),
+    ]);
+
+    await runAllPromises([
+        task2a.updateParentTask(session, task2),
+        task1.updatePriority(session, "High"),
+        task2.updatePriority(session, "High"),
+        task3.updatePriority(session, "High"),
+        task2b.updatePriority(session, "Low"),
+    ]);
+
+    const highPriorityQuery = query(session, {
+        filters: [
+            {
+                type: "Creator",
+                operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+            },
+            {
+                type: "Priority",
+                operation: {type: "OneOf", priorities: new Set(["High"])},
+            },
+        ],
+    });
+
+    const gridViewExpansionState: TaskGridViewExpansionState = new Map([
+        [
+            task2.id,
+            {
+                isExpanded: true,
+                childTasks: null,
+            },
+        ],
+    ]);
+
+    await updateTaskGridViewExpansionState(session.action(), {
+        spaceId: space.id,
+        browserId,
+        filters: highPriorityQuery.filters,
+        sorts: highPriorityQuery.sorts,
+        state: gridViewExpansionState,
+    });
+
+    const server = createWebSocketServer(space);
+    await server.wait();
+
+    const connection = await server.connectForTest(context.action(session));
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    expect(
+        await connection.procedures.subscribeToQuery(
+            query(session, {
+                filters: [
+                    {
+                        type: "Creator",
+                        operation: {type: "OneOf", accounts: [{type: "CurrentAccount"}]},
+                    },
+                    {
+                        type: "Priority",
+                        operation: {type: "OneOf", priorities: new Set(["Low"])},
+                    },
+                ],
+            }),
+        ),
+    ).toEqual({
+        querySubscriptionId: expect.any(String),
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+        gridViewExpansionState: null,
+        extraQueries: [],
+    });
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [expectAuthorizedTask(task2b.id)],
+            backfillCollections: [],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
+
+    const pausePromise1 = taskRealtimeStoreBeforeLoadCollectionTestCheckpoint.pauseForTest(
+        space.id,
+    );
+    const pausePromise2 = taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint.pauseForTest(
+        space.id,
+    );
+
+    const subscribePromise = connection.procedures.subscribe({
+        clientTime: testClock.nowLogical(),
+        queries: [
+            {
+                ...highPriorityQuery,
+                shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
+            },
+        ],
+        taskIds: [],
+        collectionIds: [collection.id],
+    });
+
+    const {unpause: unpause1} = await pausePromise1;
+    const {unpause: unpause2} = await pausePromise2;
+
+    // Make sure we've finished subscribing before updating the parent task.
+    unpause2();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await task2b.updateParentTask(session, task2);
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task2.id,
+                    taskAction: {
+                        type: "UpdateChildrenCounts",
+                        addedChildTaskCount: 2,
+                        addedClosedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: expect.any(Array),
+                    taskId: task2b.id,
+                    taskAction: {
+                        type: "UpdateParentTaskId",
+                        parentTaskId: task2.id,
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    unpause1();
+
+    expect(await subscribePromise).toEqual({
+        querySubscriptionResults: [
+            {
+                ok: true,
+                querySubscriptionId: expect.any(String),
+                loadedState: {type: "Full"},
+                previouslyBackfilledTaskIds: [],
+                gridViewExpansionState,
+                extraQueries: [
+                    {
+                        querySubscriptionId: expect.any(String),
+                        filters: {
+                            displayStatusFilter: {
+                                ifOpenInactive: true,
+                                ifOpenActive: true,
+                                ifClosed: true,
+                            },
+                            parentFilter: {
+                                parentTaskId: task2.id,
+                            },
+                        },
+                        sorts: [
+                            {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                        ],
+                        limit: 100,
+                        loadedState: {type: "Full"},
+                        taskIds: [task2a.id, task2b.id],
+                    },
+                ],
+            },
+        ],
+        taskSubscriptionResults: [],
+        collectionSubscriptionResults: [
+            {
+                ok: true,
+                collectionSubscriptionId: expect.any(String),
+            },
+        ],
+    });
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [],
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task2a.id),
+            ],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
+            referencedAccounts: [await session.get()],
+        },
+    ]);
 });

@@ -175,8 +175,8 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
             );
         };
 
-        assert(this._onBeforeReferencedTaskRemove === null);
-        this._onBeforeReferencedTaskRemove = onBeforeReferencedTaskRemove;
+        assert(this._onBeforeReferencedTaskAddOrRemove === null);
+        this._onBeforeReferencedTaskAddOrRemove = onBeforeReferencedTaskRemove;
         try {
             // Get the referenced `TaskId`s we need to update.
             const updatedOriginalReferencedTaskIds = new Set<TaskId>();
@@ -217,7 +217,7 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
                 }
             }
         } finally {
-            this._onBeforeReferencedTaskRemove = null;
+            this._onBeforeReferencedTaskAddOrRemove = null;
         }
     }
 }
