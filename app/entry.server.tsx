@@ -78,6 +78,14 @@ export default async function handleRequest(
         finishSpan();
         return response;
     } catch (error) {
+        // Log unexpected errors here to the console in development environments.
+        // Generally errors by loaders or in React render should be caught and rendered
+        // to the user. Something has really gone wrong if we end up here.
+        if (process.env.NODE_ENV !== "production") {
+            // eslint-disable-next-line no-console
+            console.error(error);
+        }
+
         span.addException(error);
         finishSpan();
         throw error;

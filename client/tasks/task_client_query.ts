@@ -623,9 +623,19 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             this._taskOrderAndLoadedStateStore.getSnapshot();
         let taskOrder = previousTaskOrder;
 
+        // Get the referenced `TaskId`s we need to update.
+        const updatedOriginalReferencedTaskIds = new Set<TaskId>();
+        for (const taskId of taskEntryUpdateById.keys()) {
+            if (this._referencedTaskEntryStoreById.has(taskId)) {
+                updatedOriginalReferencedTaskIds.add(taskId);
+            }
+        }
+
         const alreadyUpdatedReferencedTaskIds = new Set<TaskId>();
 
         const onBeforeReferencedTaskAddOrRemove = (taskId: TaskId) => {
+            if (!updatedOriginalReferencedTaskIds.has(taskId)) return;
+
             if (alreadyUpdatedReferencedTaskIds.has(taskId)) return;
             alreadyUpdatedReferencedTaskIds.add(taskId);
 
@@ -646,14 +656,6 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         assert(this._onBeforeReferencedTaskAddOrRemove === null);
         this._onBeforeReferencedTaskAddOrRemove = onBeforeReferencedTaskAddOrRemove;
         try {
-            // Get the referenced `TaskId`s we need to update.
-            const updatedOriginalReferencedTaskIds = new Set<TaskId>();
-            for (const taskId of taskEntryUpdateById.keys()) {
-                if (this._referencedTaskEntryStoreById.has(taskId)) {
-                    updatedOriginalReferencedTaskIds.add(taskId);
-                }
-            }
-
             for (const taskId of updatedOriginalReferencedTaskIds) {
                 // Double check that the task wasn't removed while updating another task.
                 if (!this._referencedTaskEntryStoreById.has(taskId)) continue;
