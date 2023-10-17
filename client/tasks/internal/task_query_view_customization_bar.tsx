@@ -18,6 +18,8 @@ import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {TaskQueryFilterReferences} from "~/shared/tasks/task_query_filter_references.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
+export const taskQueryViewCustomizationBarMinHeight = "1.5rem";
+
 export type TaskQueryViewCustomizationBarRef = {
     // Throws if no collection filter editor component is mounted. So be careful
     // when calling this function.
@@ -72,7 +74,11 @@ function TaskQueryViewCustomizationBar(
     );
 
     return (
-        <Box display="flex" alignItems="flex-start">
+        <Box
+            display="flex"
+            alignItems="flex-start"
+            style={{minHeight: taskQueryViewCustomizationBarMinHeight}}
+        >
             {filters.length > 0 && (
                 <Box height="6" display="flex" alignItems="center" paddingRight="2">
                     Filter:

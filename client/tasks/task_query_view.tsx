@@ -15,6 +15,7 @@ import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
+    taskQueryViewCustomizationBarMinHeight,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -24,7 +25,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -342,7 +343,38 @@ export function TaskQueryView({
         // NOCOMMIT
         getMaybeRemoveTaskFromQueryActions: () => [],
         withColumnHeaderBorderTop: true,
-        withColumnHeaderExtraScrollSpace: "4",
+        withColumnHeaderExtraScrollSpace: "2.5",
+        columnHeaderControls: useMemo(() => {
+            const paddingTop: Spacing = "2.5";
+            const paddingBottom: Spacing = "7";
+
+            return {
+                minHeight: addRemLengths(
+                    spacing[paddingTop],
+                    taskQueryViewCustomizationBarMinHeight,
+                    spacing[paddingBottom],
+                ),
+                node: (
+                    <Box
+                        paddingX={taskRowViewPaddingX}
+                        paddingTop={paddingTop}
+                        paddingBottom={paddingBottom}
+                    >
+                        <TaskQueryViewCustomizationBar
+                            ref={customizationBarRef}
+                            store={store}
+                            shouldCollapseWhenFiltersAreEmpty={false}
+                            defaultOrderSentence="By default, tasks are ordered by created date."
+                            filters={filters}
+                            filterReferences={filterReferences}
+                            onFiltersChange={updateFilters}
+                            sorts={sorts}
+                            onSortsChange={setSorts}
+                        />
+                    </Box>
+                ),
+            };
+        }, [filterReferences, filters, sorts, store]),
     });
 
     return (

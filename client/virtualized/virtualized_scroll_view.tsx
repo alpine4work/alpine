@@ -119,7 +119,7 @@ type VirtualizedScrollViewItemBase = {
      *
      * May be measured in pixels or REM units.
      */
-    readonly minHeight: number | RemLength;
+    readonly minHeight: RemLength | number;
 
     /**
      * If this item is rendered then we will also render the items at the indexes

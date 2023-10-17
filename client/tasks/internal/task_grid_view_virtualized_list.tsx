@@ -53,7 +53,13 @@ import {
     VirtualizedScrollViewItem,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    convertRemLengthToPx,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -118,6 +124,7 @@ export function useTaskGridViewVirtualizedList({
     getMaybeRemoveTaskFromQueryActions: _getMaybeRemoveTaskFromRootQueryActions,
     withColumnHeaderBorderTop = false,
     withColumnHeaderExtraScrollSpace = "0",
+    columnHeaderControls,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     query: TaskClientQuery | null;
@@ -131,6 +138,7 @@ export function useTaskGridViewVirtualizedList({
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     withColumnHeaderBorderTop?: boolean;
     withColumnHeaderExtraScrollSpace?: Spacing | "px";
+    columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
 }): {
     /**
      * The number of items. Should be passed to `<VirtualizedScrollView>`.
@@ -696,6 +704,20 @@ export function useTaskGridViewVirtualizedList({
         },
     });
 
+    const columnHeaderControlsWithMinHeightPx = useMemo(
+        () =>
+            columnHeaderControls
+                ? {
+                      minHeight:
+                          typeof columnHeaderControls.minHeight === "string"
+                              ? convertRemLengthToPx(columnHeaderControls.minHeight, remPx)
+                              : columnHeaderControls.minHeight,
+                      node: columnHeaderControls.node,
+                  }
+                : null,
+        [columnHeaderControls, remPx],
+    );
+
     const renderItem = useMemo(() => {
         return (itemIndex: number): VirtualizedScrollViewItem => {
             // If this item is above our task list then render it.
@@ -708,8 +730,9 @@ export function useTaskGridViewVirtualizedList({
                         : convertRemLengthToPx(spacing[withColumnHeaderExtraScrollSpace], remPx);
 
                 const minHeight =
-                    convertRemLengthToPx("1.25rem", remPx) +
                     withColumnHeaderExtraScrollSpacePx +
+                    (columnHeaderControlsWithMinHeightPx?.minHeight ?? 0) +
+                    convertRemLengthToPx("1.25rem", remPx) +
                     // We add one extra pixel of bottom padding so the focus ring on the first row
                     // is not covered by our header.
                     1;
@@ -722,6 +745,7 @@ export function useTaskGridViewVirtualizedList({
                         <TaskGridViewColumnHeaderMemo
                             withColumnHeaderBorderTop={withColumnHeaderBorderTop}
                             withColumnHeaderExtraScrollSpace={withColumnHeaderExtraScrollSpacePx}
+                            columnHeaderControls={columnHeaderControlsWithMinHeightPx}
                             minHeight={minHeight}
                             virtualizedItemRef={ref}
                             offset={offset}
@@ -906,16 +930,17 @@ export function useTaskGridViewVirtualizedList({
     }, [
         bottomGhostTaskId,
         capabilities,
+        columnHeaderControlsWithMinHeightPx,
         context,
         events,
         getAreChildTasksExpandedStore,
         itemCount,
         itemCountBeforeState,
+        loadedState,
+        remPx,
+        rootQuery,
         state,
         stateItemCount,
-        loadedState,
-        rootQuery,
-        remPx,
         toggleAreChildTasksExpanded,
         viewRef,
         withColumnHeaderBorderTop,
@@ -988,6 +1013,7 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
 const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo({
     withColumnHeaderBorderTop,
     withColumnHeaderExtraScrollSpace,
+    columnHeaderControls,
     minHeight,
     virtualizedItemRef,
     offset,
@@ -996,6 +1022,7 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
 }: {
     withColumnHeaderBorderTop: boolean;
     withColumnHeaderExtraScrollSpace: number;
+    columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
     minHeight: number;
     virtualizedItemRef: Ref<HTMLDivElement>;
     offset: number;
@@ -1004,103 +1031,136 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
 }) {
     return (
         <>
-            {offset + withColumnHeaderExtraScrollSpace > 0 && withColumnHeaderBorderTop && (
-                // `grey-10` top border that replaces `<TaskLayoutTopBar>` border when column
-                // header is not overlaying tasks. You should configure `<TaskLayoutTopBar>` to
-                // not have a bottom border and this will render instead.
-                //
-                // It's notable that we use this `position: sticky` strategy for border
-                // replacement so browsers can synchronously render the border replacement off
-                // the main thread without requiring blocking JavaScript code in the scroll hot
-                // path.
-                //
-                // See this explainer on scroll-linked effects:
-                // https://firefox-source-docs.mozilla.org/performance/scroll-linked_effects.html
+            {shouldRenderWithRelativePositioning ? (
                 <Box
                     position="absolute"
-                    left="0"
-                    right="0"
-                    top="0"
-                    style={{height: offset + withColumnHeaderExtraScrollSpace}}
+                    inset="0"
                     // Render above overlays which are at `zIndex="50"`
                     zIndex="80"
                     pointerEvents="none"
                 >
                     <Box position="sticky" top="0" left="0" right="0" borderBottom="grey-10" />
                 </Box>
+            ) : (
+                <>
+                    {offset + withColumnHeaderExtraScrollSpace > 0 && withColumnHeaderBorderTop && (
+                        // `grey-10` top border that replaces `<TaskLayoutTopBar>` border when column
+                        // header is not overlaying tasks. You should configure `<TaskLayoutTopBar>` to
+                        // not have a bottom border and this will render instead.
+                        //
+                        // It's notable that we use this `position: sticky` strategy for border
+                        // replacement so browsers can synchronously render the border replacement off
+                        // the main thread without requiring blocking JavaScript code in the scroll hot
+                        // path.
+                        //
+                        // See this explainer on scroll-linked effects:
+                        // https://firefox-source-docs.mozilla.org/performance/scroll-linked_effects.html
+                        <Box
+                            position="absolute"
+                            left="0"
+                            right="0"
+                            top="0"
+                            style={{height: offset + withColumnHeaderExtraScrollSpace}}
+                            // Render above overlays which are at `zIndex="50"`
+                            zIndex="80"
+                            pointerEvents="none"
+                        >
+                            <Box
+                                position="sticky"
+                                top="0"
+                                left="0"
+                                right="0"
+                                borderBottom="grey-10"
+                            />
+                        </Box>
+                    )}
+                    {withColumnHeaderBorderTop && (
+                        // `grey-5` top border that replaces `<TaskLayoutTopBar>` border when column
+                        // header overlays tasks to make it feel like column header is part of the
+                        // same material as the header.
+                        <Box
+                            position="absolute"
+                            left="0"
+                            right="0"
+                            bottom="0"
+                            style={{top: offset - 1 + withColumnHeaderExtraScrollSpace}}
+                            // Render above overlays which are at `zIndex="50"`
+                            zIndex="60"
+                            pointerEvents="none"
+                        >
+                            <Box
+                                position="sticky"
+                                top="0"
+                                left="0"
+                                right="0"
+                                borderBottom="grey-5"
+                            />
+                        </Box>
+                    )}
+                    {withColumnHeaderBorderTop && (
+                        // `grey-0` top border that hides `<TaskLayoutTopBar>` border when column
+                        // header doesn't overlay tasks that scrolls out-of-bounds once column
+                        // header does overlay tasks.
+                        <Box
+                            position="absolute"
+                            left="0"
+                            right="0"
+                            style={{top: offset - 1 + withColumnHeaderExtraScrollSpace}}
+                            // Render above overlays which are at `zIndex="50"`
+                            zIndex="70"
+                            pointerEvents="none"
+                            borderBottom="grey-0"
+                        />
+                    )}
+                    <Box
+                        // `grey-10` bottom border of column header that slides in when the column
+                        // header overlays tasks.
+                        position="absolute"
+                        left="0"
+                        right="0"
+                        bottom="0"
+                        style={{top: offset + height - 3}}
+                        // Render above overlays which are at `zIndex="50"`
+                        zIndex="70"
+                        pointerEvents="none"
+                    >
+                        <Box
+                            position="sticky"
+                            left="0"
+                            right="0"
+                            borderBottom="grey-10"
+                            style={{top: height - 2 - withColumnHeaderExtraScrollSpace}}
+                        />
+                    </Box>
+                </>
             )}
-            {withColumnHeaderBorderTop && (
-                // `grey-5` top border that replaces `<TaskLayoutTopBar>` border when column
-                // header overlays tasks to make it feel like column header is part of the
-                // same material as the header.
-                <Box
-                    position="absolute"
-                    left="0"
-                    right="0"
-                    bottom="0"
-                    style={{top: offset - 1 + withColumnHeaderExtraScrollSpace}}
-                    // Render above overlays which are at `zIndex="50"`
-                    zIndex="60"
-                    pointerEvents="none"
-                >
-                    <Box position="sticky" top="0" left="0" right="0" borderBottom="grey-5" />
-                </Box>
-            )}
-            {withColumnHeaderBorderTop && (
-                // `grey-0` top border that hides `<TaskLayoutTopBar>` border when column
-                // header doesn't overlay tasks that scrolls out-of-bounds once column
-                // header does overlay tasks.
-                <Box
-                    position="absolute"
-                    left="0"
-                    right="0"
-                    style={{top: offset - 1 + withColumnHeaderExtraScrollSpace}}
-                    // Render above overlays which are at `zIndex="50"`
-                    zIndex="70"
-                    pointerEvents="none"
-                    borderBottom="grey-0"
-                />
-            )}
-            <Box
-                // `grey-10` bottom border of column header that slides in when the column
-                // header overlays tasks.
-                position="absolute"
-                left="0"
-                right="0"
-                bottom="0"
-                style={{top: offset + height - 3}}
-                // Render above overlays which are at `zIndex="50"`
-                zIndex="70"
-                pointerEvents="none"
-            >
-                <Box
-                    position="sticky"
-                    left="0"
-                    right="0"
-                    borderBottom="grey-10"
-                    style={{top: height - 2 - withColumnHeaderExtraScrollSpace}}
-                />
-            </Box>
             <Box
                 style={{
                     minHeight,
-                    position: "absolute",
-                    top: offset + withColumnHeaderExtraScrollSpace,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    marginTop: -withColumnHeaderExtraScrollSpace,
+                    ...(shouldRenderWithRelativePositioning
+                        ? {position: "relative"}
+                        : {
+                              position: "absolute",
+                              top: offset + withColumnHeaderExtraScrollSpace,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              marginTop: -withColumnHeaderExtraScrollSpace,
+                          }),
                 }}
                 // Render above overlays which are at `zIndex="50"`
-                zIndex="80"
+                zIndex={!shouldRenderWithRelativePositioning ? "80" : undefined}
                 pointerEvents="none"
             >
                 <Box
                     ref={virtualizedItemRef}
-                    position="sticky"
+                    // Our header is not sticky when rendered with relative positioning.
+                    position={!shouldRenderWithRelativePositioning ? "sticky" : "relative"}
                     pointerEvents="auto"
                     style={{
-                        top: -withColumnHeaderExtraScrollSpace,
+                        top: !shouldRenderWithRelativePositioning
+                            ? -withColumnHeaderExtraScrollSpace
+                            : undefined,
                         paddingTop: withColumnHeaderExtraScrollSpace,
                         // One pixel of bottom padding so the focus ring on the first row is not covered
                         // by our header.
@@ -1121,6 +1181,11 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
                         }}
                         backgroundColor="grey-0"
                     />
+                    {columnHeaderControls && (
+                        <Box style={{minHeight: columnHeaderControls.minHeight}}>
+                            {columnHeaderControls.node}
+                        </Box>
+                    )}
                     <Box paddingTop="0.5" display="flex">
                         <Box
                             flexShrink="0"
@@ -1181,11 +1246,6 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
                     </Box>
                 </Box>
             </Box>
-            {shouldRenderWithRelativePositioning && (
-                // When rendering with relative positioning, include a box the height of the
-                // header so layout doesn't jump around.
-                <Box style={{height}} />
-            )}
         </>
     );
 });
