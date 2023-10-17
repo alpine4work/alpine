@@ -475,68 +475,77 @@ function TaskRowTitleInput(
 
             const yXmlFragment = titleYDoc.getXmlFragment("doc");
 
-            const view = new EditorView(containerElement, {
-                state: EditorState.create({
-                    schema: TaskTitleProsemirrorSchema,
-                    // Make sure we start with the correct initial document. After this the
-                    // `ySyncPlugin` manages document state.
-                    doc: yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yXmlFragment),
-                    plugins: [ySyncPlugin(yXmlFragment)],
-                }),
+            const viewElement = document.createElement("div");
+            containerElement.appendChild(viewElement);
 
-                // We add this prop to `prosemirror-view` with a patch. With this prop when the
-                // editor is focused we place focus where the browser places focus. So if the
-                // user clicks into the editor focus goes to where the user clicked. Not to the
-                // selection currently in state.
-                shouldUseDOMSelectionOnFocus: true,
-
-                // Disable editing when the `isReadOnly` prop is set.
-                editable: () => !isReadOnlyRef.current,
-
-                attributes: {
-                    // Title row inputs are focusable but are not a part of the tab order.
-                    tabindex: "-1",
-
-                    // Native spellcheck is often more distracting then it's worth. It puts a red
-                    // squiggly under names, nouns, industry terms, and oddly sometimes
-                    // contractions (like "they're", maybe has to do with curly quotes?).
-                    //
-                    // It's also inconsistent with `<input>`s which don't have spellcheck on by
-                    // default.
-                    //
-                    // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
-                    // spellchecker.
-                    spellcheck: "false",
-                },
-
-                handleKeyDown: (view, event) => {
-                    handleKeyDownRef.current(view, event);
-                    return event.defaultPrevented;
-                },
-
-                dispatchTransaction: transaction => {
-                    const oldTitleState = view.state;
-                    const newTitleState = oldTitleState.apply(transaction);
-
-                    updateEditorEmptyClass(newTitleState);
-
-                    view.updateState(newTitleState);
-                },
-            });
-
-            view.dom.ariaLabel = taskRowTitleInputAriaLabel;
-            view.dom.className = capabilities.hasMultilineTitle
+            // Update the view element before `EditorView`'s `MutationObserver` starts
+            // listening for changes. When `MutationObserver` detects a change it will
+            // perform a browser layout which is expensive.
+            viewElement.ariaLabel = taskRowTitleInputAriaLabel;
+            viewElement.className = capabilities.hasMultilineTitle
                 ? taskRowTitleInputMultilineClassName
                 : taskRowTitleInputSingleLineClassName;
             Object.assign(
-                view.dom.style,
+                viewElement.style,
                 capabilities.hasMultilineTitle
                     ? taskRowTitleInputMultilineStyle
                     : taskRowTitleInputSingleLineStyle,
             );
 
             // Don't render a scrollbar with our row title input.
-            view.dom.dataset.scrollbar = "false";
+            viewElement.dataset.scrollbar = "false";
+
+            const view = new EditorView(
+                {mount: viewElement},
+                {
+                    state: EditorState.create({
+                        schema: TaskTitleProsemirrorSchema,
+                        // Make sure we start with the correct initial document. After this the
+                        // `ySyncPlugin` manages document state.
+                        doc: yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yXmlFragment),
+                        plugins: [ySyncPlugin(yXmlFragment)],
+                    }),
+
+                    // We add this prop to `prosemirror-view` with a patch. With this prop when the
+                    // editor is focused we place focus where the browser places focus. So if the
+                    // user clicks into the editor focus goes to where the user clicked. Not to the
+                    // selection currently in state.
+                    shouldUseDOMSelectionOnFocus: true,
+
+                    // Disable editing when the `isReadOnly` prop is set.
+                    editable: () => !isReadOnlyRef.current,
+
+                    attributes: {
+                        // Title row inputs are focusable but are not a part of the tab order.
+                        tabindex: "-1",
+
+                        // Native spellcheck is often more distracting then it's worth. It puts a red
+                        // squiggly under names, nouns, industry terms, and oddly sometimes
+                        // contractions (like "they're", maybe has to do with curly quotes?).
+                        //
+                        // It's also inconsistent with `<input>`s which don't have spellcheck on by
+                        // default.
+                        //
+                        // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
+                        // spellchecker.
+                        spellcheck: "false",
+                    },
+
+                    handleKeyDown: (view, event) => {
+                        handleKeyDownRef.current(view, event);
+                        return event.defaultPrevented;
+                    },
+
+                    dispatchTransaction: transaction => {
+                        const oldTitleState = view.state;
+                        const newTitleState = oldTitleState.apply(transaction);
+
+                        updateEditorEmptyClass(newTitleState);
+
+                        view.updateState(newTitleState);
+                    },
+                },
+            );
 
             const updateFullyScrolledState = (event: Event | null) => {
                 const isInitialUpdate = event === null;
