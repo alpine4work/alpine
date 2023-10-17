@@ -510,29 +510,42 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
         if (this._referenceCount === 0) {
             batchStoreUpdates(() => {
-                // Release our references to loaded tasks.
-                for (const [taskId, taskEntryStore] of this._loadedTaskEntryStoreById) {
-                    this._onLoadedTaskRemove(taskId, taskEntryStore.getSnapshot());
-                }
-
-                // Should have been cleared by removing all our loaded tasks.
-                assert(this._referencedTaskEntryStoreById.size === 0);
-                assert(this._referencedCollectionEntryStoreById.size === 0);
-
-                // Clear our query's task data.
-                this._loadedTaskEntryStoreById.clear();
-                this._taskOrderAndLoadedStateStore.set({
-                    loadedState: null,
-                    taskOrder: createTree<TaskQuerySortCursor, null>((cursor1, cursor2) =>
-                        compareTaskQuerySortCursors(this.sorts, cursor1, cursor2),
-                    ),
-                });
+                // We shouldn't be loading any new tasks after this. There may still be an
+                // outgoing load task request though.
                 this.loadMoreTaskCountStore.set(0);
 
                 // Delete the query from our store.
                 this.store.onQueryFinallyReleased(this);
             });
         }
+    }
+
+    /**
+     * Once we've finally unsubscribed from the query we can clear out all the data
+     * within the query.
+     */
+    public onUnsubscribed() {
+        assert(this._referenceCount === 0);
+
+        batchStoreUpdates(() => {
+            // Release our references to loaded tasks.
+            for (const [taskId, taskEntryStore] of this._loadedTaskEntryStoreById) {
+                this._onLoadedTaskRemove(taskId, taskEntryStore.getSnapshot());
+            }
+
+            // Should have been cleared by removing all our loaded tasks.
+            assert(this._referencedTaskEntryStoreById.size === 0);
+            assert(this._referencedCollectionEntryStoreById.size === 0);
+
+            // Clear our query's task data.
+            this._loadedTaskEntryStoreById.clear();
+            this._taskOrderAndLoadedStateStore.set({
+                loadedState: null,
+                taskOrder: createTree<TaskQuerySortCursor, null>((cursor1, cursor2) =>
+                    compareTaskQuerySortCursors(this.sorts, cursor1, cursor2),
+                ),
+            });
+        });
     }
 
     public setError(error: unknown) {

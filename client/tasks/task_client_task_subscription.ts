@@ -91,18 +91,27 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         this._referenceCount--;
 
         if (this._referenceCount === 0) {
-            batchStoreUpdates(() => {
-                // Remove dependencies...
-                this._trackTaskDependenciesFromRemove(this.taskEntryStore.getSnapshot());
-
-                // Should have been cleared by removing all our loaded tasks.
-                assert(this._referencedTaskEntryStoreById.size === 0);
-                assert(this._referencedCollectionEntryStoreById.size === 0);
-
-                // Delete the subscription from our store.
-                this._store.onTaskSubscriptionFinallyReleased(this);
-            });
+            // Delete the subscription from our store.
+            this._store.onTaskSubscriptionFinallyReleased(this);
         }
+    }
+
+    // This is a private function we expose publicly so `TaskClientStoreInternal`
+    // can call it. To call you must prove you have access to a
+    // `TaskClientStoreInternal` instance.
+    //
+    // We could also do a `TaskClientTaskSubscription`
+    // `TaskClientTaskSubscriptionInternal` class split like we do for
+    // `TaskClientQuery` but that feels like too much for two methods.
+    public _onUnsubscribed(internal: TaskClientStoreInternal) {
+        assert(internal instanceof TaskClientStoreInternal);
+
+        // Remove dependencies...
+        this._trackTaskDependenciesFromRemove(this.taskEntryStore.getSnapshot());
+
+        // Should have been cleared by removing all our loaded tasks.
+        assert(this._referencedTaskEntryStoreById.size === 0);
+        assert(this._referencedCollectionEntryStoreById.size === 0);
     }
 
     /**
@@ -132,7 +141,7 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
     //
     // We could also do a `TaskClientTaskSubscription`
     // `TaskClientTaskSubscriptionInternal` class split like we do for
-    // `TaskClientQuery` but that feels like too much for one method.
+    // `TaskClientQuery` but that feels like too much for two methods.
     public _onTasksUpdated(
         internal: TaskClientStoreInternal,
         taskEntryUpdateById: Map<

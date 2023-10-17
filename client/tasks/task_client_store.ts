@@ -185,6 +185,18 @@ type TaskClientStorePendingUpdateCollectionAction = {
     readonly action: TaskUpdateCollectionAction;
 };
 
+export type TaskClientStoreSubscriptions = {
+    readonly queries: ReadonlyMap<TaskClientQuery, {readonly isUnsubscribing: boolean}>;
+    readonly taskSubscriptionsById: ReadonlyMap<
+        TaskId,
+        ReadonlyMap<TaskClientTaskSubscription, {readonly isUnsubscribing: boolean}>
+    >;
+    readonly collectionSubscriptionsById: ReadonlyMap<
+        TaskCollectionId,
+        ReadonlyMap<TaskClientCollectionSubscription, {readonly isUnsubscribing: boolean}>
+    >;
+};
+
 /**
  * The client model store holds all our task data for a space on the client.
  * Similar to `TaskRealtimeStore` but whereas `TaskRealtimeStore` lives on the
@@ -329,6 +341,10 @@ export class TaskClientStore {
         return this._internal.createAndRetainQueries(queries);
     }
 
+    public onQueryUnsubscribed(query: TaskClientQuery) {
+        this._internal.onQueryUnsubscribed(query);
+    }
+
     public loadTasksIntoQuery(
         query: TaskClientQuery,
         options: {
@@ -352,10 +368,18 @@ export class TaskClientStore {
         return this._internal.createAndRetainTaskSubscription(taskId);
     }
 
+    public onTaskSubscriptionUnsubscribed(subscription: TaskClientTaskSubscription) {
+        this._internal.onTaskSubscriptionUnsubscribed(subscription);
+    }
+
     public createAndRetainCollectionSubscription(
         collectionId: TaskCollectionId,
     ): TaskClientCollectionSubscription {
         return this._internal.createAndRetainCollectionSubscription(collectionId);
+    }
+
+    public onCollectionSubscriptionUnsubscribed(subscription: TaskClientCollectionSubscription) {
+        this._internal.onCollectionSubscriptionUnsubscribed(subscription);
     }
 }
 
@@ -439,18 +463,8 @@ export class TaskClientStoreInternal {
     /**
      * The various subscriptions our client is currently holding on to.
      */
-    private readonly _subscriptionsStore = new ValueStore<{
-        readonly queries: ReadonlySet<TaskClientQuery>;
-        readonly taskSubscriptionsById: ReadonlyMap<
-            TaskId,
-            ReadonlySet<TaskClientTaskSubscription>
-        >;
-        readonly collectionSubscriptionsById: ReadonlyMap<
-            TaskCollectionId,
-            ReadonlySet<TaskClientCollectionSubscription>
-        >;
-    }>({
-        queries: new Set(),
+    private readonly _subscriptionsStore = new ValueStore<TaskClientStoreSubscriptions>({
+        queries: new Map(),
         taskSubscriptionsById: new Map(),
         collectionSubscriptionsById: new Map(),
     });
@@ -525,17 +539,7 @@ export class TaskClientStoreInternal {
         return this._collectionEntryStoreById.size;
     }
 
-    public getSubscriptionsStore(): Store<{
-        readonly queries: ReadonlySet<TaskClientQuery>;
-        readonly taskSubscriptionsById: ReadonlyMap<
-            TaskId,
-            ReadonlySet<TaskClientTaskSubscription>
-        >;
-        readonly collectionSubscriptionsById: ReadonlyMap<
-            TaskCollectionId,
-            ReadonlySet<TaskClientCollectionSubscription>
-        >;
-    }> {
+    public getSubscriptionsStore(): Store<TaskClientStoreSubscriptions> {
         // Importantly our return type returns a `Store` not a `ValueStore`. Callers
         // shouldn't be able to access `set()`.
         return this._subscriptionsStore;
@@ -3411,12 +3415,12 @@ export class TaskClientStoreInternal {
                 // the subscriptions which will call listeners at the end of the batch.
                 const subscriptions = this._subscriptionsStore.getSnapshot();
 
-                for (const query of subscriptions.queries) {
+                for (const query of subscriptions.queries.keys()) {
                     query._getInternal(this).onTasksUpdated(taskEntryUpdateById);
                 }
 
                 for (const taskSubscriptions of subscriptions.taskSubscriptionsById.values()) {
-                    for (const taskSubscription of taskSubscriptions) {
+                    for (const taskSubscription of taskSubscriptions.keys()) {
                         taskSubscription._onTasksUpdated(this, taskEntryUpdateById);
                     }
                 }
@@ -3945,8 +3949,8 @@ export class TaskClientStoreInternal {
             }
 
             this._subscriptionsStore.set(subscriptions => {
-                const newQueries = new Set(subscriptions.queries);
-                newQueries.add(query.external);
+                const newQueries = new Map(subscriptions.queries);
+                newQueries.set(query.external, {isUnsubscribing: false});
                 return {...subscriptions, queries: newQueries};
             });
 
@@ -3995,14 +3999,14 @@ export class TaskClientStoreInternal {
             });
 
             this._subscriptionsStore.set(subscriptions => {
-                const newQueries = new Set(subscriptions.queries);
+                const newQueries = new Map(subscriptions.queries);
 
                 for (const query of createdQueries) {
                     // If we're reusing a child task query it should already have been added to our
                     // subscriptions.
                     if (newQueries.has(query)) continue;
 
-                    newQueries.add(query);
+                    newQueries.set(query, {isUnsubscribing: false});
                 }
 
                 return {...subscriptions, queries: newQueries};
@@ -4015,8 +4019,8 @@ export class TaskClientStoreInternal {
     public onQueryFinallyReleased(query: TaskClientQueryInternal) {
         batchStoreUpdates(() => {
             this._subscriptionsStore.set(subscriptions => {
-                const newQueries = new Set(subscriptions.queries);
-                newQueries.delete(query.external);
+                const newQueries = new Map(subscriptions.queries);
+                newQueries.set(query.external, {isUnsubscribing: true});
                 return {...subscriptions, queries: newQueries};
             });
 
@@ -4030,6 +4034,27 @@ export class TaskClientStoreInternal {
             ) {
                 this._taskChildrenQueryByParentTaskId.delete(parentTaskId);
             }
+        });
+    }
+
+    /**
+     * Once `TaskRealtimeClient` has finished unsubscribing from a query it must
+     * call this method so we can cleanup the query from our store.
+     */
+    public onQueryUnsubscribed(query: TaskClientQuery) {
+        batchStoreUpdates(() => {
+            const oldSubscriptions = this._subscriptionsStore.getSnapshot();
+
+            // Make sure our query was in the process of unsubscribing.
+            assert(oldSubscriptions.queries.get(query)?.isUnsubscribing);
+
+            const newQueries = new Map(oldSubscriptions.queries);
+            newQueries.delete(query);
+
+            this._subscriptionsStore.set({...oldSubscriptions, queries: newQueries});
+
+            // Cleanup all the data in the query once it's been unsubscribed.
+            query._getInternal(this).onUnsubscribed();
         });
     }
 
@@ -4168,10 +4193,13 @@ export class TaskClientStoreInternal {
 
             const oldTaskSubscriptions = taskSubscriptionsById.get(taskSubscription.taskId);
             if (!oldTaskSubscriptions) {
-                taskSubscriptionsById.set(taskSubscription.taskId, new Set([taskSubscription]));
+                taskSubscriptionsById.set(
+                    taskSubscription.taskId,
+                    new Map([[taskSubscription, {isUnsubscribing: false}]]),
+                );
             } else {
-                const taskSubscriptions = new Set(oldTaskSubscriptions);
-                taskSubscriptions.add(taskSubscription);
+                const taskSubscriptions = new Map(oldTaskSubscriptions);
+                taskSubscriptions.set(taskSubscription, {isUnsubscribing: false});
                 taskSubscriptionsById.set(taskSubscription.taskId, taskSubscriptions);
             }
 
@@ -4185,8 +4213,6 @@ export class TaskClientStoreInternal {
     }
 
     public onTaskSubscriptionFinallyReleased(taskSubscription: TaskClientTaskSubscription) {
-        this.releaseTaskEntryStore(taskSubscription.taskId);
-
         this._subscriptionsStore.set(oldSubscriptions => {
             const taskSubscriptionsById = new Map(oldSubscriptions.taskSubscriptionsById);
 
@@ -4194,16 +4220,51 @@ export class TaskClientStoreInternal {
                 taskSubscriptionsById.get(taskSubscription.taskId),
             );
 
-            const taskSubscriptions = new Set(oldTaskSubscriptions);
-            assert(taskSubscriptions.delete(taskSubscription));
+            const taskSubscriptions = new Map(oldTaskSubscriptions);
+            taskSubscriptions.set(taskSubscription, {isUnsubscribing: true});
 
-            if (taskSubscriptions.size === 0) {
-                taskSubscriptionsById.delete(taskSubscription.taskId);
-            } else {
-                taskSubscriptionsById.set(taskSubscription.taskId, taskSubscriptions);
-            }
+            taskSubscriptionsById.set(taskSubscription.taskId, taskSubscriptions);
 
             return {...oldSubscriptions, taskSubscriptionsById};
+        });
+    }
+
+    /**
+     * Once `TaskRealtimeClient` has finished unsubscribing from a task it must
+     * call this method so we can cleanup the task from our store.
+     */
+    public onTaskSubscriptionUnsubscribed(taskSubscription: TaskClientTaskSubscription) {
+        batchStoreUpdates(() => {
+            const oldSubscriptions = this._subscriptionsStore.getSnapshot();
+
+            // Make sure our subscription was in the process of unsubscribing.
+            assert(
+                oldSubscriptions.taskSubscriptionsById
+                    .get(taskSubscription.taskId)
+                    ?.get(taskSubscription)?.isUnsubscribing,
+            );
+
+            const newTaskSubscriptionsById = new Map(oldSubscriptions.taskSubscriptionsById);
+            const newTaskSubscriptions = new Map(
+                assertExists(newTaskSubscriptionsById.get(taskSubscription.taskId)),
+            );
+
+            newTaskSubscriptions.delete(taskSubscription);
+
+            if (newTaskSubscriptions.size === 0) {
+                newTaskSubscriptionsById.delete(taskSubscription.taskId);
+            } else {
+                newTaskSubscriptionsById.set(taskSubscription.taskId, newTaskSubscriptions);
+            }
+
+            this._subscriptionsStore.set({
+                ...oldSubscriptions,
+                taskSubscriptionsById: newTaskSubscriptionsById,
+            });
+
+            // Cleanup all the data in the subscription once it's been unsubscribed.
+            taskSubscription._onUnsubscribed(this);
+            this.releaseTaskEntryStore(taskSubscription.taskId);
         });
     }
 
@@ -4249,11 +4310,11 @@ export class TaskClientStoreInternal {
             if (!oldCollectionSubscriptions) {
                 collectionSubscriptionsById.set(
                     collectionSubscription.collectionId,
-                    new Set([collectionSubscription]),
+                    new Map([[collectionSubscription, {isUnsubscribing: false}]]),
                 );
             } else {
-                const collectionSubscriptions = new Set(oldCollectionSubscriptions);
-                collectionSubscriptions.add(collectionSubscription);
+                const collectionSubscriptions = new Map(oldCollectionSubscriptions);
+                collectionSubscriptions.set(collectionSubscription, {isUnsubscribing: false});
                 collectionSubscriptionsById.set(
                     collectionSubscription.collectionId,
                     collectionSubscriptions,
@@ -4272,8 +4333,6 @@ export class TaskClientStoreInternal {
     public onCollectionSubscriptionFinallyReleased(
         collectionSubscription: TaskClientCollectionSubscription,
     ) {
-        this.releaseCollectionEntryStore(collectionSubscription.collectionId);
-
         this._subscriptionsStore.set(oldSubscriptions => {
             const collectionSubscriptionsById = new Map(
                 oldSubscriptions.collectionSubscriptionsById,
@@ -4283,19 +4342,62 @@ export class TaskClientStoreInternal {
                 collectionSubscriptionsById.get(collectionSubscription.collectionId),
             );
 
-            const collectionSubscriptions = new Set(oldCollectionSubscriptions);
-            assert(collectionSubscriptions.delete(collectionSubscription));
+            const collectionSubscriptions = new Map(oldCollectionSubscriptions);
+            collectionSubscriptions.set(collectionSubscription, {isUnsubscribing: true});
 
-            if (collectionSubscriptions.size === 0) {
-                collectionSubscriptionsById.delete(collectionSubscription.collectionId);
+            collectionSubscriptionsById.set(
+                collectionSubscription.collectionId,
+                collectionSubscriptions,
+            );
+
+            return {...oldSubscriptions, collectionSubscriptionsById};
+        });
+    }
+
+    /**
+     * Once `TaskRealtimeClient` has finished unsubscribing from a collection it
+     * must call this method so we can cleanup the collection from our store.
+     */
+    public onCollectionSubscriptionUnsubscribed(
+        collectionSubscription: TaskClientCollectionSubscription,
+    ) {
+        batchStoreUpdates(() => {
+            const oldSubscriptions = this._subscriptionsStore.getSnapshot();
+
+            // Make sure our subscription was in the process of unsubscribing.
+            assert(
+                oldSubscriptions.collectionSubscriptionsById
+                    .get(collectionSubscription.collectionId)
+                    ?.get(collectionSubscription)?.isUnsubscribing,
+            );
+
+            const newCollectionSubscriptionsById = new Map(
+                oldSubscriptions.collectionSubscriptionsById,
+            );
+            const newCollectionSubscriptions = new Map(
+                assertExists(
+                    newCollectionSubscriptionsById.get(collectionSubscription.collectionId),
+                ),
+            );
+
+            newCollectionSubscriptions.delete(collectionSubscription);
+
+            if (newCollectionSubscriptions.size === 0) {
+                newCollectionSubscriptionsById.delete(collectionSubscription.collectionId);
             } else {
-                collectionSubscriptionsById.set(
+                newCollectionSubscriptionsById.set(
                     collectionSubscription.collectionId,
-                    collectionSubscriptions,
+                    newCollectionSubscriptions,
                 );
             }
 
-            return {...oldSubscriptions, collectionSubscriptionsById};
+            this._subscriptionsStore.set({
+                ...oldSubscriptions,
+                collectionSubscriptionsById: newCollectionSubscriptionsById,
+            });
+
+            // Cleanup all the data in the subscription once it's been unsubscribed.
+            this.releaseCollectionEntryStore(collectionSubscription.collectionId);
         });
     }
 }

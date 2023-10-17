@@ -12,6 +12,7 @@ import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {
@@ -31,6 +32,7 @@ import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 export class TaskRealtimeClient {
     private readonly _getContext: () => AppContext;
     public readonly spaceId: SpaceId;
+    private readonly _onDisplayError: (options: {title: string; error: unknown}) => void;
     private readonly _client: WebSocketClient<typeof TaskRealtimeProtocol>;
     private _disconnect: (() => void) | null = null;
 
@@ -50,6 +52,7 @@ export class TaskRealtimeClient {
     ) {
         this._getContext = getContext;
         this.spaceId = spaceId;
+        this._onDisplayError = onDisplayError;
 
         this._client = new WebSocketClient(
             getContext,
@@ -131,17 +134,23 @@ export class TaskRealtimeClient {
 
             const subscriptions = subscriptionsStore.getSnapshot();
 
-            const newQueries = new Set(subscriptions.queries);
+            const newQueries = new Set(
+                filterMapIterable(subscriptions.queries, ([query, {isUnsubscribing}]) =>
+                    !isUnsubscribing ? query : null,
+                ),
+            );
             const newTaskSubscriptions = new Set(
-                flatMapIterable(
-                    subscriptions.taskSubscriptionsById.values(),
-                    subscriptions => subscriptions,
+                flatMapIterable(subscriptions.taskSubscriptionsById.values(), subscriptions =>
+                    filterMapIterable(subscriptions, ([subscription, {isUnsubscribing}]) =>
+                        !isUnsubscribing ? subscription : null,
+                    ),
                 ),
             );
             const newCollectionSubscriptions = new Set(
-                flatMapIterable(
-                    subscriptions.collectionSubscriptionsById.values(),
-                    subscriptions => subscriptions,
+                flatMapIterable(subscriptions.collectionSubscriptionsById.values(), subscriptions =>
+                    filterMapIterable(subscriptions, ([subscription, {isUnsubscribing}]) =>
+                        !isUnsubscribing ? subscription : null,
+                    ),
                 ),
             );
 
@@ -337,8 +346,10 @@ export class TaskRealtimeClient {
                                 return;
                             }
 
-                            // NOCOMMIT: How do we present errors to the user??
-                            console.error(error);
+                            this._onDisplayError({
+                                title: "Couldn’t get more tasks",
+                                error,
+                            });
                         });
                     };
 
@@ -497,6 +508,25 @@ export class TaskRealtimeClient {
                             });
                         },
                     )
+                    // Once we've finished unsubscribing, we need to cleanup the subscriptions in
+                    // our store. They'll still hang on to their data, for instance, until we've
+                    // finished unsubscribing.
+                    //
+                    // If there was an error the server may not have actually unsubscribed us but we
+                    // still cleanup our store in case the server partially succeeded.
+                    .finally(() => {
+                        for (const {query} of oldSubscribedQueries) {
+                            this.store.onQueryUnsubscribed(query);
+                        }
+
+                        for (const {taskSubscription} of oldSubscribedTasks) {
+                            this.store.onTaskSubscriptionUnsubscribed(taskSubscription);
+                        }
+
+                        for (const {collectionSubscription} of oldSubscribedCollections) {
+                            this.store.onCollectionSubscriptionUnsubscribed(collectionSubscription);
+                        }
+                    })
                     .catch(error => {
                         // NOCOMMIT: How do we present errors??
                         console.error(error);

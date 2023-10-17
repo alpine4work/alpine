@@ -117,8 +117,9 @@ export function TaskQueryCollectionsFilterOperationEditor({
                         // the same then we don't want to recompute the full collection results array.
                         .flatMap(
                             ({collectionSubscriptionsById}) =>
-                                iterableFirst(collectionSubscriptionsById.get(collectionId) ?? [])
-                                    ?.collectionEntryStore ?? nullConstStore,
+                                iterableFirst(
+                                    collectionSubscriptionsById.get(collectionId)?.keys() ?? [],
+                                )?.collectionEntryStore ?? nullConstStore,
                         )
                         .map(collectionEntry => {
                             const newCollectionResult = {

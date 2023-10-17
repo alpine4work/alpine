@@ -217,6 +217,30 @@ function createAutoRetainStore() {
         }
     });
 
+    // Immediately unsubscribe from released subscriptions.
+    store.getSubscriptionsStore().subscribe(() => {
+        const subscriptions = store.getSubscriptionsStore().getSnapshot();
+
+        for (const [query, {isUnsubscribing}] of subscriptions.queries) {
+            if (!isUnsubscribing) continue;
+            store.onQueryUnsubscribed(query);
+        }
+
+        for (const taskSubscriptions of subscriptions.taskSubscriptionsById.values()) {
+            for (const [subscription, {isUnsubscribing}] of taskSubscriptions) {
+                if (!isUnsubscribing) continue;
+                store.onTaskSubscriptionUnsubscribed(subscription);
+            }
+        }
+
+        for (const collectionSubscriptions of subscriptions.collectionSubscriptionsById.values()) {
+            for (const [subscription, {isUnsubscribing}] of collectionSubscriptions) {
+                if (!isUnsubscribing) continue;
+                store.onCollectionSubscriptionUnsubscribed(subscription);
+            }
+        }
+    });
+
     return store;
 }
 
