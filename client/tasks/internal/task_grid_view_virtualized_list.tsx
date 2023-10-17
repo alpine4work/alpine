@@ -9,6 +9,7 @@ import {
     Ref,
     RefObject,
     SetStateAction,
+    forwardRef,
     memo,
     useEffect,
     useMemo,
@@ -743,11 +744,11 @@ export function useTaskGridViewVirtualizedList({
                     withManualLayout: true,
                     render: ({ref, offset, height, shouldRenderWithRelativePositioning}) => (
                         <TaskGridViewColumnHeaderMemo
+                            ref={ref}
                             withColumnHeaderBorderTop={withColumnHeaderBorderTop}
                             withColumnHeaderExtraScrollSpace={withColumnHeaderExtraScrollSpacePx}
                             columnHeaderControls={columnHeaderControlsWithMinHeightPx}
                             minHeight={minHeight}
-                            virtualizedItemRef={ref}
                             offset={offset}
                             height={height}
                             shouldRenderWithRelativePositioning={
@@ -1010,25 +1011,28 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly focusLastPageDownTaskTitleEnd: () => void;
 }>;
 
-const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo({
-    withColumnHeaderBorderTop,
-    withColumnHeaderExtraScrollSpace,
-    columnHeaderControls,
-    minHeight,
-    virtualizedItemRef,
-    offset,
-    height,
-    shouldRenderWithRelativePositioning,
-}: {
-    withColumnHeaderBorderTop: boolean;
-    withColumnHeaderExtraScrollSpace: number;
-    columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
-    minHeight: number;
-    virtualizedItemRef: Ref<HTMLDivElement>;
-    offset: number;
-    height: number;
-    shouldRenderWithRelativePositioning: boolean;
-}) {
+const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHeader));
+
+function TaskGridViewColumnHeader(
+    {
+        withColumnHeaderBorderTop,
+        withColumnHeaderExtraScrollSpace,
+        columnHeaderControls,
+        minHeight,
+        offset,
+        height,
+        shouldRenderWithRelativePositioning,
+    }: {
+        withColumnHeaderBorderTop: boolean;
+        withColumnHeaderExtraScrollSpace: number;
+        columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
+        minHeight: number;
+        offset: number;
+        height: number;
+        shouldRenderWithRelativePositioning: boolean;
+    },
+    virtualizedItemRef: Ref<HTMLDivElement>,
+) {
     return (
         <>
             {shouldRenderWithRelativePositioning ? (
@@ -1248,7 +1252,7 @@ const TaskGridViewColumnHeaderMemo = memo(function TaskGridViewColumnHeaderMemo(
             </Box>
         </>
     );
-});
+}
 
 const TaskGridViewMoreUnloadedTasksMemo = memo(function TaskGridViewMoreUnloadedTasksMemo({
     capabilities,

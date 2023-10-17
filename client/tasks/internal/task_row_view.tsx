@@ -95,6 +95,8 @@ import {
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
+// NOCOMMIT: Editing cell in ghost row doesn't create task
+
 export type TaskGridViewColumn =
     | "ExpandButton"
     | "StatusButton"

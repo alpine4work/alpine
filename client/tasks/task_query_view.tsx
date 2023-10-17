@@ -31,7 +31,8 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
-import {generateId} from "~/shared/id/id.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
@@ -84,6 +85,8 @@ export function isTaskQueryMissingRequiredFiltersForQueryView(
 
     return true;
 }
+
+const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, Id>();
 
 export function TaskQueryView({
     initialQuery,
@@ -398,6 +401,25 @@ export function TaskQueryView({
                 {gridViewModals}
                 <VirtualizedScrollView
                     ref={viewRef}
+                    stateKey={
+                        // Whenever our `activeQuery` changes we reset the `<VirtualizedScrollView>`s
+                        // internal state (which also scrolls the view to the top). We do this
+                        // instead of:
+                        //
+                        // - Using a React `key` because that would remount all components which is
+                        //   expensive and some components will be shared (e.g. the column header)
+                        // - Calling `viewRef.current.setScrollOffset(0)` because there will be an
+                        //   intermediate render where `<VirtualizedScrollView>` renders the new query
+                        //   at the old scroll offset (potentially causing unnecessary data to load
+                        //   because we're rendering the "load more" item)
+                        queryState.activeQuery
+                            ? getOrSetDefaultMapValue(
+                                  virtualizedScrollViewStateKeyByActiveQuery,
+                                  queryState.activeQuery,
+                                  generateId,
+                              )
+                            : undefined
+                    }
                     bufferedItemHeight={spacing[taskRowViewMinHeight]}
                     itemCount={gridViewItemCount}
                     alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
