@@ -350,17 +350,16 @@ export function useTaskGridViewVirtualizedList({
 
     const updateRowNumberCounter = useEvent(
         (renderedRange: {startIndex: number; endIndex: number} | null) => {
-            if (!renderedRange) return;
+            if (!rootQuery || isRootQueryManuallySorted) return;
 
-            // If we have an empty query then there's no data to load.
-            if (!rootQuery) return;
+            if (!renderedRange) return;
 
             for (
                 let i = Math.max(renderedRange.startIndex, itemCountBeforeState);
                 i < Math.min(renderedRange.endIndex, stateItemCount + itemCountBeforeState);
                 i++
             ) {
-                const item = state.getItem(i - itemCountBeforeState);
+                const item = stateStore.getSnapshot().getItem(i - itemCountBeforeState);
 
                 if (item.type === "Task" && item.parents.length === 0) {
                     // NOTE(calebmer): It's important that we set this style on the virtualized
