@@ -19,6 +19,7 @@ import {
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
@@ -1304,69 +1305,74 @@ function TaskGridViewColumnHeader(
                         }}
                         backgroundColor="grey-0"
                     />
-                    {columnHeaderControls && (
-                        <Box style={{minHeight: columnHeaderControls.minHeight}}>
-                            {columnHeaderControls.node}
+                    <OverlayScopeContextProvider
+                    // Provide an overlay scope within our sticky element which has a `zIndex` that
+                    // renders over overlays.
+                    >
+                        {columnHeaderControls && (
+                            <Box style={{minHeight: columnHeaderControls.minHeight}}>
+                                {columnHeaderControls.node}
+                            </Box>
+                        )}
+                        <Box paddingTop="0.5" display="flex">
+                            <Box
+                                flexShrink="0"
+                                width="32"
+                                paddingLeft="5"
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Name
+                            </Box>
+                            <Box flexGrow="1" />
+                            <Box
+                                flexShrink="0"
+                                style={{
+                                    width: taskRowViewFirstColumnWidth,
+                                    paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                                }}
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Assignee
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                width={taskRowViewColumnWidth}
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Priority
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                width={taskRowViewColumnWidth}
+                                paddingX={taskRowViewColumnPaddingX}
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Due date
+                            </Box>
+                            <Box
+                                flexShrink="0"
+                                width={taskRowViewCollectionsColumnWidth}
+                                paddingLeft={taskRowViewColumnPaddingX}
+                                paddingRight={taskRowViewLastColumnPaddingRight}
+                                paddingBottom="1"
+                                color="grey-50"
+                                fontSize="50"
+                            >
+                                Collections
+                            </Box>
+                            <Box flexShrink="0" width="5" />
                         </Box>
-                    )}
-                    <Box paddingTop="0.5" display="flex">
-                        <Box
-                            flexShrink="0"
-                            width="32"
-                            paddingLeft="5"
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Name
-                        </Box>
-                        <Box flexGrow="1" />
-                        <Box
-                            flexShrink="0"
-                            style={{
-                                width: taskRowViewFirstColumnWidth,
-                                paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                            }}
-                            paddingX={taskRowViewColumnPaddingX}
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Assignee
-                        </Box>
-                        <Box
-                            flexShrink="0"
-                            width={taskRowViewColumnWidth}
-                            paddingX={taskRowViewColumnPaddingX}
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Priority
-                        </Box>
-                        <Box
-                            flexShrink="0"
-                            width={taskRowViewColumnWidth}
-                            paddingX={taskRowViewColumnPaddingX}
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Due date
-                        </Box>
-                        <Box
-                            flexShrink="0"
-                            width={taskRowViewCollectionsColumnWidth}
-                            paddingLeft={taskRowViewColumnPaddingX}
-                            paddingRight={taskRowViewLastColumnPaddingRight}
-                            paddingBottom="1"
-                            color="grey-50"
-                            fontSize="50"
-                        >
-                            Collections
-                        </Box>
-                        <Box flexShrink="0" width="5" />
-                    </Box>
+                    </OverlayScopeContextProvider>
                 </Box>
             </Box>
         </>
