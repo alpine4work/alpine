@@ -56,9 +56,6 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-// NOCOMMIT: Improve initial grid view rendering performance by not mounting
-// cell editors until interaction
-
 export function isTaskQueryMissingRequiredFiltersForQueryView(
     currentAccountId: AccountId,
     filters: TaskQueryNormalizedFilters,

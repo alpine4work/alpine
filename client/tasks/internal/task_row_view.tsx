@@ -188,7 +188,6 @@ const titleCellClassName = sprinkles({
 const paddingBottomClassName = sprinkles({
     width: "full",
     height: "5",
-    pointerEvents: "none",
 });
 
 function TaskRowView(
@@ -663,6 +662,7 @@ function TaskRowView(
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "PageUp": {
                     // NOCOMMIT
+                    // NOCOMMIT: Page up places cursor under header!
                     break;
                 }
 
@@ -1285,8 +1285,13 @@ function TaskRowView(
                     </div>
                 )}
             </ContextMenuActions>
-            {/* NOCOMMIT: Test that we can click here to select */}
-            {withPaddingBottom && <div className={paddingBottomClassName} />}
+            {withPaddingBottom && (
+                <TaskRowViewPaddingBottom
+                    capabilities={capabilities}
+                    focusTitleEnd={focusTitleEnd}
+                    focusTitleAll={focusTitleAll}
+                />
+            )}
         </>
     );
 }
@@ -1359,5 +1364,27 @@ function TaskRowViewDragHandle({
                 </button>
             </FocusRing>
         </div>
+    );
+}
+
+function TaskRowViewPaddingBottom({
+    capabilities,
+    focusTitleEnd,
+    focusTitleAll,
+}: {
+    capabilities: TaskGridViewCapabilities;
+    focusTitleEnd: () => void;
+    focusTitleAll: () => void;
+}) {
+    return (
+        <div
+            className={paddingBottomClassName}
+            style={{cursor: !capabilities.isReadOnly ? "text" : undefined}}
+            {...useOutOfBoundsClickSelection({
+                isDisabled: capabilities.isReadOnly,
+                onSelect: focusTitleEnd,
+                onSelectAll: focusTitleAll,
+            })}
+        />
     );
 }

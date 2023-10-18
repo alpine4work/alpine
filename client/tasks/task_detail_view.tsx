@@ -282,10 +282,7 @@ export function TaskDetailView({
                                 // - Subtasks header
                                 //
                                 // Often the height is larger but never smaller.
-                                //
-                                // NOCOMMIT: Check to make sure this value is accurate when all our UI is
-                                // in place!
-                                minHeight: "18.75rem",
+                                minHeight: "21.75rem",
                                 node: (
                                     <TaskDetailViewMain
                                         taskSubscription={taskSubscription}
@@ -705,7 +702,6 @@ function TaskDetailViewMain({
                                 referencesSubscription={taskSubscription}
                                 task={task}
                                 aria-labelledby={ariaLabelledBy}
-                                // NOCOMMIT: Test!
                                 isReadOnly={isReadOnly}
                             />
                         )}

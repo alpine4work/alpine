@@ -469,7 +469,19 @@ function VirtualizedScrollView(
          */
         onScroll?: (scrollOffset: number) => void;
 
-        // NOCOMMIT: Document
+        /**
+         * When the `stateKey` changes we reset our virtualized scroll view's internal
+         * state and scroll the user back to the top. But we don't remount the
+         * component.
+         *
+         * This can be used, for instance, when changing the backing list of a
+         * virtualized scroll view and you want to throw away the state of old measured
+         * items that aren't representative of the new list.
+         *
+         * On change this will also re-render and scroll the list to its initial
+         * position synchronously so the user doesn't see blank space while the list
+         * re-renders.
+         */
         stateKey?: Key;
 
         /**

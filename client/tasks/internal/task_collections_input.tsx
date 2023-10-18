@@ -516,22 +516,25 @@ export function TaskCollectionsInput({
                                 },
                             );
                         }}
-                        onRemove={() => {
-                            // We don't remove the "x" button so layout doesn't shift when toggling `isReadOnly`.
-                            if (!isReadOnly && task) {
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateTask",
-                                        time: store.clock.now(),
-                                        taskId: task.id,
-                                        taskAction: {
-                                            type: "RemoveCollection",
-                                            collectionId,
-                                        },
-                                    },
-                                ]);
-                            }
-                        }}
+                        onRemove={
+                            !isReadOnly
+                                ? () => {
+                                      if (task) {
+                                          store.commitTaskActionTransaction(context, [
+                                              {
+                                                  type: "UpdateTask",
+                                                  time: store.clock.now(),
+                                                  taskId: task.id,
+                                                  taskAction: {
+                                                      type: "RemoveCollection",
+                                                      collectionId,
+                                                  },
+                                              },
+                                          ]);
+                                      }
+                                  }
+                                : undefined
+                        }
                     />
                 </Box>
             </FocusRing>
