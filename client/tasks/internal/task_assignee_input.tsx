@@ -82,6 +82,8 @@ const Box = null;
 const TaskAssigneeInputForwardRef = forwardRef(TaskAssigneeInput);
 export {TaskAssigneeInputForwardRef as TaskAssigneeInput};
 
+let isClosingComboBox = false;
+
 function TaskAssigneeInput(
     {
         assigneeAccountData,
@@ -209,7 +211,7 @@ function TaskAssigneeInput(
         // should load accounts.
         onOpenChange: setShouldLoadAccounts,
 
-        menuTrigger: "focus",
+        menuTrigger: "manual",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
 
@@ -221,18 +223,37 @@ function TaskAssigneeInput(
                 // Must be in a typing state to accept new typing changes.
                 if (inputState.type !== "Typing") return inputState;
 
-                return {type: "Typing", value: inputValue, hasChanged: true, shouldSelect: false};
+                return {
+                    type: "Typing",
+                    value: inputValue,
+                    hasChanged: true,
+                    shouldSelect: false,
+                };
             });
+
+            // If the combobox was closed (probably because of a selection) reopen when the
+            // user starts typing again.
+            if (!comboBoxState.isOpen) {
+                comboBoxState.open();
+            }
         },
 
         onFocus: () => {
             // Select all text on focus.
             assertExists(inputRef.current).select();
 
+            // Open the combobox on focus.
+            comboBoxState.open();
+
             // When focused, switch to a typing state.
             setInputState(inputState => {
                 if (inputState.type === "Typing") return inputState;
-                return {type: "Typing", value: inputValue, hasChanged: false, shouldSelect: false};
+                return {
+                    type: "Typing",
+                    value: inputValue,
+                    hasChanged: false,
+                    shouldSelect: false,
+                };
             });
         },
 
@@ -294,6 +315,8 @@ function TaskAssigneeInput(
 
         selectedKey,
         onSelectionChange: key => {
+            if (isClosingComboBox) return;
+
             assert(typeof key === "string");
 
             // Don't re-select the selected key.
@@ -335,6 +358,18 @@ function TaskAssigneeInput(
                         shouldSelect: true,
                     };
                 });
+
+                // Close after the user has selected an option. `shouldSelect: true` will also
+                // disable the overlay animation out.
+                //
+                // Annoyingly, `react-aria` recursively calls `onSelectionChange` when you call
+                // `close()` so we need to defend against recursion.
+                isClosingComboBox = true;
+                try {
+                    comboBoxState.close();
+                } finally {
+                    isClosingComboBox = false;
+                }
             } else {
                 setInputState(inputState => {
                     if (inputState.type === "Selection") return inputState;
@@ -391,7 +426,9 @@ function TaskAssigneeInput(
                 offsetAlong={avatarSize === "5" ? "-2.5" : "-3"}
                 disableAnimationIn={true}
                 disableAnimationOut={
-                    inputState.type === "Selection" && inputState.disableAnimationOut
+                    inputState.type === "Selection"
+                        ? inputState.disableAnimationOut
+                        : inputState.shouldSelect
                 }
                 placement="bottom-start"
                 overlay={

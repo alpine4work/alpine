@@ -72,6 +72,8 @@ const itemsSearchIndex = new Lazy(() => {
     });
 });
 
+let isClosingComboBox = false;
+
 function TaskPriorityInput(
     {
         isReadOnly,
@@ -126,7 +128,7 @@ function TaskPriorityInput(
     const selectedKey: TaskPriorityInputItem["key"] = priority ?? "Null";
 
     const comboBoxProps: ComboBoxStateOptions<TaskPriorityInputItem> = {
-        menuTrigger: "focus",
+        menuTrigger: "manual",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
 
@@ -138,18 +140,37 @@ function TaskPriorityInput(
                 // Must be in a typing state to accept new typing changes.
                 if (inputState.type !== "Typing") return inputState;
 
-                return {type: "Typing", value: inputValue, hasChanged: true, shouldSelect: false};
+                return {
+                    type: "Typing",
+                    value: inputValue,
+                    hasChanged: true,
+                    shouldSelect: false,
+                };
             });
+
+            // If the combobox was closed (probably because of a selection) reopen when the
+            // user starts typing again.
+            if (!comboBoxState.isOpen) {
+                comboBoxState.open();
+            }
         },
 
         onFocus: () => {
             // Select all text on focus.
             assertExists(inputRef.current).select();
 
+            // Open the combobox on focus.
+            comboBoxState.open();
+
             // When focused, switch to a typing state.
             setInputState(inputState => {
                 if (inputState.type === "Typing") return inputState;
-                return {type: "Typing", value: inputValue, hasChanged: false, shouldSelect: false};
+                return {
+                    type: "Typing",
+                    value: inputValue,
+                    hasChanged: false,
+                    shouldSelect: false,
+                };
             });
         },
 
@@ -207,6 +228,8 @@ function TaskPriorityInput(
 
         selectedKey,
         onSelectionChange: _key => {
+            if (isClosingComboBox) return;
+
             const key = _key as TaskPriorityInputItem["key"];
 
             if (key !== selectedKey) {
@@ -224,6 +247,18 @@ function TaskPriorityInput(
                         shouldSelect: true,
                     };
                 });
+
+                // Close after the user has selected an option. `shouldSelect: true` will also
+                // disable the overlay animation out.
+                //
+                // Annoyingly, `react-aria` recursively calls `onSelectionChange` when you call
+                // `close()` so we need to defend against recursion.
+                isClosingComboBox = true;
+                try {
+                    comboBoxState.close();
+                } finally {
+                    isClosingComboBox = false;
+                }
             } else {
                 setInputState(inputState => {
                     if (inputState.type === "Selection") return inputState;
@@ -279,7 +314,9 @@ function TaskPriorityInput(
                 offsetAlong="-2.5"
                 disableAnimationIn={true}
                 disableAnimationOut={
-                    inputState.type === "Selection" && inputState.disableAnimationOut
+                    inputState.type === "Selection"
+                        ? inputState.disableAnimationOut
+                        : inputState.shouldSelect
                 }
                 placement="bottom-start"
                 overlay={
