@@ -23,6 +23,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -119,6 +120,12 @@ export function ContextMenuManager() {
                 [contextMenuEventActionsSymbol]?: Array<ReadonlyArray<MenuAction>>;
             },
         ) => {
+            // If the user was holding shift then show the default browser context menu.
+            //
+            // TODO(calebmer): If we ever have a native app wrapper, disable this behavior
+            // in the native app wrapper. Only allow our custom context menu there.
+            if (event.shiftKey) return;
+
             event.preventDefault();
 
             const actions: Array<ReadonlyArray<MenuAction>> =
@@ -210,14 +217,18 @@ export function ContextMenuManager() {
             }
 
             if (actions.length > 0) {
-                setContextMenuState({
-                    isOpen: true,
-                    instance: {
-                        x: event.clientX,
-                        y: event.clientY,
-                        actions,
-                        focusedMenuItemIndex: null,
-                    },
+                // Right-clicking may focus an element which may render something (e.g. open a
+                // dropdown on focus). Make sure we render our context menu in the same render.
+                runWithImmediatePriority(() => {
+                    setContextMenuState({
+                        isOpen: true,
+                        instance: {
+                            x: event.clientX,
+                            y: event.clientY,
+                            actions,
+                            focusedMenuItemIndex: null,
+                        },
+                    });
                 });
             }
         };
