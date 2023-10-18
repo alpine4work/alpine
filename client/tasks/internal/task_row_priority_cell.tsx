@@ -81,6 +81,7 @@ function TaskRowPriorityCell(
         store,
         task,
         disableExpensiveFeaturesDuringScroll,
+        onCellKeyDown,
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
@@ -88,6 +89,7 @@ function TaskRowPriorityCell(
         store: TaskClientStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
+        onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
@@ -173,6 +175,7 @@ function TaskRowPriorityCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
+                onKeyDown={event => onCellKeyDown("Priority", event)}
                 onKeyDownCapture={event => onCellKeyDownCapture("Priority", event)}
             >
                 {isReadOnly ? (

@@ -93,11 +93,13 @@ function TaskRowCollectionsCell(
     {
         query,
         task,
+        onCellKeyDown,
         onCellKeyDownCapture,
         focusPreviousCell,
     }: {
         query: TaskClientQuery;
         task: TaskModel | null;
+        onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
     },
@@ -169,6 +171,7 @@ function TaskRowCollectionsCell(
             onBlur={event => {
                 setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
             }}
+            onKeyDown={event => onCellKeyDown("Collections", event)}
             onKeyDownCapture={event => onCellKeyDownCapture("Collections", event)}
             onPointerDown={event => {
                 if (event.target === event.currentTarget) {

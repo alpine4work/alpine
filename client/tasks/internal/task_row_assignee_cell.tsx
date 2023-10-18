@@ -89,6 +89,7 @@ function TaskRowAssigneeCell(
         task,
         disableExpensiveFeaturesDuringScroll,
         isFirstRow,
+        onCellKeyDown,
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
@@ -97,6 +98,7 @@ function TaskRowAssigneeCell(
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
         isFirstRow: boolean;
+        onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
@@ -183,6 +185,7 @@ function TaskRowAssigneeCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
+                onKeyDown={event => onCellKeyDown("Assignee", event)}
                 onKeyDownCapture={event => onCellKeyDownCapture("Assignee", event)}
             >
                 {isReadOnly ? (

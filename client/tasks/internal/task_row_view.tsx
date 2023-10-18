@@ -18,6 +18,8 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
+import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
@@ -468,6 +470,7 @@ function TaskRowView(
         focusCellInput,
         focusNextCell,
         focusPreviousCell,
+        handleCellKeyDown,
         handleCellKeyDownCapture,
     } = useEvents({
         isFocusWithin: () => assertExists(containerRef.current).contains(document.activeElement),
@@ -597,19 +600,35 @@ function TaskRowView(
         //
         // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
         //
-        // Should be called in the capture phase of event handling.
-        handleCellKeyDownCapture: (column: TaskGridViewColumn, event: KeyboardEvent) => {
+        // Some key bindings are implemented here and some should be implemented in the
+        // capture phase with `handleCellKeyDownCapture`.
+        handleCellKeyDown: (column: TaskGridViewColumn, event: KeyboardEvent) => {
             switch (event.key) {
                 // Moves focus one cell to the left. If focus is on the left-most cell in the
                 // row, focus does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "ArrowLeft": {
-                    if (event.target !== event.currentTarget) break;
+                    if (event.target !== event.currentTarget) {
+                        if (!isTextInputElement(event.target)) {
+                            // If an arrow key event propagates to this point then prevent the default
+                            // browser scroll but don't navigate.
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        break;
+                    }
 
                     event.preventDefault();
                     event.stopPropagation();
 
-                    focusPreviousCell(column);
+                    if (isMac ? event.metaKey : event.ctrlKey) {
+                        // Even though title isn't technically the first column, it's the first
+                        // editable column so we put the user there.
+                        focusCell("Title");
+                    } else {
+                        focusPreviousCell(column);
+                    }
+
                     break;
                 }
 
@@ -617,12 +636,24 @@ function TaskRowView(
                 // row, focus does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "ArrowRight": {
-                    if (event.target !== event.currentTarget) break;
+                    if (event.target !== event.currentTarget) {
+                        if (!isTextInputElement(event.target)) {
+                            // If an arrow key event propagates to this point then prevent the default
+                            // browser scroll but don't navigate.
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        break;
+                    }
 
                     event.preventDefault();
                     event.stopPropagation();
 
-                    focusNextCell(column);
+                    if (isMac ? event.metaKey : event.ctrlKey) {
+                        focusCell(columns[columns.length - 1]!);
+                    } else {
+                        focusNextCell(column);
+                    }
                     break;
                 }
 
@@ -630,12 +661,24 @@ function TaskRowView(
                 // does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "ArrowUp": {
-                    if (event.target !== event.currentTarget) break;
+                    if (event.target !== event.currentTarget) {
+                        if (!isTextInputElement(event.target)) {
+                            // If an arrow key event propagates to this point then prevent the default
+                            // browser scroll but don't navigate.
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        break;
+                    }
 
                     event.preventDefault();
                     event.stopPropagation();
 
-                    focusPreviousTaskCell(column);
+                    if (isMac ? event.metaKey : event.ctrlKey) {
+                        focusFirstVisibleTaskCell(column);
+                    } else {
+                        focusPreviousTaskCell(column);
+                    }
                     break;
                 }
 
@@ -643,12 +686,24 @@ function TaskRowView(
                 // focus does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "ArrowDown": {
-                    if (event.target !== event.currentTarget) break;
+                    if (event.target !== event.currentTarget) {
+                        if (!isTextInputElement(event.target)) {
+                            // If an arrow key event propagates to this point then prevent the default
+                            // browser scroll but don't navigate.
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        break;
+                    }
 
                     event.preventDefault();
                     event.stopPropagation();
 
-                    focusNextTaskCell(column);
+                    if (isMac ? event.metaKey : event.ctrlKey) {
+                        focusLastVisibleTaskCell(column);
+                    } else {
+                        focusNextTaskCell(column);
+                    }
                     break;
                 }
 
@@ -657,12 +712,14 @@ function TaskRowView(
                 // visible rows. If focus is in the last row of the grid, focus does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "PageDown": {
-                    if (event.target !== event.currentTarget) break;
-
                     event.preventDefault();
                     event.stopPropagation();
 
-                    focusLastVisibleTaskCell(column);
+                    if (assertExists(titleInputRef.current).isFocused()) {
+                        focusLastVisibleTaskTitleEnd();
+                    } else {
+                        focusLastVisibleTaskCell(column);
+                    }
                     break;
                 }
 
@@ -671,12 +728,14 @@ function TaskRowView(
                 // visible rows. If focus is in the first row of the grid, focus does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "PageUp": {
-                    if (event.target !== event.currentTarget) break;
-
                     event.preventDefault();
                     event.stopPropagation();
 
-                    focusFirstVisibleTaskCell(column);
+                    if (assertExists(titleInputRef.current).isFocused()) {
+                        focusFirstVisibleTaskTitleStart();
+                    } else {
+                        focusFirstVisibleTaskCell(column);
+                    }
                     break;
                 }
 
@@ -686,16 +745,12 @@ function TaskRowView(
                 // (We don't implement Ctrl+Home since we haven't implemented jumping to the
                 // end of the grid and scrolling up.)
                 case "Home": {
-                    if (event.target !== event.currentTarget) break;
-
                     event.preventDefault();
                     event.stopPropagation();
 
-                    if (columns.length > 0) {
-                        // Even though title isn't technically the first column, it's the first
-                        // editable column so we put the user there.
-                        focusCell("Title");
-                    }
+                    // Even though title isn't technically the first column, it's the first
+                    // editable column so we put the user there.
+                    focusCell("Title");
                     break;
                 }
 
@@ -705,14 +760,10 @@ function TaskRowView(
                 // (We don't implement Ctrl+Home since we haven't implemented jumping to the
                 // end of the grid and scrolling up.)
                 case "End": {
-                    if (event.target !== event.currentTarget) break;
-
                     event.preventDefault();
                     event.stopPropagation();
 
-                    if (columns.length > 0) {
-                        focusCell(columns[columns.length - 1]!);
-                    }
+                    focusCell(columns[columns.length - 1]!);
                     break;
                 }
 
@@ -738,7 +789,11 @@ function TaskRowView(
                     focusCellInput(column);
                     break;
                 }
+            }
+        },
 
+        handleCellKeyDownCapture: (column: TaskGridViewColumn, event: KeyboardEvent) => {
+            switch (event.key) {
                 // Restores grid navigation. If content was being edited, it may also undo edits.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 //
@@ -1124,6 +1179,7 @@ function TaskRowView(
                                     }
                                 }}
                                 onFocusChange={setIsExpandButtonFocused}
+                                onKeyDown={event => handleCellKeyDown("ExpandButton", event)}
                                 onKeyDownCapture={event =>
                                     handleCellKeyDownCapture("ExpandButton", event)
                                 }
@@ -1156,6 +1212,7 @@ function TaskRowView(
                                 isFocusable={true}
                                 isTabbable={false}
                                 isDisabled={capabilities.isReadOnly}
+                                onKeyDown={event => handleCellKeyDown("StatusButton", event)}
                                 onKeyDownCapture={event =>
                                     handleCellKeyDownCapture("StatusButton", event)
                                 }
@@ -1171,6 +1228,7 @@ function TaskRowView(
                     ref={titleCellRef}
                     tabIndex={capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined}
                     className={titleCellClassName}
+                    onKeyDown={event => handleCellKeyDown("Title", event)}
                     onKeyDownCapture={event => handleCellKeyDownCapture("Title", event)}
                 >
                     <TaskRowTitleInput
@@ -1219,6 +1277,7 @@ function TaskRowView(
                         task={task}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
                         isFirstRow={isFirstRow}
+                        onCellKeyDown={handleCellKeyDown}
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusNextCell={focusNextCell}
                         focusPreviousCell={focusPreviousCell}
@@ -1228,6 +1287,7 @@ function TaskRowView(
                         store={query.store}
                         task={task}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
+                        onCellKeyDown={handleCellKeyDown}
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusNextCell={focusNextCell}
                         focusPreviousCell={focusPreviousCell}
@@ -1237,6 +1297,7 @@ function TaskRowView(
                         store={query.store}
                         task={task}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
+                        onCellKeyDown={handleCellKeyDown}
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusNextCell={focusNextCell}
                         focusPreviousCell={focusPreviousCell}
@@ -1245,6 +1306,7 @@ function TaskRowView(
                         ref={collectionsCellRef}
                         query={query}
                         task={task}
+                        onCellKeyDown={handleCellKeyDown}
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusPreviousCell={focusPreviousCell}
                     />

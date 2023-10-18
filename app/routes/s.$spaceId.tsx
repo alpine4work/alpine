@@ -5,6 +5,7 @@ import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useRouteError} 
 import {Box} from "~/client/design/box.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
 import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {PeekStackContextProvider} from "~/client/peek/peek_stack.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar.js";
@@ -107,33 +108,54 @@ export default function SpaceLayoutRoute() {
     }, [currentAccount]);
 
     return (
-        <SpaceContextProvider
-            // Re-render everything when the space changes.
-            key={space.id}
-            space={space}
-            currentAccount={currentAccount}
+        <GlobalKeyDownEvent
+            onGlobalKeyDown={event => {
+                switch (event.key) {
+                    // Disable Home/End browser behavior. Don't let them scroll our page. Scrolling
+                    // to the extremity of a lazy loaded virtualized scroll view with Home/End
+                    // doesn't make sense. Forces the user to scroll continuously with the scroll
+                    // wheel or scroll bar.
+                    //
+                    // Individual components may implement Home/End keyboard shortcuts. These
+                    // shortcuts are focused on small, local, start/end navigations. Instead of full
+                    // page disruptive navigations. (Which a user may trigger on accident.)
+                    case "Home":
+                    case "End": {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        break;
+                    }
+                }
+            }}
         >
-            <TaskRealtimeClientContextProvider spaceId={space.id}>
-                <ContextMenuManager />
-                <Box
-                    display="flex"
-                    flexDirection="column"
-                    height="full"
-                    overflow="hidden"
-                    position="relative"
-                    zIndex="0"
-                >
-                    <PeekStackContextProvider>
-                        <SpaceLayoutTopBar space={space} initialInbox={inbox} />
-                        {error !== undefined ? (
-                            <SpaceRouteErrorRenderer error={error} />
-                        ) : (
-                            <Outlet />
-                        )}
-                    </PeekStackContextProvider>
-                </Box>
-            </TaskRealtimeClientContextProvider>
-        </SpaceContextProvider>
+            <SpaceContextProvider
+                // Re-render everything when the space changes.
+                key={space.id}
+                space={space}
+                currentAccount={currentAccount}
+            >
+                <TaskRealtimeClientContextProvider spaceId={space.id}>
+                    <ContextMenuManager />
+                    <Box
+                        display="flex"
+                        flexDirection="column"
+                        height="full"
+                        overflow="hidden"
+                        position="relative"
+                        zIndex="0"
+                    >
+                        <PeekStackContextProvider>
+                            <SpaceLayoutTopBar space={space} initialInbox={inbox} />
+                            {error !== undefined ? (
+                                <SpaceRouteErrorRenderer error={error} />
+                            ) : (
+                                <Outlet />
+                            )}
+                        </PeekStackContextProvider>
+                    </Box>
+                </TaskRealtimeClientContextProvider>
+            </SpaceContextProvider>
+        </GlobalKeyDownEvent>
     );
 }
 

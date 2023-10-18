@@ -227,14 +227,26 @@ function createListener(
 
         let wasPropagationStopped = false;
 
+        const originalPreventDefault = childEvent.preventDefault.bind(childEvent);
+        const originalStopPropagation = childEvent.stopPropagation.bind(childEvent);
+        const originalStopImmediatePropagation =
+            childEvent.stopImmediatePropagation.bind(childEvent);
+
+        childEvent.preventDefault = () => {
+            event.preventDefault();
+            originalPreventDefault();
+        };
+
         childEvent.stopPropagation = () => {
             wasPropagationStopped = true;
             event.stopPropagation();
+            originalStopPropagation();
         };
 
         childEvent.stopImmediatePropagation = () => {
             wasPropagationStopped = true;
             event.stopImmediatePropagation();
+            originalStopImmediatePropagation();
         };
 
         if (captureListener !== null) {

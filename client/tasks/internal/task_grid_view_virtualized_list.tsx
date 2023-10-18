@@ -65,7 +65,6 @@ import {
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";

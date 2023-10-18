@@ -99,6 +99,7 @@ function TaskRowDueDateCell(
         store,
         task,
         disableExpensiveFeaturesDuringScroll,
+        onCellKeyDown,
         onCellKeyDownCapture,
         focusPreviousCell,
         focusNextCell,
@@ -106,6 +107,7 @@ function TaskRowDueDateCell(
         store: TaskClientStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
+        onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
@@ -190,6 +192,7 @@ function TaskRowDueDateCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
+                onKeyDown={event => onCellKeyDown("DueDate", event)}
                 onKeyDownCapture={event => onCellKeyDownCapture("DueDate", event)}
             >
                 {isReadOnly ? (
