@@ -22,7 +22,7 @@ import {
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
-const taskAnimationDurationMs = 150;
+const taskAnimationDurationMs = 100;
 
 // HACK(calebmer): Hackishly get the constructor for a
 // `functional-red-black-tree` iterator so we can construct it since there's
@@ -479,10 +479,16 @@ export class TaskGridViewVirtualizedListState {
         ) => {
             if (!oldTree) {
                 newTree?.tasks.forEach((key, value) => {
+                    const newChildrenCount = this._getSubtreeItemCount(
+                        value?.childrenTree?.tasks.root ?? null,
+                    );
+
                     const animation: TaskGridViewVirtualizedListAnimation = {
                         type: "Create",
                         startTime,
-                        duration: taskAnimationDurationMs,
+                        // If a task has some children, allow the animation to take a little longer but
+                        // not too long.
+                        duration: taskAnimationDurationMs * (1 + Math.min(newChildrenCount, 1)),
                         taskId: getTaskQuerySortCursorTaskId(key),
                         newItem: {
                             type: "Task",
@@ -490,9 +496,7 @@ export class TaskGridViewVirtualizedListState {
                             parents: newTree.parents,
                             cursor: key,
                         },
-                        newChildrenCount: this._getSubtreeItemCount(
-                            value?.childrenTree?.tasks.root ?? null,
-                        ),
+                        newChildrenCount,
                     };
 
                     animations.add(animation);
@@ -508,10 +512,16 @@ export class TaskGridViewVirtualizedListState {
 
             if (!newTree) {
                 oldTree?.tasks.forEach((key, value) => {
+                    const oldChildrenCount = this._getSubtreeItemCount(
+                        value?.childrenTree?.tasks.root ?? null,
+                    );
+
                     const animation: TaskGridViewVirtualizedListAnimation = {
                         type: "Delete",
                         startTime,
-                        duration: taskAnimationDurationMs,
+                        // If a task has some children, allow the animation to take a little longer but
+                        // not too long.
+                        duration: taskAnimationDurationMs * (1 + Math.min(oldChildrenCount, 1)),
                         taskId: getTaskQuerySortCursorTaskId(key),
                         oldItem: {
                             type: "Task",
@@ -519,9 +529,7 @@ export class TaskGridViewVirtualizedListState {
                             parents: oldTree.parents,
                             cursor: key,
                         },
-                        oldChildrenCount: this._getSubtreeItemCount(
-                            value?.childrenTree?.tasks.root ?? null,
-                        ),
+                        oldChildrenCount,
                     };
 
                     animations.add(animation);
@@ -543,10 +551,16 @@ export class TaskGridViewVirtualizedListState {
             for (const change of changes) {
                 switch (change.type) {
                     case "CreateEntry": {
+                        const newChildrenCount = this._getSubtreeItemCount(
+                            change.newValue?.childrenTree?.tasks.root ?? null,
+                        );
+
                         const animation: TaskGridViewVirtualizedListAnimation = {
                             type: "Create",
                             startTime,
-                            duration: taskAnimationDurationMs,
+                            // If a task has some children, allow the animation to take a little longer but
+                            // not too long.
+                            duration: taskAnimationDurationMs * (1 + Math.min(newChildrenCount, 1)),
                             taskId: getTaskQuerySortCursorTaskId(change.key),
                             newItem: {
                                 type: "Task",
@@ -554,9 +568,7 @@ export class TaskGridViewVirtualizedListState {
                                 parents: newTree.parents,
                                 cursor: change.key,
                             },
-                            newChildrenCount: this._getSubtreeItemCount(
-                                change.newValue?.childrenTree?.tasks.root ?? null,
-                            ),
+                            newChildrenCount,
                         };
 
                         animations.add(animation);
@@ -569,10 +581,16 @@ export class TaskGridViewVirtualizedListState {
                         break;
                     }
                     case "DeleteEntry": {
+                        const oldChildrenCount = this._getSubtreeItemCount(
+                            change.oldValue?.childrenTree?.tasks.root ?? null,
+                        );
+
                         const animation: TaskGridViewVirtualizedListAnimation = {
                             type: "Delete",
                             startTime,
-                            duration: taskAnimationDurationMs,
+                            // If a task has some children, allow the animation to take a little longer but
+                            // not too long.
+                            duration: taskAnimationDurationMs * (1 + Math.min(oldChildrenCount, 1)),
                             taskId: getTaskQuerySortCursorTaskId(change.key),
                             oldItem: {
                                 type: "Task",
@@ -580,9 +598,7 @@ export class TaskGridViewVirtualizedListState {
                                 parents: oldTree.parents,
                                 cursor: change.key,
                             },
-                            oldChildrenCount: this._getSubtreeItemCount(
-                                change.oldValue?.childrenTree?.tasks.root ?? null,
-                            ),
+                            oldChildrenCount,
                         };
 
                         animations.add(animation);
@@ -629,7 +645,7 @@ export class TaskGridViewVirtualizedListState {
                 animations.add({
                     type: "Move",
                     startTime,
-                    duration: Math.max(animation1.duration, animation2.duration),
+                    duration: taskAnimationDurationMs,
                     taskId: getTaskQuerySortCursorTaskId(animation1.newItem.cursor),
                     newItem: animation1.newItem,
                     oldItem: animation2.oldItem,
@@ -649,7 +665,7 @@ export class TaskGridViewVirtualizedListState {
                 animations.add({
                     type: "Move",
                     startTime,
-                    duration: Math.max(animation1.duration, animation2.duration),
+                    duration: taskAnimationDurationMs,
                     taskId: getTaskQuerySortCursorTaskId(animation2.newItem.cursor),
                     newItem: animation2.newItem,
                     oldItem: animation1.oldItem,
