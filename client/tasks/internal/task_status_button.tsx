@@ -104,6 +104,7 @@ function TaskStatusButton(
         isTabbable = true,
         onKeyDown,
         onKeyDownCapture,
+        shouldShowClosedStatusWhenPressed,
     }: {
         store: TaskClientStore;
         task: TaskModel;
@@ -113,6 +114,7 @@ function TaskStatusButton(
         isTabbable?: boolean;
         onKeyDown?: (event: KeyboardEvent) => void;
         onKeyDownCapture?: (event: KeyboardEvent) => void;
+        shouldShowClosedStatusWhenPressed?: boolean;
     },
     ref: Ref<HTMLElement>,
 ) {
@@ -186,6 +188,12 @@ function TaskStatusButton(
 
     const className = size === "4" ? size4ClassName : size5ClassName;
 
+    let displayStatus = task.getDisplayStatus();
+
+    if (shouldShowClosedStatusWhenPressed && isPressed && displayStatus !== "Closed") {
+        displayStatus = "Closed";
+    }
+
     return (
         <FocusRing>
             {isFocusable ? (
@@ -196,7 +204,7 @@ function TaskStatusButton(
                     className={className}
                 >
                     <TaskDisplayStatusCircle
-                        displayStatus={task.getDisplayStatus()}
+                        displayStatus={displayStatus}
                         size={size}
                         isPressed={isPressed}
                     />
@@ -210,7 +218,7 @@ function TaskStatusButton(
                     className={className}
                 >
                     <TaskDisplayStatusCircle
-                        displayStatus={task.getDisplayStatus()}
+                        displayStatus={displayStatus}
                         size={size}
                         isPressed={isPressed}
                     />

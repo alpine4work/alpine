@@ -1227,6 +1227,18 @@ function TaskRowView(
                                 onKeyDownCapture={event =>
                                     handleCellKeyDownCapture("StatusButton", event)
                                 }
+                                // Small UX detail that makes (I feel) a big difference. When you press the
+                                // status button to close a task, after releasing the task immediately animates
+                                // out if the query's filters don't allow closed tasks. This may confuse a user.
+                                // Why did the task do that? Where'd it go?
+                                //
+                                // If the user is in a query where closed tasks are filtered out we show the
+                                // closed check when the user presses down on the status button. This way we
+                                // briefly show them what the new state of their task will be. And give them
+                                // the satisfaction of seeing a closed task.
+                                shouldShowClosedStatusWhenPressed={
+                                    !query.filters.displayStatusFilter.ifClosed
+                                }
                             />
                         ) : (
                             <div className={placeholderStatusButtonClassName} />
