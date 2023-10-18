@@ -1069,7 +1069,7 @@ export function useTaskGridViewVirtualizedList({
 
                         if (remainingDuration <= 0) continue;
 
-                        // NOTE(calebmer): Ideally we'd get access to the new item's actual
+                        // TODO(calebmer): Ideally we'd get access to the new item's actual
                         // height since the height is not a constant in task detail view.
                         const distance = -(
                             (1 + animation.newChildrenCount) *
@@ -1088,6 +1088,8 @@ export function useTaskGridViewVirtualizedList({
                         });
                         break;
                     }
+                    // TODO(calebmer): Ideally we keep rendering the old task as we slide tasks
+                    // below on top of it. Instead of immediately un-rendering the task.
                     case "Delete": {
                         const isAfterOldItem =
                             (item &&
@@ -1104,7 +1106,7 @@ export function useTaskGridViewVirtualizedList({
 
                         if (remainingDuration <= 0) continue;
 
-                        // NOTE(calebmer): Ideally we'd somehow get access to the old item's actual
+                        // TODO(calebmer): Ideally we'd somehow get access to the old item's actual
                         // height since the height is not a constant in task detail view.
                         const distance =
                             (1 + animation.oldChildrenCount) *
@@ -1122,6 +1124,14 @@ export function useTaskGridViewVirtualizedList({
                         });
                         break;
                     }
+                    // TODO(calebmer): Currently during the move animation we immediately render the
+                    // task at its new location and the tasks in between slide over the task that's
+                    // moving. This animation is bad for small 1 or 2 position moves since it looks
+                    // like the wrong task is moving. Ideally we'd animate the task from its old
+                    // position to the new position on top of the sliding tasks underneath.
+                    //
+                    // For large moves (5+ tasks in between) what we currently have may be the
+                    // better animation since the moving task would have to fly at insane speeds.
                     case "Move": {
                         const isAfterOldItem =
                             (item &&
@@ -1156,7 +1166,7 @@ export function useTaskGridViewVirtualizedList({
 
                         if (remainingDuration <= 0) continue;
 
-                        // NOTE(calebmer): Ideally we'd somehow get access to the old item's actual
+                        // TODO(calebmer): Ideally we'd somehow get access to the old item's actual
                         // height since the height is not a constant in task detail view.
                         const distance = convertRemLengthToPx(
                             spacing[taskRowViewMinHeight],
@@ -1198,6 +1208,11 @@ export function useTaskGridViewVirtualizedList({
                     duration,
                     // Since we interrupt this animation and start a new one as our animation
                     // state changes, linear easing helps the animation appear continuous.
+                    //
+                    // TODO(calebmer): A non-linear easing may look better here. But we have to take
+                    // care to making it non-interruptible which seems challenging. If multiple
+                    // animations overlap, does a non-linear easing look janky since we restart the
+                    // curve whenever there's a new animation?
                     easing: "linear",
                 },
             );
