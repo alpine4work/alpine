@@ -62,7 +62,9 @@ import {
     spacing,
 } from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -100,6 +102,7 @@ export type TaskGridViewVirtualizedListViewRef = {
     getKeyByIndexIfExists: (index: number) => Key | null;
     getIndexByKeyIfExists: (key: Key) => number | null;
     getPositionByIndex: (index: number) => {offset: number; height: number};
+    getPositionByKeyIfExists: (key: Key) => {offset: number; height: number} | null;
     peekRenderedRangeAfterSetScrollOffset: (
         scrollOffset: number,
     ) => {startIndex: number; endIndex: number} | null;
@@ -567,22 +570,59 @@ export function useTaskGridViewVirtualizedList({
             }
         },
 
+        focusFirstVisibleTaskTitleStart: () => {
+            const firstVisibleTaskRow = events.getFirstVisibleTaskRowIfExists();
+            if (!firstVisibleTaskRow) return;
+
+            // If the first visible task title is already focused then we want to scroll
+            // one page up and focus the first task after scrolling.
+            if (firstVisibleTaskRow.isFocusWithin()) {
+                runPromiseWithoutAwaiting(async () => {
+                    const firstVisibleTaskRow = await events.scrollFirstVisiblePageUpTaskIntoView();
+                    firstVisibleTaskRow?.focusTitleStart();
+                });
+            } else {
+                firstVisibleTaskRow.focusTitleStart();
+            }
+        },
+
+        focusFirstVisibleTaskCell: (column: TaskGridViewColumn) => {
+            const firstVisibleTaskRow = events.getFirstVisibleTaskRowIfExists();
+            if (!firstVisibleTaskRow) return;
+
+            // If the first visible task title is already focused then we want to scroll
+            // one page up and focus the first task after scrolling.
+            if (firstVisibleTaskRow.isFocusWithin()) {
+                runPromiseWithoutAwaiting(async () => {
+                    const firstVisibleTaskRow = await events.scrollFirstVisiblePageUpTaskIntoView();
+                    firstVisibleTaskRow?.focusCell(column);
+                });
+            } else {
+                firstVisibleTaskRow.focusCell(column);
+            }
+        },
+
         getFirstVisibleTaskRowIfExists: (): TaskRowViewRef | null => {
             const view = assertExists(viewRef.current);
 
             const renderedRange = view.getRenderedRange();
             if (!renderedRange) return null;
 
-            const height = view.getHeight();
-            const scrollOffset = view.getScrollOffset();
+            // If we have a column header then it sticks to the top of the view. We want to
+            // find a visible task row that's not occluded by our sticky column header.
+            const columnHeaderPosition = view.getPositionByKeyIfExists("ColumnHeader");
+
+            const effectiveHeight = view.getHeight() - (columnHeaderPosition?.height ?? 0);
+            const effectiveScrollOffset =
+                view.getScrollOffset() + (columnHeaderPosition?.height ?? 0);
 
             for (let index = renderedRange.startIndex; index <= renderedRange.endIndex; index++) {
                 const position = view.getPositionByIndex(index);
 
                 // Look for the first visible item in the scroll window...
                 if (
-                    position.offset < scrollOffset ||
-                    position.offset + position.height > scrollOffset + height
+                    position.offset < effectiveScrollOffset ||
+                    position.offset + position.height > effectiveScrollOffset + effectiveHeight
                 ) {
                     continue;
                 }
@@ -602,29 +642,22 @@ export function useTaskGridViewVirtualizedList({
             return null;
         },
 
-        focusFirstVisibleTaskTitleStart: () => {
-            const firstVisibleTaskRow = events.getFirstVisibleTaskRowIfExists();
-            if (!firstVisibleTaskRow) return;
-
-            // If the first visible task title is already focused then we want to scroll
-            // one page up and focus the first task after scrolling.
-            if (firstVisibleTaskRow.isTitleFocused()) {
-                events.focusFirstPageUpTaskTitleStart();
-            } else {
-                firstVisibleTaskRow.focusTitleStart();
-            }
-        },
-
-        focusFirstPageUpTaskTitleStart: () => {
+        scrollFirstVisiblePageUpTaskIntoView: (): Promise<TaskRowViewRef | null> => {
             const view = assertExists(viewRef.current);
+
+            // If we have a column header then it sticks to the top of the view. We want to
+            // find a visible task row that's not occluded by our sticky column header.
+            const columnHeaderPosition = view.getPositionByKeyIfExists("ColumnHeader");
 
             const height = view.getHeight();
             const scrollOffset = view.getScrollOffset();
 
+            const effectiveHeight = height - (columnHeaderPosition?.height ?? 0);
+
             const newScrollOffset = Math.max(
                 0,
                 scrollOffset -
-                    (height -
+                    (effectiveHeight -
                         // We want to keep some overlap between tasks when paging up/down so the user
                         // doesn't completely lose their context.
                         convertRemLengthToPx(
@@ -640,16 +673,55 @@ export function useTaskGridViewVirtualizedList({
 
             view.setScrollOffset(newScrollOffset);
 
-            if (!expectedRenderedRange) return;
+            if (!expectedRenderedRange) return Promise.resolve(null);
 
             if (isDeepEqual(renderedRange, expectedRenderedRange)) {
                 const firstVisibleTaskRow = events.getFirstVisibleTaskRowIfExists();
-                firstVisibleTaskRow?.focusTitleStart();
+                return Promise.resolve(firstVisibleTaskRow);
             } else {
-                onRenderedRangeChangeCallbacksRef.current.push(() => {
-                    const firstVisibleTaskRow = events.getFirstVisibleTaskRowIfExists();
-                    firstVisibleTaskRow?.focusTitleStart();
+                return new Promise(resolve => {
+                    // Wait for `<VirtualizedScrollView>` to re-render. We expect
+                    // `<VirtualizedScrollView>` will re-render within the frame we call
+                    // `setScrollOffset()`.
+                    //
+                    // If `<VirtualizedScrollView>` has not re-rendered we'll get the wrong task.
+                    requestAnimationFrame(() => {
+                        const firstVisibleTaskRow = events.getFirstVisibleTaskRowIfExists();
+                        resolve(firstVisibleTaskRow);
+                    });
                 });
+            }
+        },
+
+        focusLastVisibleTaskTitleEnd: () => {
+            const lastVisibleTaskRow = events.getLastVisibleTaskRowIfExists();
+            if (!lastVisibleTaskRow) return;
+
+            // If the last visible task title is already focused then we want to scroll
+            // one page down and focus the last task after scrolling.
+            if (lastVisibleTaskRow.isFocusWithin()) {
+                runPromiseWithoutAwaiting(async () => {
+                    const lastVisibleTaskRow = await events.scrollLastVisiblePageDownTaskIntoView();
+                    lastVisibleTaskRow?.focusTitleEnd();
+                });
+            } else {
+                lastVisibleTaskRow.focusTitleEnd();
+            }
+        },
+
+        focusLastVisibleTaskCell: (column: TaskGridViewColumn) => {
+            const lastVisibleTaskRow = events.getLastVisibleTaskRowIfExists();
+            if (!lastVisibleTaskRow) return;
+
+            // If the last visible task title is already focused then we want to scroll
+            // one page down and focus the last task after scrolling.
+            if (lastVisibleTaskRow.isFocusWithin()) {
+                runPromiseWithoutAwaiting(async () => {
+                    const lastVisibleTaskRow = await events.scrollLastVisiblePageDownTaskIntoView();
+                    lastVisibleTaskRow?.focusCell(column);
+                });
+            } else {
+                lastVisibleTaskRow.focusCell(column);
             }
         },
 
@@ -659,16 +731,21 @@ export function useTaskGridViewVirtualizedList({
             const renderedRange = view.getRenderedRange();
             if (!renderedRange) return null;
 
-            const height = view.getHeight();
-            const scrollOffset = view.getScrollOffset();
+            // If we have a column header then it sticks to the top of the view. We want to
+            // find a visible task row that's not occluded by our sticky column header.
+            const columnHeaderPosition = view.getPositionByKeyIfExists("ColumnHeader");
+
+            const effectiveHeight = view.getHeight() - (columnHeaderPosition?.height ?? 0);
+            const effectiveScrollOffset =
+                view.getScrollOffset() + (columnHeaderPosition?.height ?? 0);
 
             for (let index = renderedRange.endIndex; index >= renderedRange.startIndex; index--) {
                 const position = view.getPositionByIndex(index);
 
                 // Look for the last visible item in the scroll window...
                 if (
-                    position.offset < scrollOffset ||
-                    position.offset + position.height > scrollOffset + height
+                    position.offset < effectiveScrollOffset ||
+                    position.offset + position.height > effectiveScrollOffset + effectiveHeight
                 ) {
                     continue;
                 }
@@ -688,30 +765,22 @@ export function useTaskGridViewVirtualizedList({
             return null;
         },
 
-        focusLastVisibleTaskTitleEnd: () => {
-            const lastVisibleTaskRow = events.getLastVisibleTaskRowIfExists();
-            if (!lastVisibleTaskRow) return;
-
-            // If the last visible task title is already focused then we want to scroll
-            // one page down and focus the last task after scrolling.
-            if (lastVisibleTaskRow.isTitleFocused()) {
-                events.focusLastPageDownTaskTitleEnd();
-            } else {
-                lastVisibleTaskRow.focusTitleEnd();
-            }
-        },
-
-        focusLastPageDownTaskTitleEnd: () => {
+        scrollLastVisiblePageDownTaskIntoView: (): Promise<TaskRowViewRef | null> => {
             const view = assertExists(viewRef.current);
 
+            // If we have a column header then it sticks to the top of the view. We want to
+            // find a visible task row that's not occluded by our sticky column header.
+            const columnHeaderPosition = view.getPositionByKeyIfExists("ColumnHeader");
+
             const height = view.getHeight();
-            const contentHeight = view.getContentHeight();
             const scrollOffset = view.getScrollOffset();
 
+            const effectiveHeight = height - (columnHeaderPosition?.height ?? 0);
+
             const newScrollOffset = Math.min(
-                contentHeight - height,
+                view.getContentHeight() - height,
                 scrollOffset +
-                    (height -
+                    (effectiveHeight -
                         // We want to keep some overlap between tasks when paging up/down so the user
                         // doesn't completely lose their context.
                         convertRemLengthToPx(
@@ -727,15 +796,22 @@ export function useTaskGridViewVirtualizedList({
 
             view.setScrollOffset(newScrollOffset);
 
-            if (!expectedRenderedRange) return;
+            if (!expectedRenderedRange) return Promise.resolve(null);
 
             if (isDeepEqual(renderedRange, expectedRenderedRange)) {
                 const lastVisibleTaskRow = events.getLastVisibleTaskRowIfExists();
-                lastVisibleTaskRow?.focusTitleEnd();
+                return Promise.resolve(lastVisibleTaskRow);
             } else {
-                onRenderedRangeChangeCallbacksRef.current.push(() => {
-                    const lastVisibleTaskRow = events.getLastVisibleTaskRowIfExists();
-                    lastVisibleTaskRow?.focusTitleEnd();
+                return new Promise(resolve => {
+                    // Wait for `<VirtualizedScrollView>` to re-render. We expect
+                    // `<VirtualizedScrollView>` will re-render within the frame we call
+                    // `setScrollOffset()`.
+                    //
+                    // If `<VirtualizedScrollView>` has not re-rendered we'll get the wrong task.
+                    requestAnimationFrame(() => {
+                        const lastVisibleTaskRow = events.getLastVisibleTaskRowIfExists();
+                        resolve(lastVisibleTaskRow);
+                    });
                 });
             }
         },
@@ -1046,10 +1122,12 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly preserveLastTaskTitleArrowNavigationCoord: () => void;
     readonly getFirstVisibleTaskRowIfExists: () => TaskRowViewRef | null;
     readonly focusFirstVisibleTaskTitleStart: () => void;
-    readonly focusFirstPageUpTaskTitleStart: () => void;
+    readonly focusFirstVisibleTaskCell: (column: TaskGridViewColumn) => void;
+    readonly scrollFirstVisiblePageUpTaskIntoView: () => Promise<TaskRowViewRef | null>;
     readonly getLastVisibleTaskRowIfExists: () => TaskRowViewRef | null;
     readonly focusLastVisibleTaskTitleEnd: () => void;
-    readonly focusLastPageDownTaskTitleEnd: () => void;
+    readonly focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
+    readonly scrollLastVisiblePageDownTaskIntoView: () => Promise<TaskRowViewRef | null>;
 }>;
 
 const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHeader));
@@ -1844,7 +1922,9 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 events.preserveLastTaskTitleArrowNavigationCoord
             }
             focusFirstVisibleTaskTitleStart={events.focusFirstVisibleTaskTitleStart}
+            focusFirstVisibleTaskCell={events.focusFirstVisibleTaskCell}
             focusLastVisibleTaskTitleEnd={events.focusLastVisibleTaskTitleEnd}
+            focusLastVisibleTaskCell={events.focusLastVisibleTaskCell}
         />
     );
 });

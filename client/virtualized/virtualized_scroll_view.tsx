@@ -277,7 +277,7 @@ export type VirtualizedScrollViewRef = {
     /**
      * Return the underlying view HTML element.
      */
-    getViewElement(): HTMLDivElement;
+    getElement(): HTMLDivElement;
 
     /**
      * Return the underlying content container HTML element.
@@ -1406,7 +1406,7 @@ function VirtualizedScrollView(
 
                     return peekState.getRenderedRange();
                 },
-                getViewElement: () => assertExists(scrollRef.current),
+                getElement: () => assertExists(scrollRef.current),
                 getContentElement: () => assertExists(contentRef.current),
             };
         },

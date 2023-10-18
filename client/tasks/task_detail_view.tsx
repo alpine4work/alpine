@@ -129,6 +129,8 @@ export function TaskDetailView({
             },
             getPositionByIndex: index =>
                 assertExists(viewRef.current).getPositionByIndex(index + 1),
+            getPositionByKeyIfExists: key =>
+                assertExists(viewRef.current).getPositionByKeyIfExists(key),
             peekRenderedRangeAfterSetScrollOffset: scrollOffset =>
                 shiftRenderedRangeForChildrenGridView(
                     assertExists(viewRef.current).peekRenderedRangeAfterSetScrollOffset(

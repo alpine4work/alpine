@@ -122,6 +122,8 @@ export function TaskCollectionView({
             },
             getPositionByIndex: index =>
                 assertExists(viewRef.current).getPositionByIndex(index + 1),
+            getPositionByKeyIfExists: key =>
+                assertExists(viewRef.current).getPositionByKeyIfExists(key),
             peekRenderedRangeAfterSetScrollOffset: scrollOffset =>
                 shiftRenderedRangeForGridView(
                     assertExists(viewRef.current).peekRenderedRangeAfterSetScrollOffset(

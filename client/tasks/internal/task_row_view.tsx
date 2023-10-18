@@ -19,6 +19,7 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
@@ -127,7 +128,7 @@ function getPreviousTaskGridViewColumnIfExists(
 }
 
 export type TaskRowViewRef = {
-    isTitleFocused(): boolean;
+    isFocusWithin(): boolean;
     focusTitleStart(): void;
     focusTitleEnd(): void;
     focusTitleAll(): void;
@@ -221,7 +222,9 @@ function TaskRowView(
         focusPreviousTaskCell,
         preserveLastTaskTitleArrowNavigationCoord,
         focusFirstVisibleTaskTitleStart,
+        focusFirstVisibleTaskCell,
         focusLastVisibleTaskTitleEnd,
+        focusLastVisibleTaskCell,
     }: {
         capabilities: TaskGridViewCapabilities;
         query: TaskClientQuery;
@@ -264,7 +267,9 @@ function TaskRowView(
         focusPreviousTaskCell: (column: TaskGridViewColumn) => void;
         preserveLastTaskTitleArrowNavigationCoord: () => void;
         focusFirstVisibleTaskTitleStart: () => void;
+        focusFirstVisibleTaskCell: (column: TaskGridViewColumn) => void;
         focusLastVisibleTaskTitleEnd: () => void;
+        focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
     },
     ref: Ref<TaskRowViewRef>,
 ) {
@@ -453,7 +458,7 @@ function TaskRowView(
     }, [capabilities.hasColumns, hasTask]);
 
     const {
-        isTitleFocused,
+        isFocusWithin,
         focusTitleStart,
         focusTitleEnd,
         focusTitleAll,
@@ -465,7 +470,7 @@ function TaskRowView(
         focusPreviousCell,
         handleCellKeyDownCapture,
     } = useEvents({
-        isTitleFocused: () => assertExists(titleInputRef.current).isFocused(),
+        isFocusWithin: () => assertExists(containerRef.current).contains(document.activeElement),
 
         focusTitleStart: () => {
             assertExists(titleInputRef.current).focusStart();
@@ -652,7 +657,12 @@ function TaskRowView(
                 // visible rows. If focus is in the last row of the grid, focus does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "PageDown": {
-                    // NOCOMMIT
+                    if (event.target !== event.currentTarget) break;
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    focusLastVisibleTaskCell(column);
                     break;
                 }
 
@@ -661,8 +671,12 @@ function TaskRowView(
                 // visible rows. If focus is in the first row of the grid, focus does not move.
                 // https://www.w3.org/WAI/ARIA/apg/patterns/grid/
                 case "PageUp": {
-                    // NOCOMMIT
-                    // NOCOMMIT: Page up places cursor under header!
+                    if (event.target !== event.currentTarget) break;
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    focusFirstVisibleTaskCell(column);
                     break;
                 }
 
@@ -672,7 +686,16 @@ function TaskRowView(
                 // (We don't implement Ctrl+Home since we haven't implemented jumping to the
                 // end of the grid and scrolling up.)
                 case "Home": {
-                    // NOCOMMIT
+                    if (event.target !== event.currentTarget) break;
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (columns.length > 0) {
+                        // Even though title isn't technically the first column, it's the first
+                        // editable column so we put the user there.
+                        focusCell("Title");
+                    }
                     break;
                 }
 
@@ -682,7 +705,14 @@ function TaskRowView(
                 // (We don't implement Ctrl+Home since we haven't implemented jumping to the
                 // end of the grid and scrolling up.)
                 case "End": {
-                    // NOCOMMIT
+                    if (event.target !== event.currentTarget) break;
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (columns.length > 0) {
+                        focusCell(columns[columns.length - 1]!);
+                    }
                     break;
                 }
 
@@ -729,7 +759,7 @@ function TaskRowView(
     });
 
     useImperativeHandle(ref, () => ({
-        isTitleFocused,
+        isFocusWithin,
         focusTitleStart,
         focusTitleEnd,
         focusTitleAll,
@@ -738,7 +768,9 @@ function TaskRowView(
         focusCell,
     }));
 
+    const containerRef = useRef<HTMLDivElement>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
+    const mergedContainerRef = useMergedRefs<HTMLDivElement>(containerRef, hoverRef);
 
     const [isExpandButtonFocused, setIsExpandButtonFocused] = useState(false);
 
@@ -1004,7 +1036,7 @@ function TaskRowView(
 
     const node = (
         <div
-            ref={!capabilities.hasDenseFields ? hoverRef : undefined}
+            ref={!capabilities.hasDenseFields ? mergedContainerRef : undefined}
             style={{
                 minHeight: spacing[taskRowViewMinHeight],
                 position: "relative",
@@ -1253,7 +1285,7 @@ function TaskRowView(
                     node
                 ) : (
                     <div
-                        ref={hoverRef}
+                        ref={mergedContainerRef}
                         style={{
                             minHeight: spacing[taskRowViewMinHeight],
                             position: "relative",
