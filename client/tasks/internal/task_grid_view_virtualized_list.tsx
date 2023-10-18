@@ -138,6 +138,7 @@ function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormalizedSort>
     );
 }
 
+let disableAllTaskGridViewAnimations = false;
 const disableTaskGridViewAnimationsForTaskIds = new Set<TaskId>();
 
 /**
@@ -149,6 +150,22 @@ export function disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(task
     disableTaskGridViewAnimationsForTaskIds.add(taskId);
     scheduleAfterNextBrowserPaint(() => {
         disableTaskGridViewAnimationsForTaskIds.delete(taskId);
+    });
+}
+
+/**
+ * Disable all animations in task grid views until the next browser paint. This
+ * only works if you have (or will have) an immediate React render queued up before
+ * the next paint.
+ *
+ * Since this disables ALL animations, generally prefer using
+ * `disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint()` to target
+ * specific tasks.
+ */
+export function disableAllTaskGridViewAnimationsUntilNextBrowserPaint() {
+    disableAllTaskGridViewAnimations = true;
+    scheduleAfterNextBrowserPaint(() => {
+        disableAllTaskGridViewAnimations = false;
     });
 }
 
@@ -944,17 +961,20 @@ export function useTaskGridViewVirtualizedList({
     if (animationState.state !== state) {
         const animations = state.getAnimations(animationState.state);
 
-        const newAnimations = [...animationState.animations];
+        let newAnimations: Array<TaskGridViewVirtualizedListAnimation> | null = null;
 
-        for (const animation of animations) {
-            if (!disableTaskGridViewAnimationsForTaskIds.has(animation.taskId)) {
-                newAnimations.push(animation);
+        if (!disableAllTaskGridViewAnimations) {
+            for (const animation of animations) {
+                if (!disableTaskGridViewAnimationsForTaskIds.has(animation.taskId)) {
+                    newAnimations ??= [...animationState.animations];
+                    newAnimations.push(animation);
+                }
             }
         }
 
         setAnimationState({
             state,
-            animations: newAnimations,
+            animations: newAnimations ?? animationState.animations,
         });
     }
 

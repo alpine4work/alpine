@@ -9,6 +9,7 @@ import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
+import {disableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore, getParentTaskIdIfChildrenQuery} from "~/client/tasks/task_client_store.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -58,6 +59,10 @@ function createTaskGridViewExpansionStateManager({
     const updateLocally = (
         action: (oldState: TaskGridViewExpansionState) => TaskGridViewExpansionState,
     ) => {
+        // Don't animate whenever our expansion state changes. Expansion state changes
+        // due to direct user interaction.
+        disableAllTaskGridViewAnimationsUntilNextBrowserPaint();
+
         batchStoreUpdates(() => {
             const oldState = state;
             const newState = action(oldState);
