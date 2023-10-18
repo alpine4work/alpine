@@ -1,3 +1,4 @@
+import {AnimationControls, animate} from "motion";
 import {SpinnerGap} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
@@ -11,6 +12,7 @@ import {
     SetStateAction,
     forwardRef,
     memo,
+    useCallback,
     useEffect,
     useMemo,
     useRef,
@@ -21,6 +23,7 @@ import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -31,7 +34,11 @@ import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_l
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
-import {TaskGridViewVirtualizedListState} from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
+import {
+    TaskGridViewVirtualizedListAnimation,
+    TaskGridViewVirtualizedListState,
+    isTaskGridViewVirtualizedListStateItemAfter,
+} from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
 import {TaskRowShimmer} from "~/client/tasks/internal/task_row_shimmer.js";
 import {
     TaskGridViewColumn,
@@ -64,12 +71,17 @@ import {
 } from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {scheduleAfterNextBrowserPaint} from "~/shared/helpers/async/schedule_after_next_browser_paint.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {LinkedList} from "~/shared/helpers/immutable/linked_list.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
@@ -107,6 +119,7 @@ export type TaskGridViewVirtualizedListViewRef = {
         scrollOffset: number,
     ) => {startIndex: number; endIndex: number} | null;
     getContentElement: () => HTMLElement;
+    getItemElementByKeyIfExists: (key: Key) => HTMLElement | null;
 };
 
 // Should be able to pass `VirtualizedScrollViewRef` in for
@@ -123,6 +136,20 @@ function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormalizedSort>
         firstSort.type === "NotepadPagePosition" ||
         firstSort.type === "AssigneeActivePosition"
     );
+}
+
+const disableTaskGridViewAnimationsForTaskIds = new Set<TaskId>();
+
+/**
+ * Disable animations on the provided `TaskId` until the next browser paint.
+ * This only works if you have (or will have) an immediate React render queued
+ * up before the next paint.
+ */
+export function disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId: TaskId) {
+    disableTaskGridViewAnimationsForTaskIds.add(taskId);
+    scheduleAfterNextBrowserPaint(() => {
+        disableTaskGridViewAnimationsForTaskIds.delete(taskId);
+    });
 }
 
 /**
@@ -172,6 +199,14 @@ export function useTaskGridViewVirtualizedList({
      * `<VirtualizedScrollView>`.
      */
     onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => void;
+
+    /**
+     * Should be called when the rendered range changes. Should be passed to
+     * `<VirtualizedScrollView>`.
+     */
+    onRenderedRangeLayoutChange: (
+        renderedRange: {startIndex: number; endIndex: number} | null,
+    ) => void;
 
     /**
      * Item indexes to always render regardless of the rendered range. Should be
@@ -228,16 +263,27 @@ export function useTaskGridViewVirtualizedList({
 
     const state = useStore(stateStore);
 
+    const stateItemCount = state.getItemCount();
+
+    const itemCountBeforeState = capabilities.hasColumns ? 1 : 0;
+
+    const itemCount =
+        itemCountBeforeState +
+        (loadedState !== "FullyLoaded"
+            ? stateItemCount + 1
+            : Math.max(stateItemCount + (!capabilities.isReadOnly ? 1 : 0), 3));
+
+    const taskRowByTaskKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
+
+    /* ========================================================================== *\
+     *                         Delete Confirmation State                          *
+    \* ========================================================================== */
+
     const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
         taskId: TaskId;
         onAfterDelete?: () => void;
     } | null>(null);
 
-    const taskRowByTaskKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
-
-    const onRenderedRangeChangeCallbacksRef = useRef<
-        Array<(renderedRange: {startIndex: number; endIndex: number} | null) => void>
-    >([]);
     const onTaskDeleteConfirmationModalDialogClosedCallbacksRef = useRef<Array<() => void>>([]);
 
     useEffect(() => {
@@ -250,6 +296,10 @@ export function useTaskGridViewVirtualizedList({
             }
         }
     }, [taskDeleteConfirmationState]);
+
+    /* ========================================================================== *\
+     *                            Arrow Key Navigation                            *
+    \* ========================================================================== */
 
     const lastArrowNavigationCoordRef = useRef<{setTime: Date; coord: number} | null>(null);
 
@@ -277,17 +327,56 @@ export function useTaskGridViewVirtualizedList({
         };
     }, []);
 
-    const stateItemCount = state.getItemCount();
+    /* ========================================================================== *\
+     *                             Row Number Counter                             *
+    \* ========================================================================== */
 
-    const itemCountBeforeState = capabilities.hasColumns ? 1 : 0;
+    const updateRowNumberCounter = useEvent(
+        (renderedRange: {startIndex: number; endIndex: number} | null) => {
+            if (!renderedRange) return;
 
-    const itemCount =
-        itemCountBeforeState +
-        (loadedState !== "FullyLoaded"
-            ? stateItemCount + 1
-            : Math.max(stateItemCount + (!capabilities.isReadOnly ? 1 : 0), 3));
+            // If we have an empty query then there's no data to load.
+            if (!rootQuery) return;
 
-    const tryLoadingMoreDataAndUpdatingRowNumberCounter = useEvent(
+            for (
+                let i = Math.max(renderedRange.startIndex, itemCountBeforeState);
+                i < Math.min(renderedRange.endIndex, stateItemCount + itemCountBeforeState);
+                i++
+            ) {
+                const item = state.getItem(i - itemCountBeforeState);
+
+                if (item.type === "Task" && item.parents.length === 0) {
+                    // NOTE(calebmer): It's important that we set this style on the virtualized
+                    // view's `contentElement` and not the `viewElement`! This is because
+                    // `useScrollbar()` listens for mutations on scrollable elements and will
+                    // measure the height to see if the scrollbar needs to be adjusted. Measuring
+                    // height triggers a browser layout. Browser layouts are expensive so we avoid
+                    // triggering a browser layout by updating the content element instead.
+                    assertExists(viewRef.current).getContentElement().style.counterReset = `${
+                        tasksStyles.rowNumberCounterName
+                    } ${item.query.getLoadedTaskIndex(item.cursor)}`;
+
+                    return;
+                }
+            }
+        },
+    );
+
+    // Whenever our list changes, update the row counter number. Maybe some data
+    // was added above our rendered range?
+    useLayoutEffectWithoutServerSideWarning(() => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+        state;
+
+        const view = assertExists(viewRef.current);
+        updateRowNumberCounter(view.getRenderedRange());
+    }, [state, updateRowNumberCounter, viewRef]);
+
+    /* ========================================================================== *\
+     *                                Data Loading                                *
+    \* ========================================================================== */
+
+    const tryLoadingMoreData = useEvent(
         (renderedRange: {startIndex: number; endIndex: number} | null) => {
             if (!renderedRange) return;
 
@@ -403,8 +492,12 @@ export function useTaskGridViewVirtualizedList({
         state;
 
         const view = assertExists(viewRef.current);
-        tryLoadingMoreDataAndUpdatingRowNumberCounter(view.getRenderedRange());
-    }, [state, tryLoadingMoreDataAndUpdatingRowNumberCounter, viewRef]);
+        tryLoadingMoreData(view.getRenderedRange());
+    }, [state, tryLoadingMoreData, viewRef]);
+
+    /* ========================================================================== *\
+     *                                   Events                                   *
+    \* ========================================================================== */
 
     const events: TaskGridViewVirtualizedListEvents = useEvents({
         getMoveTaskToRootQueryActions: _getMoveTaskToRootQueryActions,
@@ -429,12 +522,7 @@ export function useTaskGridViewVirtualizedList({
             const item = state.getItem(stateIndex);
             if (item.type !== "Task") return null;
 
-            const taskId = getTaskQuerySortCursorTaskId(item.cursor);
-
-            const taskKey: TaskGridViewTaskKey =
-                item.parents.length > 0
-                    ? `${getTaskQuerySortCursorTaskId(item.parents[0]!.cursor)}-${taskId}`
-                    : taskId;
+            const taskKey = getTaskGridViewTaskKey(item);
 
             return taskRowByTaskKeyRef.current.get(taskKey) ?? null;
         },
@@ -815,7 +903,327 @@ export function useTaskGridViewVirtualizedList({
                 });
             }
         },
+
+        setTaskRowZIndex: (taskKey: TaskGridViewTaskKey, newZIndex: number) => {
+            const itemElement = viewRef.current?.getItemElementByKeyIfExists(`Task:${taskKey}`);
+            if (!itemElement) return noop;
+
+            const setZIndex = (zIndex: number | null) => {
+                if (zIndex === null) {
+                    itemElement.style.removeProperty("z-index");
+                } else {
+                    itemElement.style.zIndex = String(zIndex);
+                }
+            };
+
+            const oldZIndexString = itemElement.style.zIndex;
+            const oldZIndex = oldZIndexString ? parseInt(oldZIndexString, 10) : null;
+
+            setZIndex(newZIndex);
+
+            return () => {
+                setZIndex(oldZIndex);
+            };
+        },
     });
+
+    /* ========================================================================== *\
+     *                              Animation State                               *
+    \* ========================================================================== */
+
+    const [animationState, setAnimationState] = useState<{
+        readonly state: TaskGridViewVirtualizedListState;
+        readonly animations: ReadonlyArray<TaskGridViewVirtualizedListAnimation>;
+    }>({
+        state,
+        animations: emptyArray,
+    });
+
+    // If our state changed then compute any animations from the state change and
+    // update our state so we can start rendering these animations.
+    if (animationState.state !== state) {
+        const animations = state.getAnimations(animationState.state);
+
+        const newAnimations = [...animationState.animations];
+
+        for (const animation of animations) {
+            if (!disableTaskGridViewAnimationsForTaskIds.has(animation.taskId)) {
+                newAnimations.push(animation);
+            }
+        }
+
+        setAnimationState({
+            state,
+            animations: newAnimations,
+        });
+    }
+
+    // Cleanup animations from our state when they finish.
+    useEffect(() => {
+        const currentTime = Date.now();
+        let minDuration = Infinity;
+
+        for (const animation of animationState.animations) {
+            const endTime = animation.startTime + animation.duration;
+
+            minDuration = Math.min(minDuration, endTime - currentTime);
+        }
+
+        const cleanup = () => {
+            setAnimationState(animationState => {
+                const currentTime = Date.now();
+
+                const newAnimations: Array<TaskGridViewVirtualizedListAnimation> = [];
+
+                for (const animation of animationState.animations) {
+                    const endTime = animation.startTime + animation.duration;
+
+                    if (endTime > currentTime) {
+                        newAnimations.push(animation);
+                    }
+                }
+
+                // Optimization: No animations expired. We can avoid a re-render.
+                if (newAnimations.length === animationState.animations.length) {
+                    return animationState;
+                }
+
+                return {
+                    state: animationState.state,
+                    animations: newAnimations,
+                };
+            });
+        };
+
+        if (minDuration <= 0) {
+            cleanup();
+            return;
+        }
+
+        // If there are no animations then `minDuration` is `Infinity`
+        if (!isFinite(minDuration)) return;
+
+        const timeout = createTimeout(cleanup, minDuration);
+        return () => timeout.clear();
+    }, [animationState.animations]);
+
+    const cancelAnimationRef = useRef<(() => void) | null>(null);
+
+    const updateAnimations = useCallback(() => {
+        if (animationState.animations.length === 0) return null;
+
+        const view = assertExists(viewRef.current);
+
+        const renderedRange = view.getRenderedRange();
+        if (!renderedRange) return null;
+
+        const currentTime = Date.now();
+        const actualAnimations = new Set<AnimationControls>();
+
+        // Loop through every rendered item checking if it needs to be animated.
+        for (let i = renderedRange.startIndex; i <= renderedRange.endIndex; i++) {
+            const item =
+                itemCountBeforeState <= i && i < itemCountBeforeState + stateItemCount
+                    ? state.getItem(i - itemCountBeforeState)
+                    : null;
+
+            let movements: LinkedList<Movement> = null;
+
+            // Total up the distance this task needs to move from all ongoing animations.
+            // The row may be affected by multiple animations at once.
+            for (const animation of animationState.animations) {
+                switch (animation.type) {
+                    case "Create": {
+                        const isAfterNewItem =
+                            (item &&
+                                isTaskGridViewVirtualizedListStateItemAfter(
+                                    animation.newItem,
+                                    item,
+                                )) ||
+                            i >= itemCountBeforeState + stateItemCount;
+
+                        if (!isAfterNewItem) continue;
+
+                        const endTime = animation.startTime + animation.duration;
+                        const remainingDuration = endTime - currentTime;
+
+                        if (remainingDuration <= 0) continue;
+
+                        // NOTE(calebmer): Ideally we'd get access to the new item's actual
+                        // height since the height is not a constant in task detail view.
+                        const distance = -(
+                            (1 + animation.newChildrenCount) *
+                            convertRemLengthToPx(
+                                spacing[taskRowViewMinHeight],
+                                getRemPxWithoutListening(),
+                            )
+                        );
+
+                        const remainingDistance =
+                            distance * (remainingDuration / animation.duration);
+
+                        movements = addMovement(movements, {
+                            distance: remainingDistance,
+                            duration: remainingDuration,
+                        });
+                        break;
+                    }
+                    case "Delete": {
+                        const isAfterOldItem =
+                            (item &&
+                                isTaskGridViewVirtualizedListStateItemAfter(
+                                    animation.oldItem,
+                                    item,
+                                )) ||
+                            i >= itemCountBeforeState + stateItemCount;
+
+                        if (!isAfterOldItem) continue;
+
+                        const endTime = animation.startTime + animation.duration;
+                        const remainingDuration = endTime - currentTime;
+
+                        if (remainingDuration <= 0) continue;
+
+                        // NOTE(calebmer): Ideally we'd somehow get access to the old item's actual
+                        // height since the height is not a constant in task detail view.
+                        const distance =
+                            (1 + animation.oldChildrenCount) *
+                            convertRemLengthToPx(
+                                spacing[taskRowViewMinHeight],
+                                getRemPxWithoutListening(),
+                            );
+
+                        const remainingDistance =
+                            distance * (remainingDuration / animation.duration);
+
+                        movements = addMovement(movements, {
+                            distance: remainingDistance,
+                            duration: remainingDuration,
+                        });
+                        break;
+                    }
+                    case "Move": {
+                        const isAfterOldItem =
+                            (item &&
+                                isTaskGridViewVirtualizedListStateItemAfter(
+                                    animation.oldItem,
+                                    item,
+                                )) ||
+                            i >= itemCountBeforeState + stateItemCount;
+
+                        const isAfterNewItem =
+                            (item &&
+                                isTaskGridViewVirtualizedListStateItemAfter(
+                                    animation.newItem,
+                                    item,
+                                )) ||
+                            i >= itemCountBeforeState + stateItemCount;
+
+                        const isNewItem =
+                            item?.type === "Task" &&
+                            item.parents === animation.newItem.parents &&
+                            item.cursor === animation.newItem.cursor;
+
+                        const isWithinItemMove =
+                            animation.direction === "Up"
+                                ? !isNewItem && isAfterNewItem && !isAfterOldItem
+                                : !isNewItem && !isAfterNewItem && isAfterOldItem;
+
+                        if (!isWithinItemMove) continue;
+
+                        const endTime = animation.startTime + animation.duration;
+                        const remainingDuration = endTime - currentTime;
+
+                        if (remainingDuration <= 0) continue;
+
+                        // NOTE(calebmer): Ideally we'd somehow get access to the old item's actual
+                        // height since the height is not a constant in task detail view.
+                        const distance = convertRemLengthToPx(
+                            spacing[taskRowViewMinHeight],
+                            getRemPxWithoutListening(),
+                        );
+
+                        const remainingDistance =
+                            distance *
+                            (remainingDuration / animation.duration) *
+                            (animation.direction === "Down" ? 1 : -1);
+
+                        movements = addMovement(movements, {
+                            distance: remainingDistance,
+                            duration: remainingDuration,
+                        });
+                        break;
+                    }
+                    default:
+                        exhaustive(animation);
+                }
+            }
+
+            if (movements === null) continue;
+
+            const key = view.getKeyByIndexIfExists(i);
+            const element = key ? view.getItemElementByKeyIfExists(key) : null;
+
+            if (!element) continue;
+
+            const {keyframes, offset, duration} = convertMovementsToKeyframes(movements);
+
+            const actualAnimation = animate(
+                element,
+                {
+                    y: keyframes,
+                },
+                {
+                    offset,
+                    duration,
+                    // Since we interrupt this animation and start a new one as our animation
+                    // state changes, linear easing helps the animation appear continuous.
+                    easing: "linear",
+                },
+            );
+
+            actualAnimations.add(actualAnimation);
+        }
+
+        return () => {
+            for (const actualAnimation of actualAnimations) {
+                actualAnimation.cancel();
+            }
+        };
+    }, [animationState.animations, itemCountBeforeState, state, stateItemCount, viewRef]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        cancelAnimationRef.current?.();
+        cancelAnimationRef.current = updateAnimations();
+        return () => {
+            cancelAnimationRef.current?.();
+            cancelAnimationRef.current = null;
+        };
+    }, [updateAnimations]);
+
+    // Make sure when animating created/moved tasks that the task being
+    // created/moved renders under moving tasks.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const unsetZIndexes: Array<() => void> = [];
+
+        for (const animation of animationState.animations) {
+            if (animation.type === "Create" || animation.type === "Move") {
+                unsetZIndexes.push(
+                    events.setTaskRowZIndex(getTaskGridViewTaskKey(animation.newItem), -10),
+                );
+            }
+        }
+
+        return () => {
+            for (const unsetZIndex of unsetZIndexes) {
+                unsetZIndex();
+            }
+        };
+    }, [animationState.animations, events]);
+
+    /* ========================================================================== *\
+     *                               Item Rendering                               *
+    \* ========================================================================== */
 
     const columnHeaderControlsWithMinHeightPx = useMemo(
         () =>
@@ -965,12 +1373,7 @@ export function useTaskGridViewVirtualizedList({
             const item = state.getItem(itemIndex - itemCountBeforeState);
 
             if (item.type === "Task") {
-                const taskId = getTaskQuerySortCursorTaskId(item.cursor);
-
-                const taskKey: TaskGridViewTaskKey =
-                    item.parents.length > 0
-                        ? `${getTaskQuerySortCursorTaskId(item.parents[0]!.cursor)}-${taskId}`
-                        : taskId;
+                const taskKey = getTaskGridViewTaskKey(item);
 
                 return {
                     key: `Task:${taskKey}`,
@@ -1068,15 +1471,17 @@ export function useTaskGridViewVirtualizedList({
     return {
         itemCount,
         renderItem,
-        onRenderedRangeChange: (renderedRange: {startIndex: number; endIndex: number} | null) => {
-            tryLoadingMoreDataAndUpdatingRowNumberCounter(renderedRange);
+        onRenderedRangeChange: tryLoadingMoreData,
+        onRenderedRangeLayoutChange: (
+            renderedRange: {startIndex: number; endIndex: number} | null,
+        ) => {
+            // `viewRef` may not have been initialized yet.
+            if (!viewRef.current) return;
 
-            const callbacks = onRenderedRangeChangeCallbacksRef.current;
-            onRenderedRangeChangeCallbacksRef.current = [];
+            cancelAnimationRef.current?.();
+            cancelAnimationRef.current = updateAnimations();
 
-            for (const callback of callbacks) {
-                callback(renderedRange);
-            }
+            updateRowNumberCounter(renderedRange);
         },
         alwaysRenderAdditionalItemIndexes: useMemo(
             () => (capabilities.hasColumns ? [0] : emptyArray),
@@ -1128,6 +1533,7 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly focusLastVisibleTaskTitleEnd: () => void;
     readonly focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
     readonly scrollLastVisiblePageDownTaskIntoView: () => Promise<TaskRowViewRef | null>;
+    readonly setTaskRowZIndex: (taskKey: TaskGridViewTaskKey, zIndex: number) => () => void;
 }>;
 
 const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHeader));
@@ -1656,6 +2062,8 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             const previousTaskId = getTaskQuerySortCursorTaskId(previousItem.cursor);
 
             const nest = () => {
+                disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
+
                 rootQuery.store.commitTaskActionTransaction(context, [
                     // If we are indenting at the root of our query then we want to remove the task
                     // from the query root since it lives in its parent task now.
@@ -1728,6 +2136,8 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
         // If our task no longer has any parent then move it into our root query.
         if (!newParentTaskId) {
+            disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
+
             rootQuery.store.commitTaskActionTransaction(context, [
                 {
                     type: "UpdateTask",
@@ -1753,6 +2163,8 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             const newChildrenQuery = rootQuery.store
                 .getTaskChildrenQueryStore(newParentTaskId)
                 .getSnapshot();
+
+            disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
             rootQuery.store.commitTaskActionTransaction(context, [
                 {
@@ -1851,6 +2263,8 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         };
 
         if (!withConfirmation) {
+            disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
+
             rootQuery.store.deleteTaskAndAllChildren(context, taskId);
             focusPreviousRow(itemIndex);
         } else {
@@ -1930,6 +2344,119 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             focusFirstVisibleTaskCell={events.focusFirstVisibleTaskCell}
             focusLastVisibleTaskTitleEnd={events.focusLastVisibleTaskTitleEnd}
             focusLastVisibleTaskCell={events.focusLastVisibleTaskCell}
+            setRowZIndex={useCallback(
+                zIndex => events.setTaskRowZIndex(taskKey, zIndex),
+                [events, taskKey],
+            )}
         />
     );
 });
+
+function getTaskGridViewTaskKey({
+    parents,
+    cursor,
+}: {
+    parents: ReadonlyArray<{cursor: TaskQuerySortCursor}>;
+    cursor: TaskQuerySortCursor;
+}): TaskGridViewTaskKey {
+    const taskId = getTaskQuerySortCursorTaskId(cursor);
+
+    return parents.length > 0
+        ? `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${taskId}`
+        : taskId;
+}
+
+type Movement = {
+    readonly distance: number;
+    readonly duration: number;
+};
+
+/**
+ * Used for animating task movements. When a task moves it moves linearly a
+ * certain distance over a certain duration. Then multiple movements may be
+ * layered on top of each other. For instance when you close two tasks in rapid
+ * succession.
+ *
+ * If a task is already moving and you need to apply a new movement then that
+ * task needs to speed up to reach both its original destination and new
+ * destination on time.
+ *
+ * When you call this function, you are adding to the total `distance` the task
+ * needs to travel. However the final duration of this animation timeline will
+ * be the max of all movement `duration`s.
+ *
+ * This function assumes `movement` starts at the same time as `oldMovements`.
+ */
+function addMovement(oldMovements: LinkedList<Movement>, movement: Movement): LinkedList<Movement> {
+    if (movement.duration <= 0) return oldMovements;
+    if (oldMovements === null) return {value: movement, next: null};
+
+    const oldMovement = oldMovements.value;
+
+    if (movement.duration < oldMovement.duration) {
+        const oldMovementDistance1 =
+            oldMovement.distance * (movement.duration / oldMovement.duration);
+
+        const newMovement1 = {
+            distance: movement.distance + oldMovementDistance1,
+            duration: movement.duration,
+        };
+
+        const newMovement2 = {
+            distance: oldMovement.distance - oldMovementDistance1,
+            duration: oldMovement.duration - movement.duration,
+        };
+
+        return {value: newMovement1, next: {value: newMovement2, next: oldMovements.next}};
+    } else {
+        const movementDistance1 = movement.distance * (oldMovement.duration / movement.duration);
+
+        const newMovement1 = {
+            distance: oldMovement.distance + movementDistance1,
+            duration: oldMovement.duration,
+        };
+
+        const newMovement2 = {
+            distance: movement.distance - movementDistance1,
+            duration: movement.duration - oldMovement.duration,
+        };
+
+        return {value: newMovement1, next: addMovement(oldMovements.next, newMovement2)};
+    }
+}
+
+/**
+ * Convert a list of movements to keyframes for the `motion` package that power our
+ * task movement animation.
+ */
+function convertMovementsToKeyframes(movements: LinkedList<Movement>) {
+    let totalDistance = 0;
+    let totalDuration = 0;
+
+    let workingMovements = movements;
+    while (workingMovements !== null) {
+        totalDistance += workingMovements.value.distance;
+        totalDuration += workingMovements.value.duration;
+        workingMovements = workingMovements.next;
+    }
+
+    const keyframes = [totalDistance];
+    const offset = [0];
+
+    let workingDistance = 0;
+    let workingDuration = 0;
+    workingMovements = movements;
+    while (workingMovements !== null) {
+        workingDistance += workingMovements.value.distance;
+        workingDuration += workingMovements.value.duration;
+        keyframes.push(totalDistance - workingDistance);
+        offset.push(workingDuration / totalDuration);
+        workingMovements = workingMovements.next;
+    }
+
+    return {
+        keyframes,
+        offset,
+        duration: totalDuration / 1000,
+    };
+}

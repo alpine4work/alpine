@@ -1,5 +1,6 @@
 import {useDroppable} from "@dnd-kit/core";
-import {useId} from "react";
+import {Memo, useId} from "react";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewDroppableData} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -37,6 +38,7 @@ export function renderTaskRowViewDroppableIndentations({
     nextIndentation,
     areChildTasksExpanded,
     getMoveTaskToRootQueryActions,
+    setRowZIndex,
 }: {
     query: TaskClientQuery;
     cursor: TaskQuerySortCursor;
@@ -48,6 +50,7 @@ export function renderTaskRowViewDroppableIndentations({
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
+    setRowZIndex: Memo<(zIndex: number) => () => void>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
     // this file. It is critical for scroll performance that this component renders
@@ -72,6 +75,7 @@ export function renderTaskRowViewDroppableIndentations({
                 nextAdjacentIndentation={null}
                 previousAdjacentIndentation={null}
                 isVerticallyFlipped={true}
+                setRowZIndex={setRowZIndex}
                 getDropActions={(taskId): Array<TaskAction> => {
                     const time1 = query.store.clock.now();
                     const time2 = query.store.clock.now();
@@ -134,6 +138,7 @@ export function renderTaskRowViewDroppableIndentations({
                     indentation={droppableIndentation}
                     nextAdjacentIndentation={droppableIndentations[index + 1] ?? null}
                     previousAdjacentIndentation={droppableIndentations[index - 1] ?? null}
+                    setRowZIndex={setRowZIndex}
                     getDropActions={taskId => {
                         const time1 = query.store.clock.now();
                         const time2 = query.store.clock.now();
@@ -242,6 +247,7 @@ export function TaskRowViewDroppable({
     isPositionedAbove,
     isVerticallyFlipped,
     getDropActions,
+    setRowZIndex,
 }: {
     indentation: number;
     nextAdjacentIndentation: number | null;
@@ -249,6 +255,7 @@ export function TaskRowViewDroppable({
     isPositionedAbove?: boolean;
     isVerticallyFlipped?: boolean;
     getDropActions: (taskId: TaskId) => Array<TaskAction>;
+    setRowZIndex: Memo<(zIndex: number) => () => void>;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
     // this file. It is critical for scroll performance that this component renders
@@ -275,6 +282,14 @@ export function TaskRowViewDroppable({
     });
 
     const listItemIndent = parseRemLengthNumber(contentSchemaStyles.listItemIndentation);
+
+    // If collections are expanded then make sure our task row renders on top of
+    // all other task rows.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!isOver) return;
+
+        return setRowZIndex(10);
+    }, [isOver, setRowZIndex]);
 
     return (
         <div

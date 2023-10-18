@@ -96,12 +96,14 @@ function TaskRowCollectionsCell(
         onCellKeyDown,
         onCellKeyDownCapture,
         focusPreviousCell,
+        setRowZIndex,
     }: {
         query: TaskClientQuery;
         task: TaskModel | null;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
+        setRowZIndex: Memo<(zIndex: number) => () => void>;
     },
     ref: Ref<TaskRowCollectionsCellRef>,
 ) {
@@ -161,6 +163,14 @@ function TaskRowCollectionsCell(
 
         assertExists(cellRef.current?.querySelector("input")).focus();
     }, [isFocusWithin]);
+
+    // If collections are expanded then make sure our task row renders on top of
+    // all other task rows.
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (!isFocusWithin) return;
+
+        return setRowZIndex(10);
+    }, [isFocusWithin, setRowZIndex]);
 
     return (
         <div

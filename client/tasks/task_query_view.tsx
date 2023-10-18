@@ -386,6 +386,7 @@ export function TaskQueryView({
         itemCount: gridViewItemCount,
         renderItem: renderGridViewItem,
         onRenderedRangeChange: onGridViewRenderedRangeChange,
+        onRenderedRangeLayoutChange: onGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
         focusEnd: focusGridViewEnd,
@@ -409,9 +410,9 @@ export function TaskQueryView({
         // NOCOMMIT
         getMaybeRemoveTaskFromQueryActions: () => [],
         withColumnHeaderBorderTop: true,
-        withColumnHeaderExtraScrollSpace: "2.5",
+        withColumnHeaderExtraScrollSpace: "2",
         columnHeaderControls: useMemo(() => {
-            const paddingTop: Spacing = "2.5";
+            const paddingTop: Spacing = "3";
             const paddingBottom: Spacing = "7";
 
             return {
@@ -494,6 +495,7 @@ export function TaskQueryView({
                     insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
                     renderItem={renderGridViewItem}
                     onRenderedRangeChange={onGridViewRenderedRangeChange}
+                    onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
                     extraChildren={
                         !queryState.activeQuery.isAvailable &&
                         queryState.activeQuery.isMissingRequiredFilters

@@ -17,3 +17,24 @@ export type NonEmptyLinkedList<Item> = {
     readonly value: Item;
     readonly next: LinkedList<Item>;
 };
+
+/**
+ * Reduces a linked list into a single value. Same as `Array.reduce()` but for
+ * linked lists.
+ */
+export function reduceLinkedList<Item, Value>(
+    list: LinkedList<Item>,
+    reduce: (value: Value, item: Item, index: number) => Value,
+    initialValue: Value,
+): Value {
+    let index = 0;
+    let value = initialValue;
+
+    while (list !== null) {
+        value = reduce(value, list.value, index);
+        list = list.next;
+        index++;
+    }
+
+    return value;
+}

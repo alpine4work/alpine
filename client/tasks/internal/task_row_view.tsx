@@ -4,6 +4,7 @@ import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
     KeyboardEvent,
+    Memo,
     Ref,
     forwardRef,
     useId,
@@ -36,6 +37,7 @@ import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
+import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
     TaskRowAssigneeCell,
     TaskRowAssigneeCellRef,
@@ -227,6 +229,7 @@ function TaskRowView(
         focusFirstVisibleTaskCell,
         focusLastVisibleTaskTitleEnd,
         focusLastVisibleTaskCell,
+        setRowZIndex,
     }: {
         capabilities: TaskGridViewCapabilities;
         query: TaskClientQuery;
@@ -272,6 +275,7 @@ function TaskRowView(
         focusFirstVisibleTaskCell: (column: TaskGridViewColumn) => void;
         focusLastVisibleTaskTitleEnd: () => void;
         focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
+        setRowZIndex: Memo<(zIndex: number) => () => void>;
     },
     ref: Ref<TaskRowViewRef>,
 ) {
@@ -900,6 +904,8 @@ function TaskRowView(
     const createTaskAbove = () => {
         const newTaskId = generateId<TaskId>();
 
+        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
         query.store.commitTaskActionTransaction(context, [
             {
                 type: "UpdateTask",
@@ -954,6 +960,8 @@ function TaskRowView(
                     };
                 }
 
+                disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
                 query.store.commitTaskActionTransaction(context, [
                     {
                         type: "UpdateTask",
@@ -999,6 +1007,8 @@ function TaskRowView(
                 return;
             }
         }
+
+        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
 
         query.store.commitTaskActionTransaction(context, [
             {
@@ -1066,6 +1076,7 @@ function TaskRowView(
             nextIndentation,
             areChildTasksExpanded,
             getMoveTaskToRootQueryActions,
+            setRowZIndex,
         });
 
     const firstRowDroppableIndentationsNode = !disableExpensiveFeaturesDuringScroll &&
@@ -1086,6 +1097,7 @@ function TaskRowView(
                         taskId: getTaskQuerySortCursorTaskId(cursor),
                     })
                 }
+                setRowZIndex={setRowZIndex}
             />
         );
 
@@ -1095,13 +1107,12 @@ function TaskRowView(
             style={{
                 minHeight: spacing[taskRowViewMinHeight],
                 position: "relative",
-                // NOTE(calebmer): Setting z-index here creates a new stacking context which
-                // means the editable collection overlay can't render on top of adjacent rows.
-                zIndex: undefined,
+                zIndex: "0",
                 // Important not to set `overflow="hidden"` here so that the collections overlay
                 // we open in edit mode can render outside the bounds of the row.
                 overflow: undefined,
                 display: "flex",
+                backgroundColor: colorSchemeVars["grey-0"],
             }}
         >
             {!capabilities.hasDenseFields && borderCoverNode}
@@ -1309,6 +1320,7 @@ function TaskRowView(
                         onCellKeyDown={handleCellKeyDown}
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusPreviousCell={focusPreviousCell}
+                        setRowZIndex={setRowZIndex}
                     />
                 </>
             )}
@@ -1351,10 +1363,8 @@ function TaskRowView(
                         style={{
                             minHeight: spacing[taskRowViewMinHeight],
                             position: "relative",
-                            // NOTE(calebmer): Setting z-index here creates a new stacking context which
-                            // means the task row drop indicator lines can't render on top of
-                            // adjacent rows.
-                            zIndex: undefined,
+                            zIndex: "0",
+                            backgroundColor: colorSchemeVars["grey-0"],
                         }}
                     >
                         {borderCoverNode}

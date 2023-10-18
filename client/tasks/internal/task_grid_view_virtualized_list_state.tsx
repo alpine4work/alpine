@@ -9,12 +9,20 @@ import {flatMapTreeStoreValues} from "~/client/helpers/store/tree_store.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {OutOfRangeError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {symmetricDiffTree} from "~/shared/helpers/immutable/symmetric_diff_tree.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     TaskQuerySortCursor,
+    compareTaskQuerySortCursors,
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
+
+const taskAnimationDurationMs = 150;
 
 // HACK(calebmer): Hackishly get the constructor for a
 // `functional-red-black-tree` iterator so we can construct it since there's
@@ -131,23 +139,60 @@ function createTaskGridViewVirtualizedTaskTree(
 }
 
 export type TaskGridViewVirtualizedListStateItem =
+    | TaskGridViewVirtualizedListStateTaskItem
+    | TaskGridViewVirtualizedListStateUnloadedChildTaskItem;
+
+export type TaskGridViewVirtualizedListStateTaskItem = {
+    readonly type: "Task";
+    readonly parents: ReadonlyArray<{
+        readonly query: TaskClientQuery;
+        readonly cursor: TaskQuerySortCursor;
+    }>;
+    readonly query: TaskClientQuery;
+    readonly cursor: TaskQuerySortCursor;
+};
+
+export type TaskGridViewVirtualizedListStateUnloadedChildTaskItem = {
+    readonly type: "UnloadedChildTask";
+    readonly parents: ReadonlyArray<{
+        readonly query: TaskClientQuery;
+        readonly cursor: TaskQuerySortCursor;
+    }>;
+    readonly unloadedChildTaskIndex: number;
+};
+
+export type TaskGridViewVirtualizedListAnimation =
     | {
-          readonly type: "Task";
-          readonly parents: ReadonlyArray<{
-              readonly query: TaskClientQuery;
-              readonly cursor: TaskQuerySortCursor;
-          }>;
-          readonly query: TaskClientQuery;
-          readonly cursor: TaskQuerySortCursor;
+          readonly type: "Create";
+          readonly startTime: number;
+          readonly duration: number;
+          readonly taskId: TaskId;
+          readonly newItem: TaskGridViewVirtualizedListStateTaskItem;
+          readonly newChildrenCount: number;
       }
     | {
-          readonly type: "UnloadedChildTask";
-          readonly parents: ReadonlyArray<{
-              readonly query: TaskClientQuery;
-              readonly cursor: TaskQuerySortCursor;
-          }>;
-          readonly unloadedChildTaskIndex: number;
+          readonly type: "Delete";
+          readonly startTime: number;
+          readonly duration: number;
+          readonly taskId: TaskId;
+          readonly oldItem: TaskGridViewVirtualizedListStateTaskItem;
+          readonly oldChildrenCount: number;
+      }
+    | {
+          readonly type: "Move";
+          readonly startTime: number;
+          readonly duration: number;
+          readonly taskId: TaskId;
+          readonly newItem: TaskGridViewVirtualizedListStateTaskItem;
+          readonly oldItem: TaskGridViewVirtualizedListStateTaskItem;
+          readonly direction: "Up" | "Down";
       };
+
+// All animations must have `startTime` and `duration`.
+assertAssignableTypes<
+    TaskGridViewVirtualizedListAnimation,
+    {startTime: number; duration: number}
+>();
 
 /**
  * Flat list of tasks in a grid view for rendering with a
@@ -417,6 +462,209 @@ export class TaskGridViewVirtualizedListState {
 
         return assertExists(search(itemIndex, this._tree, this._tree.tasks.root, []));
     }
+
+    /**
+     * Get animations to transition us from our old state to our new state.
+     */
+    public getAnimations(previousState: TaskGridViewVirtualizedListState) {
+        const startTime = Date.now();
+
+        const animations = new Set<TaskGridViewVirtualizedListAnimation>();
+
+        const animationsByTaskId = new Map<TaskId, Set<TaskGridViewVirtualizedListAnimation>>();
+
+        const getAnimations = (
+            oldTree: TaskGridViewVirtualizedTaskTree | null,
+            newTree: TaskGridViewVirtualizedTaskTree | null,
+        ) => {
+            if (!oldTree) {
+                newTree?.tasks.forEach((key, value) => {
+                    const animation: TaskGridViewVirtualizedListAnimation = {
+                        type: "Create",
+                        startTime,
+                        duration: taskAnimationDurationMs,
+                        taskId: getTaskQuerySortCursorTaskId(key),
+                        newItem: {
+                            type: "Task",
+                            query: newTree.query,
+                            parents: newTree.parents,
+                            cursor: key,
+                        },
+                        newChildrenCount: this._getSubtreeItemCount(
+                            value?.childrenTree?.tasks.root ?? null,
+                        ),
+                    };
+
+                    animations.add(animation);
+
+                    getOrSetDefaultMapValue(
+                        animationsByTaskId,
+                        getTaskQuerySortCursorTaskId(key),
+                        () => new Set(),
+                    ).add(animation);
+                });
+                return;
+            }
+
+            if (!newTree) {
+                oldTree?.tasks.forEach((key, value) => {
+                    const animation: TaskGridViewVirtualizedListAnimation = {
+                        type: "Delete",
+                        startTime,
+                        duration: taskAnimationDurationMs,
+                        taskId: getTaskQuerySortCursorTaskId(key),
+                        oldItem: {
+                            type: "Task",
+                            query: oldTree.query,
+                            parents: oldTree.parents,
+                            cursor: key,
+                        },
+                        oldChildrenCount: this._getSubtreeItemCount(
+                            value?.childrenTree?.tasks.root ?? null,
+                        ),
+                    };
+
+                    animations.add(animation);
+
+                    getOrSetDefaultMapValue(
+                        animationsByTaskId,
+                        getTaskQuerySortCursorTaskId(key),
+                        () => new Set(),
+                    ).add(animation);
+                });
+                return;
+            }
+
+            if (oldTree.parents !== newTree.parents) return;
+            if (oldTree.query !== newTree.query) return;
+
+            const changes = symmetricDiffTree(oldTree.tasks, newTree.tasks);
+
+            for (const change of changes) {
+                switch (change.type) {
+                    case "CreateEntry": {
+                        const animation: TaskGridViewVirtualizedListAnimation = {
+                            type: "Create",
+                            startTime,
+                            duration: taskAnimationDurationMs,
+                            taskId: getTaskQuerySortCursorTaskId(change.key),
+                            newItem: {
+                                type: "Task",
+                                query: newTree.query,
+                                parents: newTree.parents,
+                                cursor: change.key,
+                            },
+                            newChildrenCount: this._getSubtreeItemCount(
+                                change.newValue?.childrenTree?.tasks.root ?? null,
+                            ),
+                        };
+
+                        animations.add(animation);
+
+                        getOrSetDefaultMapValue(
+                            animationsByTaskId,
+                            getTaskQuerySortCursorTaskId(change.key),
+                            () => new Set(),
+                        ).add(animation);
+                        break;
+                    }
+                    case "DeleteEntry": {
+                        const animation: TaskGridViewVirtualizedListAnimation = {
+                            type: "Delete",
+                            startTime,
+                            duration: taskAnimationDurationMs,
+                            taskId: getTaskQuerySortCursorTaskId(change.key),
+                            oldItem: {
+                                type: "Task",
+                                query: oldTree.query,
+                                parents: oldTree.parents,
+                                cursor: change.key,
+                            },
+                            oldChildrenCount: this._getSubtreeItemCount(
+                                change.oldValue?.childrenTree?.tasks.root ?? null,
+                            ),
+                        };
+
+                        animations.add(animation);
+
+                        getOrSetDefaultMapValue(
+                            animationsByTaskId,
+                            getTaskQuerySortCursorTaskId(change.key),
+                            () => new Set(),
+                        ).add(animation);
+                        break;
+                    }
+                    case "UpdateEntry": {
+                        getAnimations(
+                            change.oldValue?.childrenTree ?? null,
+                            change.newValue?.childrenTree ?? null,
+                        );
+                        break;
+                    }
+                    default:
+                        throw exhaustive(change);
+                }
+            }
+        };
+
+        // If our root tree is transitioning to null or away from null then don't
+        // animate all children.
+        if (previousState._tree && this._tree) {
+            getAnimations(previousState._tree, this._tree);
+        }
+
+        // If a task was both deleted and recreated then collapse that into one
+        // move animation.
+        for (const taskAnimations of animationsByTaskId.values()) {
+            if (taskAnimations.size !== 2) continue;
+
+            const taskAnimationsArray = Array.from(taskAnimations);
+            const animation1 = taskAnimationsArray[0]!;
+            const animation2 = taskAnimationsArray[1]!;
+
+            if (animation1.type === "Create" && animation2.type === "Delete") {
+                animations.delete(animation1);
+                animations.delete(animation2);
+
+                animations.add({
+                    type: "Move",
+                    startTime,
+                    duration: Math.max(animation1.duration, animation2.duration),
+                    taskId: getTaskQuerySortCursorTaskId(animation1.newItem.cursor),
+                    newItem: animation1.newItem,
+                    oldItem: animation2.oldItem,
+                    direction: isTaskGridViewVirtualizedListStateItemAfter(
+                        animation2.oldItem,
+                        animation1.newItem,
+                    )
+                        ? "Down"
+                        : "Up",
+                });
+            }
+
+            if (animation1.type === "Delete" && animation2.type === "Create") {
+                animations.delete(animation1);
+                animations.delete(animation2);
+
+                animations.add({
+                    type: "Move",
+                    startTime,
+                    duration: Math.max(animation1.duration, animation2.duration),
+                    taskId: getTaskQuerySortCursorTaskId(animation2.newItem.cursor),
+                    newItem: animation2.newItem,
+                    oldItem: animation1.oldItem,
+                    direction: isTaskGridViewVirtualizedListStateItemAfter(
+                        animation1.oldItem,
+                        animation2.newItem,
+                    )
+                        ? "Down"
+                        : "Up",
+                });
+            }
+        }
+
+        return animations;
+    }
 }
 
 /**
@@ -555,4 +803,79 @@ function* iterateTaskGridViewVirtualizedListStateItems(
             }
         }
     }
+}
+
+/**
+ * Returns true if `targetItem` comes after `afterItem`.
+ *
+ * Returns null if we can't tell whether `targetItem` comes after `afterItem`
+ * because some query sorts changed.
+ */
+export function isTaskGridViewVirtualizedListStateItemAfter(
+    afterItem: TaskGridViewVirtualizedListStateTaskItem,
+    targetItem: TaskGridViewVirtualizedListStateItem,
+): boolean | null {
+    let isEqual = true;
+
+    for (let i = 0; i <= targetItem.parents.length; i++) {
+        let targetQuery;
+        let targetCursor;
+
+        if (i === targetItem.parents.length) {
+            // All preceding parents were after. Unloaded child tasks are always after any
+            // tasks sharing the same parents.
+            if (targetItem.type === "UnloadedChildTask") return true;
+
+            targetQuery = targetItem.query;
+            targetCursor = targetItem.cursor;
+        } else {
+            const targetParent = targetItem.parents[i]!;
+            targetQuery = targetParent.query;
+            targetCursor = targetParent.cursor;
+        }
+
+        // All preceding parents were after. If our target item has more indentation
+        // then the after item it's always considered after.
+        if (i > afterItem.parents.length) return true;
+
+        let afterQuery;
+        let afterCursor;
+
+        if (i === afterItem.parents.length) {
+            afterQuery = afterItem.query;
+            afterCursor = afterItem.cursor;
+        } else {
+            const afterParent = afterItem.parents[i]!;
+            afterQuery = afterParent.query;
+            afterCursor = afterParent.cursor;
+        }
+
+        // If the sorts change (we don't expect this to happen) we can't
+        // compare cursors. Return null since we can't accurately answer.
+        if (!isDeepEqual(targetQuery.sorts, afterQuery.sorts)) return null;
+
+        const comparison = compareTaskQuerySortCursors(
+            targetQuery.sorts,
+            targetCursor,
+            afterCursor,
+        );
+
+        isEqual &&= comparison === 0;
+
+        if (comparison < 0) {
+            return false;
+        }
+    }
+
+    // We handle two cases here:
+    //
+    // - [1]
+    // - [2]
+    //   - [2, 1]
+    // - [3]
+    //
+    // Here [2] should be considered before [2, 1] and [3] should be considered
+    // after [2, 1]. Both reach this branch so return false if parent cursors have
+    // all been equal. [1] already returned false because 1 is less than 2.
+    return !isEqual;
 }

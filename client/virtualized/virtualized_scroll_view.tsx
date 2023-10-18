@@ -26,7 +26,7 @@ import {useScrollbar} from "~/client/design/scrollbar.js";
 import {perceivedAsInstantLimitMs} from "~/client/design/timing_constants.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -46,6 +46,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -283,6 +284,12 @@ export type VirtualizedScrollViewRef = {
      * Return the underlying content container HTML element.
      */
     getContentElement(): HTMLDivElement;
+
+    /**
+     * Return the underlying HTML element for an item at the specified index if
+     * it exists.
+     */
+    getItemElementByKeyIfExists(key: Key): HTMLElement | null;
 };
 
 const VirtualizedScrollViewForwardRef = forwardRef(VirtualizedScrollView);
@@ -402,7 +409,8 @@ function VirtualizedScrollView(
         bufferedItemHeight: _bufferedItemHeight,
         initialScrollOffset = "top",
         initialViewHeight,
-        onRenderedRangeChange: _onRenderedRangeChange,
+        onRenderedRangeChange,
+        onRenderedRangeLayoutChange,
         onScroll,
         stateKey,
         alwaysRenderAdditionalItemIndexes,
@@ -461,6 +469,22 @@ function VirtualizedScrollView(
          * the range object. The range is inclusive of both the start and end index.
          */
         onRenderedRangeChange?: (range: {startIndex: number; endIndex: number} | null) => void;
+
+        /**
+         * Called on initial mount and again whenever the range of rendered items
+         * changes. If no items are rendered then this will be called with `null` for
+         * the range object. The range is inclusive of both the start and end index.
+         *
+         * Different from `onRenderedRangeChange` is this runs during React's
+         * `useLayoutEffect()` phase instead of `onRenderedRangeChange` which runs
+         * during React's `useEffect()` phase. That means this function is render
+         * blocking (be careful to not hurt performance when using!).
+         *
+         * Generally prefer `onRenderedRangeChange`.
+         */
+        onRenderedRangeLayoutChange?: (
+            range: {startIndex: number; endIndex: number} | null,
+        ) => void;
 
         /**
          * Called whenever the scroll position changes. Remember that the scroll event
@@ -1240,19 +1264,22 @@ function VirtualizedScrollView(
     }, [contentHeight, scrollAnchorAdjustmentDuringMobileWebKitScroll]);
 
     // Effect to report the rendered range back to our callback.
-    const onRenderedRangeChange = useEvent(_onRenderedRangeChange);
+    const events = useEvents({
+        onRenderedRangeChange: onRenderedRangeChange ?? noop,
+        onRenderedRangeLayoutChange: onRenderedRangeLayoutChange ?? noop,
+    });
     const renderedRangeRef = useRef(
         renderedRange
             ? {startIndex: renderedRange.startIndex, endIndex: renderedRange.endIndex}
             : null,
     );
-    useEffect(() => {
+    useLayoutEffectWithoutServerSideWarning(() => {
         // Make sure we only take effect dependencies on the start and end index. We
         // don't care about other properties of the rendered range changing.
         const startIndex = renderedRange?.startIndex;
         const endIndex = renderedRange?.endIndex;
 
-        let range;
+        let range: {startIndex: number; endIndex: number} | null;
         if (typeof startIndex !== "number") {
             assert(typeof endIndex !== "number");
             range = null;
@@ -1268,8 +1295,19 @@ function VirtualizedScrollView(
         }
 
         renderedRangeRef.current = range;
-        onRenderedRangeChange(range);
-    }, [onRenderedRangeChange, renderedRange?.endIndex, renderedRange?.startIndex]);
+
+        events.onRenderedRangeLayoutChange(range);
+
+        // Don't call our callback until after the browser gets a chance to paint. We
+        // want to update our `renderedRangeRef` in a layout effect but we don't want
+        // `onRenderedRangeChange()` to block layout. Instead of moving
+        // `onRenderedRangeChange()` to a passive effect (`useEffect()`) we simulate
+        // React's behavior of calling passive effects after a browser paint with
+        // `scheduleAfterNextBrowserPaint()`.
+        scheduleAfterNextBrowserPaint(() => {
+            events.onRenderedRangeChange(range);
+        });
+    }, [events, renderedRange?.endIndex, renderedRange?.startIndex]);
 
     useImperativeHandle(
         ref,
@@ -1408,6 +1446,11 @@ function VirtualizedScrollView(
                 },
                 getElement: () => assertExists(scrollRef.current),
                 getContentElement: () => assertExists(contentRef.current),
+                getItemElementByKeyIfExists: (key: Key) => {
+                    const itemRef = itemsRef.current.elementRefByKey.get(key);
+                    if (itemRef?.generation !== itemsRef.current.generation) return null;
+                    return itemRef.element;
+                },
             };
         },
         [],

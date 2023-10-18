@@ -131,6 +131,8 @@ export function TaskCollectionView({
                     ),
                 ),
             getContentElement: () => assertExists(viewRef.current).getContentElement(),
+            getItemElementByKeyIfExists: key =>
+                assertExists(viewRef.current).getItemElementByKeyIfExists(key),
         }),
         [shiftRenderedRangeForGridView],
     );
@@ -140,6 +142,7 @@ export function TaskCollectionView({
         itemCount: gridViewItemCount,
         renderItem: renderGridViewItem,
         onRenderedRangeChange: onGridViewRenderedRangeChange,
+        onRenderedRangeLayoutChange: onGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
         focusEnd: focusGridViewEnd,
@@ -287,6 +290,9 @@ export function TaskCollectionView({
                     )}
                     onRenderedRangeChange={range => {
                         onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));
+                    }}
+                    onRenderedRangeLayoutChange={range => {
+                        onGridViewRenderedRangeLayoutChange(shiftRenderedRangeForGridView(range));
                     }}
                 />
             </TaskGridViewDndContext>

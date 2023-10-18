@@ -102,6 +102,7 @@ export function TaskGridView({
         itemCount,
         renderItem,
         onRenderedRangeChange,
+        onRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes,
         insetScrollbarItemIndex,
     } = useTaskGridViewVirtualizedList({
@@ -124,6 +125,7 @@ export function TaskGridView({
                 bufferedItemHeight={spacing[taskRowViewMinHeight]}
                 renderItem={renderItem}
                 onRenderedRangeChange={onRenderedRangeChange}
+                onRenderedRangeLayoutChange={onRenderedRangeLayoutChange}
                 alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalItemIndexes}
                 insetScrollbarItemIndex={insetScrollbarItemIndex}
             />

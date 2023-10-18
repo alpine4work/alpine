@@ -138,6 +138,8 @@ export function TaskDetailView({
                     ),
                 ),
             getContentElement: () => assertExists(viewRef.current).getContentElement(),
+            getItemElementByKeyIfExists: key =>
+                assertExists(viewRef.current).getItemElementByKeyIfExists(key),
         }),
         [shiftRenderedRangeForChildrenGridView],
     );
@@ -196,6 +198,7 @@ export function TaskDetailView({
         itemCount: childrenGridViewItemCount,
         renderItem: renderChildrenGridViewItem,
         onRenderedRangeChange: onChildrenGridViewRenderedRangeChange,
+        onRenderedRangeLayoutChange: onChildrenGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderChildrenGridViewItemIndexes,
         insetScrollbarItemIndex: insetScrollbarChildrenGridViewItemIndex,
         focusStart: focusChildrenGridViewStart,
@@ -312,6 +315,11 @@ export function TaskDetailView({
                 )}
                 onRenderedRangeChange={range => {
                     onChildrenGridViewRenderedRangeChange(
+                        shiftRenderedRangeForChildrenGridView(range),
+                    );
+                }}
+                onRenderedRangeLayoutChange={range => {
+                    onChildrenGridViewRenderedRangeLayoutChange(
                         shiftRenderedRangeForChildrenGridView(range),
                     );
                 }}

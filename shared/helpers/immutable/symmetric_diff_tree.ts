@@ -87,6 +87,8 @@ export function symmetricDiffTree<Key, Value>(
     oldTree: Tree<Key, Value>,
     newTree: Tree<Key, Value>,
 ): Array<TreeChange<Key, Value>> {
+    assert(oldTree._compare === newTree._compare);
+
     const changes: Array<TreeChange<Key, Value>> = [];
 
     let state = dropPhysicallyEqualPrefix(oldTree.root, null, newTree.root, null);
@@ -116,7 +118,9 @@ export function symmetricDiffTree<Key, Value>(
 
                 state = [cons(state1.tree, state1.next), null];
             } else {
-                if (state1.key === state2.key) {
+                const comparison = oldTree._compare(state1.key, state2.key);
+
+                if (comparison === 0) {
                     state = dropPhysicallyEqualPrefix(
                         state1.tree,
                         state1.next,
@@ -132,7 +136,7 @@ export function symmetricDiffTree<Key, Value>(
                             newValue: state2.value,
                         });
                     }
-                } else if (state1.key < state2.key) {
+                } else if (comparison < 0) {
                     changes.push({
                         type: "DeleteEntry",
                         key: state1.key,
