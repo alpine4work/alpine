@@ -14,6 +14,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {
     BrowserId,
@@ -277,9 +278,11 @@ export class TaskRealtimeClient {
                         // After some period, release our reference to extra queries we received from
                         // the server. We hope our UI code has taken a reference to these queries.
                         setTimeout(() => {
-                            for (const extraQuery of extraQueriesToRelease) {
-                                extraQuery.release();
-                            }
+                            batchStoreUpdates(() => {
+                                for (const extraQuery of extraQueriesToRelease) {
+                                    extraQuery.release();
+                                }
+                            });
                         }, unknownTaskQueryFromServerRetentionPeriodMs);
 
                         batchStoreUpdates(() => {
@@ -313,13 +316,30 @@ export class TaskRealtimeClient {
                                         const extraQuery = this.store.createAndRetainQuery({
                                             filters: extraQueryResult.filters,
                                             sorts: extraQueryResult.sorts,
+                                            // The client may, as an optimization, reuse an existing `TaskClientQuery` when
+                                            // `createAndRetainQuery()` is called. However, we can't do that here! The
+                                            // server has setup a fresh subscription for us that we must respect.
+                                            //
+                                            // Two subscriptions for the same query causes problems.
+                                            withoutReuse: true,
                                         });
 
                                         this.store.loadTasksIntoQuery(extraQuery, {
                                             limit: extraQueryResult.limit,
                                             loadedState: extraQueryResult.loadedState,
-                                            previouslyBackfilledTaskIds: extraQueryResult.taskIds,
+                                            previouslyBackfilledTaskIds:
+                                                extraQueryResult.previouslyBackfilledTaskIds,
                                         });
+
+                                        // Make sure that we don't already have a query subscription for this
+                                        // new query.
+                                        assert(
+                                            iterableEvery(
+                                                subscribedQueries,
+                                                subscribedQuery =>
+                                                    subscribedQuery.query !== extraQuery,
+                                            ),
+                                        );
 
                                         subscribedQueries.add(
                                             createQuerySubscription({

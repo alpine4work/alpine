@@ -328,6 +328,7 @@ export class TaskClientStore {
     public createAndRetainQuery(options: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        withoutReuse?: boolean;
     }): TaskClientQuery {
         return this._internal.createAndRetainQuery(options);
     }
@@ -3917,9 +3918,11 @@ export class TaskClientStoreInternal {
     public createAndRetainQuery({
         filters,
         sorts,
+        withoutReuse,
     }: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        withoutReuse?: boolean;
     }): TaskClientQuery {
         return batchStoreUpdates(() => {
             // Detect if this is a child task query (filters for all child tasks, sorted by
@@ -3929,7 +3932,7 @@ export class TaskClientStoreInternal {
             //   subscriptions.
             // - Otherwise we should set it in our child task query map.
             const parentTaskId = getParentTaskIdIfChildrenQuery({filters, sorts});
-            if (parentTaskId) {
+            if (!withoutReuse && parentTaskId) {
                 const existingQuery =
                     this._taskChildrenQueryByParentTaskId.getSnapshot(parentTaskId);
                 if (existingQuery) {
@@ -3944,6 +3947,7 @@ export class TaskClientStoreInternal {
                 sorts,
             });
 
+            // If there was already a query for this `parentTaskId` then override it.
             if (parentTaskId) {
                 this._taskChildrenQueryByParentTaskId.set(parentTaskId, query.external);
             }

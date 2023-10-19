@@ -256,7 +256,7 @@ export class TaskRealtimeConnection {
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
             limit: number;
             loadedState: TaskRealtimeQueryLoadedState;
-            getTaskIds: () => ReadonlyArray<TaskId>;
+            getPreviouslyBackfilledTaskIds: () => ReadonlyArray<TaskId>;
         }>;
     }> {
         const gridViewExpansionStatePromise = shouldLoadGridViewExpandedChildTasksForBrowserId
@@ -364,10 +364,22 @@ export class TaskRealtimeConnection {
                                 // This property can only be computed right before we send our procedure
                                 // response which is why it's in a function. Otherwise we may miss
                                 // realtime updates.
-                                getTaskIds: () =>
-                                    childrenQuerySubscription
-                                        .getLoadedTasks()
-                                        .tasks.map(task => task.id),
+                                getPreviouslyBackfilledTaskIds: () => {
+                                    // All the tasks we loaded that weren't backfilled we send in a
+                                    // `previouslyBackfilledTaskIds` array so the client can add them to its local
+                                    // query model.
+                                    const backfillAuthorizedTaskIds =
+                                        eventBuilder.getBackfillAuthorizedTaskIds(this);
+                                    const previouslyBackfilledTaskIds: Array<TaskId> = [];
+
+                                    for (const task of childrenQuerySubscription.getLoadedTasks()
+                                        .tasks) {
+                                        if (backfillAuthorizedTaskIds.has(task.id)) continue;
+                                        previouslyBackfilledTaskIds.push(task.id);
+                                    }
+
+                                    return previouslyBackfilledTaskIds;
+                                },
                             };
                         },
                     },
@@ -580,10 +592,12 @@ export class TaskRealtimeConnection {
                             loadedState,
                             previouslyBackfilledTaskIds: getPreviouslyBackfilledTaskIds(),
                             gridViewExpansionState,
-                            extraQueries: extraQueries.map(({getTaskIds, ...extraQuery}) => ({
-                                ...extraQuery,
-                                taskIds: getTaskIds(),
-                            })),
+                            extraQueries: extraQueries.map(
+                                ({getPreviouslyBackfilledTaskIds, ...extraQuery}) => ({
+                                    ...extraQuery,
+                                    previouslyBackfilledTaskIds: getPreviouslyBackfilledTaskIds(),
+                                }),
+                            ),
                             updateEvent,
                         };
                     } catch (error) {
@@ -775,9 +789,10 @@ export class TaskRealtimeConnection {
                                             result.value.getPreviouslyBackfilledTaskIds(),
                                         gridViewExpansionState: result.value.gridViewExpansionState,
                                         extraQueries: result.value.extraQueries.map(
-                                            ({getTaskIds, ...extraQuery}) => ({
+                                            ({getPreviouslyBackfilledTaskIds, ...extraQuery}) => ({
                                                 ...extraQuery,
-                                                taskIds: getTaskIds(),
+                                                previouslyBackfilledTaskIds:
+                                                    getPreviouslyBackfilledTaskIds(),
                                             }),
                                         ),
                                     };

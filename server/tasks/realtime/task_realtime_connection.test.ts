@@ -13565,7 +13565,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task2a.id, task2b.id, task2c.id],
+                    previouslyBackfilledTaskIds: [],
                 },
                 {
                     querySubscriptionId: expect.any(String),
@@ -13585,7 +13585,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task4a.id],
+                    previouslyBackfilledTaskIds: [],
                 },
                 {
                     querySubscriptionId: expect.any(String),
@@ -13605,7 +13605,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task2b1.id],
+                    previouslyBackfilledTaskIds: [],
                 },
                 {
                     querySubscriptionId: expect.any(String),
@@ -13625,7 +13625,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task5a.id, task5b.id],
+                    previouslyBackfilledTaskIds: [],
                 },
             ],
             updateEvent: {
@@ -13653,6 +13653,117 @@ test("will load some expanded task queries if requested", async () => {
                 backfillCollections: [expectAuthorizedCollection(collection.id)],
                 referencedAccounts: [await session1.get(), await session2.get()],
             },
+        });
+
+        expect(connection.takeEvents()).toEqual([]);
+    }
+
+    {
+        const connection = await server.connectForTest(context.action(session1));
+
+        expect(connection.takeEvents()).toEqual([]);
+
+        // Subscribe to query once before so `previouslyBackfilledTaskIds` is populated.
+        await connection.procedures.subscribeToQuery({
+            ...highPriorityQuery,
+            limit: 9,
+            shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
+        });
+
+        const result = await connection.procedures.subscribeToQuery({
+            ...highPriorityQuery,
+            limit: 9,
+            shouldLoadGridViewExpandedChildTasksForBrowserId: browserId,
+        });
+
+        expect(result).toEqual({
+            querySubscriptionId: expect.any(String),
+            loadedState: {type: "Full"},
+            previouslyBackfilledTaskIds: [task1.id, task2.id, task3.id, task5.id, task6.id],
+            gridViewExpansionState: gridViewExpansionState1,
+            extraQueries: [
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task2.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    previouslyBackfilledTaskIds: [task2a.id, task2b.id, task2c.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task4.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    previouslyBackfilledTaskIds: [task4a.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task2b.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    previouslyBackfilledTaskIds: [task2b1.id],
+                },
+                {
+                    querySubscriptionId: expect.any(String),
+                    filters: {
+                        displayStatusFilter: {
+                            ifOpenInactive: true,
+                            ifOpenActive: true,
+                            ifClosed: true,
+                        },
+                        parentFilter: {
+                            parentTaskId: task5.id,
+                        },
+                    },
+                    sorts: [
+                        {type: "ParentPosition", direction: "Ascending", missing: "Last"},
+                        {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+                    ],
+                    limit: 9,
+                    loadedState: {type: "Full"},
+                    previouslyBackfilledTaskIds: [task5a.id, task5b.id],
+                },
+            ],
+            updateEvent: null,
         });
 
         expect(connection.takeEvents()).toEqual([]);
@@ -13700,7 +13811,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task2a.id, task2b.id, task2c.id],
+                    previouslyBackfilledTaskIds: [],
                 },
                 {
                     querySubscriptionId: expect.any(String),
@@ -13720,7 +13831,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task2b1.id],
+                    previouslyBackfilledTaskIds: [],
                 },
                 {
                     querySubscriptionId: expect.any(String),
@@ -13740,7 +13851,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task5a.id, task5b.id],
+                    previouslyBackfilledTaskIds: [],
                 },
             ],
             updateEvent: {
@@ -13830,7 +13941,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task2a.id, task2b.id, task2c.id],
+                    previouslyBackfilledTaskIds: [],
                 },
                 {
                     querySubscriptionId: expect.any(String),
@@ -13850,7 +13961,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task2b1.id],
+                    previouslyBackfilledTaskIds: [],
                 },
                 {
                     querySubscriptionId: expect.any(String),
@@ -13870,7 +13981,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task5a.id, task5b.id],
+                    previouslyBackfilledTaskIds: [],
                 },
                 {
                     querySubscriptionId: expect.any(String),
@@ -13890,7 +14001,7 @@ test("will load some expanded task queries if requested", async () => {
                     ],
                     limit: 9,
                     loadedState: {type: "Full"},
-                    taskIds: [task6a.id],
+                    previouslyBackfilledTaskIds: [],
                 },
             ],
             updateEvent: {
@@ -14110,7 +14221,7 @@ test("race condition: extra query task ids includes task from action that happen
                         ],
                         limit: 100,
                         loadedState: {type: "Full"},
-                        taskIds: [task2a.id, task2b.id],
+                        previouslyBackfilledTaskIds: [task2b.id],
                     },
                 ],
             },
