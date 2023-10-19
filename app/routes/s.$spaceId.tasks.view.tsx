@@ -5,14 +5,12 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-import {
-    TaskQueryView,
-    isTaskQueryMissingRequiredFiltersForQueryView,
-} from "~/client/tasks/task_query_view.js";
+import {TaskQueryView} from "~/client/tasks/task_query_view.js";
 import {
     clientLoaderTaskStoreLoaderData,
     useTaskStoreLoaderDataWithoutRetaining,
 } from "~/client/tasks/task_realtime_client_context_provider.js";
+import {isTaskQueryMissingRequiredFilters} from "~/client/tasks/use_task_query_state.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
@@ -41,8 +39,8 @@ import {
 } from "~/shared/tasks/task_query_sort.js";
 
 const LoaderSchema = Schema.object({
-    filterReferences: TaskQueryFilterReferencesSchema,
     gridViewExpansionState: TaskGridViewExpansionStateSchema,
+    filterReferences: TaskQueryFilterReferencesSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
@@ -58,24 +56,21 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
     const sortsString = url.searchParams.get("sort");
     const sorts = sortsString ? deserializeTaskQuerySortsSearchParam(sortsString) : [];
 
+    const normalizedFiltersResult = normalizeTaskQueryFilters(filters, {
+        currentDate: getCurrentDate(context),
+        currentAccountId: context.actor.getAccountId(),
+    });
+
+    const normalizedSorts = normalizeTaskQuerySorts(sorts);
+
     const [filterReferences, loadQueryResult] = await runAllPromises([
         getTaskQueryFilterReferences(context, spaceId, filters),
         (async () => {
-            const normalizedFiltersResult = normalizeTaskQueryFilters(filters, {
-                currentDate: getCurrentDate(context),
-                currentAccountId: context.actor.getAccountId(),
-            });
-
-            const normalizedSorts = normalizeTaskQuerySorts(sorts);
-
             if (normalizedFiltersResult.type !== "Possible") return null;
             const {normalizedFilters} = normalizedFiltersResult;
 
             if (
-                isTaskQueryMissingRequiredFiltersForQueryView(
-                    context.actor.getAccountId(),
-                    normalizedFilters,
-                )
+                isTaskQueryMissingRequiredFilters(context.actor.getAccountId(), normalizedFilters)
             ) {
                 return null;
             }
@@ -187,6 +182,7 @@ function TaskQueryRouteInner() {
             initialBottomGhostTaskId={initialBottomGhostTaskId}
             initialFilters={initialFilters}
             initialFilterReferences={initialFilterReferences}
+            initialSorts={initialSorts}
             onFiltersChange={filters => {
                 const url = new URL(window.location.href);
 
@@ -200,7 +196,6 @@ function TaskQueryRouteInner() {
                 // re-render unnecessarily.
                 window.history.replaceState(null, "", url);
             }}
-            initialSorts={initialSorts}
             onSortsChange={sorts => {
                 const url = new URL(window.location.href);
 

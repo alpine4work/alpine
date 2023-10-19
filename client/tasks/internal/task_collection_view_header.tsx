@@ -72,15 +72,7 @@ export function TaskCollectionViewHeader({
     const color = collection?.getColor() ?? null;
 
     return (
-        <Box
-            width="full"
-            overflow="hidden"
-            paddingTop="4"
-            paddingBottom="2"
-            paddingX="5"
-            display="flex"
-            alignItems="center"
-        >
+        <Box overflow="hidden" display="flex" alignItems="center">
             {collectionSubscription && (
                 <Box flexShrink="0" display="flex" justifyContent="center" width="3">
                     <TaskCollectionViewHeaderColor

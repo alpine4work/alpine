@@ -43,7 +43,6 @@ import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js"
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
-import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -194,6 +193,8 @@ export function TaskDetailView({
     const isReadOnly = readOnlyReason !== null;
 
     const {
+        stateKey: childrenGridViewStateKey,
+        bufferedItemHeight: childrenGridViewBufferedItemHeight,
         modals: childrenGridViewModals,
         itemCount: childrenGridViewItemCount,
         renderItem: renderChildrenGridViewItem,
@@ -261,7 +262,8 @@ export function TaskDetailView({
             {childrenGridViewModals}
             <VirtualizedScrollView
                 ref={viewRef}
-                bufferedItemHeight={spacing[taskRowViewMinHeight]}
+                stateKey={childrenGridViewStateKey}
+                bufferedItemHeight={childrenGridViewBufferedItemHeight}
                 itemCount={hasSubtasks ? childrenGridViewItemCount + 1 : 1}
                 alwaysRenderAdditionalItemIndexes={useMemo(
                     () => alwaysRenderChildrenGridViewItemIndexes.map(index => index + 1),

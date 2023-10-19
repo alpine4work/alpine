@@ -82,8 +82,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {LinkedList} from "~/shared/helpers/immutable/linked_list.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars, spinAnimationClassName, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
@@ -127,7 +128,10 @@ export type TaskGridViewVirtualizedListViewRef = {
 // have other stuff besides tasks so a modified ref object may be passed in.
 assertAssignableTypes<VirtualizedScrollViewRef, TaskGridViewVirtualizedListViewRef>();
 
-function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormalizedSort>): boolean {
+/**
+ * Do these sorts represent a manually sorted query?
+ */
+export function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormalizedSort>): boolean {
     if (sorts.length === 0) return false;
     const firstSort = sorts[0]!;
     return (
@@ -169,6 +173,8 @@ export function disableAllTaskGridViewAnimationsUntilNextBrowserPaint() {
     });
 }
 
+const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, Id>();
+
 /**
  * Encapsulates the ability to render a virtualized list of tasks. You are
  * responsible for using ALL of the returned props in a
@@ -201,6 +207,18 @@ export function useTaskGridViewVirtualizedList({
     withColumnHeaderExtraScrollSpace?: Spacing | "px";
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
 }): {
+    /**
+     * Key that resets our virtualized scroll view's internal state. Should be
+     * passed to `<VirtualizedScrollView>`.
+     */
+    stateKey: Key | undefined;
+
+    /**
+     * The height buffered for un-rendered items. Should be passed to
+     * `<VirtualizedScrollView>`.
+     */
+    bufferedItemHeight: RemLength;
+
     /**
      * The number of items. Should be passed to `<VirtualizedScrollView>`.
      */
@@ -257,6 +275,22 @@ export function useTaskGridViewVirtualizedList({
     const remPx = useRemPx();
 
     const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
+
+    // Whenever our `activeQuery` changes we reset the `<VirtualizedScrollView>`'s
+    // internal state (which also scrolls the view to the top). We do this
+    // instead of:
+    //
+    // - Using a React `key` because that would remount all components which is
+    //   expensive and some components will be shared (e.g. the column header)
+    // - Calling `viewRef.current.setScrollOffset(0)` because there will be an
+    //   intermediate render where `<VirtualizedScrollView>` renders the new query
+    //   at the old scroll offset (potentially causing unnecessary data to load
+    //   because we're rendering the "load more" item)
+    //
+    // This must be passed into `<VirtualizedScrollView>`'s `stateKey` prop.
+    const stateKey = rootQuery
+        ? getOrSetDefaultMapValue(virtualizedScrollViewStateKeyByActiveQuery, rootQuery, generateId)
+        : undefined;
 
     const isRootQueryNull = rootQuery === null;
     const isRootQueryManuallySorted = isTaskQueryManuallySorted(rootQuery?.sorts ?? emptyArray);
@@ -1350,6 +1384,7 @@ export function useTaskGridViewVirtualizedList({
                                     <TaskRowViewMemo
                                         context={context}
                                         capabilities={capabilities}
+                                        stateKey={stateKey}
                                         rootQuery={rootQuery}
                                         isRootQueryManuallySorted={isRootQueryManuallySorted}
                                         query={rootQuery}
@@ -1422,6 +1457,7 @@ export function useTaskGridViewVirtualizedList({
                             <TaskRowViewMemo
                                 context={context}
                                 capabilities={capabilities}
+                                stateKey={stateKey}
                                 // If we have a task item then that must mean we have a query.
                                 rootQuery={rootQuery!}
                                 isRootQueryManuallySorted={isRootQueryManuallySorted}
@@ -1450,6 +1486,7 @@ export function useTaskGridViewVirtualizedList({
                                 onTaskDeleteConfirmationModalDialogClosedCallbacksRef={
                                     onTaskDeleteConfirmationModalDialogClosedCallbacksRef
                                 }
+                                withPaddingBottom={itemIndex === itemCount - 1}
                             />
                         ),
                     ),
@@ -1500,6 +1537,7 @@ export function useTaskGridViewVirtualizedList({
         rootQuery,
         state,
         stateItemCount,
+        stateKey,
         toggleAreChildTasksExpanded,
         viewRef,
         withColumnHeaderBorderTop,
@@ -1507,6 +1545,8 @@ export function useTaskGridViewVirtualizedList({
     ]);
 
     return {
+        stateKey,
+        bufferedItemHeight: spacing[taskRowViewMinHeight],
         itemCount,
         renderItem,
         onRenderedRangeChange: tryLoadingMoreData,
@@ -1763,7 +1803,7 @@ function TaskGridViewColumnHeader(
                                 width="32"
                                 paddingLeft="5"
                                 paddingBottom="1"
-                                color="grey-50"
+                                color="grey-40"
                                 fontSize="50"
                             >
                                 Name
@@ -1777,7 +1817,7 @@ function TaskGridViewColumnHeader(
                                 }}
                                 paddingX={taskRowViewColumnPaddingX}
                                 paddingBottom="1"
-                                color="grey-50"
+                                color="grey-40"
                                 fontSize="50"
                             >
                                 Assignee
@@ -1787,7 +1827,7 @@ function TaskGridViewColumnHeader(
                                 width={taskRowViewColumnWidth}
                                 paddingX={taskRowViewColumnPaddingX}
                                 paddingBottom="1"
-                                color="grey-50"
+                                color="grey-40"
                                 fontSize="50"
                             >
                                 Priority
@@ -1797,7 +1837,7 @@ function TaskGridViewColumnHeader(
                                 width={taskRowViewColumnWidth}
                                 paddingX={taskRowViewColumnPaddingX}
                                 paddingBottom="1"
-                                color="grey-50"
+                                color="grey-40"
                                 fontSize="50"
                             >
                                 Due date
@@ -1808,7 +1848,7 @@ function TaskGridViewColumnHeader(
                                 paddingLeft={taskRowViewColumnPaddingX}
                                 paddingRight={taskRowViewLastColumnPaddingRight}
                                 paddingBottom="1"
-                                color="grey-50"
+                                color="grey-40"
                                 fontSize="50"
                             >
                                 Collections
@@ -1961,6 +2001,7 @@ const TaskGridViewUnloadedChildTaskMemo = memo(function TaskGridViewUnloadedChil
 const TaskRowViewMemo = memo(function TaskRowViewMemo({
     context,
     capabilities,
+    stateKey,
     rootQuery,
     isRootQueryManuallySorted,
     query,
@@ -1984,6 +2025,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 }: {
     context: AppContext;
     capabilities: Memo<TaskGridViewCapabilities>;
+    stateKey: Key | undefined;
     rootQuery: TaskClientQuery;
     isRootQueryManuallySorted: boolean;
     query: TaskClientQuery;
@@ -2346,6 +2388,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 }
             }}
             capabilities={capabilities}
+            stateKey={stateKey}
             // It's important we use the `query` property from `item` since child tasks
             // come from a different query than our root query.
             query={query}

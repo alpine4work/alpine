@@ -1,6 +1,32 @@
-import {Box} from "~/client/design/box.js";
 import {useSpacingPx} from "~/client/design/helpers/use_spacing_px.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
+import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+
+// NOTE(calebmer): You are not allowed to use the `<Box>` component in this
+// file. It is critical for scroll performance that this component renders
+// fast. Manually use the `sprinkles()` function instead. This reduces the
+// number of fibers React needs to render. One day we'd like to introduce
+// transformations that automatically inline `<Box>` components and
+// `sprinkles()` functions at which point using `<Box>` would not make a
+// performance difference.
+//
+// So we assign the `Box` variable to null here so you get a TypeScript error
+// if you try to use `<Box>`.
+//
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const Box = null;
+
+const progressTrackClassName = sprinkles({
+    position: "absolute",
+    inset: "0",
+    color: {light: "theme-40", dark: "theme-60"},
+});
+
+const progressLineClassName = sprinkles({
+    position: "absolute",
+    inset: "0",
+    color: {light: "theme-40", dark: "theme-60"},
+});
 
 export function TaskChildTasksProgressWheel({
     childTaskCount,
@@ -13,6 +39,22 @@ export function TaskChildTasksProgressWheel({
     isHovered?: boolean;
     isPressed?: boolean;
 }) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
     const fraction = Math.max(closedChildTaskCount / childTaskCount, 0.1);
 
     const size: Spacing = "3";
@@ -23,11 +65,16 @@ export function TaskChildTasksProgressWheel({
     const circumference = 2 * Math.PI * radius;
 
     return (
-        <Box position="relative" width={size} height={size}>
-            <Box
-                position="absolute"
-                inset="0"
-                color={isPressed ? "grey-40" : isHovered ? "grey-30" : "grey-20"}
+        <div style={{position: "relative", width: spacing[size], height: spacing[size]}}>
+            <div
+                className={progressTrackClassName}
+                style={{
+                    color: isPressed
+                        ? colorSchemeVars["grey-40"]
+                        : isHovered
+                        ? colorSchemeVars["grey-30"]
+                        : colorSchemeVars["grey-20"],
+                }}
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -50,8 +97,8 @@ export function TaskChildTasksProgressWheel({
                         strokeWidth={1}
                     />
                 </svg>
-            </Box>
-            <Box position="absolute" inset="0" color={{light: "theme-40", dark: "theme-60"}}>
+            </div>
+            <div className={progressLineClassName}>
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     style={{
@@ -78,7 +125,7 @@ export function TaskChildTasksProgressWheel({
                         style={{transition: "stroke-dasharray 200ms ease"}}
                     />
                 </svg>
-            </Box>
-        </Box>
+            </div>
+        </div>
     );
 }

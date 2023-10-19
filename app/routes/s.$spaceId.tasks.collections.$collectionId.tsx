@@ -1,11 +1,11 @@
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import {useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/app/internal/use_update_meta_title.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
+import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -22,12 +22,13 @@ import {
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {
     authorizeTaskCollectionAccess,
     commitTaskActionTransaction,
 } from "~/server/tasks/data/task_table.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -39,10 +40,25 @@ import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {taskCollectionAffinityPointsPer5MinOfViewingTime} from "~/shared/tasks/task_collection_affinity_constants.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
+    deserializeTaskQueryFiltersSearchParam,
+    serializeTaskQueryFiltersSearchParam,
+} from "~/shared/tasks/task_query_filter.js";
+import {
+    TaskQueryFilterReferencesSchema,
+    emptyTaskQueryFilterReferences,
+} from "~/shared/tasks/task_query_filter_references.js";
+import {
     TaskQueryNormalizedFilters,
-    assertNonEmptyReadonlyMap,
+    normalizeTaskQueryFilters,
 } from "~/shared/tasks/task_query_normalized_filters.js";
-import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
+import {
+    TaskQueryNormalizedSort,
+    normalizeTaskQuerySorts,
+} from "~/shared/tasks/task_query_normalized_sort.js";
+import {
+    deserializeTaskQuerySortsSearchParam,
+    serializeTaskQuerySortsSearchParam,
+} from "~/shared/tasks/task_query_sort.js";
 import {TaskRealtimeUpdateEventBackfillCollection} from "~/shared/tasks/task_realtime_protocol.js";
 
 const LoaderSchema = Schema.object({
@@ -57,6 +73,7 @@ const LoaderSchema = Schema.object({
         }),
     }),
     initialBottomGhostTaskId: Schema.id<TaskId>(),
+    filterReferences: TaskQueryFilterReferencesSchema,
 });
 
 export const meta = createMetaFunction(LoaderSchema, ({data: {collectionState}}) => [
@@ -85,6 +102,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
                     type: "NotExists",
                 },
                 initialBottomGhostTaskId: generateId<TaskId>(),
+                filterReferences: emptyTaskQueryFilterReferences,
             },
             {
                 propagateEventData: {
@@ -132,53 +150,94 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
         }
     }
 
-    const query: {
-        limit: number;
-        filters: TaskQueryNormalizedFilters;
-        sorts: ReadonlyArray<TaskQueryNormalizedSort>;
-        shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
-    } = {
-        limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
+    const filtersString = url.searchParams.get("filter");
+    const filters = filtersString ? deserializeTaskQueryFiltersSearchParam(filtersString) : [];
+    const sortsString = url.searchParams.get("sort");
+    const sorts = sortsString ? deserializeTaskQuerySortsSearchParam(sortsString) : [];
 
-        filters: {
-            displayStatusFilter: {
-                ifOpenInactive: true,
-                ifOpenActive: true,
-                ifClosed: false,
-            },
-            collectionsFilter: [assertNonEmptyReadonlyMap(new Map([[collectionId, false]]))],
-        },
-        sorts: [
+    // Always include collection filter in our list of filters.
+    const normalizedFiltersResult = normalizeTaskQueryFilters(
+        [
             {
-                type: "CollectionPosition",
-                direction: "Ascending",
-                missing: "Last",
-                collectionId,
+                type: "Collections",
+                operation: {type: "IncludesOneOf", collectionIds: new Set([collectionId])},
             },
-            {
-                type: "CreatedTime",
-                direction: "Ascending",
-                missing: "Last",
-            },
+            ...filters,
         ],
+        {
+            currentDate: getCurrentDate(context),
+            currentAccountId: context.actor.getAccountId(),
+        },
+    );
 
-        shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
-    };
+    // If no filters or sorts have been explicitly set then the user can manually
+    // sort by collection position.
+    //
+    // If the collection view is filtered we automatically apply a sort since there
+    // can be some weirdness creating a task and expecting it to be in one place
+    // when there's no filter but instead it goes to another place.
+    const normalizedSorts: ReadonlyArray<TaskQueryNormalizedSort> =
+        filters.length === 0 && sorts.length === 0
+            ? [
+                  {
+                      type: "CollectionPosition",
+                      direction: "Ascending",
+                      missing: "Last",
+                      collectionId,
+                  },
+                  {
+                      type: "CreatedTime",
+                      direction: "Ascending",
+                      missing: "Last",
+                  },
+              ]
+            : normalizeTaskQuerySorts(sorts);
 
-    const {queries, extraQueries, updateEvent} = await context.tasks.loadQueries(spaceId, {
-        queries: [query],
-        taskIds: [],
-        collectionIds: [collectionId],
-    });
+    const [filterReferences, loadQueryResult] = await runAllPromises([
+        getTaskQueryFilterReferences(context, spaceId, filters),
+        (async () => {
+            if (normalizedFiltersResult.type !== "Possible") {
+                const result = await context.tasks.loadQueries(spaceId, {
+                    queries: [],
+                    taskIds: [],
+                    collectionIds: [collectionId],
+                });
 
-    const backfillCollection = updateEvent.backfillCollections.find(
+                return Object.assign(result, {input: {query: null}});
+            }
+
+            const {normalizedFilters} = normalizedFiltersResult;
+
+            const query: {
+                limit: number;
+                filters: TaskQueryNormalizedFilters;
+                sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+                shouldLoadGridViewExpandedChildTasksForBrowserId?: BrowserId;
+            } = {
+                limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
+                filters: normalizedFilters,
+                sorts: normalizedSorts,
+                shouldLoadGridViewExpandedChildTasksForBrowserId: context.loader.getBrowserId(),
+            };
+
+            const result = await context.tasks.loadQueries(spaceId, {
+                queries: [query],
+                taskIds: [],
+                collectionIds: [collectionId],
+            });
+
+            return Object.assign(result, {input: {query}});
+        })(),
+    ]);
+
+    const backfillCollection = loadQueryResult?.updateEvent.backfillCollections.find(
         (
             backfillCollection,
         ): backfillCollection is TaskRealtimeUpdateEventBackfillCollection & {type: "Authorized"} =>
             backfillCollection.type === "Authorized" &&
             backfillCollection.collection.id === collectionId,
     );
-    const queryOutput = assertExists(queries[0]);
+    const queryOutput = loadQueryResult ? assertExists(loadQueryResult.queries[0]) : null;
 
     return jsonWithSchema(
         LoaderSchema,
@@ -186,28 +245,35 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
             collectionState: {
                 type: "Exists",
                 initialMetaTitleText: backfillCollection?.collection.getName() ?? "",
-                gridViewExpansionState: queryOutput.gridViewExpansionState,
+                gridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
             },
             initialBottomGhostTaskId: generateId<TaskId>(),
+            filterReferences,
         },
         {
             propagateEventData: {
                 context: {taskCollectionId: collectionId},
             },
-            taskStoreLoaderData: {
-                queries: [
-                    {
-                        limit: query.limit,
-                        filters: query.filters,
-                        sorts: query.sorts,
-                        loadedState: queryOutput.loadedState,
-                    },
-                    ...extraQueries,
-                ],
-                taskIds: [],
-                collectionIds: [collectionId],
-                updateEvent,
-            },
+            taskStoreLoaderData: loadQueryResult
+                ? {
+                      queries: [
+                          ...(loadQueryResult.input.query
+                              ? [
+                                    {
+                                        limit: loadQueryResult.input.query.limit,
+                                        filters: loadQueryResult.input.query.filters,
+                                        sorts: loadQueryResult.input.query.sorts,
+                                        loadedState: assertExists(queryOutput).loadedState,
+                                    },
+                                ]
+                              : []),
+                          ...loadQueryResult.extraQueries,
+                      ],
+                      taskIds: [],
+                      collectionIds: [collectionId],
+                      updateEvent: loadQueryResult.updateEvent,
+                  }
+                : undefined,
         },
     );
 }
@@ -244,28 +310,27 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
 
     const store = useTaskClientStore();
 
-    const {collectionState, initialBottomGhostTaskId} = useLoaderDataWithSchema(LoaderSchema);
     const {
-        queries: [query],
+        collectionState,
+        initialBottomGhostTaskId,
+        filterReferences: initialFilterReferences,
+    } = useLoaderDataWithSchema(LoaderSchema);
+    const {
+        queries: [initialQuery],
         collectionSubscriptions: [collectionSubscription],
     } = useTaskStoreLoaderDataWithoutRetaining();
 
-    // Retain our queries so they aren't destroyed while we're using them.
-    useEffect(() => {
-        query?.retain();
-        collectionSubscription?.retain();
+    const [initialFilters] = useState(() => {
+        const filtersString = searchParams.get("filter");
+        if (!filtersString) return [];
+        return deserializeTaskQueryFiltersSearchParam(filtersString);
+    });
 
-        return () => {
-            // Release after a microtask in case the component is re-rendering which will
-            // synchronously call `retain()` again.
-            scheduleMicrotask(() => {
-                batchStoreUpdates(() => {
-                    query?.release();
-                    collectionSubscription?.release();
-                });
-            });
-        };
-    }, [collectionSubscription, query]);
+    const [initialSorts] = useState(() => {
+        const sortsString = searchParams.get("sort");
+        if (!sortsString) return [];
+        return deserializeTaskQuerySortsSearchParam(sortsString);
+    });
 
     // Remove the `create` search param if we have a subscription to an
     // existing collection.
@@ -310,11 +375,40 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
             store={store}
             collectionId={collectionId}
             collectionSubscription={collectionSubscription ?? null}
-            query={query ?? null}
+            initialQuery={initialQuery ?? null}
             initialGridViewExpansionState={
                 collectionState.type === "Exists" ? collectionState.gridViewExpansionState : null
             }
             initialBottomGhostTaskId={initialBottomGhostTaskId}
+            initialFilters={initialFilters}
+            initialFilterReferences={initialFilterReferences}
+            initialSorts={initialSorts}
+            onFiltersChange={filters => {
+                const url = new URL(window.location.href);
+
+                if (filters.length === 0) {
+                    url.searchParams.delete("filter");
+                } else {
+                    url.searchParams.set("filter", serializeTaskQueryFiltersSearchParam(filters));
+                }
+
+                // Silently update the URL without telling Remix so our component doesn't
+                // re-render unnecessarily.
+                window.history.replaceState(null, "", url);
+            }}
+            onSortsChange={sorts => {
+                const url = new URL(window.location.href);
+
+                if (sorts.length === 0) {
+                    url.searchParams.delete("sort");
+                } else {
+                    url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
+                }
+
+                // Silently update the URL without telling Remix so our component doesn't
+                // re-render unnecessarily.
+                window.history.replaceState(null, "", url);
+            }}
             // eslint-disable-next-line @typescript-eslint/no-misused-promises
             createCollection={useEvent(async name => {
                 const newSearchParams = new URLSearchParams(searchParams);

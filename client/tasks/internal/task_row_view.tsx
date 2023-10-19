@@ -3,6 +3,7 @@ import classNames from "classnames";
 import {ArrowsOutSimple, DotsSixVertical} from "phosphor-react";
 import {Selection} from "prosemirror-state";
 import {
+    Key,
     KeyboardEvent,
     Memo,
     Ref,
@@ -198,6 +199,7 @@ const paddingBottomClassName = sprinkles({
 function TaskRowView(
     {
         capabilities,
+        stateKey,
         query,
         isQueryManuallySorted,
         cursor,
@@ -232,6 +234,7 @@ function TaskRowView(
         setRowZIndex,
     }: {
         capabilities: TaskGridViewCapabilities;
+        stateKey: Key | undefined;
         query: TaskClientQuery;
         isQueryManuallySorted: boolean;
         cursor: TaskQuerySortCursor | null;
@@ -1274,6 +1277,7 @@ function TaskRowView(
                     <TaskRowTitleInput
                         ref={titleInputRef}
                         capabilities={capabilities}
+                        stateKey={stateKey}
                         title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                         onTitleChange={onTitleChange}
                         placeholder={titlePlaceholder}

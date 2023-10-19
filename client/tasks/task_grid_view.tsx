@@ -60,7 +60,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {generateId} from "~/shared/id/id.js";
-import {LocalTaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -98,6 +98,8 @@ export function TaskGridView({
 
     // NOCOMMIT: This should become notepad view?
     const {
+        stateKey,
+        bufferedItemHeight,
         modals,
         itemCount,
         renderItem,
@@ -121,8 +123,9 @@ export function TaskGridView({
             {modals}
             <VirtualizedScrollView
                 ref={viewRef}
+                stateKey={stateKey}
+                bufferedItemHeight={bufferedItemHeight}
                 itemCount={itemCount}
-                bufferedItemHeight={spacing[taskRowViewMinHeight]}
                 renderItem={renderItem}
                 onRenderedRangeChange={onRenderedRangeChange}
                 onRenderedRangeLayoutChange={onRenderedRangeLayoutChange}

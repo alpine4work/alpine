@@ -4,6 +4,7 @@ import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-s
 import {EditorView} from "prosemirror-view";
 import {
     CSSProperties,
+    Key,
     Ref,
     forwardRef,
     useCallback,
@@ -149,6 +150,7 @@ const marginRightContainerClassName = sprinkles({
 function TaskRowTitleInput(
     {
         capabilities,
+        stateKey,
         title,
         onTitleChange,
         placeholder,
@@ -173,6 +175,7 @@ function TaskRowTitleInput(
         focusPreviousCell,
     }: {
         capabilities: TaskGridViewCapabilities;
+        stateKey: Key | undefined;
         title: TaskTitleModel;
         onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
         placeholder?: string;
@@ -867,6 +870,7 @@ function TaskRowTitleInput(
                 {childTaskCount > 0 && (
                     <TaskRowTitleChildTasksButton
                         ref={childTasksButtonRef}
+                        stateKey={stateKey}
                         childTaskCount={childTaskCount}
                         closedChildTaskCount={closedChildTaskCount}
                         areChildTasksExpanded={areChildTasksExpanded}
