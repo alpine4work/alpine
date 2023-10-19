@@ -323,7 +323,7 @@ export abstract class TaskRealtimeUpdateEventBuilderBase {
      */
     public getBackfillAuthorizedTaskIds(
         connection: TaskRealtimeUpdateEventConnection,
-    ): Set<TaskId> {
+    ): ReadonlySet<TaskId> {
         // Can't get the backfilled `TaskId`s while we're building the event.
         assert(this._isFinished);
 

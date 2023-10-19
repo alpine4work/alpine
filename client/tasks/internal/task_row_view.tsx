@@ -399,6 +399,8 @@ function TaskRowView(
             // the same React commit as our store updates (which use
             // `useSyncExternalStore()`).
             runWithImmediatePriority(() => {
+                disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(ghostTaskId);
+
                 const commitPromise = query.store.commitTaskActionTransaction(context, [
                     {
                         type: "UpdateTask",
