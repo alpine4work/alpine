@@ -181,8 +181,8 @@ export function useTaskGridViewVirtualizedList({
     initialExpansionState,
     initialBottomGhostTaskId,
     viewRef,
-    getMoveTaskToQueryActions: _getMoveTaskToRootQueryActions,
-    getMaybeRemoveTaskFromQueryActions: _getMaybeRemoveTaskFromRootQueryActions,
+    getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
+    getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     withColumnHeaderBorderTop = false,
     withColumnHeaderExtraScrollSpace = "0",
     columnHeaderControls,
@@ -516,8 +516,8 @@ export function useTaskGridViewVirtualizedList({
     \* ========================================================================== */
 
     const events: TaskGridViewVirtualizedListEvents = useEvents({
-        getMoveTaskToRootQueryActions: _getMoveTaskToRootQueryActions,
-        getMaybeRemoveTaskFromRootQueryActions: _getMaybeRemoveTaskFromRootQueryActions,
+        getMoveTaskToRootQueryActions,
+        getMaybeRemoveTaskFromRootQueryActions,
 
         getState: () => state,
         getItemCountBeforeState: () => itemCountBeforeState,
@@ -2017,6 +2017,8 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
           ]
         : null;
 
+    const isQueryManuallySorted = query !== rootQuery || isRootQueryManuallySorted;
+
     // If this is the root query then the new task needs to be added to that query.
     // Otherwise we want to add the new task at the same indentation level that our
     // task is currently at.
@@ -2074,6 +2076,9 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
               ];
 
     const nestWithPreviousTaskRowIfExistsAndExpand = (titleSelection: Selection) => {
+        // Hitting tab to indent only makes sense if the query is manually sorted.
+        if (!isQueryManuallySorted) return;
+
         if (!cursor) return;
 
         const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(`Task:${taskKey}`));
@@ -2170,6 +2175,9 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
         // If our task no longer has any parent then move it into our root query.
         if (!newParentTaskId) {
+            // Hitting shift-tab to dedent only makes sense if the query is manually sorted.
+            if (!isRootQueryManuallySorted) return;
+
             disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
             rootQuery.store.commitTaskActionTransaction(context, [
@@ -2337,7 +2345,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             // It's important we use the `query` property from `item` since child tasks
             // come from a different query than our root query.
             query={query}
-            isQueryManuallySorted={query !== rootQuery || isRootQueryManuallySorted}
+            isQueryManuallySorted={isQueryManuallySorted}
             cursor={cursor}
             ghostTaskId={ghostTaskId}
             onGhostTaskCreated={events.onGhostTaskCreated}

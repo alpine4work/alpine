@@ -407,7 +407,14 @@ export function TaskQueryView({
         viewRef,
         // NOCOMMIT
         getMoveTaskToQueryActions: () => [],
-        // NOCOMMIT
+        // Can't remove task from custom view query. That would require updating
+        // filtered fields in potentially unexpected ways. For instance if it's filter
+        // to `priority = null` then what do we do? Assign the `Low` priority? This
+        // would be surprising to users.
+        //
+        // Features which depend on this should be disabled by
+        // `isTaskQueryManuallySorted()` checks. Namely drag-and-drop at the root query
+        // level (subtasks are fine) and tab/shift-tab to indent.
         getMaybeRemoveTaskFromQueryActions: () => [],
         withColumnHeaderBorderTop: true,
         withColumnHeaderExtraScrollSpace: "2",
