@@ -6,7 +6,7 @@ import {
     TaskRealtimeStoreTaskEntry,
 } from "~/server/tasks/realtime/task_realtime_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {TaskRealtimeUpdateEventBuilderBase} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -49,7 +49,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      */
     onReferencedTaskAdd(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ): void;
 
@@ -61,7 +61,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      */
     onReferencedTaskUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
         newTask: TaskIndexDoc,
@@ -77,7 +77,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      * an add event.
      */
     onReferencedTaskRemove(
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
     ): void;
 
@@ -92,7 +92,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      */
     onReferencedCollectionAdd(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ): void;
 
@@ -105,7 +105,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      */
     onReferencedCollectionUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,
         newCollection: TaskCollectionIndexDoc,
@@ -121,7 +121,7 @@ export type TaskRealtimeTaskReferencesSubscriptionCallbacks = {
      * get an add event.
      */
     onReferencedCollectionRemove(
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldCollection: TaskCollectionIndexDoc,
     ): void;
 };
@@ -154,7 +154,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     private _onReferencedTaskAdd(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
         // Makes sure we apply any updates to this task before adding it. See the
@@ -189,7 +189,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     public onReferencedTaskUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
         newTask: TaskIndexDoc,
@@ -228,7 +228,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     private _onReferencedTaskRemove(
         context: Context<{process: ProcessContextModule}>,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
     ) {
         // When we apply an action transaction, there are potentially many updates to
@@ -276,7 +276,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     protected _trackTaskDependenciesFromAdd(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
         // Get a reference to the parent tasks of loaded tasks
@@ -321,7 +321,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     protected _trackTaskDependenciesFromUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
         newTask: TaskIndexDoc,
@@ -414,7 +414,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     protected _trackTaskDependenciesFromRemove(
         context: Context<{process: ProcessContextModule}>,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
     ) {
         // Remove the reference to the parent task of this loaded task
@@ -452,7 +452,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     private _trackNewParentTaskDependency(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newParentTaskId: TaskId,
     ) {
         const referencedTaskEntry = this._referencedTaskEntryById.get(newParentTaskId);
@@ -512,7 +512,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     private _trackOldParentTaskDependency(
         context: Context<{process: ProcessContextModule}>,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldParentTaskId: TaskId,
     ) {
         // If we are removing a cycle then we should recursively visit this function
@@ -595,7 +595,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     private _onReferencedCollectionAdd(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ) {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
@@ -620,7 +620,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
 
     public onReferencedCollectionUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,
         newCollection: TaskCollectionIndexDoc,
@@ -656,7 +656,7 @@ export abstract class TaskRealtimeTaskReferencesSubscriptionBase {
     }
 
     private _onReferencedCollectionRemove(
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldCollection: TaskCollectionIndexDoc,
     ) {
         // When testing, keep track of the tasks we've seen so we can guarantee we've

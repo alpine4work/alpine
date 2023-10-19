@@ -13,7 +13,7 @@ import {
     TaskRealtimeStoreTaskEntry,
 } from "~/server/tasks/realtime/task_realtime_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {TaskRealtimeUpdateEventBuilderBase} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {CancelledError, InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -791,7 +791,7 @@ export class TaskRealtimeQuery {
      */
     public onVisibleTaskUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
         newTask: TaskIndexDoc,
@@ -929,7 +929,7 @@ export class TaskRealtimeQuery {
      */
     public maybeAddVisibleTask(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         task: TaskIndexDoc,
     ): {isVisible: boolean} {
         assert(!this._isDestroyed);

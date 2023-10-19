@@ -6,7 +6,10 @@ import {
     TaskRealtimeTaskReferencesSubscriptionBase,
     TaskRealtimeTaskReferencesSubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_task_references_subscription_base.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {
+    TaskRealtimeUnsubscribeUpdateEventBuilder,
+    TaskRealtimeUpdateEventBuilderBase,
+} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -32,7 +35,7 @@ export type TaskRealtimeTaskSubscriptionCallbacks =
          */
         onTaskSubscribe(
             context: TaskRealtimeSystemActionContext,
-            eventBuilder: TaskRealtimeUpdateEventBuilder,
+            eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             newTask: TaskIndexDoc,
         ): void;
 
@@ -41,7 +44,7 @@ export type TaskRealtimeTaskSubscriptionCallbacks =
          */
         onTaskUpdate(
             context: TaskRealtimeSystemActionContext,
-            eventBuilder: TaskRealtimeUpdateEventBuilder,
+            eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             taskId: TaskId,
             oldTask: TaskIndexDoc,
             newTask: TaskIndexDoc,
@@ -53,7 +56,7 @@ export type TaskRealtimeTaskSubscriptionCallbacks =
          * subscriber can cleanup any references to the task.
          */
         onTaskUnsubscribe(
-            eventBuilder: TaskRealtimeUpdateEventBuilder,
+            eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             oldTask: TaskIndexDoc,
         ): void;
     };
@@ -66,7 +69,7 @@ export class TaskRealtimeTaskSubscription {
 
     constructor(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskEntry: TaskRealtimeStoreTaskEntry,
         callbacks: TaskRealtimeTaskSubscriptionCallbacks,
     ) {
@@ -94,7 +97,7 @@ export class TaskRealtimeTaskSubscriptionInternal extends TaskRealtimeTaskRefere
 
     constructor(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskEntry: TaskRealtimeStoreTaskEntry,
         callbacks: TaskRealtimeTaskSubscriptionCallbacks,
     ) {
@@ -124,21 +127,20 @@ export class TaskRealtimeTaskSubscriptionInternal extends TaskRealtimeTaskRefere
 
         // We construct an event builder just so we can wait out `waitUntil()`
         // promises.
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder({
-            originClientId: null,
-            actionReferencedAccountById: null,
-        });
+        const eventBuilder = new TaskRealtimeUnsubscribeUpdateEventBuilder(
+            this.taskEntry.store.spaceId,
+        );
 
         const oldTask = this.taskEntry.task;
         this._trackTaskDependenciesFromRemove(context, eventBuilder, oldTask);
         this._callbacks.onTaskUnsubscribe(eventBuilder, oldTask);
 
-        return eventBuilder.waitWithoutSending();
+        return eventBuilder.finishAndIgnoreEvents();
     }
 
     public onTaskUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
         newTask: TaskIndexDoc,

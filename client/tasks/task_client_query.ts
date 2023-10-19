@@ -60,6 +60,11 @@ const previousTaskByIdByQueryForTest =
  *
  * This process is more or less repeated when loading more tasks with the
  * `loadMoreQueryTasks` procedure in `TaskRealtimeProtocol`.
+ *
+ * While the name of this class mirrors `TaskRealtimeQuery` on the server, the
+ * actual direct comparable class is `TaskRealtimeQuerySubscription`. Since the
+ * query holds objects referenced by tasks. You'll see a lot of similar
+ * code/patterns between this class and `TaskRealtimeQuerySubscription`.
  */
 export class TaskClientQuery {
     public readonly store: TaskClientStore;
@@ -720,12 +725,30 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                         newTaskEntry.task,
                     );
 
-                    this._onLoadedTaskAdd(taskId, newTaskEntry);
+                    // Only add tasks to our query that pass our filters and fit in our loaded
+                    // range. This mirrors our behavior on the server.
+                    // `TaskRealtimeQuerySubscription` only holds references to tasks in its loaded
+                    // range. If we hold a reference to more tasks then we'll have state drift
+                    // between the server and client. The server will think we do NOT have a task
+                    // loaded, won't send update actions, when in fact the client has kept it
+                    // retained.
+                    if (
+                        loadedState !== null &&
+                        (loadedState.type === "Full" ||
+                            (loadedState.endCursor !== null &&
+                                compareTaskQuerySortCursors(
+                                    this.sorts,
+                                    newCursor,
+                                    loadedState.endCursor,
+                                ) <= 0))
+                    ) {
+                        this._onLoadedTaskAdd(taskId, newTaskEntry);
 
-                    taskOrder = taskOrder.insert(newCursor, null);
+                        taskOrder = taskOrder.insert(newCursor, null);
 
-                    // Capture a reference to the task entry store so it's not garbage collected.
-                    this._loadedTaskEntryStoreById.set(taskId, taskEntryStore);
+                        // Capture a reference to the task entry store so it's not garbage collected.
+                        this._loadedTaskEntryStoreById.set(taskId, taskEntryStore);
+                    }
                     continue;
                 }
 

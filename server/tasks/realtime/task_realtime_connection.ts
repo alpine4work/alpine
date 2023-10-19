@@ -1,4 +1,3 @@
-import {inspect} from "util";
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {
     ServerSessionActionContext,
@@ -7,14 +6,9 @@ import {
 } from "~/server/context/server_action_context.js";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {
-    prepareTaskActionForClient,
-    prepareTaskCollectionForClient,
-    prepareTaskForClient,
-} from "~/server/tasks/data/task_realtime_protocol_helpers.js";
 import {
     getTaskGridViewExpansionState,
     isTaskCollectionIndexDocAccessAuthorized,
@@ -36,8 +30,8 @@ import {
     TaskRealtimeTaskSubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_task_subscription.js";
 import {
-    TaskRealtimeUpdateEventBuilder,
-    TaskRealtimeUpdateEventSender,
+    TaskRealtimeConnectionUpdateEventBuilder,
+    TaskRealtimeUpdateEventBuilderBase,
 } from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {WebSocketConnectionProcedures} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -54,7 +48,6 @@ import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_s
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {
@@ -67,8 +60,6 @@ import {
     TaskRealtimeQuerySubscriptionId,
     TaskRealtimeTaskSubscriptionId,
 } from "~/shared/id/types/id_types.js";
-import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
-import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -89,10 +80,10 @@ export const taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint =
  */
 export class TaskRealtimeConnection {
     private readonly _server: TaskRealtimeServer;
-    private readonly _spaceId: SpaceId;
-    private readonly _accountId: AccountId;
+    public readonly spaceId: SpaceId;
+    public readonly accountId: AccountId;
 
-    private readonly _clock = new HybridLogicalClock(unsynchronizedSystemClock);
+    public readonly clock = new HybridLogicalClock(unsynchronizedSystemClock);
 
     private readonly _dangerouslyEscalateToSystemContext: <Value>(
         context: Context<{
@@ -103,7 +94,7 @@ export class TaskRealtimeConnection {
         spaceId: SpaceId,
         action: (context: ServerSystemActionContext) => Promise<Value>,
     ) => Promise<Value>;
-    private readonly _sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
+    public readonly sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
     private readonly _closeWithError: (context: ServerProcessContext, error: unknown) => void;
 
     private readonly _querySubscriptionById = new Map<
@@ -145,10 +136,10 @@ export class TaskRealtimeConnection {
         closeWithError: (context: ServerProcessContext, error: unknown) => void;
     }) {
         this._server = server;
-        this._spaceId = spaceId;
-        this._accountId = accountId;
+        this.spaceId = spaceId;
+        this.accountId = accountId;
         this._dangerouslyEscalateToSystemContext = dangerouslyEscalateToSystemContext;
-        this._sendEvent = sendEvent;
+        this.sendEvent = sendEvent;
         this._closeWithError = closeWithError;
     }
 
@@ -168,18 +159,18 @@ export class TaskRealtimeConnection {
     public async authorize(context: ServerSessionActionContext) {
         const [eventBuilder] = await runAllPromises([
             // 1. Reauthorize the referenced tasks within a query subscription:
-            this._dangerouslyEscalateToSystemContext(context, this._spaceId, context =>
+            this._dangerouslyEscalateToSystemContext(context, this.spaceId, context =>
                 this._authorizeReferencedTasksAndCollections(context),
             ),
 
             // 2. Authorize that we still have access to the space:
-            authorizeSpaceAccess(context, this._spaceId),
+            authorizeSpaceAccess(context, this.spaceId),
 
             // 3. Authorize that we still have access to each query subscription:
             runAllPromises(
                 Array.from(this._querySubscriptionById.values(), querySubscription =>
                     this._server.authorizeQueryAccess(context, {
-                        spaceId: this._spaceId,
+                        spaceId: this.spaceId,
                         filters: querySubscription.getFilters(),
                         sorts: querySubscription.getSorts(),
                     }),
@@ -191,7 +182,7 @@ export class TaskRealtimeConnection {
                 Array.from(this._taskSubscriptionById.values(), taskSubscription =>
                     this._server.authorizeTaskAccess(
                         context,
-                        this._spaceId,
+                        this.spaceId,
                         taskSubscription.getTaskId(),
                         "View",
                     ),
@@ -203,7 +194,7 @@ export class TaskRealtimeConnection {
                 Array.from(this._collectionSubscriptionById.values(), collectionSubscription =>
                     this._server.authorizeCollectionAccess(
                         context,
-                        this._spaceId,
+                        this.spaceId,
                         collectionSubscription.getCollectionId(),
                         "View",
                     ),
@@ -212,13 +203,14 @@ export class TaskRealtimeConnection {
         ]);
 
         // If authorization changed then we'll have a realtime event to send.
-        await eventBuilder.send(context, this._spaceId);
+        const event = await eventBuilder.finishAndBuildEvent(context);
+        if (event !== null) this.sendEvent(context, event);
     }
 
     private _subscribeToQuery(
         sessionContext: ServerSessionActionContext,
         systemContext: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         input: {
             limit: number;
             filters: TaskQueryNormalizedFilters;
@@ -241,7 +233,7 @@ export class TaskRealtimeConnection {
     private async _actuallySubscribeToQuery(
         sessionContext: ServerSessionActionContext,
         systemContext: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         {
             limit,
             filters,
@@ -269,7 +261,7 @@ export class TaskRealtimeConnection {
     }> {
         const gridViewExpansionStatePromise = shouldLoadGridViewExpandedChildTasksForBrowserId
             ? getTaskGridViewExpansionState(sessionContext, {
-                  spaceId: this._spaceId,
+                  spaceId: this.spaceId,
                   browserId: shouldLoadGridViewExpandedChildTasksForBrowserId,
                   filters,
                   sorts,
@@ -279,13 +271,13 @@ export class TaskRealtimeConnection {
         const promise = (async () => {
             // Must authorize before using system context.
             await this._server.authorizeQueryAccess(sessionContext, {
-                spaceId: this._spaceId,
+                spaceId: this.spaceId,
                 filters,
                 sorts,
             });
 
             const querySubscription = await this._server.subscribeToQuery(systemContext, {
-                spaceId: this._spaceId,
+                spaceId: this.spaceId,
                 filters,
                 sorts,
                 callbacks: this._subscriptionCallbacks,
@@ -314,8 +306,8 @@ export class TaskRealtimeConnection {
                     systemContext,
                     {
                         server: this._server,
-                        spaceId: this._spaceId,
-                        accountId: this._accountId,
+                        spaceId: this.spaceId,
+                        accountId: this.accountId,
                         limit,
                         tasks,
                         gridViewExpansionState,
@@ -325,7 +317,7 @@ export class TaskRealtimeConnection {
                             limit: childrenLimit,
                         }) => {
                             await this._server.authorizeQueryAccess(sessionContext, {
-                                spaceId: this._spaceId,
+                                spaceId: this.spaceId,
                                 filters: childrenFilters,
                                 sorts: childrenSorts,
                             });
@@ -333,7 +325,7 @@ export class TaskRealtimeConnection {
                             const childrenQuerySubscription = await this._server.subscribeToQuery(
                                 systemContext,
                                 {
-                                    spaceId: this._spaceId,
+                                    spaceId: this.spaceId,
                                     filters: childrenFilters,
                                     sorts: childrenSorts,
                                     callbacks: this._subscriptionCallbacks,
@@ -384,7 +376,7 @@ export class TaskRealtimeConnection {
                 const extraQueries = await runAllPromises(childrenQueryPromises);
 
                 await taskRealtimeConnectionAfterSubscribeToQueryTestCheckpoint.waitForTest(
-                    this._spaceId,
+                    this.spaceId,
                 );
 
                 return {
@@ -396,9 +388,8 @@ export class TaskRealtimeConnection {
                         // All the tasks we loaded that weren't backfilled we send in a
                         // `previouslyBackfilledTaskIds` array so the client can add them to its local
                         // query model.
-                        const backfillAuthorizedTaskIds = eventBuilder.getBackfillAuthorizedTaskIds(
-                            this._sender,
-                        );
+                        const backfillAuthorizedTaskIds =
+                            eventBuilder.getBackfillAuthorizedTaskIds(this);
                         const previouslyBackfilledTaskIds: Array<TaskId> = [];
 
                         for (const task of tasks) {
@@ -452,7 +443,7 @@ export class TaskRealtimeConnection {
     private _subscribeToTask(
         sessionContext: ServerSessionActionContext,
         systemContext: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
     ): Promise<{
         taskSubscriptionId: TaskRealtimeTaskSubscriptionId;
@@ -461,13 +452,13 @@ export class TaskRealtimeConnection {
             sessionContext = sessionContext.clone({tracer: new TracerContextModule(span)});
 
             // Must authorize before using system context.
-            await this._server.authorizeTaskAccess(sessionContext, this._spaceId, taskId, "View");
+            await this._server.authorizeTaskAccess(sessionContext, this.spaceId, taskId, "View");
 
             const taskSubscription = await this._server.subscribeToTask(
                 systemContext,
                 eventBuilder,
                 {
-                    spaceId: this._spaceId,
+                    spaceId: this.spaceId,
                     taskId,
                     callbacks: this._subscriptionCallbacks,
                 },
@@ -499,7 +490,7 @@ export class TaskRealtimeConnection {
     private _subscribeToCollection(
         sessionContext: ServerSessionActionContext,
         systemContext: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
     ): Promise<{
         collectionSubscriptionId: TaskRealtimeCollectionSubscriptionId;
@@ -512,7 +503,7 @@ export class TaskRealtimeConnection {
                 // Must authorize before using system context.
                 await this._server.authorizeCollectionAccess(
                     sessionContext,
-                    this._spaceId,
+                    this.spaceId,
                     collectionId,
                     "View",
                 );
@@ -521,7 +512,7 @@ export class TaskRealtimeConnection {
                     systemContext,
                     eventBuilder,
                     {
-                        spaceId: this._spaceId,
+                        spaceId: this.spaceId,
                         collectionId,
                         callbacks: this._subscriptionCallbacks,
                     },
@@ -561,15 +552,12 @@ export class TaskRealtimeConnection {
         subscribeToQuery: (sessionContext, input) => {
             return this._dangerouslyEscalateToSystemContext(
                 sessionContext,
-                this._spaceId,
+                this.spaceId,
                 async systemContext => {
                     // Make sure our clock is ahead of the client's clock.
-                    this._clock.tick(input.clientTime);
+                    this.clock.tick(input.clientTime);
 
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
-                        originClientId: null,
-                        actionReferencedAccountById: null,
-                    });
+                    const eventBuilder = new TaskRealtimeConnectionUpdateEventBuilder(this);
 
                     const {
                         querySubscriptionId,
@@ -585,7 +573,7 @@ export class TaskRealtimeConnection {
                     );
 
                     try {
-                        await eventBuilder.send(systemContext, this._spaceId);
+                        const updateEvent = await eventBuilder.finishAndBuildEvent(systemContext);
 
                         return {
                             querySubscriptionId,
@@ -596,6 +584,7 @@ export class TaskRealtimeConnection {
                                 ...extraQuery,
                                 taskIds: getTaskIds(),
                             })),
+                            updateEvent,
                         };
                     } catch (error) {
                         await this._unsubscribeFromQuery(systemContext, querySubscriptionId);
@@ -610,7 +599,7 @@ export class TaskRealtimeConnection {
         },
         loadMoreQueryTasks: (context, input) => {
             // Make sure our clock is ahead of the client's clock.
-            this._clock.tick(input.clientTime);
+            this.clock.tick(input.clientTime);
 
             const querySubscription = this._querySubscriptionById.get(input.querySubscriptionId);
             if (!querySubscription) throw new NotFoundError("Query subscription not found");
@@ -620,12 +609,9 @@ export class TaskRealtimeConnection {
             // connection's `authorize()` method which is called every three minutes.
             return this._dangerouslyEscalateToSystemContext(
                 context,
-                this._spaceId,
+                this.spaceId,
                 async context => {
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
-                        originClientId: null,
-                        actionReferencedAccountById: null,
-                    });
+                    const eventBuilder = new TaskRealtimeConnectionUpdateEventBuilder(this);
 
                     const {loadedState, tasks} = await querySubscription.loadMoreTasks(
                         context,
@@ -633,14 +619,13 @@ export class TaskRealtimeConnection {
                         input.limit,
                     );
 
-                    await eventBuilder.send(context, this._spaceId);
+                    const updateEvent = await eventBuilder.finishAndBuildEvent(context);
 
                     // All the tasks we loaded that weren't backfilled we send in a
                     // `previouslyBackfilledTaskIds` array so the client can add them to its local
                     // query model.
-                    const backfillAuthorizedTaskIds = eventBuilder.getBackfillAuthorizedTaskIds(
-                        this._sender,
-                    );
+                    const backfillAuthorizedTaskIds =
+                        eventBuilder.getBackfillAuthorizedTaskIds(this);
                     const previouslyBackfilledTaskIds: Array<TaskId> = [];
 
                     for (const task of tasks) {
@@ -648,22 +633,23 @@ export class TaskRealtimeConnection {
                         previouslyBackfilledTaskIds.push(task.id);
                     }
 
-                    return {loadedState, previouslyBackfilledTaskIds};
+                    return {
+                        loadedState,
+                        previouslyBackfilledTaskIds,
+                        updateEvent,
+                    };
                 },
             );
         },
         subscribeToTask: (sessionContext, input) => {
             return this._dangerouslyEscalateToSystemContext(
                 sessionContext,
-                this._spaceId,
+                this.spaceId,
                 async systemContext => {
                     // Make sure our clock is ahead of the client's clock.
-                    this._clock.tick(input.clientTime);
+                    this.clock.tick(input.clientTime);
 
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
-                        originClientId: null,
-                        actionReferencedAccountById: null,
-                    });
+                    const eventBuilder = new TaskRealtimeConnectionUpdateEventBuilder(this);
 
                     const {taskSubscriptionId} = await this._subscribeToTask(
                         sessionContext,
@@ -673,9 +659,12 @@ export class TaskRealtimeConnection {
                     );
 
                     try {
-                        await eventBuilder.send(systemContext, this._spaceId);
+                        const updateEvent = await eventBuilder.finishAndBuildEvent(systemContext);
 
-                        return {taskSubscriptionId};
+                        return {
+                            taskSubscriptionId,
+                            updateEvent,
+                        };
                     } catch (error) {
                         await this._unsubscribeFromTask(systemContext, taskSubscriptionId);
                         throw error;
@@ -690,27 +679,27 @@ export class TaskRealtimeConnection {
         subscribeToCollection: (sessionContext, input) => {
             return this._dangerouslyEscalateToSystemContext(
                 sessionContext,
-                this._spaceId,
-                async context => {
+                this.spaceId,
+                async systemContext => {
                     // Make sure our clock is ahead of the client's clock.
-                    this._clock.tick(input.clientTime);
+                    this.clock.tick(input.clientTime);
 
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
-                        originClientId: null,
-                        actionReferencedAccountById: null,
-                    });
+                    const eventBuilder = new TaskRealtimeConnectionUpdateEventBuilder(this);
 
                     const {collectionSubscriptionId} = await this._subscribeToCollection(
                         sessionContext,
-                        context,
+                        systemContext,
                         eventBuilder,
                         input.collectionId,
                     );
 
                     try {
-                        await eventBuilder.send(context, this._spaceId);
+                        const updateEvent = await eventBuilder.finishAndBuildEvent(systemContext);
 
-                        return {collectionSubscriptionId};
+                        return {
+                            collectionSubscriptionId,
+                            updateEvent,
+                        };
                     } catch (error) {
                         await this._unsubscribeFromCollection(collectionSubscriptionId);
                         throw error;
@@ -725,15 +714,12 @@ export class TaskRealtimeConnection {
         subscribe: (sessionContext, input) => {
             return this._dangerouslyEscalateToSystemContext(
                 sessionContext,
-                this._spaceId,
+                this.spaceId,
                 async systemContext => {
                     // Make sure our clock is ahead of the client's clock.
-                    this._clock.tick(input.clientTime);
+                    this.clock.tick(input.clientTime);
 
-                    const eventBuilder = new TaskRealtimeUpdateEventBuilder({
-                        originClientId: null,
-                        actionReferencedAccountById: null,
-                    });
+                    const eventBuilder = new TaskRealtimeConnectionUpdateEventBuilder(this);
 
                     const [
                         querySubscriptionResults,
@@ -774,7 +760,7 @@ export class TaskRealtimeConnection {
 
                     try {
                         // Send the combined event to our clients...
-                        await eventBuilder.send(systemContext, this._spaceId);
+                        const updateEvent = await eventBuilder.finishAndBuildEvent(systemContext);
 
                         return {
                             querySubscriptionResults: querySubscriptionResults.map(result => {
@@ -823,6 +809,7 @@ export class TaskRealtimeConnection {
                                     }
                                 },
                             ),
+                            updateEvent,
                         };
                     } catch (error) {
                         // If we failed to send our subscription ids to the client, then
@@ -901,76 +888,6 @@ export class TaskRealtimeConnection {
         },
     };
 
-    public readonly _sender: TaskRealtimeUpdateEventSender = {
-        clock: this._clock,
-
-        // Before we actually send an update event to the client we need to clean up
-        // our actions and tasks, removing any last private data. We also need to load
-        // the `AccountModel`s for any referenced accounts so we can render them on the
-        // client.
-        //
-        // Finally, once all that is done we can send the event to the client!
-        send: async (context, event, actionReferencedAccountById) => {
-            const accountIds = new Set<AccountId>();
-
-            const actions = filterMapArray(event.actions, action =>
-                prepareTaskActionForClient(this._accountId, action),
-            );
-
-            for (const action of actions) {
-                collectReferencedAccountIdsFromTaskAction(accountIds, action);
-            }
-
-            const backfillTasks = event.backfillTasks.map(backfillTask => {
-                if (backfillTask.type === "Unauthorized") return backfillTask;
-
-                const task = prepareTaskForClient(this._accountId, backfillTask.task);
-
-                collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
-
-                return {
-                    type: "Authorized" as const,
-                    task,
-                    authorizationStateVersion: backfillTask.authorizationStateVersion,
-                };
-            });
-
-            const backfillCollections = event.backfillCollections.map(backfillCollection => {
-                if (backfillCollection.type === "Unauthorized") return backfillCollection;
-
-                return {
-                    type: "Authorized" as const,
-                    collection: prepareTaskCollectionForClient(backfillCollection.collection),
-                    authorizationStateVersion: backfillCollection.authorizationStateVersion,
-                };
-            });
-
-            // It's important that accounts referenced by `actions` are read with a
-            // `Strong` read consistency so we don't read stale account data after the
-            // `UpdateAccountName` action has been applied. If this event builder was
-            // created when applying actions then `actionReferencedAccountById` will be set
-            // with accounts read with `Strong` consistency.
-            const referencedAccounts = await runAllPromises(
-                Array.from(
-                    accountIds,
-                    accountId =>
-                        actionReferencedAccountById?.get(accountId) ??
-                        getAccount(context, this._spaceId, accountId),
-                ),
-            );
-
-            this._sendEvent(context, {
-                type: "Update",
-                actions,
-                backfillTasks,
-                backfillCollections,
-                defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
-                referencedAccounts,
-                originClientId: event.originClientId,
-            });
-        },
-    };
-
     /**
      * All tasks loaded by a query subscription or a task subscription in our
      * connection. If a task is loaded by a query or task subscription then it is
@@ -1034,7 +951,7 @@ export class TaskRealtimeConnection {
 
     private _onDirectlySubscribedTaskAdd(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
         const directlySubscribedTask = this._directlySubscribedTaskById.get(newTask.id);
@@ -1045,15 +962,10 @@ export class TaskRealtimeConnection {
         } else {
             // This is the first time our connection has seen the task, backfill it.
             if (referencedTaskState === undefined) {
-                const authorizationStateVersion = eventBuilder.getDefaultAuthorizationStateVersion(
-                    this._sender,
-                );
+                const authorizationStateVersion =
+                    eventBuilder.getDefaultAuthorizationStateVersion(this);
 
-                eventBuilder.addAuthorizedTaskBackfill(
-                    this._sender,
-                    newTask,
-                    authorizationStateVersion,
-                );
+                eventBuilder.addAuthorizedTaskBackfill(this, newTask, authorizationStateVersion);
 
                 this._directlySubscribedTaskById.set(newTask.id, {
                     referenceCount: 1,
@@ -1067,7 +979,7 @@ export class TaskRealtimeConnection {
             // If the task was previously unauthorized then we need to backfill it.
             else {
                 const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
-                    this._sender,
+                    this,
                     referencedTaskState.authorizationStateVersion,
                 );
 
@@ -1083,7 +995,7 @@ export class TaskRealtimeConnection {
                         if (authorizationState === "Authorized") return authorizationState;
 
                         eventBuilder.addAuthorizedTaskBackfill(
-                            this._sender,
+                            this,
                             newTask,
                             authorizationStateVersion,
                         );
@@ -1105,7 +1017,7 @@ export class TaskRealtimeConnection {
     }
 
     private _onDirectlySubscribedTaskRemove(
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
     ) {
         const directlySubscribedTask = this._directlySubscribedTaskById.get(oldTask.id);
@@ -1124,7 +1036,7 @@ export class TaskRealtimeConnection {
 
     private _onDirectlySubscribedCollectionAdd(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ) {
         const directlySubscribedCollection = this._directlySubscribedCollectionById.get(
@@ -1137,12 +1049,11 @@ export class TaskRealtimeConnection {
         } else {
             // This is the first time our connection has seen the collection, backfill it.
             if (referencedCollectionState === undefined) {
-                const authorizationStateVersion = eventBuilder.getDefaultAuthorizationStateVersion(
-                    this._sender,
-                );
+                const authorizationStateVersion =
+                    eventBuilder.getDefaultAuthorizationStateVersion(this);
 
                 eventBuilder.addAuthorizedCollectionBackfill(
-                    this._sender,
+                    this,
                     newCollection,
                     authorizationStateVersion,
                 );
@@ -1159,7 +1070,7 @@ export class TaskRealtimeConnection {
             // If the collection was previously unauthorized then we need to backfill it.
             else {
                 const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
-                    this._sender,
+                    this,
                     referencedCollectionState.authorizationStateVersion,
                 );
 
@@ -1175,7 +1086,7 @@ export class TaskRealtimeConnection {
                         if (authorizationState === "Authorized") return authorizationState;
 
                         eventBuilder.addAuthorizedCollectionBackfill(
-                            this._sender,
+                            this,
                             newCollection,
                             authorizationStateVersion,
                         );
@@ -1197,7 +1108,7 @@ export class TaskRealtimeConnection {
     }
 
     private _onDirectlySubscribedCollectionRemove(
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldCollection: TaskCollectionIndexDoc,
     ) {
         const directlySubscribedCollection = this._directlySubscribedCollectionById.get(
@@ -1230,7 +1141,7 @@ export class TaskRealtimeConnection {
         onTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
             // Task subscriptions are authorized when executed and periodically
             // reauthorized so its safe to send the actions for this task to the client.
-            eventBuilder.addActions(this._sender, actions);
+            eventBuilder.addActions(this, actions);
         },
         onTaskUnsubscribe: (eventBuilder, oldTask) => {
             this._onDirectlySubscribedTaskRemove(eventBuilder, oldTask);
@@ -1249,7 +1160,7 @@ export class TaskRealtimeConnection {
             // Collection subscriptions are authorized when executed and periodically
             // reauthorized so its safe to send the actions for this collection to the
             // client.
-            eventBuilder.addActions(this._sender, actions);
+            eventBuilder.addActions(this, actions);
         },
         onCollectionUnsubscribe: (eventBuilder, oldCollection) => {
             this._onDirectlySubscribedCollectionRemove(eventBuilder, oldCollection);
@@ -1260,7 +1171,7 @@ export class TaskRealtimeConnection {
         onLoadedTaskUpdate: (context, eventBuilder, taskId, oldTask, newTask, actions) => {
             // Since the query is authorized, all loaded tasks are also authorized.
             // Clients should see all actions on loaded tasks.
-            eventBuilder.addActions(this._sender, actions);
+            eventBuilder.addActions(this, actions);
         },
         onLoadedTaskRemove: (eventBuilder, oldTask, actions) => {
             this._onDirectlySubscribedTaskRemove(eventBuilder, oldTask);
@@ -1269,7 +1180,7 @@ export class TaskRealtimeConnection {
             // Clients should see all actions that remove a task from a query. That way the
             // client can apply the actions locally and remove the task from its own local
             // query representation.
-            eventBuilder.addActions(this._sender, actions);
+            eventBuilder.addActions(this, actions);
         },
         onReferencedTaskAdd: (context, eventBuilder, newTask) => {
             const directlySubscribedTask = this._directlySubscribedTaskById.get(newTask.id);
@@ -1300,29 +1211,29 @@ export class TaskRealtimeConnection {
                     });
                 } else {
                     const authorizationStateVersion =
-                        eventBuilder.getDefaultAuthorizationStateVersion(this._sender);
+                        eventBuilder.getDefaultAuthorizationStateVersion(this);
 
                     const promise = isTaskIndexDocAccessAuthorized(
                         context,
-                        this._accountId,
+                        this.accountId,
                         newTask,
                         "View",
                         {
                             getTaskIndexDoc: taskId =>
-                                this._server.getTask(context, this._spaceId, taskId),
+                                this._server.getTask(context, this.spaceId, taskId),
                             getCollectionIndexDoc: collectionId =>
-                                this._server.getCollection(context, this._spaceId, collectionId),
+                                this._server.getCollection(context, this.spaceId, collectionId),
                         },
                     ).then(isAuthorized => {
                         if (!isAuthorized) {
                             eventBuilder.addUnauthorizedTaskBackfill(
-                                this._sender,
+                                this,
                                 newTask.id,
                                 authorizationStateVersion,
                             );
                         } else {
                             eventBuilder.addAuthorizedTaskBackfill(
-                                this._sender,
+                                this,
                                 newTask,
                                 authorizationStateVersion,
                             );
@@ -1375,7 +1286,7 @@ export class TaskRealtimeConnection {
                 context,
                 referencedTaskState.authorizationStatePromise.then(authorizationState => {
                     if (authorizationState !== "Authorized") return;
-                    eventBuilder.addActions(this._sender, actions);
+                    eventBuilder.addActions(this, actions);
                 }),
             );
         },
@@ -1433,23 +1344,23 @@ export class TaskRealtimeConnection {
                     });
                 } else {
                     const authorizationStateVersion =
-                        eventBuilder.getDefaultAuthorizationStateVersion(this._sender);
+                        eventBuilder.getDefaultAuthorizationStateVersion(this);
 
                     const promise = isTaskCollectionIndexDocAccessAuthorized(
                         context,
-                        this._accountId,
+                        this.accountId,
                         newCollection,
                         "View",
                     ).then(isAuthorized => {
                         if (!isAuthorized) {
                             eventBuilder.addUnauthorizedCollectionBackfill(
-                                this._sender,
+                                this,
                                 newCollection.id,
                                 authorizationStateVersion,
                             );
                         } else {
                             eventBuilder.addAuthorizedCollectionBackfill(
-                                this._sender,
+                                this,
                                 newCollection,
                                 authorizationStateVersion,
                             );
@@ -1512,7 +1423,7 @@ export class TaskRealtimeConnection {
                 context,
                 referencedCollectionState.authorizationStatePromise.then(authorizationState => {
                     if (authorizationState !== "Authorized") return;
-                    eventBuilder.addActions(this._sender, actions);
+                    eventBuilder.addActions(this, actions);
                 }),
             );
         },
@@ -1542,10 +1453,7 @@ export class TaskRealtimeConnection {
     private async _authorizeReferencedTasksAndCollections(
         context: TaskRealtimeSystemActionContext,
     ) {
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder({
-            originClientId: null,
-            actionReferencedAccountById: null,
-        });
+        const eventBuilder = new TaskRealtimeConnectionUpdateEventBuilder(this);
 
         // Create a snapshot of `referencedTaskStateById` while we're reauthorizing.
         // Tasks may become unreferenced/referenced while we're authorizing and we
@@ -1568,21 +1476,21 @@ export class TaskRealtimeConnection {
 
                     const newAuthorizationStatePromise = isTaskIndexDocAccessAuthorized(
                         context,
-                        this._accountId,
+                        this.accountId,
                         task,
                         "View",
                         {
                             getTaskIndexDoc: taskId =>
-                                this._server.getTask(context, this._spaceId, taskId),
+                                this._server.getTask(context, this.spaceId, taskId),
                             getCollectionIndexDoc: collectionId =>
-                                this._server.getCollection(context, this._spaceId, collectionId),
+                                this._server.getCollection(context, this.spaceId, collectionId),
                         },
                     ).then(isAuthorized => (isAuthorized ? "Authorized" : "Unauthorized"));
 
                     const oldAuthorizationStatePromise = referencedTask.authorizationStatePromise;
 
                     const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
-                        this._sender,
+                        this,
                         referencedTask.authorizationStateVersion,
                     );
 
@@ -1597,13 +1505,13 @@ export class TaskRealtimeConnection {
                     if (oldAuthorizationState !== newAuthorizationState) {
                         if (newAuthorizationState === "Unauthorized") {
                             eventBuilder.addUnauthorizedTaskBackfill(
-                                this._sender,
+                                this,
                                 task.id,
                                 authorizationStateVersion,
                             );
                         } else {
                             eventBuilder.addAuthorizedTaskBackfill(
-                                this._sender,
+                                this,
                                 task,
                                 authorizationStateVersion,
                             );
@@ -1622,7 +1530,7 @@ export class TaskRealtimeConnection {
 
                     const newAuthorizationStatePromise = isTaskCollectionIndexDocAccessAuthorized(
                         context,
-                        this._accountId,
+                        this.accountId,
                         collection,
                         "View",
                     ).then(isAuthorized => (isAuthorized ? "Authorized" : "Unauthorized"));
@@ -1631,7 +1539,7 @@ export class TaskRealtimeConnection {
                         referencedCollection.authorizationStatePromise;
 
                     const authorizationStateVersion = eventBuilder.tickAuthorizationStateVersion(
-                        this._sender,
+                        this,
                         referencedCollection.authorizationStateVersion,
                     );
 
@@ -1646,13 +1554,13 @@ export class TaskRealtimeConnection {
                     if (oldAuthorizationState !== newAuthorizationState) {
                         if (newAuthorizationState === "Unauthorized") {
                             eventBuilder.addUnauthorizedCollectionBackfill(
-                                this._sender,
+                                this,
                                 collection.id,
                                 authorizationStateVersion,
                             );
                         } else {
                             eventBuilder.addAuthorizedCollectionBackfill(
-                                this._sender,
+                                this,
                                 collection,
                                 authorizationStateVersion,
                             );

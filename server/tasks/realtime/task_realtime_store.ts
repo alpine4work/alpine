@@ -29,7 +29,10 @@ import {
     TaskRealtimeTaskSubscriptionCallbacks,
     TaskRealtimeTaskSubscriptionInternal,
 } from "~/server/tasks/realtime/task_realtime_task_subscription.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {
+    TaskRealtimeActionTransactionUpdateEventBuilder,
+    TaskRealtimeUpdateEventBuilderBase,
+} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -190,7 +193,7 @@ export class TaskRealtimeStore {
 
     public subscribeToTask(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         {taskId, callbacks}: {taskId: TaskId; callbacks: TaskRealtimeTaskSubscriptionCallbacks},
     ): Promise<TaskRealtimeTaskSubscription> {
         return this._withFatalErrorHandling(context, async () => {
@@ -202,7 +205,7 @@ export class TaskRealtimeStore {
 
     public subscribeToCollection(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         {
             collectionId,
             callbacks,
@@ -628,7 +631,8 @@ export class TaskRealtimeStoreInternal {
         },
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
     ): Promise<void> {
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder({
+        const eventBuilder = new TaskRealtimeActionTransactionUpdateEventBuilder({
+            spaceId: this.spaceId,
             originClientId: actionTransaction.clientId,
             actionReferencedAccountById,
         });
@@ -654,7 +658,7 @@ export class TaskRealtimeStoreInternal {
         context: TaskRealtimeSystemActionContext,
         actions: ReadonlyArray<TaskAction>,
         actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
     ) {
         const taskEntryUpdateById = new Map<
             TaskId,
@@ -1010,7 +1014,7 @@ export class TaskRealtimeStoreInternal {
     private async _applyActionTransactionAsync(
         context: TaskRealtimeSystemActionContext,
         queriesByMaybeAddVisibleTaskIdToLoad: Map<TaskId, Set<TaskRealtimeQuery>>,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeActionTransactionUpdateEventBuilder,
     ) {
         await runAllPromises(
             Array.from(queriesByMaybeAddVisibleTaskIdToLoad, async ([taskId, queries]) => {
@@ -1038,7 +1042,7 @@ export class TaskRealtimeStoreInternal {
         // connected clients! In the process of updating we will have found out which
         // actions need to go to which clients while still preserving the atomicity of
         // a transaction.
-        await eventBuilder.send(context, this.spaceId);
+        await eventBuilder.finishAndSendEvents(context);
     }
 
     private _onReferencedTaskAddOrRemove: ((taskId: TaskId) => void) | null = null;

@@ -24,7 +24,7 @@ import {
     TaskRealtimeTaskSubscription,
     TaskRealtimeTaskSubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_task_subscription.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {TaskRealtimeUpdateEventBuilderBase} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -378,7 +378,7 @@ export class TaskRealtimeServer {
 
     public async subscribeToTask(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         options: {
             spaceId: SpaceId;
             taskId: TaskId;
@@ -397,7 +397,7 @@ export class TaskRealtimeServer {
 
     public async subscribeToCollection(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         options: {
             spaceId: SpaceId;
             collectionId: TaskCollectionId;

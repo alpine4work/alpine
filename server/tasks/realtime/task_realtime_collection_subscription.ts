@@ -2,7 +2,10 @@ import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskRealtimeStoreCollectionEntry} from "~/server/tasks/realtime/task_realtime_store.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {
+    TaskRealtimeUnsubscribeUpdateEventBuilder,
+    TaskRealtimeUpdateEventBuilderBase,
+} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {InternalError} from "~/shared/error/error.js";
 import {NonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -25,7 +28,7 @@ export type TaskRealtimeCollectionSubscriptionCallbacks = {
      */
     onCollectionSubscribe(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newCollection: TaskCollectionIndexDoc,
     ): void;
 
@@ -34,7 +37,7 @@ export type TaskRealtimeCollectionSubscriptionCallbacks = {
      */
     onCollectionUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,
         newCollection: TaskCollectionIndexDoc,
@@ -46,7 +49,7 @@ export type TaskRealtimeCollectionSubscriptionCallbacks = {
      * subscriber can cleanup any references to the collection.
      */
     onCollectionUnsubscribe(
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldCollection: TaskCollectionIndexDoc,
     ): void;
 };
@@ -59,7 +62,7 @@ export class TaskRealtimeCollectionSubscription {
 
     constructor(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionEntry: TaskRealtimeStoreCollectionEntry,
         callbacks: TaskRealtimeCollectionSubscriptionCallbacks,
     ) {
@@ -87,7 +90,7 @@ export class TaskRealtimeCollectionSubscriptionInternal {
 
     constructor(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionEntry: TaskRealtimeStoreCollectionEntry,
         callbacks: TaskRealtimeCollectionSubscriptionCallbacks,
     ) {
@@ -106,20 +109,19 @@ export class TaskRealtimeCollectionSubscriptionInternal {
 
         // We construct an event builder just so we can wait out `waitUntil()`
         // promises.
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder({
-            originClientId: null,
-            actionReferencedAccountById: null,
-        });
+        const eventBuilder = new TaskRealtimeUnsubscribeUpdateEventBuilder(
+            this.collectionEntry.store.spaceId,
+        );
 
         const oldCollection = this.collectionEntry.collection;
         this._callbacks.onCollectionUnsubscribe(eventBuilder, oldCollection);
 
-        return eventBuilder.waitWithoutSending();
+        return eventBuilder.finishAndIgnoreEvents();
     }
 
     public onCollectionUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         collectionId: TaskCollectionId,
         oldCollection: TaskCollectionIndexDoc,
         newCollection: TaskCollectionIndexDoc,

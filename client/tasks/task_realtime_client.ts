@@ -356,6 +356,12 @@ export class TaskRealtimeClient {
                                     collectionSubscription.clearError();
                                 }
                             }
+
+                            // Apply our update event after updating query loaded states. Otherwise queries
+                            // would ignore newly backfilled tasks as out of range.
+                            if (output.updateEvent) {
+                                this.store.applyUpdateEvent(output.updateEvent);
+                            }
                         });
 
                         return output;
@@ -594,17 +600,25 @@ export class TaskRealtimeClient {
                     // `loadMoreTasks` call fully loaded our query.
                     if (loadMoreTaskCount === 0) return;
 
-                    const {loadedState, previouslyBackfilledTaskIds} =
+                    const {loadedState, previouslyBackfilledTaskIds, updateEvent} =
                         await this._client.procedures.loadMoreQueryTasks({
                             clientTime: this.store.clock.now(),
                             querySubscriptionId,
                             limit: loadMoreTaskCount,
                         });
 
-                    this.store.loadTasksIntoQuery(query, {
-                        limit: loadMoreTaskCount,
-                        loadedState,
-                        previouslyBackfilledTaskIds,
+                    batchStoreUpdates(() => {
+                        this.store.loadTasksIntoQuery(query, {
+                            limit: loadMoreTaskCount,
+                            loadedState,
+                            previouslyBackfilledTaskIds,
+                        });
+
+                        // Apply our update event after updating query loaded states. Otherwise queries
+                        // would ignore newly backfilled tasks as out of range.
+                        if (updateEvent) {
+                            this.store.applyUpdateEvent(updateEvent);
+                        }
                     });
                 });
 

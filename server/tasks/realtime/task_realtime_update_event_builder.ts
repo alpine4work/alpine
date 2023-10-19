@@ -1,8 +1,17 @@
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
+import {
+    ServerProcessContext,
+    ServerProcessContextModules,
+} from "~/server/context/server_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {getAccount} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    prepareTaskActionForClient,
+    prepareTaskCollectionForClient,
+    prepareTaskForClient,
+} from "~/server/tasks/data/task_realtime_protocol_helpers.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -15,6 +24,7 @@ import {
     isHybridLogicalTimeLessThan,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {
     AccountId,
@@ -23,9 +33,19 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
+import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {collectReferencedAccountIdsFromTaskModelData} from "~/shared/tasks/model/collected_referenced_account_ids_from_task_model_data.js";
+import {TaskRealtimeEvent, TaskRealtimeUpdateEvent} from "~/shared/tasks/task_realtime_protocol.js";
 
-export type TaskRealtimeUpdateEventBackfillTask =
+export interface TaskRealtimeUpdateEventConnection {
+    readonly clock: HybridLogicalClock;
+    readonly spaceId: SpaceId;
+    readonly accountId: AccountId;
+    sendEvent(context: ServerProcessContext, event: TaskRealtimeEvent): void;
+}
+
+type TaskRealtimeUpdateEventBackfillTask =
     | {
           readonly type: "Authorized";
           readonly task: TaskIndexDoc;
@@ -37,7 +57,7 @@ export type TaskRealtimeUpdateEventBackfillTask =
           readonly authorizationStateVersion: HybridLogicalTime | undefined;
       };
 
-export type TaskRealtimeUpdateEventBackfillCollection =
+type TaskRealtimeUpdateEventBackfillCollection =
     | {
           readonly type: "Authorized";
           readonly collection: TaskCollectionIndexDoc;
@@ -48,29 +68,6 @@ export type TaskRealtimeUpdateEventBackfillCollection =
           readonly collectionId: TaskCollectionId;
           readonly authorizationStateVersion: HybridLogicalTime | undefined;
       };
-
-export type TaskRealtimeUpdateEvent = {
-    readonly actions: ReadonlyArray<TaskAction>;
-    readonly backfillTasks: ReadonlyArray<TaskRealtimeUpdateEventBackfillTask>;
-    readonly backfillCollections: ReadonlyArray<TaskRealtimeUpdateEventBackfillCollection>;
-    readonly defaultAuthorizationStateVersion: HybridLogicalTime;
-    readonly originClientId: TaskRealtimeClientId | null;
-};
-
-export interface TaskRealtimeUpdateEventSender {
-    clock: HybridLogicalClock;
-
-    send(
-        context: Context<
-            ServerProcessContextModules & {
-                cache: CacheContextModule;
-                actor: DynamoActorContextModule;
-            }
-        >,
-        event: TaskRealtimeUpdateEvent,
-        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null,
-    ): Promise<void>;
-}
 
 type TaskRealtimeWorkingUpdateEvent = {
     defaultAuthorizationStateVersion: HybridLogicalTime;
@@ -99,132 +96,34 @@ export const taskRealtimeStoreBeforeSendEventTestCheckpoint = new TestCheckpoint
  * callbacks. These callbacks "accept" actions on tasks by calling methods on
  * event builder. We may call these callbacks many times over the course of a
  * transaction which will accumulate more and more updates.
- *
- * Once we are done processing an update the `send()` method is called which
- * finalizes our update event and instructs `TaskRealtimeConnection` to send it
- * to the client.
  */
-export class TaskRealtimeUpdateEventBuilder {
-    private readonly _originClientId: TaskRealtimeClientId | null;
-    private _isBuilding = true;
-    private _isSending = false;
+export abstract class TaskRealtimeUpdateEventBuilderBase {
+    protected readonly _spaceId: SpaceId;
+    private _isFinished = false;
+    private _isFinishing = false;
     private _promises: Array<PromiseLike<unknown>> = [];
 
-    private readonly _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null;
+    protected _originClientId: TaskRealtimeClientId | null = null;
+    protected _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null = null;
 
-    constructor({
-        originClientId,
-        actionReferencedAccountById,
-    }: {
-        originClientId: TaskRealtimeClientId | null;
-        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel> | null;
-    }) {
-        this._originClientId = originClientId;
-        this._actionReferencedAccountById = actionReferencedAccountById;
+    constructor(spaceId: SpaceId) {
+        this._spaceId = spaceId;
     }
 
-    private readonly _eventBySender = new DefaultMap<
-        TaskRealtimeUpdateEventSender,
-        TaskRealtimeWorkingUpdateEvent
-    >(sender => ({
-        defaultAuthorizationStateVersion: sender.clock.now(),
-        actions: new Set(),
-        backfillTasks: [],
-        backfillAuthorizedTaskIds: new Set(),
-        backfillCollections: [],
-    }));
-
-    /**
-     * Finalizes events built with this class and sends them to connected
-     * clients through the `TaskRealtimeUpdateEventSender` interface.
-     *
-     * Waits for any promises passed to `waitUntil()` to resolve before
-     * finalizing events. Once all `waitUntil()` promises have resolved you may
-     * not call any new methods on this class.
-     */
-    public async send(
-        context: Context<
-            ServerProcessContextModules & {
-                cache: CacheContextModule;
-                actor: DynamoActorContextModule;
-            }
-        >,
-        spaceId: SpaceId,
-    ) {
-        assert(this._isBuilding);
-
-        assert(!this._isSending);
-        this._isSending = true;
-
-        await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(spaceId);
-
-        let hasError = false;
-        let error: unknown;
-
-        // Wait for all our `waitUntil()` promises to resolve before building the
-        // final event.
-        //
-        // Even if there's an error. Only throw our error at the very end.
-        while (this._promises.length > 0) {
-            const promises = this._promises;
-            this._promises = [];
-
-            try {
-                await runAllPromises(promises);
-            } catch (newError) {
-                if (!hasError) {
-                    hasError = true;
-                    error = newError;
-                }
-                // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-                // just the first one. Probably by using an `AggregateError`.
-                else if (!isSystemError(error) && isSystemError(newError)) {
-                    error = newError;
-                }
-            }
-        }
-
-        if (hasError) throw error;
-
-        assert(this._isBuilding);
-        this._isBuilding = false;
-
-        await runAllPromises(
-            Array.from(this._eventBySender, async ([sender, event]) => {
-                // If there were no changes in this event then don't send.
-                if (
-                    event.actions.size === 0 &&
-                    event.backfillTasks.length === 0 &&
-                    event.backfillCollections.length === 0
-                ) {
-                    return;
-                }
-
-                await sender.send(
-                    context,
-                    {
-                        actions: Array.from(event.actions),
-                        backfillTasks: event.backfillTasks,
-                        backfillCollections: event.backfillCollections,
-                        defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
-                        originClientId: this._originClientId,
-                    },
-                    this._actionReferencedAccountById,
-                );
-            }),
-        );
-    }
+    protected abstract _getEvent(
+        connection: TaskRealtimeUpdateEventConnection,
+    ): TaskRealtimeWorkingUpdateEvent;
 
     /**
      * Wait for promises passed into `waitUntil()` to resolve but don't actually
      * send the event. This consumes the event builder so you won't be able to call
      * `send()` after.
      */
-    public async waitWithoutSending() {
-        assert(this._isBuilding);
+    protected async _finish() {
+        assert(!this._isFinished);
 
-        assert(!this._isSending);
-        this._isSending = true;
+        assert(!this._isFinishing);
+        this._isFinishing = true;
 
         let hasError = false;
         let error: unknown;
@@ -254,8 +153,9 @@ export class TaskRealtimeUpdateEventBuilder {
 
         if (hasError) throw error;
 
-        assert(this._isBuilding);
-        this._isBuilding = false;
+        assert(!this._isFinished);
+        this._isFinished = true;
+        this._isFinishing = false;
     }
 
     /**
@@ -271,7 +171,7 @@ export class TaskRealtimeUpdateEventBuilder {
         context: Context<{process: ProcessContextModule}>,
         promise: PromiseLike<unknown>,
     ) {
-        assert(this._isBuilding);
+        assert(!this._isFinished);
         this._promises.push(promise);
 
         // You must pass in a context where you create the promise so we can call
@@ -283,9 +183,9 @@ export class TaskRealtimeUpdateEventBuilder {
      * Get the default authorization register version.
      */
     public getDefaultAuthorizationStateVersion(
-        sender: TaskRealtimeUpdateEventSender,
+        connection: TaskRealtimeUpdateEventConnection,
     ): HybridLogicalTime {
-        const event = this._eventBySender.getOrSetDefault(sender);
+        const event = this._getEvent(connection);
         return event.defaultAuthorizationStateVersion;
     }
 
@@ -294,12 +194,12 @@ export class TaskRealtimeUpdateEventBuilder {
      * version is after `previousVersion` then we use that.
      */
     public tickAuthorizationStateVersion(
-        sender: TaskRealtimeUpdateEventSender,
+        connection: TaskRealtimeUpdateEventConnection,
         previousVersion: HybridLogicalTime,
     ): HybridLogicalTime {
-        let version = this.getDefaultAuthorizationStateVersion(sender);
+        let version = this.getDefaultAuthorizationStateVersion(connection);
         if (!isHybridLogicalTimeLessThan(previousVersion, version)) {
-            version = sender.clock.tickNow(previousVersion);
+            version = connection.clock.tickNow(previousVersion);
         }
         return version;
     }
@@ -307,10 +207,13 @@ export class TaskRealtimeUpdateEventBuilder {
     /**
      * Add some actions that clients will apply to the event.
      */
-    public addActions(sender: TaskRealtimeUpdateEventSender, actions: ReadonlyArray<TaskAction>) {
-        assert(this._isBuilding);
+    public addActions(
+        connection: TaskRealtimeUpdateEventConnection,
+        actions: ReadonlyArray<TaskAction>,
+    ) {
+        assert(!this._isFinished);
 
-        const event = this._eventBySender.getOrSetDefault(sender);
+        const event = this._getEvent(connection);
 
         for (const action of actions) {
             event.actions.add(action);
@@ -323,13 +226,13 @@ export class TaskRealtimeUpdateEventBuilder {
      * (maybe the task was hidden by filters but now is visible).
      */
     public addAuthorizedTaskBackfill(
-        sender: TaskRealtimeUpdateEventSender,
+        connection: TaskRealtimeUpdateEventConnection,
         task: TaskIndexDoc,
         authorizationStateVersion: HybridLogicalTime,
     ) {
-        assert(this._isBuilding);
+        assert(!this._isFinished);
 
-        const event = this._eventBySender.getOrSetDefault(sender);
+        const event = this._getEvent(connection);
 
         event.backfillTasks.push({
             type: "Authorized",
@@ -348,13 +251,13 @@ export class TaskRealtimeUpdateEventBuilder {
      * realtime updates on this task.
      */
     public addUnauthorizedTaskBackfill(
-        sender: TaskRealtimeUpdateEventSender,
+        connection: TaskRealtimeUpdateEventConnection,
         taskId: TaskId,
         authorizationStateVersion: HybridLogicalTime,
     ) {
-        assert(this._isBuilding);
+        assert(!this._isFinished);
 
-        const event = this._eventBySender.getOrSetDefault(sender);
+        const event = this._getEvent(connection);
 
         event.backfillTasks.push({
             type: "Unauthorized",
@@ -373,13 +276,13 @@ export class TaskRealtimeUpdateEventBuilder {
      * visible).
      */
     public addAuthorizedCollectionBackfill(
-        sender: TaskRealtimeUpdateEventSender,
+        connection: TaskRealtimeUpdateEventConnection,
         collection: TaskCollectionIndexDoc,
         authorizationStateVersion: HybridLogicalTime,
     ) {
-        assert(this._isBuilding);
+        assert(!this._isFinished);
 
-        const event = this._eventBySender.getOrSetDefault(sender);
+        const event = this._getEvent(connection);
 
         event.backfillCollections.push({
             type: "Authorized",
@@ -396,13 +299,13 @@ export class TaskRealtimeUpdateEventBuilder {
      * any realtime updates on this collection.
      */
     public addUnauthorizedCollectionBackfill(
-        sender: TaskRealtimeUpdateEventSender,
+        connection: TaskRealtimeUpdateEventConnection,
         collectionId: TaskCollectionId,
         authorizationStateVersion: HybridLogicalTime,
     ) {
-        assert(this._isBuilding);
+        assert(!this._isFinished);
 
-        const event = this._eventBySender.getOrSetDefault(sender);
+        const event = this._getEvent(connection);
 
         event.backfillCollections.push({
             type: "Unauthorized",
@@ -416,14 +319,252 @@ export class TaskRealtimeUpdateEventBuilder {
 
     /**
      * Get the `TaskId`s that are included in our backfill event for the
-     * provided sender.
+     * provided connection.
      */
-    public getBackfillAuthorizedTaskIds(sender: TaskRealtimeUpdateEventSender): Set<TaskId> {
+    public getBackfillAuthorizedTaskIds(
+        connection: TaskRealtimeUpdateEventConnection,
+    ): Set<TaskId> {
         // Can't get the backfilled `TaskId`s while we're building the event.
-        assert(!this._isBuilding);
+        assert(this._isFinished);
 
-        const event = this._eventBySender.get(sender);
+        const event = this._getEvent(connection);
         if (!event) return new Set();
         return event.backfillAuthorizedTaskIds;
+    }
+
+    protected async _buildEvent(
+        context: Context<
+            ServerProcessContextModules & {
+                cache: CacheContextModule;
+                actor: DynamoActorContextModule;
+            }
+        >,
+        connection: TaskRealtimeUpdateEventConnection,
+        event: TaskRealtimeWorkingUpdateEvent,
+    ): Promise<TaskRealtimeUpdateEvent | null> {
+        assert(this._isFinished);
+
+        // If there were no changes in this event then noop.
+        if (
+            event.actions.size === 0 &&
+            event.backfillTasks.length === 0 &&
+            event.backfillCollections.length === 0
+        ) {
+            return null;
+        }
+
+        const accountIds = new Set<AccountId>();
+
+        const actions = Array.from(
+            filterMapIterable(event.actions, action =>
+                prepareTaskActionForClient(connection.accountId, action),
+            ),
+        );
+
+        for (const action of actions) {
+            collectReferencedAccountIdsFromTaskAction(accountIds, action);
+        }
+
+        const backfillTasks = event.backfillTasks.map(backfillTask => {
+            if (backfillTask.type === "Unauthorized") return backfillTask;
+
+            const task = prepareTaskForClient(connection.accountId, backfillTask.task);
+
+            collectReferencedAccountIdsFromTaskModelData(accountIds, task.rawData);
+
+            return {
+                type: "Authorized" as const,
+                task,
+                authorizationStateVersion: backfillTask.authorizationStateVersion,
+            };
+        });
+
+        const backfillCollections = event.backfillCollections.map(backfillCollection => {
+            if (backfillCollection.type === "Unauthorized") return backfillCollection;
+
+            return {
+                type: "Authorized" as const,
+                collection: prepareTaskCollectionForClient(backfillCollection.collection),
+                authorizationStateVersion: backfillCollection.authorizationStateVersion,
+            };
+        });
+
+        // It's important that accounts referenced by `actions` are read with a
+        // `Strong` read consistency so we don't read stale account data after the
+        // `UpdateAccountName` action has been applied. If this event builder was
+        // created when applying actions then `actionReferencedAccountById` will be set
+        // with accounts read with `Strong` consistency.
+        const referencedAccounts = await runAllPromises(
+            Array.from(
+                accountIds,
+                accountId =>
+                    this._actionReferencedAccountById?.get(accountId) ??
+                    getAccount(context, this._spaceId, accountId),
+            ),
+        );
+
+        return {
+            type: "Update",
+            actions,
+            backfillTasks,
+            backfillCollections,
+            defaultAuthorizationStateVersion: event.defaultAuthorizationStateVersion,
+            referencedAccounts,
+            originClientId: this._originClientId,
+        };
+    }
+}
+
+/**
+ * Action transaction event builders broadcast updates from an action to
+ * multiple clients.
+ *
+ * Once we are done processing an update the `finishAndSendEvents()` method is
+ * called which finalizes our update event and instructs
+ * `TaskRealtimeConnection` to send it to the client.
+ */
+export class TaskRealtimeActionTransactionUpdateEventBuilder extends TaskRealtimeUpdateEventBuilderBase {
+    private readonly _eventByConnection = new DefaultMap<
+        TaskRealtimeUpdateEventConnection,
+        TaskRealtimeWorkingUpdateEvent
+    >(connection => {
+        assert(connection.spaceId === this._spaceId);
+
+        return {
+            defaultAuthorizationStateVersion: connection.clock.now(),
+            actions: new Set(),
+            backfillTasks: [],
+            backfillAuthorizedTaskIds: new Set(),
+            backfillCollections: [],
+        };
+    });
+
+    constructor({
+        spaceId,
+        originClientId,
+        actionReferencedAccountById,
+    }: {
+        spaceId: SpaceId;
+        originClientId: TaskRealtimeClientId | null;
+        actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>;
+    }) {
+        super(spaceId);
+
+        this._originClientId = originClientId;
+        this._actionReferencedAccountById = actionReferencedAccountById;
+    }
+
+    protected override _getEvent(
+        connection: TaskRealtimeUpdateEventConnection,
+    ): TaskRealtimeWorkingUpdateEvent {
+        return this._eventByConnection.getOrSetDefault(connection);
+    }
+
+    /**
+     * Finalizes events built with this class and sends them to connected
+     * clients through the `TaskRealtimeUpdateEventConnection` interface.
+     *
+     * Waits for any promises passed to `waitUntil()` to resolve before
+     * finalizing events. Once all `waitUntil()` promises have resolved you may
+     * not call any new methods on this class.
+     */
+    public async finishAndSendEvents(
+        context: Context<
+            ServerProcessContextModules & {
+                cache: CacheContextModule;
+                actor: DynamoActorContextModule;
+            }
+        >,
+    ) {
+        await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(this._spaceId);
+
+        await this._finish();
+
+        await runAllPromises(
+            Array.from(this._eventByConnection, async ([connection, event]) => {
+                const finalEvent = await this._buildEvent(context, connection, event);
+                if (finalEvent !== null) connection.sendEvent(context, finalEvent);
+            }),
+        );
+    }
+}
+
+/**
+ * Builds an event for a single connection. When you are done building the
+ * event you're expected to send the event to the client yourself.
+ */
+export class TaskRealtimeConnectionUpdateEventBuilder extends TaskRealtimeUpdateEventBuilderBase {
+    private readonly _connection: TaskRealtimeUpdateEventConnection;
+    private readonly _event: TaskRealtimeWorkingUpdateEvent;
+
+    constructor(connection: TaskRealtimeUpdateEventConnection) {
+        super(connection.spaceId);
+
+        this._connection = connection;
+
+        this._event = {
+            defaultAuthorizationStateVersion: this._connection.clock.now(),
+            actions: new Set(),
+            backfillTasks: [],
+            backfillAuthorizedTaskIds: new Set(),
+            backfillCollections: [],
+        };
+    }
+
+    protected override _getEvent(
+        connection: TaskRealtimeUpdateEventConnection,
+    ): TaskRealtimeWorkingUpdateEvent {
+        assert(connection === this._connection);
+        return this._event;
+    }
+
+    /**
+     * Finishes building our event and returns the final event. You are
+     * responsible for sending this event to the client.
+     */
+    public async finishAndBuildEvent(
+        context: Context<
+            ServerProcessContextModules & {
+                cache: CacheContextModule;
+                actor: DynamoActorContextModule;
+            }
+        >,
+    ): Promise<TaskRealtimeUpdateEvent | null> {
+        await taskRealtimeStoreBeforeSendEventTestCheckpoint.waitForTest(this._spaceId);
+
+        await this._finish();
+        return this._buildEvent(context, this._connection, this._event);
+    }
+}
+
+/**
+ * Noop event builder for unsubscribing. When unsubscribing we remove
+ * references to tasks but we don't have anything to tell the client. The
+ * client has an identical implementation where it unsubscribes itself.
+ */
+export class TaskRealtimeUnsubscribeUpdateEventBuilder extends TaskRealtimeUpdateEventBuilderBase {
+    private readonly _eventByConnection = new DefaultMap<
+        TaskRealtimeUpdateEventConnection,
+        TaskRealtimeWorkingUpdateEvent
+    >(connection => {
+        assert(connection.spaceId === this._spaceId);
+
+        return {
+            defaultAuthorizationStateVersion: connection.clock.now(),
+            actions: new Set(),
+            backfillTasks: [],
+            backfillAuthorizedTaskIds: new Set(),
+            backfillCollections: [],
+        };
+    });
+
+    protected override _getEvent(
+        connection: TaskRealtimeUpdateEventConnection,
+    ): TaskRealtimeWorkingUpdateEvent {
+        return this._eventByConnection.getOrSetDefault(connection);
+    }
+
+    public finishAndIgnoreEvents() {
+        return this._finish();
     }
 }

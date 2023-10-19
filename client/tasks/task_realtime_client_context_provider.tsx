@@ -74,8 +74,6 @@ function loadTaskDataIntoClient(client: TaskRealtimeClient, loaderData: SchemaSe
             client.store.createAndRetainCollectionSubscription(collectionId),
         );
 
-        client.store.applyUpdateEvent(taskStoreLoaderData.updateEvent);
-
         for (let i = 0; i < taskStoreLoaderData.queries.length; i++) {
             const query = queries[i]!;
             const {limit, loadedState} = taskStoreLoaderData.queries[i]!;
@@ -86,6 +84,10 @@ function loadTaskDataIntoClient(client: TaskRealtimeClient, loaderData: SchemaSe
                 previouslyBackfilledTaskIds: [],
             });
         }
+
+        // We need to apply update events after updating the query loaded state
+        // otherwise the query will ignore all backfilled tasks as out of range.
+        client.store.applyUpdateEvent(taskStoreLoaderData.updateEvent);
 
         (loaderData as any)[taskStoreLoaderDataSymbol] = {
             queries,

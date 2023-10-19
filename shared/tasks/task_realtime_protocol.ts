@@ -127,6 +127,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
                         taskIds: Schema.array(Schema.id<TaskId>()),
                     }),
                 ),
+                updateEvent: TaskRealtimeUpdateEventSchema.nullable(),
             },
         },
         unsubscribeFromQuery: {
@@ -142,6 +143,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
             },
             output: {
                 taskSubscriptionId: Schema.id<TaskRealtimeTaskSubscriptionId>(),
+                updateEvent: TaskRealtimeUpdateEventSchema.nullable(),
             },
         },
         unsubscribeFromTask: {
@@ -157,6 +159,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
             },
             output: {
                 collectionSubscriptionId: Schema.id<TaskRealtimeCollectionSubscriptionId>(),
+                updateEvent: TaskRealtimeUpdateEventSchema.nullable(),
             },
         },
         unsubscribeFromCollection: {
@@ -174,6 +177,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
             output: {
                 loadedState: TaskRealtimeQueryLoadedStateSchema,
                 previouslyBackfilledTaskIds: Schema.array(Schema.id<TaskId>()),
+                updateEvent: TaskRealtimeUpdateEventSchema.nullable(),
             },
         },
         subscribe: {
@@ -243,6 +247,7 @@ export const TaskRealtimeProtocol = defineWebSocketProtocol({
                         }),
                     ),
                 ),
+                updateEvent: TaskRealtimeUpdateEventSchema.nullable(),
             },
         },
         unsubscribe: {

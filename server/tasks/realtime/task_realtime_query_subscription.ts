@@ -7,7 +7,10 @@ import {
     TaskRealtimeTaskReferencesSubscriptionBase,
     TaskRealtimeTaskReferencesSubscriptionCallbacks,
 } from "~/server/tasks/realtime/task_realtime_task_references_subscription_base.js";
-import {TaskRealtimeUpdateEventBuilder} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
+import {
+    TaskRealtimeUnsubscribeUpdateEventBuilder,
+    TaskRealtimeUpdateEventBuilderBase,
+} from "~/server/tasks/realtime/task_realtime_update_event_builder.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {CancelledError, InternalError} from "~/shared/error/error.js";
@@ -56,7 +59,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
          */
         onLoadedTaskAdd(
             context: TaskRealtimeSystemActionContext,
-            eventBuilder: TaskRealtimeUpdateEventBuilder,
+            eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             newTask: TaskIndexDoc,
         ): void;
 
@@ -68,7 +71,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
          */
         onLoadedTaskUpdate(
             context: TaskRealtimeSystemActionContext,
-            eventBuilder: TaskRealtimeUpdateEventBuilder,
+            eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             taskId: TaskId,
             oldTask: TaskIndexDoc,
             newTask: TaskIndexDoc,
@@ -84,7 +87,7 @@ export type TaskRealtimeQuerySubscriptionCallbacks =
          * Clients should apply these actions locally.
          */
         onLoadedTaskRemove(
-            eventBuilder: TaskRealtimeUpdateEventBuilder,
+            eventBuilder: TaskRealtimeUpdateEventBuilderBase,
             oldTask: TaskIndexDoc,
             actions: ReadonlyArray<TaskAction>,
         ): void;
@@ -137,7 +140,7 @@ export class TaskRealtimeQuerySubscription {
      */
     public loadMoreTasks(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         limit: number,
     ): Promise<{
         loadedState: TaskRealtimeQueryLoadedState;
@@ -235,16 +238,15 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
         // We construct an event builder just so we can wait out `waitUntil()`
         // promises.
-        const eventBuilder = new TaskRealtimeUpdateEventBuilder({
-            originClientId: null,
-            actionReferencedAccountById: null,
-        });
+        const eventBuilder = new TaskRealtimeUnsubscribeUpdateEventBuilder(
+            this.query.store.spaceId,
+        );
 
         for (const task of tasks) {
             this._onLoadedTaskRemove(context, eventBuilder, task, []);
         }
 
-        return eventBuilder.waitWithoutSending();
+        return eventBuilder.finishAndIgnoreEvents();
     }
 
     /**
@@ -267,7 +269,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
      */
     public async loadMoreTasks(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         limit: number,
     ): Promise<{
         loadedState: TaskRealtimeQueryLoadedState;
@@ -293,7 +295,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
     // concurrent actions will happen while we're updating our state.
     private _loadMoreTasksSync(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         limit: number,
     ): {
         loadedState: TaskRealtimeQueryLoadedState;
@@ -321,7 +323,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
     public onVisibleTaskAdd(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
         assert(this._isSubscribed);
@@ -341,7 +343,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
     public onVisibleTaskUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
         newTask: TaskIndexDoc,
@@ -384,7 +386,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
     public onVisibleTaskRemove(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
         actions: NonEmptyReadonlyArray<TaskAction>,
     ) {
@@ -405,7 +407,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
     private _onLoadedTaskAdd(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         newTask: TaskIndexDoc,
     ) {
         // When testing, keep track of the tasks we've seen so we can guarantee we've
@@ -434,7 +436,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
     private _onLoadedTaskUpdate(
         context: TaskRealtimeSystemActionContext,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         taskId: TaskId,
         oldTask: TaskIndexDoc,
         newTask: TaskIndexDoc,
@@ -471,7 +473,7 @@ export class TaskRealtimeQuerySubscriptionInternal extends TaskRealtimeTaskRefer
 
     private _onLoadedTaskRemove(
         context: Context<{process: ProcessContextModule}>,
-        eventBuilder: TaskRealtimeUpdateEventBuilder,
+        eventBuilder: TaskRealtimeUpdateEventBuilderBase,
         oldTask: TaskIndexDoc,
         actions: ReadonlyArray<TaskAction>,
     ) {
