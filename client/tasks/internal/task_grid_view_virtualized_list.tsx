@@ -288,7 +288,10 @@ export function useTaskGridViewVirtualizedList({
         itemCountBeforeState +
         (loadedState !== "FullyLoaded"
             ? stateItemCount + 1
-            : Math.max(stateItemCount + (!capabilities.isReadOnly ? 1 : 0), 3));
+            : Math.max(
+                  stateItemCount + (!capabilities.isReadOnly && isRootQueryManuallySorted ? 1 : 0),
+                  3,
+              ));
 
     const taskRowByTaskKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
 
@@ -1332,8 +1335,9 @@ export function useTaskGridViewVirtualizedList({
                     };
                 }
 
-                // No ghost task if `rootQuery` is null.
-                if (rootQuery) {
+                // No ghost task if `rootQuery` is null, the grid view is read-only, or we're
+                // not manually sorted.
+                if (rootQuery && !capabilities.isReadOnly && isRootQueryManuallySorted) {
                     if (relativeItemIndex === 0) {
                         return {
                             // We want to use the same key and component as a regular task so we can turn a

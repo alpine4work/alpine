@@ -405,7 +405,36 @@ export function TaskQueryView({
         initialExpansionState: queryState.initialGridViewExpansionState,
         initialBottomGhostTaskId: queryState.initialBottomGhostTaskId,
         viewRef,
-        // NOCOMMIT
+        // NOTE(calebmer): Currently, all updates which use this are disabled in
+        // auto-sorted views:
+        //
+        // - Shift-tab to unnest task
+        // - Enter to create task
+        // - Drag/drop to move task
+        // - Type in ghost row to create task
+        //
+        // Some of these make sense to disable in auto-sorted views like drag/drop to
+        // move task. However, it would be nice to get some behaviors like "Enter to
+        // create task" working. Right now, you can't create tasks inline in an
+        // auto-sorted view which is unfortunate.
+        //
+        // At Airtable, when you had focus in a row that was either filtered out of the
+        // view or moved we gave it a "pinned" row treatment. Rendered an orange box
+        // around it and maintained the row in its old position. This behavior...wasn't
+        // universally loved so there's probably room for improvement. But something
+        // similar where you hit enter and it gives you a pinned row you can fill out
+        // before unfocusing seems nice. Though maybe creating a task through a detail
+        // view is actually a better experience?
+        //
+        // Another thought is when adding a task to a query we need to make sure it has
+        // values that match our filters. For some filters like `priority = High`,
+        // that's easy. For other filters like `priority = High || priority = Low` we
+        // could initially set a reasonable value like `Low` even though it's ambiguous.
+        //
+        // I'm not implementing a solution here, for now, because pinned rows are
+        // tricky (though not impossible) to implement. (You need to setup a separate
+        // task subscription for the pinned row.) And because it's not clear to me what
+        // the best UX here is. Disabling a bunch of behavior doesn't feel right though.
         getMoveTaskToQueryActions: () => [],
         // Can't remove task from custom view query. That would require updating
         // filtered fields in potentially unexpected ways. For instance if it's filter

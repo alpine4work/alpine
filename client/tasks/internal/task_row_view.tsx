@@ -395,6 +395,11 @@ function TaskRowView(
         } else {
             assert(ghostTaskId);
 
+            // Typing to create a task to replace the ghost row row only makes sense in a
+            // manually sorted query. We don't have control of task order in an
+            // auto-sorted query.
+            if (!isQueryManuallySorted) return;
+
             // Make sure any state update from the `onGhostTaskCreated` callback runs in
             // the same React commit as our store updates (which use
             // `useSyncExternalStore()`).
@@ -904,6 +909,11 @@ function TaskRowView(
     })();
 
     const createTaskAbove = () => {
+        // Hitting enter to create a task near the current row only makes sense in a
+        // manually sorted query. We don't have control of task order in an
+        // auto-sorted query.
+        if (!isQueryManuallySorted) return;
+
         const newTaskId = generateId<TaskId>();
 
         disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
@@ -927,6 +937,11 @@ function TaskRowView(
     };
 
     const createTaskBelowAndFocus = () => {
+        // Hitting enter to create a task near the current row only makes sense in a
+        // manually sorted query. We don't have control of task order in an
+        // auto-sorted query.
+        if (!isQueryManuallySorted) return;
+
         const newTaskId = generateId<TaskId>();
 
         // If we have a task with children, the children are expanded, and the children
