@@ -746,6 +746,10 @@ function TaskDetailViewMain({
                                 >
                                     <TaskPriorityInput
                                         isReadOnly={isReadOnly}
+                                        // If a task is closed, suppress the urgent warning.
+                                        shouldHighlightUrgent={
+                                            task?.getDisplayStatus() !== "Closed"
+                                        }
                                         priority={priority}
                                         onPriorityChange={priority => {
                                             store.commitTaskActionTransaction(context, [

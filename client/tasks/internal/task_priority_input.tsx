@@ -76,9 +76,10 @@ let isClosingComboBox = false;
 
 function TaskPriorityInput(
     {
-        isReadOnly,
         priority,
         onPriorityChange,
+        shouldHighlightUrgent,
+        isReadOnly,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
         color = "grey-text",
@@ -88,6 +89,7 @@ function TaskPriorityInput(
     }: {
         priority: TaskPriority | null;
         onPriorityChange: (priority: TaskPriority | null) => void;
+        shouldHighlightUrgent: boolean;
         isReadOnly?: boolean;
         "aria-label"?: string;
         "aria-labelledby"?: string;
@@ -368,7 +370,7 @@ function TaskPriorityInput(
                             <TaskPriorityIcon
                                 size="4"
                                 priority={priority}
-                                shouldHighlightUrgent={true}
+                                shouldHighlightUrgent={shouldHighlightUrgent}
                             />
                         </div>
                         <InputWithAutoGrowingWidth

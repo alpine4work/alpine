@@ -194,7 +194,8 @@ function TaskRowPriorityCell(
                             <TaskPriorityIcon
                                 size="4"
                                 priority={priority}
-                                shouldHighlightUrgent={true}
+                                // If a task is closed, suppress the urgent warning.
+                                shouldHighlightUrgent={task?.getDisplayStatus() !== "Closed"}
                             />
                             <span className={previewNameClassName}>
                                 {getTaskPriorityName(priority)}
@@ -205,6 +206,8 @@ function TaskRowPriorityCell(
                     <TaskPriorityInput
                         ref={inputRef}
                         aria-label="Priority"
+                        // If a task is closed, suppress the urgent warning.
+                        shouldHighlightUrgent={task?.getDisplayStatus() !== "Closed"}
                         priority={priority}
                         onPriorityChange={priority => {
                             if (!task) return task;

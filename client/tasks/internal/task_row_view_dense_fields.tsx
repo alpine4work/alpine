@@ -330,6 +330,8 @@ function TaskRowViewDenseFields(
                         <TaskPriorityInput
                             aria-label="Priority"
                             color="grey-60"
+                            // If a task is closed, suppress the urgent warning.
+                            shouldHighlightUrgent={task?.getDisplayStatus() !== "Closed"}
                             priority={priority}
                             onPriorityChange={priority => {
                                 store.commitTaskActionTransaction(context, [
