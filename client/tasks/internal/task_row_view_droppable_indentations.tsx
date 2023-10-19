@@ -3,6 +3,7 @@ import {Memo, useId} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskGridViewDroppableData} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
+import {isTaskQueryManuallySorted} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
@@ -125,6 +126,13 @@ export function renderTaskRowViewDroppableIndentations({
         droppableIndentation >= nextIndentation;
         droppableIndentation--
     ) {
+        // If our root query is auto-sorted then we can't drop our task there since we
+        // can't set the task's position.
+        if (droppableIndentation === 0) {
+            const parent = parents[droppableIndentation]!;
+            if (!isTaskQueryManuallySorted(parent.query.sorts)) break;
+        }
+
         droppableIndentations.push(droppableIndentation);
     }
 

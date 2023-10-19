@@ -1085,7 +1085,7 @@ function TaskRowView(
     const droppableIndentationsNode =
         !disableExpensiveFeaturesDuringScroll &&
         !capabilities.isReadOnly &&
-        isQueryManuallySorted &&
+        (isQueryManuallySorted || nextIndentation !== 0) &&
         cursor &&
         task &&
         renderTaskRowViewDroppableIndentations({
