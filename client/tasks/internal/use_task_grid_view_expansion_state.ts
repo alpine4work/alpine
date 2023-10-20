@@ -10,7 +10,7 @@ import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
-import {disableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore, getParentTaskIdIfChildrenQuery} from "~/client/tasks/task_client_store.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
@@ -60,10 +60,6 @@ function createTaskGridViewExpansionStateManager({
     const updateLocally = (
         action: (oldState: TaskGridViewExpansionState) => TaskGridViewExpansionState,
     ) => {
-        // Don't animate whenever our expansion state changes. Expansion state changes
-        // due to direct user interaction.
-        disableAllTaskGridViewAnimationsUntilNextBrowserPaint();
-
         batchStoreUpdates(() => {
             const oldState = state;
             const newState = action(oldState);
@@ -392,6 +388,10 @@ export function useTaskGridViewExpansionState({
                 const taskId = taskPath[taskPath.length - 1]!;
 
                 if (stateManager.areChildTasksExpanded(taskPath)) {
+                    // Don't animate when the user is toggling child tasks open/closed. That's a
+                    // direct user interaction and we don't animate direct user interactions.
+                    indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
+
                     stateManager.update(state => collapseChildTaskInGridView(state, taskPath));
                     onFinish?.();
                 } else if (
@@ -419,6 +419,10 @@ export function useTaskGridViewExpansionState({
                     );
 
                     const actuallyExpand = () => {
+                        // Don't animate when the user is toggling child tasks open/closed. That's a
+                        // direct user interaction and we don't animate direct user interactions.
+                        indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
+
                         batchStoreUpdates(() => {
                             try {
                                 stateManager.update(state =>
@@ -484,6 +488,9 @@ export function useTaskGridViewExpansionState({
 
         broadcastChannel.addEventListener("message", event => {
             const state: TaskGridViewExpansionState = event.data;
+
+            // If we're syncing expansion state from another tab, don't animate.
+            indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
 
             // Only update our state locally. Don't re-broadcast it, don't save on the
             // server. The initial broadcaster should have saved this update on the server.

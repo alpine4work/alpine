@@ -30,8 +30,8 @@ import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
@@ -143,7 +143,7 @@ export function isTaskQueryManuallySorted(sorts: ReadonlyArray<TaskQueryNormaliz
     );
 }
 
-let disableAllTaskGridViewAnimations = false;
+let indiscriminatelyDisableAllTaskGridViewAnimations = false;
 const disableTaskGridViewAnimationsForTaskIds = new Set<TaskId>();
 
 /**
@@ -167,10 +167,10 @@ export function disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(task
  * `disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint()` to target
  * specific tasks.
  */
-export function disableAllTaskGridViewAnimationsUntilNextBrowserPaint() {
-    disableAllTaskGridViewAnimations = true;
+export function indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint() {
+    indiscriminatelyDisableAllTaskGridViewAnimations = true;
     scheduleAfterNextBrowserPaint(() => {
-        disableAllTaskGridViewAnimations = false;
+        indiscriminatelyDisableAllTaskGridViewAnimations = false;
     });
 }
 
@@ -1009,7 +1009,7 @@ export function useTaskGridViewVirtualizedList({
 
         let newAnimations: Array<TaskGridViewVirtualizedListAnimation> | null = null;
 
-        if (!disableAllTaskGridViewAnimations) {
+        if (!indiscriminatelyDisableAllTaskGridViewAnimations) {
             for (const animation of animations) {
                 if (!disableTaskGridViewAnimationsForTaskIds.has(animation.taskId)) {
                     newAnimations ??= [...animationState.animations];
@@ -1200,9 +1200,27 @@ export function useTaskGridViewVirtualizedList({
                             item.parents === animation.newItem.parents &&
                             item.cursor === animation.newItem.cursor;
 
+                        const isChildOfNewItem =
+                            item?.type === "Task" &&
+                            item.parents.length >= animation.newItem.parents.length + 1 &&
+                            item.parents
+                                .slice(0, animation.newItem.parents.length + 1)
+                                .every((parent, i) =>
+                                    i < animation.newItem.parents.length
+                                        ? parent.query === animation.newItem.parents[i]!.query &&
+                                          parent.cursor === animation.newItem.parents[i]!.cursor
+                                        : item.parents[i]!.query === animation.newItem.query &&
+                                          item.parents[i]!.cursor === animation.newItem.cursor,
+                                );
+
                         const isWithinItemMove =
                             animation.direction === "Up"
-                                ? !isNewItem && isAfterNewItem && !isAfterOldItem
+                                ? !isNewItem &&
+                                  isAfterNewItem &&
+                                  !isAfterOldItem &&
+                                  // If an item with some children is moving its children move with it. So we
+                                  // don't need to animate the children.
+                                  !isChildOfNewItem
                                 : !isNewItem && !isAfterNewItem && isAfterOldItem;
 
                         if (!isWithinItemMove) continue;

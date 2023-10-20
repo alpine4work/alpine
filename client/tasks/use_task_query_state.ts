@@ -3,7 +3,7 @@ import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-import {disableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {getTaskRealtimeClientIfExistsForClient} from "~/client/tasks/task_realtime_client_context_provider.js";
@@ -241,7 +241,7 @@ export function useTaskQueryState({
             if (isCancelled) return;
 
             // Don't animate when changing the query.
-            disableAllTaskGridViewAnimationsUntilNextBrowserPaint();
+            indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
 
             setQueryState({
                 activeQuery: {
