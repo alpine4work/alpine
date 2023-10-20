@@ -297,7 +297,7 @@ export class TaskClientStore {
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
         actions: ReadonlyArray<TaskAction>,
-        options?: {referencedCollections: ReadonlyArray<TaskCollectionModel>},
+        options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
     ): {finally: (callback: () => void) => void} {
         return this._internal.commitTaskActionTransaction(context, actions, options);
     }
@@ -1430,7 +1430,9 @@ export class TaskClientStoreInternal {
         actions: ReadonlyArray<TaskAction>,
         {
             referencedCollections = [],
-        }: {referencedCollections?: ReadonlyArray<TaskCollectionModel>} = {},
+        }: {
+            referencedCollections?: ReadonlyArray<TaskCollectionModel>;
+        } = {},
     ): {finally: (callback: () => void) => void} {
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
         // close the page if we haven't finished committing their task action. It will

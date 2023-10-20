@@ -8,8 +8,8 @@ import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
  * Use this instead of manually calling `unstable_runWithPriority()` from
  * `scheduler` since it handles some React quirks.
  */
-export function runWithImmediatePriority(action: () => void) {
-    unstable_runWithPriority(unstable_ImmediatePriority, () => {
+export function runWithImmediatePriority<Value>(action: () => Value): Value {
+    return unstable_runWithPriority(unstable_ImmediatePriority, () => {
         // HACK(calebmer): In order for React to respect the scheduler priority level
         // we need to be in a message event (since the scheduler callback uses a
         // message event). So trick React into thinking we are in a message event by
@@ -24,7 +24,7 @@ export function runWithImmediatePriority(action: () => void) {
         const lastWindowEvent = window.event;
         window.event = new MessageEvent("message");
         try {
-            action();
+            return action();
         } finally {
             window.event = lastWindowEvent;
         }

@@ -46,7 +46,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {generateId, isId} from "~/shared/id/id.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     greyElevated2ClassName,
     inputPlaceholderStyles,
@@ -54,6 +54,8 @@ import {
     sprinkles,
     tasksStyles,
 } from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 
@@ -80,6 +82,7 @@ export function TaskCollectionsInput({
     isTabbable = true,
     onArrowLeftLeaveKeyDown,
     onReturnFocus,
+    commitActionTransaction: _commitActionTransaction,
 }: {
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
     task: TaskModel | null;
@@ -92,6 +95,10 @@ export function TaskCollectionsInput({
     isTabbable?: boolean;
     onArrowLeftLeaveKeyDown?: () => void;
     onReturnFocus?: () => void;
+    commitActionTransaction?: (
+        getActions: (taskId: TaskId) => Array<TaskAction>,
+        options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+    ) => void;
 }) {
     const context = useAppContext();
     const rootNavigate = useRootNavigate();
@@ -100,6 +107,16 @@ export function TaskCollectionsInput({
 
     const {store} = referencesSubscription;
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
+
+    const commitActionTransaction =
+        _commitActionTransaction ??
+        ((
+            getActions: (taskId: TaskId) => Array<TaskAction>,
+            options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+        ) => {
+            if (!task) return;
+            store.commitTaskActionTransaction(context, getActions(task.id), options);
+        });
 
     // Preload task collections the account has an affinity for in case they open
     // the collections dropdown.
@@ -197,31 +214,28 @@ export function TaskCollectionsInput({
                     ),
                 );
 
-                if (task) {
-                    store.commitTaskActionTransaction(
-                        context,
-                        [
-                            {
-                                type: "UpdateTask",
-                                time: store.clock.now(),
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "AddCollection",
-                                    collectionId,
-                                    orderKey: generateOrderKeyBetween(
-                                        collections.getLastOrderKey(),
-                                        null,
-                                    ),
-                                },
-                            },
-                        ],
+                commitActionTransaction(
+                    taskId => [
                         {
-                            // Provide the collection model to the store. It might be out of date. The
-                            // server will backfill the new collection once our action has been committed.
-                            referencedCollections: [item.collectionResult.collection],
+                            type: "UpdateTask",
+                            time: store.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "AddCollection",
+                                collectionId,
+                                orderKey: generateOrderKeyBetween(
+                                    collections.getLastOrderKey(),
+                                    null,
+                                ),
+                            },
                         },
-                    );
-                }
+                    ],
+                    {
+                        // Provide the collection model to the store. It might be out of date. The
+                        // server will backfill the new collection once our action has been committed.
+                        referencedCollections: [item.collectionResult.collection],
+                    },
+                );
 
                 if (shouldReturnFocusToInput) {
                     setInputState(inputState => {
@@ -256,38 +270,36 @@ export function TaskCollectionsInput({
                 } else {
                     const collectionId = generateId<TaskCollectionId>();
 
-                    if (task) {
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateCollection",
-                                time: store.clock.now(),
+                    commitActionTransaction(taskId => [
+                        {
+                            type: "UpdateCollection",
+                            time: store.clock.now(),
+                            collectionId,
+                            collectionAction: {
+                                type: "Create",
+                                name: inputState.value,
+                                accessPolicy: {
+                                    accountGrantById: new Map([
+                                        [currentAccount.id, {level: "Manage"}],
+                                    ]),
+                                    defaultGrant: null,
+                                },
+                            },
+                        },
+                        {
+                            type: "UpdateTask",
+                            time: store.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "AddCollection",
                                 collectionId,
-                                collectionAction: {
-                                    type: "Create",
-                                    name: inputState.value,
-                                    accessPolicy: {
-                                        accountGrantById: new Map([
-                                            [currentAccount.id, {level: "Manage"}],
-                                        ]),
-                                        defaultGrant: null,
-                                    },
-                                },
+                                orderKey: generateOrderKeyBetween(
+                                    collections.getLastOrderKey(),
+                                    null,
+                                ),
                             },
-                            {
-                                type: "UpdateTask",
-                                time: store.clock.now(),
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "AddCollection",
-                                    collectionId,
-                                    orderKey: generateOrderKeyBetween(
-                                        collections.getLastOrderKey(),
-                                        null,
-                                    ),
-                                },
-                            },
-                        ]);
-                    }
+                        },
+                    ]);
 
                     if (shouldReturnFocusToInput) {
                         setInputState(inputState => {
@@ -345,19 +357,17 @@ export function TaskCollectionsInput({
 
                             const {collectionId} = collectionsArray[collectionsArray.length - 1]!;
 
-                            if (task) {
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateTask",
-                                        time: store.clock.now(),
-                                        taskId: task.id,
-                                        taskAction: {
-                                            type: "RemoveCollection",
-                                            collectionId,
-                                        },
+                            commitActionTransaction(taskId => [
+                                {
+                                    type: "UpdateTask",
+                                    time: store.clock.now(),
+                                    taskId,
+                                    taskAction: {
+                                        type: "RemoveCollection",
+                                        collectionId,
                                     },
-                                ]);
-                            }
+                                },
+                            ]);
                         }
                         break;
                     }
@@ -402,19 +412,17 @@ export function TaskCollectionsInput({
                     event.preventDefault();
                     event.stopPropagation();
 
-                    if (task) {
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time: store.clock.now(),
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "RemoveCollection",
-                                    collectionId,
-                                },
+                    commitActionTransaction(taskId => [
+                        {
+                            type: "UpdateTask",
+                            time: store.clock.now(),
+                            taskId,
+                            taskAction: {
+                                type: "RemoveCollection",
+                                collectionId,
                             },
-                        ]);
-                    }
+                        },
+                    ]);
 
                     if (index + 1 < collectionRefs.length) {
                         collectionRefs[index + 1]?.current?.focus();
@@ -460,19 +468,17 @@ export function TaskCollectionsInput({
                         event.preventDefault();
                         event.stopPropagation();
 
-                        if (task) {
-                            store.commitTaskActionTransaction(context, [
-                                {
-                                    type: "UpdateTask",
-                                    time: store.clock.now(),
-                                    taskId: task.id,
-                                    taskAction: {
-                                        type: "RemoveCollection",
-                                        collectionId,
-                                    },
+                        commitActionTransaction(taskId => [
+                            {
+                                type: "UpdateTask",
+                                time: store.clock.now(),
+                                taskId,
+                                taskAction: {
+                                    type: "RemoveCollection",
+                                    collectionId,
                                 },
-                            ]);
-                        }
+                            },
+                        ]);
 
                         setInputState({type: "Focused", value: event.key});
                         inputRef.current?.focus();
@@ -519,19 +525,17 @@ export function TaskCollectionsInput({
                         onRemove={
                             !isReadOnly
                                 ? () => {
-                                      if (task) {
-                                          store.commitTaskActionTransaction(context, [
-                                              {
-                                                  type: "UpdateTask",
-                                                  time: store.clock.now(),
-                                                  taskId: task.id,
-                                                  taskAction: {
-                                                      type: "RemoveCollection",
-                                                      collectionId,
-                                                  },
+                                      commitActionTransaction(taskId => [
+                                          {
+                                              type: "UpdateTask",
+                                              time: store.clock.now(),
+                                              taskId,
+                                              taskAction: {
+                                                  type: "RemoveCollection",
+                                                  collectionId,
                                               },
-                                          ]);
-                                      }
+                                          },
+                                      ]);
                                   }
                                 : undefined
                         }
@@ -591,38 +595,36 @@ export function TaskCollectionsInput({
                         onConfirm={inputValue => {
                             const collectionId = generateId<TaskCollectionId>();
 
-                            if (task) {
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateCollection",
-                                        time: store.clock.now(),
+                            commitActionTransaction(taskId => [
+                                {
+                                    type: "UpdateCollection",
+                                    time: store.clock.now(),
+                                    collectionId,
+                                    collectionAction: {
+                                        type: "Create",
+                                        name: inputValue,
+                                        accessPolicy: {
+                                            accountGrantById: new Map([
+                                                [currentAccount.id, {level: "Manage"}],
+                                            ]),
+                                            defaultGrant: null,
+                                        },
+                                    },
+                                },
+                                {
+                                    type: "UpdateTask",
+                                    time: store.clock.now(),
+                                    taskId,
+                                    taskAction: {
+                                        type: "AddCollection",
                                         collectionId,
-                                        collectionAction: {
-                                            type: "Create",
-                                            name: inputValue,
-                                            accessPolicy: {
-                                                accountGrantById: new Map([
-                                                    [currentAccount.id, {level: "Manage"}],
-                                                ]),
-                                                defaultGrant: null,
-                                            },
-                                        },
+                                        orderKey: generateOrderKeyBetween(
+                                            collections.getLastOrderKey(),
+                                            null,
+                                        ),
                                     },
-                                    {
-                                        type: "UpdateTask",
-                                        time: store.clock.now(),
-                                        taskId: task.id,
-                                        taskAction: {
-                                            type: "AddCollection",
-                                            collectionId,
-                                            orderKey: generateOrderKeyBetween(
-                                                collections.getLastOrderKey(),
-                                                null,
-                                            ),
-                                        },
-                                    },
-                                ]);
-                            }
+                                },
+                            ]);
 
                             setCreateCollectionInputState({isVisible: false});
 

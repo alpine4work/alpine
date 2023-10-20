@@ -92,6 +92,7 @@ import {
     tasksStyles,
 } from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
@@ -100,8 +101,6 @@ import {
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
-
-// NOCOMMIT: Editing cell in ghost row doesn't create task
 
 export type TaskGridViewColumn =
     | "ExpandButton"
@@ -379,66 +378,19 @@ function TaskRowView(
             return;
         }
 
-        if (taskId) {
-            const time = query.store.clock.now();
-
-            const commitPromise = query.store.commitTaskActionTransaction(context, [
-                {
-                    type: "UpdateTask",
-                    time,
-                    taskId,
-                    taskAction: {
-                        type: "UpdateTitle",
-                        titleUpdate,
-                    },
+        const commitPromise = commitActionTransaction(taskId => [
+            {
+                type: "UpdateTask",
+                time: query.store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate,
                 },
-            ]);
+            },
+        ]);
 
-            handleCommitPromise(commitPromise);
-        } else {
-            assert(ghostTaskId);
-
-            // Typing to create a task to replace the ghost row row only makes sense in a
-            // manually sorted query. We don't have control of task order in an
-            // auto-sorted query.
-            if (!isQueryManuallySorted) return;
-
-            // Make sure any state update from the `onGhostTaskCreated` callback runs in
-            // the same React commit as our store updates (which use
-            // `useSyncExternalStore()`).
-            runWithImmediatePriority(() => {
-                disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(ghostTaskId);
-
-                const commitPromise = query.store.commitTaskActionTransaction(context, [
-                    {
-                        type: "UpdateTask",
-                        time: query.store.clock.now(),
-                        taskId: ghostTaskId,
-                        taskAction: {
-                            type: "Create",
-                            creatorId: currentAccount.id,
-                            creatorTimeZone: timeZone,
-                        },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: query.store.clock.now(),
-                        taskId: ghostTaskId,
-                        taskAction: {
-                            type: "UpdateTitle",
-                            titleUpdate,
-                        },
-                    },
-                    ...getMoveTaskToQueryActions(ghostTaskId, {type: "End"}),
-                ]);
-
-                handleCommitPromise(commitPromise);
-
-                // When we create a new task that occupies our ghost `TaskId` then we need to
-                // regenerate a new ghost `TaskId` so there are no conflicts.
-                onGhostTaskCreated?.();
-            });
-        }
+        handleCommitPromise(commitPromise);
     };
 
     const expandButtonRef = useRef<HTMLButtonElement>(null);
@@ -486,6 +438,7 @@ function TaskRowView(
         focusPreviousCell,
         handleCellKeyDown,
         handleCellKeyDownCapture,
+        commitActionTransaction,
     } = useEvents({
         isFocusWithin: () => assertExists(containerRef.current).contains(document.activeElement),
 
@@ -824,6 +777,64 @@ function TaskRowView(
                     break;
                 }
             }
+        },
+
+        // Commit an action transaction against our task. If this is a ghost task then
+        // we'll create a new task before applying the update.
+        commitActionTransaction: (
+            getActions: (taskId: TaskId) => Array<TaskAction>,
+            options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+        ): {
+            finally: (callback: () => void) => void;
+        } => {
+            if (taskId) {
+                return query.store.commitTaskActionTransaction(
+                    context,
+                    getActions(taskId),
+                    options,
+                );
+            }
+
+            assert(ghostTaskId);
+
+            // Typing to create a task to replace the ghost row row only makes sense in a
+            // manually sorted query. We don't have control of task order in an
+            // auto-sorted query.
+            //
+            // We should not show a ghost row in a manually sorted query.
+            assert(isQueryManuallySorted);
+
+            // Make sure any state update from the `onGhostTaskCreated` callback runs in
+            // the same React commit as our store updates (which use
+            // `useSyncExternalStore()`).
+            return runWithImmediatePriority(() => {
+                disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(ghostTaskId);
+
+                const commitPromise = query.store.commitTaskActionTransaction(
+                    context,
+                    [
+                        {
+                            type: "UpdateTask",
+                            time: query.store.clock.now(),
+                            taskId: ghostTaskId,
+                            taskAction: {
+                                type: "Create",
+                                creatorId: currentAccount.id,
+                                creatorTimeZone: timeZone,
+                            },
+                        },
+                        ...getMoveTaskToQueryActions(ghostTaskId, {type: "End"}),
+                        ...getActions(ghostTaskId),
+                    ],
+                    options,
+                );
+
+                // When we create a new task that occupies our ghost `TaskId` then we need to
+                // regenerate a new ghost `TaskId` so there are no conflicts.
+                onGhostTaskCreated?.();
+
+                return commitPromise;
+            });
         },
     });
 
@@ -1325,6 +1336,7 @@ function TaskRowView(
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusNextCell={focusNextCell}
                         focusPreviousCell={focusPreviousCell}
+                        commitActionTransaction={commitActionTransaction}
                     />
                     <TaskRowPriorityCell
                         ref={priorityCellRef}
@@ -1335,6 +1347,7 @@ function TaskRowView(
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusNextCell={focusNextCell}
                         focusPreviousCell={focusPreviousCell}
+                        commitActionTransaction={commitActionTransaction}
                     />
                     <TaskRowDueDateCell
                         ref={dueDateCellRef}
@@ -1345,6 +1358,7 @@ function TaskRowView(
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusNextCell={focusNextCell}
                         focusPreviousCell={focusPreviousCell}
+                        commitActionTransaction={commitActionTransaction}
                     />
                     <TaskRowCollectionsCell
                         ref={collectionsCellRef}
@@ -1354,6 +1368,7 @@ function TaskRowView(
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusPreviousCell={focusPreviousCell}
                         setRowZIndex={setRowZIndex}
+                        commitActionTransaction={commitActionTransaction}
                     />
                 </>
             )}

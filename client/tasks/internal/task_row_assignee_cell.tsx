@@ -11,7 +11,6 @@ import {
 } from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
-import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
@@ -31,7 +30,9 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 
@@ -93,6 +94,7 @@ function TaskRowAssigneeCell(
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
+        commitActionTransaction,
     }: {
         store: TaskClientStore;
         task: TaskModel | null;
@@ -102,6 +104,7 @@ function TaskRowAssigneeCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
+        commitActionTransaction: Memo<(getActions: (taskId: TaskId) => Array<TaskAction>) => void>;
     },
     ref: Ref<TaskRowAssigneeCellRef>,
 ) {
@@ -121,7 +124,6 @@ function TaskRowAssigneeCell(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
-    const context = useAppContext();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
@@ -219,30 +221,30 @@ function TaskRowAssigneeCell(
                         shouldDisplayShortName={true}
                         assigneeAccountData={assigneeAccountData}
                         onAssigneeAccountChange={assigneeAccount => {
-                            if (!task) return;
+                            commitActionTransaction(taskId => {
+                                const time = store.clock.now();
 
-                            const time = store.clock.now();
-
-                            store.commitTaskActionTransaction(context, [
-                                {
-                                    type: "UpdateTask",
-                                    time,
-                                    taskId: task.id,
-                                    taskAction: {
-                                        type: "UpdateAssignee",
-                                        assignee: assigneeAccount
-                                            ? {
-                                                  assigneeId: assigneeAccount.id,
-                                                  assignerId: currentAccount.id,
-                                                  assignedTime: new TaskFilterableTime({
-                                                      absoluteTime: time,
-                                                      setterTimeZone: timeZone,
-                                                  }),
-                                              }
-                                            : null,
+                                return [
+                                    {
+                                        type: "UpdateTask",
+                                        time,
+                                        taskId,
+                                        taskAction: {
+                                            type: "UpdateAssignee",
+                                            assignee: assigneeAccount
+                                                ? {
+                                                      assigneeId: assigneeAccount.id,
+                                                      assignerId: currentAccount.id,
+                                                      assignedTime: new TaskFilterableTime({
+                                                          absoluteTime: time,
+                                                          setterTimeZone: timeZone,
+                                                      }),
+                                                  }
+                                                : null,
+                                        },
                                     },
-                                },
-                            ]);
+                                ];
+                            });
                         }}
                         // Keyboard navigation in grid view is not done with the tab key.
                         isTabbable={false}

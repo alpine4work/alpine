@@ -12,7 +12,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {
     getLastFocusableElementIfExists,
@@ -33,7 +32,9 @@ import {
 } from "~/client/tasks/task_row_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 export type TaskRowDueDateCellRef = {
@@ -103,6 +104,7 @@ function TaskRowDueDateCell(
         onCellKeyDownCapture,
         focusPreviousCell,
         focusNextCell,
+        commitActionTransaction,
     }: {
         store: TaskClientStore;
         task: TaskModel | null;
@@ -111,6 +113,7 @@ function TaskRowDueDateCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
+        commitActionTransaction: Memo<(getActions: (taskId: TaskId) => Array<TaskAction>) => void>;
     },
     ref: Ref<TaskRowDueDateCellRef>,
 ) {
@@ -129,8 +132,6 @@ function TaskRowDueDateCell(
     //
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
-
-    const context = useAppContext();
 
     const dueDate = task?.getDueDate() ?? null;
 
@@ -211,13 +212,11 @@ function TaskRowDueDateCell(
                         shouldFormatAroundToday={true}
                         date={dueDate}
                         onDateChange={dueDate => {
-                            if (!task) return;
-
-                            store.commitTaskActionTransaction(context, [
+                            commitActionTransaction(taskId => [
                                 {
                                     type: "UpdateTask",
                                     time: store.clock.now(),
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateDueDate",
                                         dueDate,

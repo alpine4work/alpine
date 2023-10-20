@@ -1,4 +1,4 @@
-import {RefObject} from "react";
+import {Memo, RefObject} from "react";
 import {Box} from "~/client/design/box.js";
 import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
@@ -11,7 +11,10 @@ import {
 } from "~/client/tasks/task_row_shared_styles.js";
 import {addRemLengths, spacing, subtractRemLengths} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 export function TaskRowCollectionsCellOverlay({
@@ -19,11 +22,18 @@ export function TaskRowCollectionsCellOverlay({
     task,
     focusPreviousCell,
     cellRef,
+    commitActionTransaction,
 }: {
     query: TaskClientQuery;
     task: TaskModel | null;
     focusPreviousCell: () => void;
     cellRef: RefObject<HTMLDivElement>;
+    commitActionTransaction: Memo<
+        (
+            getActions: (taskId: TaskId) => Array<TaskAction>,
+            options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+        ) => void
+    >;
 }) {
     const [isChildFocusRingVisible, childFocusRingTargetRef] = useIsChildFocusRingVisible();
 
@@ -70,6 +80,7 @@ export function TaskRowCollectionsCellOverlay({
                     isTabbable={false}
                     onArrowLeftLeaveKeyDown={focusPreviousCell}
                     onReturnFocus={() => assertExists(cellRef.current).focus()}
+                    commitActionTransaction={commitActionTransaction}
                 />
             </Box>
         </Box>

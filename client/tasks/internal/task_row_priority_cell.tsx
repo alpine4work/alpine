@@ -9,7 +9,6 @@ import {
     useRef,
     useState,
 } from "react";
-import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
@@ -28,7 +27,9 @@ import {
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 export type TaskRowPriorityCellRef = {
@@ -85,6 +86,7 @@ function TaskRowPriorityCell(
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
+        commitActionTransaction,
     }: {
         store: TaskClientStore;
         task: TaskModel | null;
@@ -93,6 +95,7 @@ function TaskRowPriorityCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
+        commitActionTransaction: Memo<(getActions: (taskId: TaskId) => Array<TaskAction>) => void>;
     },
     ref: Ref<TaskRowPriorityCellRef>,
 ) {
@@ -111,8 +114,6 @@ function TaskRowPriorityCell(
     //
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
-
-    const context = useAppContext();
 
     const priority = task?.getPriority() ?? null;
 
@@ -210,13 +211,11 @@ function TaskRowPriorityCell(
                         shouldHighlightUrgent={task?.getDisplayStatus() !== "Closed"}
                         priority={priority}
                         onPriorityChange={priority => {
-                            if (!task) return task;
-
-                            store.commitTaskActionTransaction(context, [
+                            commitActionTransaction(taskId => [
                                 {
                                     type: "UpdateTask",
                                     time: store.clock.now(),
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdatePriority",
                                         priority,

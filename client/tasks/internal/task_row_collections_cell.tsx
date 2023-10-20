@@ -29,7 +29,10 @@ import {
 } from "~/client/tasks/task_row_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 
@@ -97,6 +100,7 @@ function TaskRowCollectionsCell(
         onCellKeyDownCapture,
         focusPreviousCell,
         setRowZIndex,
+        commitActionTransaction,
     }: {
         query: TaskClientQuery;
         task: TaskModel | null;
@@ -104,6 +108,12 @@ function TaskRowCollectionsCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
         setRowZIndex: Memo<(zIndex: number) => () => void>;
+        commitActionTransaction: Memo<
+            (
+                getActions: (taskId: TaskId) => Array<TaskAction>,
+                options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+            ) => void
+        >;
     },
     ref: Ref<TaskRowCollectionsCellRef>,
 ) {
@@ -244,6 +254,7 @@ function TaskRowCollectionsCell(
                     task={task}
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}
+                    commitActionTransaction={commitActionTransaction}
                 />
             )}
         </div>
