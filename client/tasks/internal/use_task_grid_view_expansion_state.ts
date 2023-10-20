@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {RefObject, useEffect, useMemo, useRef} from "react";
 import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
@@ -471,10 +472,13 @@ export function useTaskGridViewExpansionState({
         if (!stateManager) return;
 
         const broadcastChannel = new BroadcastChannel(
-            `TaskGridViewExpansionState:${browserId}:${stringifyForDeepEqualCheck({
-                filters: stateManager.filters,
-                sorts: stateManager.sorts,
-            })}`,
+            `TaskGridViewExpansionState:${browserId}:${stringifyForDeepEqualCheck<CalendarDate>(
+                {
+                    filters: stateManager.filters,
+                    sorts: stateManager.sorts,
+                },
+                date => date.toString(),
+            )}`,
         );
         broadcastChannelRef.current = broadcastChannel;
 

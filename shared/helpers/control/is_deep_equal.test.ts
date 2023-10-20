@@ -1,7 +1,14 @@
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
+import {
+    StringifiableValueForDeepEqualCheck,
+    stringifyForDeepEqualCheck,
+} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 
-function testDeepEqual(value1: unknown, value2: unknown, equal: boolean) {
+function testDeepEqual(
+    value1: StringifiableValueForDeepEqualCheck,
+    value2: StringifiableValueForDeepEqualCheck,
+    equal: boolean,
+) {
     expect(isDeepEqual(value1, value2)).toEqual(equal);
     if (equal) {
         expect(stringifyForDeepEqualCheck(value1)).toEqual(stringifyForDeepEqualCheck(value2));

@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
@@ -74,6 +75,7 @@ import {
     getTaskActionLabel,
 } from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
+import {CalendarDateSchema} from "~/shared/tasks/calendar_date_schema.js";
 import {LabelStringRegister} from "~/shared/tasks/label_string_register.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
@@ -3889,7 +3891,10 @@ function getTaskGridViewExpansionStateKey({
     filters: TaskQueryNormalizedFilters;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
 }) {
-    const queryKey = stringifyForDeepEqualCheck({filters, sorts});
+    const queryKey = stringifyForDeepEqualCheck<CalendarDate>({filters, sorts}, date =>
+        date.toString(),
+    );
+
     const queryKeyMidpointIndex = Math.floor(queryKey.length / 2);
 
     const queryKey1 = queryKey.slice(0, queryKeyMidpointIndex);

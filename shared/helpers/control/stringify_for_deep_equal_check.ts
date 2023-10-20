@@ -4,6 +4,49 @@ import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_str
 import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
+ * A value that can be passed into `stringifyForDeepEqualCheck()`. Functions
+ * and custom classes can't be passed to `stringifyForDeepEqualCheck()`. We'll
+ * throw an error if you try.
+ *
+ * Only certain primitive types are handled.
+ */
+export type StringifiableValueForDeepEqualCheck<ReplacedValue = never> =
+    | StringifiableScalarValueForDeepEqualCheck
+    | StringifiableCompositeValueForDeepEqualCheck<ReplacedValue>
+    | ReplacedValue;
+
+type StringifiableScalarValueForDeepEqualCheck =
+    | undefined
+    | null
+    | boolean
+    | number
+    | string
+    | Date;
+
+type StringifiableCompositeValueForDeepEqualCheck<ReplacedValue> =
+    | StringifiableObjectValueForDeepEqualCheck<ReplacedValue>
+    | StringifiableArrayValueForDeepEqualCheck<ReplacedValue>
+    | StringifiableMapValueForDeepEqualCheck<ReplacedValue>
+    | StringifiableSetValueForDeepEqualCheck<ReplacedValue>;
+
+type StringifiableObjectValueForDeepEqualCheck<ReplacedValue> = {
+    readonly [key: string]: StringifiableValueForDeepEqualCheck<ReplacedValue>;
+};
+
+type StringifiableArrayValueForDeepEqualCheck<ReplacedValue> = ReadonlyArray<
+    StringifiableValueForDeepEqualCheck<ReplacedValue>
+>;
+
+type StringifiableMapValueForDeepEqualCheck<ReplacedValue> = ReadonlyMap<
+    StringifiableValueForDeepEqualCheck<ReplacedValue>,
+    StringifiableValueForDeepEqualCheck<ReplacedValue>
+>;
+
+type StringifiableSetValueForDeepEqualCheck<ReplacedValue> = ReadonlySet<
+    StringifiableValueForDeepEqualCheck<ReplacedValue>
+>;
+
+/**
  * Stringifies a value such that
  * `stringifyForDeepEqualCheck(value1) === stringifyForDeepEqualCheck(value2)`
  * should always be the same as `isDeepEqual(value1, value2)`.
@@ -18,20 +61,40 @@ import {quote} from "~/shared/helpers/string/quote.js";
  * this format.
  *
  * Throws an error if we run into an unsupported type. Unlike `isDeepEqual()`
- * which will return false.
+ * which will return false. You may provide a `replacer` function to stringify
+ * these types in a custom way.
  *
  * You could use the `json-stable-stringify` library if your value is plain
  * JSON.
  */
-function actuallyStringifyForDeepEqualCheck(value: unknown): string {
-    return stringifyForDeepEqualCheck(new Set(), value);
+function actuallyStringifyForDeepEqualCheck(
+    value: StringifiableValueForDeepEqualCheck<never>,
+): string;
+function actuallyStringifyForDeepEqualCheck<ReplacedValue>(
+    value: StringifiableValueForDeepEqualCheck<ReplacedValue>,
+    replacer: (value: ReplacedValue) => StringifiableValueForDeepEqualCheck<ReplacedValue>,
+): string;
+function actuallyStringifyForDeepEqualCheck<ReplacedValue>(
+    value: StringifiableValueForDeepEqualCheck<ReplacedValue>,
+    replacer: (value: ReplacedValue) => StringifiableValueForDeepEqualCheck<ReplacedValue> = (
+        value: any,
+    ): never => {
+        const constructorName = value.constructor?.name ?? "";
+        throw new InvalidArgumentError(quote`Unrecognized object ${constructorName}`);
+    },
+): string {
+    return stringifyForDeepEqualCheck(value, replacer, new Set());
 }
 
 export {actuallyStringifyForDeepEqualCheck as stringifyForDeepEqualCheck};
 
-function stringifyForDeepEqualCheck(seen: Set<unknown>, value: unknown): string {
+function stringifyForDeepEqualCheck<ReplacedValue>(
+    value: StringifiableValueForDeepEqualCheck<ReplacedValue>,
+    replacer: (value: ReplacedValue) => StringifiableValueForDeepEqualCheck<ReplacedValue>,
+    seen: Set<unknown>,
+): string {
     if (value !== null && typeof value === "object") {
-        return stringifyObjectForDeepEqualCheck(seen, value as {readonly [key: string]: unknown});
+        return stringifyObjectForDeepEqualCheck(value, replacer, seen);
     }
 
     // JSON doesn't support `undefined`.
@@ -46,22 +109,27 @@ function stringifyForDeepEqualCheck(seen: Set<unknown>, value: unknown): string 
     return JSON.stringify(value);
 }
 
-function stringifyObjectForDeepEqualCheck(
+function stringifyObjectForDeepEqualCheck<ReplacedValue>(
+    object:
+        | StringifiableCompositeValueForDeepEqualCheck<ReplacedValue>
+        | Date
+        | (ReplacedValue & {}),
+    replacer: (value: ReplacedValue) => StringifiableValueForDeepEqualCheck<ReplacedValue>,
     seen: Set<unknown>,
-    object: {readonly [key: string]: unknown},
 ): string {
     if (seen.has(object)) throw new InvalidArgumentError("Cycle detected in stringified value");
     seen.add(object);
     try {
         // Cast to a function without type narrowing.
-        if (!(isPlainObject as (object: unknown) => boolean)(object)) {
-            if (Array.isArray(object)) return stringifyArrayForDeepEqualCheck(seen, object);
-            if (object instanceof Map) return stringifyMapForDeepEqualCheck(seen, object);
-            if (object instanceof Set) return stringifySetForDeepEqualCheck(seen, object);
-            if (object instanceof Date) return stringifyDateForDeepEqualCheck(seen, object);
+        if (!isPlainObject(object)) {
+            if (Array.isArray(object))
+                return stringifyArrayForDeepEqualCheck(object, replacer, seen);
+            if (object instanceof Map) return stringifyMapForDeepEqualCheck(object, replacer, seen);
+            if (object instanceof Set) return stringifySetForDeepEqualCheck(object, replacer, seen);
+            if (object instanceof Date) return stringifyDateForDeepEqualCheck(object);
 
-            const constructorName = (object as any).constructor?.name ?? "";
-            throw new InvalidArgumentError(quote`Unrecognized object ${constructorName}`);
+            // If we don't recognize the type, call our replacer.
+            return stringifyForDeepEqualCheck(replacer(object as any), replacer, seen);
         }
 
         const entries = [];
@@ -70,7 +138,13 @@ function stringifyObjectForDeepEqualCheck(
         const keys = Object.keys(object).sort();
 
         for (const key of keys) {
-            entries.push(`${JSON.stringify(key)}:${stringifyForDeepEqualCheck(seen, object[key])}`);
+            entries.push(
+                `${JSON.stringify(key)}:${stringifyForDeepEqualCheck(
+                    (object as any)[key],
+                    replacer,
+                    seen,
+                )}`,
+            );
         }
 
         return `{${entries.join(",")}}`;
@@ -79,29 +153,34 @@ function stringifyObjectForDeepEqualCheck(
     }
 }
 
-function stringifyArrayForDeepEqualCheck(
+function stringifyArrayForDeepEqualCheck<ReplacedValue>(
+    array: ReadonlyArray<StringifiableValueForDeepEqualCheck<ReplacedValue>>,
+    replacer: (value: ReplacedValue) => StringifiableValueForDeepEqualCheck<ReplacedValue>,
     seen: Set<unknown>,
-    array: ReadonlyArray<unknown>,
 ): string {
     const items = [];
 
     for (const item of array) {
-        items.push(stringifyForDeepEqualCheck(seen, item));
+        items.push(stringifyForDeepEqualCheck(item, replacer, seen));
     }
 
     return `[${items.join(",")}]`;
 }
 
-function stringifyMapForDeepEqualCheck(
+function stringifyMapForDeepEqualCheck<ReplacedValue>(
+    map: ReadonlyMap<
+        StringifiableValueForDeepEqualCheck<ReplacedValue>,
+        StringifiableValueForDeepEqualCheck<ReplacedValue>
+    >,
+    replacer: (value: ReplacedValue) => StringifiableValueForDeepEqualCheck<ReplacedValue>,
     seen: Set<unknown>,
-    map: ReadonlyMap<unknown, unknown>,
 ): string {
     const entries = [];
 
     for (const [key, value] of map) {
         entries.push({
-            key: stringifyForDeepEqualCheck(seen, key),
-            value: stringifyForDeepEqualCheck(seen, value),
+            key: stringifyForDeepEqualCheck(key, replacer, seen),
+            value: stringifyForDeepEqualCheck(value, replacer, seen),
         });
     }
 
@@ -111,11 +190,15 @@ function stringifyMapForDeepEqualCheck(
     return `Map(${entries.map(entry => `${entry.key}:${entry.value}`).join(",")})`;
 }
 
-function stringifySetForDeepEqualCheck(seen: Set<unknown>, set: ReadonlySet<unknown>): string {
+function stringifySetForDeepEqualCheck<ReplacedValue>(
+    set: ReadonlySet<StringifiableValueForDeepEqualCheck<ReplacedValue>>,
+    replacer: (value: ReplacedValue) => StringifiableValueForDeepEqualCheck<ReplacedValue>,
+    seen: Set<unknown>,
+): string {
     const entries = [];
 
     for (const value of set) {
-        entries.push(stringifyForDeepEqualCheck(seen, value));
+        entries.push(stringifyForDeepEqualCheck(value, replacer, seen));
     }
 
     // Set item order does not matter in `isDeepEqual()`.
@@ -124,6 +207,6 @@ function stringifySetForDeepEqualCheck(seen: Set<unknown>, set: ReadonlySet<unkn
     return `Set(${entries.join(",")})`;
 }
 
-function stringifyDateForDeepEqualCheck(seen: Set<unknown>, date: Date): string {
+function stringifyDateForDeepEqualCheck(date: Date): string {
     return `Date(${JSON.stringify(date.toISOString())})`;
 }

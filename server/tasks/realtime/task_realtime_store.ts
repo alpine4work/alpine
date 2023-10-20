@@ -1,3 +1,4 @@
+import {CalendarDate} from "@internationalized/date";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
@@ -565,7 +566,7 @@ export class TaskRealtimeStoreInternal {
     }) {
         return getOrSetDefaultMapValue(
             this._queries,
-            stringifyForDeepEqualCheck({filters, sorts}),
+            stringifyForDeepEqualCheck<CalendarDate>({filters, sorts}, date => date.toString()),
             () => new TaskRealtimeQuery(this, {filters, sorts}),
         );
     }
@@ -1470,10 +1471,10 @@ export class TaskRealtimeStoreInternal {
                     for (const query of evictQueries) {
                         assert(
                             this._queries.delete(
-                                stringifyForDeepEqualCheck({
-                                    filters: query.filters,
-                                    sorts: query.sorts,
-                                }),
+                                stringifyForDeepEqualCheck<CalendarDate>(
+                                    {filters: query.filters, sorts: query.sorts},
+                                    date => date.toString(),
+                                ),
                             ),
                         );
 
