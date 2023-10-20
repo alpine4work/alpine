@@ -29,6 +29,7 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -319,6 +320,22 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
         queries: [initialQuery],
         collectionSubscriptions: [collectionSubscription],
     } = useTaskStoreLoaderDataWithoutRetaining();
+
+    // Retain our `collectionSubscription` so it isn't destroyed while we're
+    // using it. But we don't retain `initialQuery`! Instead `initialQuery` is
+    // retained by `<TaskCollectionView>`. When the query changes we release
+    // `initialQuery` and retain a new query.
+    useEffect(() => {
+        collectionSubscription?.retain();
+
+        return () => {
+            // Release after a microtask in case the component is re-rendering which will
+            // synchronously call `retain()` again.
+            scheduleMicrotask(() => {
+                collectionSubscription?.release();
+            });
+        };
+    }, [collectionSubscription]);
 
     const [initialFilters] = useState(() => {
         const filtersString = searchParams.get("filter");
