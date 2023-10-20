@@ -25,6 +25,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {iterableFindIndex} from "~/shared/helpers/iterable/iterable_find_index.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, sprinkles} from "~/shared/styles/styles.js";
 import {TaskQueryFilterAccountOperation} from "~/shared/tasks/task_query_filter.js";
@@ -152,23 +153,28 @@ export function TaskQueryFilterAccountOperationEditor({
                 }
                 selectedKeys={accountIds}
                 onSelectedKeysChange={(newAccountIds, searchedItems) => {
-                    const addedAccountIds = new Set(newAccountIds);
-                    for (const accountId of accountIds) addedAccountIds.delete(accountId);
+                    const addedReferencedAccountIds = new Set(newAccountIds);
+                    for (const accountId of accountIds) addedReferencedAccountIds.delete(accountId);
+                    addedReferencedAccountIds.delete("CurrentAccount");
+                    addedReferencedAccountIds.delete("MissingAccount");
 
-                    const addedAccountById = new Map<AccountId, AccountModel>();
+                    const addedReferencedAccountById = new Map<AccountId, AccountModel>();
 
                     for (const item of searchedItems) {
                         if (item.type !== "Account") continue;
-                        if (!addedAccountIds.delete(item.key)) continue;
+                        if (!addedReferencedAccountIds.delete(item.key)) continue;
 
-                        addedAccountById.set(item.key, new AccountModel(item.accountData));
+                        addedReferencedAccountById.set(
+                            item.key,
+                            new AccountModel(item.accountData),
+                        );
 
                         // Once we've found all the added accounts we can exit our loop.
-                        if (addedAccountIds.size === 0) break;
+                        if (addedReferencedAccountIds.size === 0) break;
                     }
 
                     // All `addedAccountIds` should have been found in `searchedItems`.
-                    assert(addedAccountIds.size === 0);
+                    assert(addedReferencedAccountIds.size === 0);
 
                     onOperationChange(
                         {
@@ -186,7 +192,7 @@ export function TaskQueryFilterAccountOperationEditor({
                         {
                             mergeFilterReferences: {
                                 ...emptyTaskQueryFilterReferences,
-                                accountById: addedAccountById,
+                                accountById: addedReferencedAccountById,
                             },
                         },
                     );
@@ -343,7 +349,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                         node: (
                             <>
                                 <AccountAvatar size="5" account={accountData} />
-                                <Box flexGrow="1" fontStyle="truncate">
+                                <Box flexGrow="1" paddingY="0.5" fontStyle="truncate">
                                     {accountData.name}
                                 </Box>
                             </>
@@ -356,8 +362,8 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                     textValue: "Me (dynamic)",
                     node: (
                         <>
-                            <TaskCurrentAccountAvatar />{" "}
-                            <span>
+                            <TaskCurrentAccountAvatar />
+                            <Box flexGrow="1" paddingY="0.5" fontStyle="truncate">
                                 Me{" "}
                                 <Tooltip
                                     content="Whoever you share this view with will see their tasks instead of yours"
@@ -367,7 +373,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                                         (dynamic*)
                                     </span>
                                 </Tooltip>
-                            </span>
+                            </Box>
                         </>
                     ),
                 });
@@ -379,8 +385,15 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                         textValue: "Nobody",
                         node: (
                             <>
-                                <TaskMissingAccountAvatar />{" "}
-                                <span className={sprinkles({color: "grey-60"})}>Nobody</span>
+                                <TaskMissingAccountAvatar />
+                                <Box
+                                    flexGrow="1"
+                                    paddingY="0.5"
+                                    fontStyle="truncate"
+                                    color="grey-60"
+                                >
+                                    Nobody
+                                </Box>
                             </>
                         ),
                     });
@@ -417,7 +430,7 @@ function useTaskQueryFilterAccountOperationEditorSearchedItems({
                         );
                     }
 
-                    return 0;
+                    return defaultCompareStrings(item1.textValue, item2.textValue);
                 });
 
                 return allItems;
