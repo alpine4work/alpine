@@ -23,7 +23,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {inputPlaceholderStyles, tasksStyles} from "~/shared/styles/styles.js";
@@ -219,7 +219,11 @@ export function TaskQueryView({
             return {
                 minHeight: "2.75rem",
                 node: (
-                    <Box paddingX={taskRowViewPaddingX} paddingTop="2" paddingBottom="3">
+                    <Box
+                        paddingX={taskRowViewPaddingX}
+                        paddingTop="2"
+                        style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
+                    >
                         <TaskQueryViewCustomizationBar
                             ref={customizationBarRef}
                             store={store}

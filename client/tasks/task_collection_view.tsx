@@ -23,6 +23,7 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
@@ -298,10 +299,10 @@ export function TaskCollectionView({
         withColumnHeaderExtraScrollSpace: "1.5",
         columnHeaderControls: useMemo(() => {
             return {
-                minHeight: "2.75rem",
+                minHeight: "2.875rem",
                 node: (
                     <Box display="flex" paddingX={taskRowViewPaddingX}>
-                        <Box paddingTop="1.5" paddingBottom="2.5" maxWidth="1/2">
+                        <Box paddingTop="1.5" paddingBottom="3" maxWidth="1/2">
                             <TaskCollectionViewHeader
                                 store={store}
                                 collectionId={collectionId}
@@ -309,7 +310,12 @@ export function TaskCollectionView({
                                 createCollection={createCollection}
                             />
                         </Box>
-                        <Box flexGrow="1" paddingLeft="5" paddingTop="2" paddingBottom="3">
+                        <Box
+                            flexGrow="1"
+                            paddingLeft="5"
+                            paddingTop="2"
+                            style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
+                        >
                             <Box borderLeft="grey-5" paddingLeft="5">
                                 <TaskQueryViewCustomizationBar
                                     store={store}
