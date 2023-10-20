@@ -227,7 +227,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
                 // and it was garbage collected.
                 const collectionEntryStore = assertExists(
                     this._getStore().getCollectionEntryStoreIfExists(newCollectionId),
-                    "Referenced task is not present in store",
+                    "Referenced collection is not present in store",
                 );
 
                 this._referencedCollectionEntryStoreById.set(newCollectionId, {
@@ -363,6 +363,7 @@ export abstract class TaskClientTaskReferencesSubscriptionBase {
             // collected.
             const taskEntryStore = assertExists(
                 this._getStore().getTaskEntryStoreIfExists(newParentTaskId),
+                "Referenced task is not present in store",
             );
 
             this._referencedTaskEntryStoreById.set(newParentTaskId, {
