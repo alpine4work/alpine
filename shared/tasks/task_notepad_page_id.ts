@@ -1,3 +1,4 @@
+import {Clock} from "~/shared/helpers/clock/clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {
@@ -37,8 +38,8 @@ export type TaskNotepadPageId = number & {readonly _TaskNotepadPageId: never};
 /**
  * Generates a new `TaskNotepadPageId` as the current time.
  */
-export function generateTaskNotepadPageId(): TaskNotepadPageId {
-    return Date.now() as TaskNotepadPageId;
+export function generateTaskNotepadPageId(clock: Clock): TaskNotepadPageId {
+    return Math.floor(clock.now()) as TaskNotepadPageId;
 }
 
 export const TaskNotepadPageIdSchema = Schema.integer as Schema<any> as Schema<TaskNotepadPageId>;

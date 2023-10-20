@@ -1335,7 +1335,7 @@ export class TaskClientStoreInternal {
                     continue;
                 }
                 case "UpdateNotepadPage": {
-                    // NOCOMMIT: I think this needs an implementation?
+                    // We don't maintain an account's notepad page list in realtime.
                     break;
                 }
                 case "UpdateAccountName": {
@@ -2341,7 +2341,7 @@ export class TaskClientStoreInternal {
                     continue;
                 }
                 case "UpdateNotepadPage": {
-                    // NOCOMMIT: I think something needs to be done here?
+                    // We don't maintain an account's notepad page list in realtime.
                     continue;
                 }
                 case "UpdateAccountName": {
@@ -2770,7 +2770,7 @@ export class TaskClientStoreInternal {
                     continue;
                 }
                 case "UpdateNotepadPage": {
-                    // NOCOMMIT: I think something needs to be done here?
+                    // We don't maintain an account's notepad page list in realtime.
                     continue;
                 }
                 case "UpdateAccountName": {
@@ -3235,7 +3235,7 @@ export class TaskClientStoreInternal {
                     continue;
                 }
                 case "UpdateNotepadPage": {
-                    // NOCOMMIT: I think something needs to be done here?
+                    // We don't maintain an account's notepad page list in realtime.
                     continue;
                 }
                 case "UpdateAccountName": {

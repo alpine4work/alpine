@@ -25,7 +25,7 @@ import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalize
 export const commitTaskActionTransaction = defineRpc({
     name: "commitTaskActionTransaction",
     input: {
-        clientId: Schema.id<TaskRealtimeClientId>(),
+        clientId: Schema.id<TaskRealtimeClientId>().nullable(),
         spaceId: Schema.id<SpaceId>(),
         actions: Schema.array(TaskActionSchema),
     },

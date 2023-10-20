@@ -42,6 +42,7 @@ import {
     compareHybridLogicalTimes,
     maxHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
@@ -629,7 +630,7 @@ export function commitTaskActionTransaction(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     actions: ReadonlyArray<TaskAction>,
-    options: {clientId?: TaskRealtimeClientId} = {},
+    options: {clientId?: TaskRealtimeClientId | null} = {},
 ): Promise<{extraActions: ReadonlyArray<TaskAction>}> {
     return context.tracer.withSpan("Commit task action transaction", async (context, span) => {
         span.addData({
@@ -811,7 +812,7 @@ class TaskActionTransactionCommitState {
         context: ServerSessionActionContext,
         spaceId: SpaceId,
         actions: ReadonlyArray<TaskAction>,
-        {clientId}: {clientId?: TaskRealtimeClientId} = {},
+        {clientId = null}: {clientId?: TaskRealtimeClientId | null} = {},
     ): Promise<{
         actionTransactionItem: TaskActionTransactionItem;
         extraActions: ReadonlyArray<TaskAction>;
@@ -966,7 +967,7 @@ class TaskActionTransactionCommitState {
                 actionTransactionId: generateId<TaskActionTransactionId>(),
                 actions: [...actions, ...extraActions],
                 wasProcessed: false,
-                clientId: clientId ?? null,
+                clientId,
             };
 
             if (transactionEntries.length > 0) {
@@ -3679,53 +3680,40 @@ function convertTaskCollectionIndexDocToItem(
 
 /**
  * Get the account's task notepad pages for the space. We will always return at
- * least one notepad page.
+ * least one notepad page. If the user hasn't create a notepad page yet then
+ * we'll create their first page.
  */
 export function getTaskNotepadPageIds(
-    context: ServerSessionActionContext,
+    context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
 ): Promise<TaskNotepadPageIdCompressedSet> {
     return context.dynamo.retryTransaction(async context => {
-        let notepadItem = await TaskTable.getItemIfExists(context, {
+        const notepadItem = await TaskTable.getItemIfExists(context, {
             partitionType: "Account",
             sortRangeType: "Notepad",
             accountId: context.actor.getAccountId(),
             spaceId,
         });
 
-        if (!notepadItem) {
-            notepadItem = {
-                partitionType: "Account",
-                sortRangeType: "Notepad",
-                accountId: context.actor.getAccountId(),
-                spaceId,
-                // Generate the notepad with an initial page.
-                pageIds: TaskNotepadPageIdCompressedSet.fromIds(
-                    new Set([generateTaskNotepadPageId()]),
-                ),
-            };
+        let notepadPageIds = notepadItem?.pageIds;
 
-            await TaskTable.createItem(context, notepadItem, {
-                // By default `createItem()` condition check errors are not retried. In this
-                // case it's ok if a concurrent process creates a notepad item. We want to
-                // retry and load that item.
-                isConditionCheckErrorRetriable: true,
-            });
+        if (!notepadPageIds || notepadPageIds.isEmpty()) {
+            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
+
+            await commitTaskActionTransaction(context, spaceId, [
+                {
+                    type: "UpdateNotepadPage",
+                    time: [unsynchronizedSystemClock.now(), 0],
+                    accountId: context.actor.getAccountId(),
+                    notepadPageId,
+                    notepadPageAction: {type: "Create"},
+                },
+            ]);
+
+            notepadPageIds = TaskNotepadPageIdCompressedSet.fromIds(new Set([notepadPageId]));
         }
 
-        if (notepadItem.pageIds.isEmpty()) {
-            notepadItem = {
-                ...notepadItem,
-                // Add an initial page to the notepad item.
-                pageIds: TaskNotepadPageIdCompressedSet.fromIds(
-                    new Set([generateTaskNotepadPageId()]),
-                ),
-            };
-
-            await TaskTable.directlyUpdateItem(context, notepadItem);
-        }
-
-        return notepadItem.pageIds;
+        return notepadPageIds;
     });
 }
 

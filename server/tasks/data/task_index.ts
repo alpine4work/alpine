@@ -715,6 +715,7 @@ async function actuallyIndexTaskAction(
         }
         case "UpdateNotepadPage": {
             cast<"Create">(action.notepadPageAction.type);
+            // We don't index any information about notepad pages.
             return;
         }
         default:

@@ -900,6 +900,11 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                 <Box flexGrow="1" fontStyle="truncate">
                     {action.label}
                 </Box>
+                {pendingState.shouldShowPendingSpinner && (
+                    <Box flexShrink="0">
+                        <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
+                    </Box>
+                )}
                 {action.keyboardShortcutHint && (
                     <Box flexShrink="0">
                         <Box color={isVisuallyDisabled ? "grey-30" : "grey-50"} fontSize="50">
@@ -927,11 +932,6 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     </Box>
                 )}
                 {action.iconPlacement === "end" && icon}
-                {pendingState.shouldShowPendingSpinner && (
-                    <Box flexShrink="0">
-                        <SpinnerGap className={spinAnimationClassName} size={spacing["4"]} />
-                    </Box>
-                )}
             </Box>
         </FocusRing>
     );

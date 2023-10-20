@@ -1,24 +1,37 @@
 import {CaretDown, Plus} from "phosphor-react";
 import {useCallback} from "react";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {usePrettyAbsoluteDateFormatter} from "~/client/design/pretty_absolute_date.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {LocalTasksAction, LocalTasksState} from "~/client/tasks/demo_2/local_tasks_state.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js";
+import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 
 export function TaskNotepadViewPaginator({
-    state,
-    dispatch,
+    allNotepadPageIds,
     notepadPageId,
-    onNotepadPageIdChange: _onNotepadPageIdChange,
+    onNotepadPageIdCreate,
+    onNotepadPageIdSelect,
 }: {
-    state: LocalTasksState;
-    dispatch: (action: LocalTasksAction) => void;
-    notepadPageId: number;
-    onNotepadPageIdChange: (notepadPageId: number) => void;
+    allNotepadPageIds: Lazy<Iterable<TaskNotepadPageId>>;
+    notepadPageId: TaskNotepadPageId;
+    onNotepadPageIdCreate: (notepadPageId: TaskNotepadPageId) => Promise<void>;
+    onNotepadPageIdSelect: (notepadPageId: TaskNotepadPageId) => Promise<void>;
 }) {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    onNotepadPageIdSelect = useEvent(onNotepadPageIdSelect);
+
+    const context = useAppContext();
+    const {space, currentAccount} = useSpaceContext();
+    const store = useTaskClientStore();
+
     const formatDateWithoutTime = usePrettyAbsoluteDateFormatter({
         shouldIncludeWeekday: true,
         shouldExcludeTime: true,
@@ -33,8 +46,6 @@ export function TaskNotepadViewPaginator({
         shouldIncludeSeconds: true,
     });
 
-    const onNotepadPageIdChange = useEvent(_onNotepadPageIdChange);
-
     return (
         <Box display="flex" alignItems="center" gap="3">
             <Button
@@ -42,14 +53,32 @@ export function TaskNotepadViewPaginator({
                 icon={<Plus />}
                 height="6"
                 paddingX="2"
-                onPress={() => {
-                    const newNotepadPageId = Math.max(
-                        (state.database.getLatestNotepadPageId() ?? -1) + 1,
-                        Math.floor(Date.now() / 1000),
-                    );
-                    dispatch({type: "CreateNotepadPage", notepadPageId: newNotepadPageId});
+                pressErrorTitle="Couldn’t create notepad page"
+                onPress={async () => {
+                    const synchronizedSystemClock = await getSynchronizedSystemClock();
 
-                    onNotepadPageIdChange(newNotepadPageId);
+                    const newNotepadPageId = generateTaskNotepadPageId(synchronizedSystemClock);
+
+                    // You may notice that we're directly calling `commitTaskActionTransaction()`
+                    // instead of calling `store.commitTaskActionTransaction()`! This is because we
+                    // don't try keeping task notepad pages up-to-date in realtime. So we'd rather
+                    // do the pending/error state here instead of using the `TaskClientStore`
+                    // optimistic update/rollback machinery.
+                    await commitTaskActionTransaction(context, {
+                        clientId: null,
+                        spaceId: space.id,
+                        actions: [
+                            {
+                                type: "UpdateNotepadPage",
+                                time: store.clock.now(),
+                                accountId: currentAccount.id,
+                                notepadPageId: newNotepadPageId,
+                                notepadPageAction: {type: "Create"},
+                            },
+                        ],
+                    });
+
+                    await onNotepadPageIdCreate(newNotepadPageId);
                 }}
             >
                 Fresh page
@@ -64,30 +93,18 @@ export function TaskNotepadViewPaginator({
                             iterateWithAdjacents(
                                 mapIterable(
                                     iterateWithAdjacents(
-                                        mapIterable(
-                                            state.database.getNotepadPageIds(),
-                                            notepadPageId => {
-                                                const date = new Date(notepadPageId * 1000);
-                                                const dateString = formatDateWithoutTime(date);
-                                                return {id: notepadPageId, date, dateString};
-                                            },
-                                        ),
+                                        mapIterable(allNotepadPageIds.get(), notepadPageId => {
+                                            const date = new Date(notepadPageId);
+                                            const dateString = formatDateWithoutTime(date);
+                                            return {id: notepadPageId, date, dateString};
+                                        }),
                                     ),
                                     // If page was in the same day as adjacent pages then add minutes to the page
                                     // date string.
                                     ([previousNotepadPage, notepadPage, nextNotepadPage]) => {
                                         if (
                                             notepadPage.dateString ===
-                                            previousNotepadPage?.dateString
-                                        ) {
-                                            return {
-                                                ...notepadPage,
-                                                dateString: formatDateWithTimeWithoutSeconds(
-                                                    notepadPage.date,
-                                                ),
-                                            };
-                                        }
-                                        if (
+                                                previousNotepadPage?.dateString ||
                                             notepadPage.dateString === nextNotepadPage?.dateString
                                         ) {
                                             return {
@@ -104,13 +121,10 @@ export function TaskNotepadViewPaginator({
                             // If page was in the same minute as adjacent pages then add seconds to the page
                             // date string.
                             ([previousNotepadPage, notepadPage, nextNotepadPage]) => {
-                                if (notepadPage.dateString === previousNotepadPage?.dateString) {
-                                    return {
-                                        ...notepadPage,
-                                        dateString: formatDateWithTimeWithSeconds(notepadPage.date),
-                                    };
-                                }
-                                if (notepadPage.dateString === nextNotepadPage?.dateString) {
+                                if (
+                                    notepadPage.dateString === previousNotepadPage?.dateString ||
+                                    notepadPage.dateString === nextNotepadPage?.dateString
+                                ) {
                                     return {
                                         ...notepadPage,
                                         dateString: formatDateWithTimeWithSeconds(notepadPage.date),
@@ -122,16 +136,19 @@ export function TaskNotepadViewPaginator({
                         (notepadPage): MenuAction => ({
                             label: notepadPage.dateString,
                             isSelected: notepadPageId === notepadPage.id,
-                            onPress: () => onNotepadPageIdChange(notepadPage.id),
+                            pressErrorTitle: "Couldn’t open notepad page",
+                            onPress: async () => {
+                                await onNotepadPageIdSelect(notepadPage.id);
+                            },
                         }),
                     );
                 }, [
+                    allNotepadPageIds,
                     formatDateWithTimeWithSeconds,
                     formatDateWithTimeWithoutSeconds,
                     formatDateWithoutTime,
                     notepadPageId,
-                    onNotepadPageIdChange,
-                    state.database,
+                    onNotepadPageIdSelect,
                 ])}
             >
                 <Button

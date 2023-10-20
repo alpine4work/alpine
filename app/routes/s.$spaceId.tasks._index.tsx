@@ -13,6 +13,7 @@ import {
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskNotepadPageIds} from "~/server/tasks/data/task_table.js";
+import {NotFoundError} from "~/shared/error/error.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -22,6 +23,7 @@ import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
+    TaskNotepadPageId,
     TaskNotepadPageIdCompressedSetSchema,
     TaskNotepadPageIdSchema,
 } from "~/shared/tasks/task_notepad_page_id.js";
@@ -40,23 +42,39 @@ const LoaderSchema = Schema.object({
 
 export const meta = createMetaFunction(LoaderSchema, () => [{title: "Notepad"}]);
 
-export async function loader({params, context: _context}: LoaderArgs) {
+export async function loader({request, params, context: _context}: LoaderArgs) {
     const context = (await _context.actor.authenticate()).actor.authorizeSession();
 
+    const url = new URL(request.url);
     const spaceId = Schema.id<SpaceId>().deserialize(params.spaceId ?? null);
+
+    const notepadPageIdParam = url.searchParams.get("page");
 
     const allNotepadPageIds = await getTaskNotepadPageIds(context, spaceId);
 
     const allNotepadPageUncompressedIds = allNotepadPageIds.getIds();
-    const firstNotepadPageStep = allNotepadPageUncompressedIds[Symbol.iterator]().next();
-    assert(!firstNotepadPageStep.done);
 
-    const notepadPageId = reduceIterable(
-        allNotepadPageUncompressedIds,
-        (notepadPageId1, notepadPageId2) =>
-            notepadPageId2 > notepadPageId1 ? notepadPageId2 : notepadPageId1,
-        firstNotepadPageStep.value,
-    );
+    let notepadPageId: TaskNotepadPageId;
+
+    if (notepadPageIdParam) {
+        const notepadPageIdInt = parseInt(notepadPageIdParam, 10) as TaskNotepadPageId;
+
+        if (!allNotepadPageUncompressedIds.has(notepadPageIdInt)) {
+            throw new NotFoundError("Task notepad page not found");
+        }
+
+        notepadPageId = notepadPageIdInt;
+    } else {
+        const firstNotepadPageStep = allNotepadPageUncompressedIds[Symbol.iterator]().next();
+        assert(!firstNotepadPageStep.done);
+
+        notepadPageId = reduceIterable(
+            allNotepadPageUncompressedIds,
+            (notepadPageId1, notepadPageId2) =>
+                notepadPageId2 > notepadPageId1 ? notepadPageId2 : notepadPageId1,
+            firstNotepadPageStep.value,
+        );
+    }
 
     const assigneeActiveQuery: {
         limit: number;
@@ -192,6 +210,7 @@ export default function TasksRoute() {
     const store = useTaskClientStore();
 
     const {
+        allNotepadPageIds,
         initialNotepadPageId,
         initialNotepadPageGridViewExpansionState,
         initialBottomGhostTaskId,
@@ -228,6 +247,16 @@ export default function TasksRoute() {
                 initialBottomGhostTaskId,
             }}
             initialNotepadPageId={initialNotepadPageId}
+            allNotepadPageIds={allNotepadPageIds}
+            onNotepadPageIdChange={notepadPageId => {
+                const url = new URL(window.location.href);
+
+                url.searchParams.set("page", String(notepadPageId));
+
+                // Silently update the URL without telling Remix so our component doesn't
+                // re-render unnecessarily.
+                window.history.replaceState(null, "", url);
+            }}
         />
     );
 }

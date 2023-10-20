@@ -192,6 +192,8 @@ export function prepareTaskActionForClient(
             }
         }
         case "UpdateNotepadPage": {
+            if (action.accountId !== accountId) return null;
+
             cast<"Create">(action.notepadPageAction.type);
             return action;
         }

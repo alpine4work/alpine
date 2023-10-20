@@ -1,4 +1,4 @@
-import {useCallback, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
@@ -7,6 +7,7 @@ import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_view_paginator.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
@@ -15,17 +16,28 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {emptyArray} from "~/shared/helpers/array/empty_array.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {cast} from "~/shared/helpers/control/cast.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {tasksStyles} from "~/shared/styles/styles.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
-import {TaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
+import {
+    TaskNotepadPageId,
+    TaskNotepadPageIdCompressedSet,
+} from "~/shared/tasks/task_notepad_page_id.js";
 
 export function TaskNotepadView({
     store,
     initialQuery,
     initialNotepadPageId,
+    allNotepadPageIds: allNotepadPageIdsWithoutNewNotepadPageIds,
+    onNotepadPageIdChange,
 }: {
     store: TaskClientStore;
     initialQuery: {
@@ -34,13 +46,41 @@ export function TaskNotepadView({
         initialBottomGhostTaskId: TaskId;
     };
     initialNotepadPageId: TaskNotepadPageId;
+    allNotepadPageIds: TaskNotepadPageIdCompressedSet;
+    onNotepadPageIdChange: (notepadPageId: TaskNotepadPageId) => void;
 }) {
     const {currentAccount} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
-    const [notepadPageId, setNotepadPageId] = useState(initialNotepadPageId);
+    const [notepadPageState, setNotepadPageState] = useState({
+        notepadPageId: initialNotepadPageId,
+        shouldImmediatelyInitializeEmptyQueryRef: {current: false},
+        promiseResolver: cast<PromiseResolver<void> | null>(null),
+    });
+
+    const lastNotepadPageIdRef = useRef(notepadPageState.notepadPageId);
+    useEffect(() => {
+        if (lastNotepadPageIdRef.current !== notepadPageState.notepadPageId) {
+            onNotepadPageIdChange(notepadPageState.notepadPageId);
+            lastNotepadPageIdRef.current = notepadPageState.notepadPageId;
+        }
+    }, [notepadPageState.notepadPageId, onNotepadPageIdChange]);
+
+    const [newNotepadPageIds, setNewNotepadPageIds] =
+        useState<ReadonlyArray<TaskNotepadPageId>>(emptyArray);
+
+    const allNotepadPageIds = useMemo(
+        () =>
+            new Lazy(() =>
+                concatIterables(
+                    allNotepadPageIdsWithoutNewNotepadPageIds.getIds(),
+                    newNotepadPageIds,
+                ),
+            ),
+        [allNotepadPageIdsWithoutNewNotepadPageIds, newNotepadPageIds],
+    );
 
     const queryState = useTaskQueryState({
         store,
@@ -54,17 +94,17 @@ export function TaskNotepadView({
                 },
                 notepadPageFilter: {
                     accountId: currentAccount.id,
-                    notepadPageId,
+                    notepadPageId: notepadPageState.notepadPageId,
                 },
             }),
-            [currentAccount.id, notepadPageId],
+            [currentAccount.id, notepadPageState.notepadPageId],
         ),
         sorts: useMemo(
             () => [
                 {
                     type: "NotepadPagePosition",
                     accountId: currentAccount.id,
-                    notepadPageId,
+                    notepadPageId: notepadPageState.notepadPageId,
                     direction: "Ascending",
                     missing: "Last",
                 },
@@ -74,9 +114,41 @@ export function TaskNotepadView({
                     missing: "Last",
                 },
             ],
-            [currentAccount.id, notepadPageId],
+            [currentAccount.id, notepadPageState.notepadPageId],
         ),
     });
+
+    // When we create a new notepad page, immediately initialize the new query to
+    // an empty query without waiting for the server. If we successfully created a
+    // notepad page then it shouldn't have any tasks yet.
+    useEffect(() => {
+        if (
+            queryState.pendingQuery?.filters.notepadPageFilter?.notepadPageId ===
+                notepadPageState.notepadPageId &&
+            notepadPageState.shouldImmediatelyInitializeEmptyQueryRef.current
+        ) {
+            notepadPageState.shouldImmediatelyInitializeEmptyQueryRef.current = false;
+
+            store.loadTasksIntoQuery(queryState.pendingQuery, {
+                limit: 0,
+                loadedState: {type: "Full"},
+                previouslyBackfilledTaskIds: [],
+            });
+        }
+    }, [notepadPageState, queryState.pendingQuery, store]);
+
+    // When the active query matches our `notepadPageId` in `notepadPageState`
+    // resolve the optional promise we created for the `notepadPageState`.
+    useEffect(() => {
+        if (!notepadPageState.promiseResolver) return;
+
+        if (
+            queryState.activeQuery.query?.query.filters.notepadPageFilter?.notepadPageId ===
+            notepadPageState.notepadPageId
+        ) {
+            notepadPageState.promiseResolver.resolve();
+        }
+    }, [notepadPageState, queryState]);
 
     const shiftRenderedRangeForGridView = useCallback(
         (range: {startIndex: number; endIndex: number} | null) => {
@@ -172,7 +244,7 @@ export function TaskNotepadView({
                     taskAction: {
                         type: "UpdateNotepadPagePosition",
                         accountId: currentAccount.id,
-                        notepadPageId,
+                        notepadPageId: notepadPageState.notepadPageId,
                         position: getNewTaskPositionForQuerySortedByPosition(time, query, position),
                     },
                 },
@@ -186,12 +258,68 @@ export function TaskNotepadView({
                 taskAction: {
                     type: "UpdateNotepadPagePosition",
                     accountId: currentAccount.id,
-                    notepadPageId,
+                    notepadPageId: notepadPageState.notepadPageId,
                     position: null,
                 },
             },
         ],
         withColumnHeaderBorderTop: true,
+        columnHeaderControls: useMemo(() => {
+            return {
+                minHeight: "2.875rem",
+                node: (
+                    <Box
+                        paddingTop="2"
+                        style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
+                    >
+                        <Box
+                            paddingX="5"
+                            height="6"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="space-between"
+                        >
+                            <Box fontSize="200" fontStyle="semi-bold">
+                                Notepad
+                            </Box>
+                            <TaskNotepadViewPaginator
+                                allNotepadPageIds={allNotepadPageIds}
+                                notepadPageId={notepadPageState.notepadPageId}
+                                onNotepadPageIdCreate={notepadPageId => {
+                                    const promiseResolver = createPromiseResolver();
+
+                                    setNewNotepadPageIds(newNotepadPageIds => [
+                                        ...newNotepadPageIds,
+                                        notepadPageId,
+                                    ]);
+
+                                    setNotepadPageState({
+                                        notepadPageId,
+                                        // After creating a new notepad page, immediately initialize our client query
+                                        // to an empty query so we don't have to wait for it to load.
+                                        shouldImmediatelyInitializeEmptyQueryRef: {current: true},
+                                        promiseResolver,
+                                    });
+
+                                    return promiseResolver.promise;
+                                }}
+                                onNotepadPageIdSelect={notepadPageId => {
+                                    const promiseResolver = createPromiseResolver();
+
+                                    setNotepadPageState({
+                                        notepadPageId,
+                                        shouldImmediatelyInitializeEmptyQueryRef: {current: false},
+                                        promiseResolver,
+                                    });
+
+                                    return promiseResolver.promise;
+                                }}
+                            />
+                        </Box>
+                    </Box>
+                ),
+            };
+        }, [allNotepadPageIds, notepadPageState.notepadPageId]),
     });
 
     return (
