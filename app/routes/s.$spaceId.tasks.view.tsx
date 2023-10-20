@@ -1,4 +1,4 @@
-import {useState} from "react";
+import {useMemo, useState} from "react";
 import {useLocation} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -39,8 +39,8 @@ import {
 } from "~/shared/tasks/task_query_sort.js";
 
 const LoaderSchema = Schema.object({
-    gridViewExpansionState: TaskGridViewExpansionStateSchema,
     filterReferences: TaskQueryFilterReferencesSchema,
+    initialGridViewExpansionState: TaskGridViewExpansionStateSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
@@ -103,7 +103,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
         LoaderSchema,
         {
             filterReferences,
-            gridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
+            initialGridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
             initialBottomGhostTaskId: generateId<TaskId>(),
         },
         {
@@ -155,7 +155,7 @@ export default function TaskQueryRoute() {
 
 function TaskQueryRouteInner() {
     const [searchParams] = useSearchParams();
-    const {gridViewExpansionState: initialGridViewExpansionState, initialBottomGhostTaskId} =
+    const {initialGridViewExpansionState, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
     const {
         queries: [initialQuery],
@@ -177,9 +177,15 @@ function TaskQueryRouteInner() {
 
     return (
         <TaskQueryView
-            initialQuery={initialQuery ?? null}
-            initialGridViewExpansionState={initialGridViewExpansionState}
-            initialBottomGhostTaskId={initialBottomGhostTaskId}
+            initialQuery={
+                initialQuery
+                    ? {
+                          query: initialQuery,
+                          initialGridViewExpansionState,
+                          initialBottomGhostTaskId,
+                      }
+                    : null
+            }
             initialFilters={initialFilters}
             initialFilterReferences={initialFilterReferences}
             initialSorts={initialSorts}

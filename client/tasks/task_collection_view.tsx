@@ -4,7 +4,7 @@ import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskCollectionSubscriptionAccessStore} from "~/client/tasks/internal/get_task_subscription_access_store.js";
 import {TaskCollectionViewHeader} from "~/client/tasks/internal/task_collection_view_header.js";
 import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
@@ -50,8 +50,6 @@ export function TaskCollectionView({
     collectionId,
     collectionSubscription,
     initialQuery,
-    initialGridViewExpansionState,
-    initialBottomGhostTaskId,
     initialFilters,
     initialFilterReferences,
     onFiltersChange,
@@ -64,9 +62,11 @@ export function TaskCollectionView({
     // If `collectionSubscription` is null, that means we are creating a
     // new collection.
     collectionSubscription: TaskClientCollectionSubscription | null;
-    initialQuery: TaskClientQuery | null;
-    initialGridViewExpansionState: TaskGridViewExpansionState;
-    initialBottomGhostTaskId: TaskId;
+    initialQuery: {
+        query: TaskClientQuery;
+        initialGridViewExpansionState: TaskGridViewExpansionState;
+        initialBottomGhostTaskId: TaskId;
+    } | null;
     initialFilters: ReadonlyArray<TaskQueryFilter>;
     initialFilterReferences: TaskQueryFilterReferences;
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
@@ -189,8 +189,6 @@ export function TaskCollectionView({
     const queryState = useTaskQueryState({
         store,
         initialQuery,
-        initialGridViewExpansionState,
-        initialBottomGhostTaskId,
         filters:
             normalizedFiltersResult?.type === "Possible"
                 ? normalizedFiltersResult.normalizedFilters
@@ -222,14 +220,12 @@ export function TaskCollectionView({
             }),
             [isReadOnly],
         ),
-        query: queryState.activeQuery.query,
-        initialExpansionState: queryState.initialGridViewExpansionState,
-        initialBottomGhostTaskId: queryState.initialBottomGhostTaskId,
         viewRef,
+        query: queryState.activeQuery.query,
         getMoveTaskToQueryActions: (taskId, position): Array<TaskAction> => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 
-            const query = queryState.activeQuery.query;
+            const query = queryState.activeQuery.query.query;
 
             // If the query is auto-sorted we disable features that allow moving tasks into
             // the query. Like hitting shift-tab to dedent or hitting enter to create a new
@@ -279,7 +275,7 @@ export function TaskCollectionView({
         getMaybeRemoveTaskFromQueryActions: taskId => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 
-            const query = queryState.activeQuery.query;
+            const query = queryState.activeQuery.query.query;
 
             // If the query is auto-sorted we disable features that remove tasks from the
             // grid view. Like tab to indent or drag and drop. Neither makes sense when you

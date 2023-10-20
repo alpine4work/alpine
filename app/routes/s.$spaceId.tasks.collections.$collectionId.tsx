@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/app/internal/use_update_meta_title.js";
@@ -70,10 +70,10 @@ const LoaderSchema = Schema.object({
         Exists: Schema.object({
             type: Schema.value("Exists"),
             initialMetaTitleText: Schema.string,
-            gridViewExpansionState: TaskGridViewExpansionStateSchema,
+            initialGridViewExpansionState: TaskGridViewExpansionStateSchema,
+            initialBottomGhostTaskId: Schema.id<TaskId>(),
         }),
     }),
-    initialBottomGhostTaskId: Schema.id<TaskId>(),
     filterReferences: TaskQueryFilterReferencesSchema,
 });
 
@@ -102,7 +102,6 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
                 collectionState: {
                     type: "NotExists",
                 },
-                initialBottomGhostTaskId: generateId<TaskId>(),
                 filterReferences: emptyTaskQueryFilterReferences,
             },
             {
@@ -246,9 +245,9 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
             collectionState: {
                 type: "Exists",
                 initialMetaTitleText: backfillCollection?.collection.getName() ?? "",
-                gridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
+                initialGridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
+                initialBottomGhostTaskId: generateId<TaskId>(),
             },
-            initialBottomGhostTaskId: generateId<TaskId>(),
             filterReferences,
         },
         {
@@ -311,11 +310,8 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
 
     const store = useTaskClientStore();
 
-    const {
-        collectionState,
-        initialBottomGhostTaskId,
-        filterReferences: initialFilterReferences,
-    } = useLoaderDataWithSchema(LoaderSchema);
+    const {collectionState, filterReferences: initialFilterReferences} =
+        useLoaderDataWithSchema(LoaderSchema);
     const {
         queries: [initialQuery],
         collectionSubscriptions: [collectionSubscription],
@@ -323,8 +319,8 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
 
     // Retain our `collectionSubscription` so it isn't destroyed while we're
     // using it. But we don't retain `initialQuery`! Instead `initialQuery` is
-    // retained by `<TaskCollectionView>`. When the query changes we release
-    // `initialQuery` and retain a new query.
+    // retained by `<TaskCollectionView>`. That way when the query changes we can
+    // release the query and retain a new one.
     useEffect(() => {
         collectionSubscription?.retain();
 
@@ -392,11 +388,16 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
             store={store}
             collectionId={collectionId}
             collectionSubscription={collectionSubscription ?? null}
-            initialQuery={initialQuery ?? null}
-            initialGridViewExpansionState={
-                collectionState.type === "Exists" ? collectionState.gridViewExpansionState : null
+            initialQuery={
+                initialQuery && collectionState.type === "Exists"
+                    ? {
+                          query: initialQuery,
+                          initialGridViewExpansionState:
+                              collectionState.initialGridViewExpansionState,
+                          initialBottomGhostTaskId: collectionState.initialBottomGhostTaskId,
+                      }
+                    : null
             }
-            initialBottomGhostTaskId={initialBottomGhostTaskId}
             initialFilters={initialFilters}
             initialFilterReferences={initialFilterReferences}
             initialSorts={initialSorts}

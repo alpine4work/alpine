@@ -24,7 +24,7 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {getTaskSubscriptionAccessStore} from "~/client/tasks/internal/get_task_subscription_access_store.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
@@ -81,6 +81,55 @@ export function TaskDetailView({
 }) {
     const {currentAccount} = useSpaceContext();
     const {store} = taskSubscription;
+
+    const hasSubtasks = useStore(
+        useMemo(
+            () => taskSubscription.taskEntryStore.map(({task}) => !task?.isDeleted()),
+            [taskSubscription.taskEntryStore],
+        ),
+    );
+
+    const readOnlyReason = useStore(
+        useMemo(
+            () =>
+                getTaskSubscriptionAccessStore(currentAccount.id, taskSubscription).map(access => {
+                    switch (access.type) {
+                        case "Deleted": {
+                            // TODO(calebmer): Add an "undelete" button when we support undo?
+                            return {
+                                icon: <Trash />,
+                                message: "This task was deleted. You can’t make changes",
+                            };
+                        }
+                        case "PermissionDenied": {
+                            // TODO(calebmer): If the user removed their own access by removing a
+                            // collection or changing the assignee, we should hint to them that they're
+                            // allowed to undo and give them an undo button.
+                            return {
+                                icon: <PencilSimpleSlash />,
+                                message: "You’ve lost access to this task. You can’t make changes",
+                            };
+                        }
+                        case "PermissionGranted": {
+                            if (hasTaskCollectionAccessLevel(access.level, "Edit")) return null;
+
+                            // TODO(calebmer): If the user removed their own access by removing a
+                            // collection or changing the assignee, we should hint to them that they're
+                            // allowed to undo and give them an undo button.
+                            return {
+                                icon: <PencilSimpleSlash />,
+                                message: "You’re aren’t allowed to make changes to this task",
+                            };
+                        }
+                        default:
+                            throw exhaustive(access);
+                    }
+                }),
+            [currentAccount.id, taskSubscription],
+        ),
+    );
+
+    const isReadOnly = readOnlyReason !== null;
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const childrenGridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -143,55 +192,6 @@ export function TaskDetailView({
         [shiftRenderedRangeForChildrenGridView],
     );
 
-    const hasSubtasks = useStore(
-        useMemo(
-            () => taskSubscription.taskEntryStore.map(({task}) => !task?.isDeleted()),
-            [taskSubscription.taskEntryStore],
-        ),
-    );
-
-    const readOnlyReason = useStore(
-        useMemo(
-            () =>
-                getTaskSubscriptionAccessStore(currentAccount.id, taskSubscription).map(access => {
-                    switch (access.type) {
-                        case "Deleted": {
-                            // TODO(calebmer): Add an "undelete" button when we support undo?
-                            return {
-                                icon: <Trash />,
-                                message: "This task was deleted. You can’t make changes",
-                            };
-                        }
-                        case "PermissionDenied": {
-                            // TODO(calebmer): If the user removed their own access by removing a
-                            // collection or changing the assignee, we should hint to them that they're
-                            // allowed to undo and give them an undo button.
-                            return {
-                                icon: <PencilSimpleSlash />,
-                                message: "You’ve lost access to this task. You can’t make changes",
-                            };
-                        }
-                        case "PermissionGranted": {
-                            if (hasTaskCollectionAccessLevel(access.level, "Edit")) return null;
-
-                            // TODO(calebmer): If the user removed their own access by removing a
-                            // collection or changing the assignee, we should hint to them that they're
-                            // allowed to undo and give them an undo button.
-                            return {
-                                icon: <PencilSimpleSlash />,
-                                message: "You’re aren’t allowed to make changes to this task",
-                            };
-                        }
-                        default:
-                            throw exhaustive(access);
-                    }
-                }),
-            [currentAccount.id, taskSubscription],
-        ),
-    );
-
-    const isReadOnly = readOnlyReason !== null;
-
     const {
         stateKey: childrenGridViewStateKey,
         bufferedItemHeight: childrenGridViewBufferedItemHeight,
@@ -214,9 +214,11 @@ export function TaskDetailView({
             }),
             [isReadOnly],
         ),
-        query: childrenQuery,
-        initialExpansionState: initialChildrenGridViewExpansionState,
-        initialBottomGhostTaskId,
+        query: {
+            query: childrenQuery,
+            initialGridViewExpansionState: initialChildrenGridViewExpansionState,
+            initialBottomGhostTaskId,
+        },
         viewRef: childrenGridViewRef,
         getMoveTaskToQueryActions: (taskId, position) => {
             const time1 = store.clock.now();

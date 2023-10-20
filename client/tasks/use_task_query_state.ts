@@ -42,6 +42,10 @@ export function isTaskQueryMissingRequiredFilters(
         return false;
     }
 
+    if (filters.notepadPageFilter?.accountId === currentAccountId) {
+        return false;
+    }
+
     // Assume that if the user filtered on a collection that they have access to
     // the collection.
     if (
@@ -57,15 +61,20 @@ export function isTaskQueryMissingRequiredFilters(
 
 export type TaskQueryState = {
     readonly activeQuery:
-        | {readonly isAvailable: true; readonly query: TaskClientQuery}
+        | {
+              readonly isAvailable: true;
+              readonly query: {
+                  readonly query: TaskClientQuery;
+                  readonly initialGridViewExpansionState: TaskGridViewExpansionState;
+                  readonly initialBottomGhostTaskId: TaskId;
+              };
+          }
         | {
               readonly isAvailable: false;
               readonly isMissingRequiredFilters: boolean;
               readonly query: null;
           };
     readonly pendingQuery: TaskClientQuery | null;
-    readonly initialGridViewExpansionState: TaskGridViewExpansionState;
-    readonly initialBottomGhostTaskId: TaskId;
 };
 
 /**
@@ -81,15 +90,15 @@ export type TaskQueryState = {
 export function useTaskQueryState({
     store,
     initialQuery,
-    initialGridViewExpansionState,
-    initialBottomGhostTaskId,
     filters,
     sorts,
 }: {
     store: TaskClientStore;
-    initialQuery: TaskClientQuery | null;
-    initialGridViewExpansionState: TaskGridViewExpansionState;
-    initialBottomGhostTaskId: TaskId;
+    initialQuery: {
+        query: TaskClientQuery;
+        initialGridViewExpansionState: TaskGridViewExpansionState;
+        initialBottomGhostTaskId: TaskId;
+    } | null;
     filters: TaskQueryNormalizedFilters | null;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
 }): TaskQueryState {
@@ -108,15 +117,12 @@ export function useTaskQueryState({
             ? {isAvailable: true, query: initialQuery}
             : {isAvailable: false, isMissingRequiredFilters, query: null},
         pendingQuery: null,
-        // Should change whenever `activeQuery` changes.
-        initialGridViewExpansionState,
-        initialBottomGhostTaskId,
     });
 
     // Make sure the queries in `queryState` stay retained during this
     // component's lifetime.
     useEffect(() => {
-        queryState.activeQuery.query?.retain();
+        queryState.activeQuery.query?.query.retain();
         queryState.pendingQuery?.retain();
 
         return () => {
@@ -124,7 +130,7 @@ export function useTaskQueryState({
             // synchronously call `retain()` again.
             scheduleMicrotask(() => {
                 batchStoreUpdates(() => {
-                    queryState.activeQuery.query?.release();
+                    queryState.activeQuery.query?.query.release();
                     queryState.pendingQuery?.release();
                 });
             });
@@ -139,8 +145,8 @@ export function useTaskQueryState({
             ? {
                   isAvailable: true as const,
                   query: {
-                      filters: queryState.activeQuery.query.filters,
-                      sorts: queryState.activeQuery.query.sorts,
+                      filters: queryState.activeQuery.query.query.filters,
+                      sorts: queryState.activeQuery.query.query.sorts,
                   },
               }
             : {
@@ -181,8 +187,6 @@ export function useTaskQueryState({
             setQueryState({
                 activeQuery: expectedQuery,
                 pendingQuery: null,
-                initialGridViewExpansionState: null,
-                initialBottomGhostTaskId: generateId(),
             });
             return;
         }
@@ -210,8 +214,6 @@ export function useTaskQueryState({
         setQueryState({
             activeQuery: queryState.activeQuery,
             pendingQuery: newPendingQuery,
-            initialGridViewExpansionState: queryState.initialGridViewExpansionState,
-            initialBottomGhostTaskId: queryState.initialBottomGhostTaskId,
         });
 
         return () => {
@@ -242,13 +244,19 @@ export function useTaskQueryState({
             disableAllTaskGridViewAnimationsUntilNextBrowserPaint();
 
             setQueryState({
-                activeQuery: {isAvailable: true, query: pendingQuery},
+                activeQuery: {
+                    isAvailable: true,
+                    query: {
+                        query: pendingQuery,
+                        initialGridViewExpansionState:
+                            getTaskRealtimeClientIfExistsForClient(
+                                space.id,
+                            )?.takeInitialGridViewExpansionStateForQueryIfExists(pendingQuery) ??
+                            null,
+                        initialBottomGhostTaskId: generateId(),
+                    },
+                },
                 pendingQuery: null,
-                initialGridViewExpansionState:
-                    getTaskRealtimeClientIfExistsForClient(
-                        space.id,
-                    )?.takeInitialGridViewExpansionStateForQueryIfExists(pendingQuery) ?? null,
-                initialBottomGhostTaskId: generateId(),
             });
         });
 

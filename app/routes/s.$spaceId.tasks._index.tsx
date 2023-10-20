@@ -1,15 +1,13 @@
-import {useEffect, useMemo} from "react";
+import {useEffect} from "react";
 import {Params} from "react-router";
-import {Box} from "~/client/design/box.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-import {TaskGridView} from "~/client/tasks/task_grid_view.js";
+import {TaskNotepadView} from "~/client/tasks/task_notepad_view.js";
 import {
     clientLoaderTaskStoreLoaderData,
+    useTaskClientStore,
     useTaskStoreLoaderDataWithoutRetaining,
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -35,8 +33,8 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 
 const LoaderSchema = Schema.object({
     allNotepadPageIds: TaskNotepadPageIdCompressedSetSchema,
-    notepadPageId: TaskNotepadPageIdSchema,
-    notepadPageGridViewExpansionState: TaskGridViewExpansionStateSchema,
+    initialNotepadPageId: TaskNotepadPageIdSchema,
+    initialNotepadPageGridViewExpansionState: TaskGridViewExpansionStateSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
 });
 
@@ -144,8 +142,8 @@ export async function loader({params, context: _context}: LoaderArgs) {
         LoaderSchema,
         {
             allNotepadPageIds,
-            notepadPageId,
-            notepadPageGridViewExpansionState,
+            initialNotepadPageId: notepadPageId,
+            initialNotepadPageGridViewExpansionState: notepadPageGridViewExpansionState,
             initialBottomGhostTaskId: generateId<TaskId>(),
         },
         {
@@ -191,17 +189,24 @@ export async function clientLoader({
 }
 
 export default function TasksRoute() {
-    const {notepadPageId, notepadPageGridViewExpansionState, initialBottomGhostTaskId} =
-        useLoaderDataWithSchema(LoaderSchema);
-    const {
-        queries: [assigneeActiveQuery, notepadPageQuery],
-    } = useTaskStoreLoaderDataWithoutRetaining();
-    assert(assigneeActiveQuery && notepadPageQuery);
+    const store = useTaskClientStore();
 
-    // Retain our queries so they aren't destroyed after
+    const {
+        initialNotepadPageId,
+        initialNotepadPageGridViewExpansionState,
+        initialBottomGhostTaskId,
+    } = useLoaderDataWithSchema(LoaderSchema);
+    const {
+        queries: [assigneeActiveQuery, initialNotepadPageQuery],
+    } = useTaskStoreLoaderDataWithoutRetaining();
+    assert(assigneeActiveQuery && initialNotepadPageQuery);
+
+    // Retain our `assigneeActiveQuery` so it isn't destroyed while we're
+    // using it. But we don't retain `initialNotepadPageQuery`! Instead
+    // `initialNotepadPageQuery` is retained by `<TaskNotepadView>`. That way when
+    // the query changes we can release the query and retain a new one.
     useEffect(() => {
         assigneeActiveQuery.retain();
-        notepadPageQuery.retain();
 
         return () => {
             // Release after a microtask in case the component is re-rendering which will
@@ -209,64 +214,20 @@ export default function TasksRoute() {
             scheduleMicrotask(() => {
                 batchStoreUpdates(() => {
                     assigneeActiveQuery.release();
-                    notepadPageQuery.release();
                 });
             });
         };
-    }, [assigneeActiveQuery, notepadPageQuery]);
-
-    const {currentAccount} = useSpaceContext();
+    }, [assigneeActiveQuery]);
 
     return (
-        <Box flexGrow="1" overflow="hidden" backgroundColor="grey-0">
-            <TaskGridView
-                capabilities={useMemo(
-                    () => ({
-                        isReadOnly: false,
-                        hasParentTaskTitle: true,
-                        hasMultilineTitle: false,
-                        hasColumns: true,
-                        hasDenseFields: false,
-                    }),
-                    [],
-                )}
-                query={notepadPageQuery}
-                initialExpansionState={notepadPageGridViewExpansionState}
-                initialBottomGhostTaskId={initialBottomGhostTaskId}
-                getMoveTaskToQueryActions={(taskId, position) => {
-                    const time = notepadPageQuery.store.clock.now();
-                    return [
-                        {
-                            type: "UpdateTask",
-                            time,
-                            taskId,
-                            taskAction: {
-                                type: "UpdateNotepadPagePosition",
-                                accountId: currentAccount.id,
-                                notepadPageId,
-                                position: getNewTaskPositionForQuerySortedByPosition(
-                                    time,
-                                    notepadPageQuery,
-                                    position,
-                                ),
-                            },
-                        },
-                    ];
-                }}
-                getMaybeRemoveTaskFromQueryActions={taskId => [
-                    {
-                        type: "UpdateTask",
-                        time: notepadPageQuery.store.clock.now(),
-                        taskId,
-                        taskAction: {
-                            type: "UpdateNotepadPagePosition",
-                            accountId: currentAccount.id,
-                            notepadPageId,
-                            position: null,
-                        },
-                    },
-                ]}
-            />
-        </Box>
+        <TaskNotepadView
+            store={store}
+            initialQuery={{
+                query: initialNotepadPageQuery,
+                initialGridViewExpansionState: initialNotepadPageGridViewExpansionState,
+                initialBottomGhostTaskId,
+            }}
+            initialNotepadPageId={initialNotepadPageId}
+        />
     );
 }

@@ -24,12 +24,13 @@ import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_re
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/get_new_task_position_for_query_sorted_by_position.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -183,9 +184,7 @@ const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, 
  */
 export function useTaskGridViewVirtualizedList({
     capabilities,
-    query: rootQuery,
-    initialExpansionState,
-    initialBottomGhostTaskId,
+    query: rootQueryWithInitialState,
     viewRef,
     getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
@@ -194,10 +193,12 @@ export function useTaskGridViewVirtualizedList({
     columnHeaderControls,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
-    query: TaskClientQuery | null;
-    initialExpansionState: TaskGridViewExpansionState;
-    initialBottomGhostTaskId: TaskId;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
+    query: {
+        query: TaskClientQuery;
+        initialGridViewExpansionState: TaskGridViewExpansionState;
+        initialBottomGhostTaskId: TaskId;
+    } | null;
     getMoveTaskToQueryActions: (
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
@@ -274,7 +275,21 @@ export function useTaskGridViewVirtualizedList({
     const context = useAppContext();
     const remPx = useRemPx();
 
-    const [bottomGhostTaskId, setBottomGhostTaskId] = useState(initialBottomGhostTaskId);
+    const [bottomGhostTaskId, setBottomGhostTaskId] = useStateWithDependencies(
+        rootQueryWithInitialState?.initialBottomGhostTaskId ?? null,
+        [rootQueryWithInitialState?.query],
+    );
+
+    const {
+        getAreChildTasksExpandedStore,
+        toggleAreChildTasksExpanded,
+        iterateExpandedTaskIdsUnderPath,
+    } = useTaskGridViewExpansionState({
+        query: rootQueryWithInitialState?.query ?? null,
+        initialState: rootQueryWithInitialState?.initialGridViewExpansionState ?? null,
+    });
+
+    const rootQuery = rootQueryWithInitialState?.query ?? null;
 
     // Whenever our `activeQuery` changes we reset the `<VirtualizedScrollView>`'s
     // internal state (which also scrolls the view to the top). We do this
@@ -295,15 +310,6 @@ export function useTaskGridViewVirtualizedList({
     const isRootQueryNull = rootQuery === null;
     const isRootQueryManuallySorted = isTaskQueryManuallySorted(rootQuery?.sorts ?? emptyArray);
 
-    const {
-        getAreChildTasksExpandedStore,
-        toggleAreChildTasksExpanded,
-        iterateExpandedTaskIdsUnderPath,
-    } = useTaskGridViewExpansionState({
-        query: rootQuery,
-        initialState: initialExpansionState,
-    });
-
     // Consider a null `rootQuery` as a fully loaded empty query.
     const loadedState = useStore(rootQuery?.loadedStateStore ?? null) ?? "FullyLoaded";
 
@@ -318,14 +324,14 @@ export function useTaskGridViewVirtualizedList({
 
     const itemCountBeforeState = capabilities.hasColumns ? 1 : 0;
 
+    const hasBottomGhostTask =
+        !capabilities.isReadOnly && isRootQueryManuallySorted && bottomGhostTaskId;
+
     const itemCount =
         itemCountBeforeState +
         (loadedState !== "FullyLoaded"
             ? stateItemCount + 1
-            : Math.max(
-                  stateItemCount + (!capabilities.isReadOnly && isRootQueryManuallySorted ? 1 : 0),
-                  3,
-              ));
+            : Math.max(stateItemCount + (hasBottomGhostTask ? 1 : 0), 3));
 
     const taskRowByTaskKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
 
@@ -566,7 +572,11 @@ export function useTaskGridViewVirtualizedList({
         getTaskRowByIndexIfExists: (index: number): TaskRowViewRef | null => {
             const stateIndex = index - itemCountBeforeState;
             if (!(0 <= stateIndex && stateIndex < state.getItemCount())) {
-                if (stateIndex === state.getItemCount() && loadedState === "FullyLoaded") {
+                if (
+                    stateIndex === state.getItemCount() &&
+                    loadedState === "FullyLoaded" &&
+                    bottomGhostTaskId
+                ) {
                     return taskRowByTaskKeyRef.current.get(bottomGhostTaskId) ?? null;
                 }
                 return null;
@@ -1371,7 +1381,7 @@ export function useTaskGridViewVirtualizedList({
 
                 // No ghost task if `rootQuery` is null, the grid view is read-only, or we're
                 // not manually sorted.
-                if (rootQuery && !capabilities.isReadOnly && isRootQueryManuallySorted) {
+                if (rootQuery && hasBottomGhostTask) {
                     if (relativeItemIndex === 0) {
                         return {
                             // We want to use the same key and component as a regular task so we can turn a
@@ -1528,6 +1538,7 @@ export function useTaskGridViewVirtualizedList({
         context,
         events,
         getAreChildTasksExpandedStore,
+        hasBottomGhostTask,
         isRootQueryManuallySorted,
         isRootQueryNull,
         itemCount,

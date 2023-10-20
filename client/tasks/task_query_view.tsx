@@ -39,17 +39,17 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskQueryView({
     initialQuery,
-    initialGridViewExpansionState,
-    initialBottomGhostTaskId,
     initialFilters,
     initialFilterReferences,
     onFiltersChange,
     initialSorts,
     onSortsChange,
 }: {
-    initialQuery: TaskClientQuery | null;
-    initialGridViewExpansionState: TaskGridViewExpansionState;
-    initialBottomGhostTaskId: TaskId;
+    initialQuery: {
+        query: TaskClientQuery;
+        initialGridViewExpansionState: TaskGridViewExpansionState;
+        initialBottomGhostTaskId: TaskId;
+    } | null;
     initialFilters: ReadonlyArray<TaskQueryFilter>;
     initialFilterReferences: TaskQueryFilterReferences;
     onFiltersChange: (filters: ReadonlyArray<TaskQueryFilter>) => void;
@@ -136,8 +136,6 @@ export function TaskQueryView({
     const queryState = useTaskQueryState({
         store,
         initialQuery,
-        initialGridViewExpansionState,
-        initialBottomGhostTaskId,
         filters:
             normalizedFiltersResult.type === "Possible"
                 ? normalizedFiltersResult.normalizedFilters
@@ -169,10 +167,8 @@ export function TaskQueryView({
             }),
             [],
         ),
-        query: queryState.activeQuery.query,
-        initialExpansionState: queryState.initialGridViewExpansionState,
-        initialBottomGhostTaskId: queryState.initialBottomGhostTaskId,
         viewRef,
+        query: queryState.activeQuery.query,
         // NOTE(calebmer): Currently, all updates which use this are disabled in
         // auto-sorted views:
         //
