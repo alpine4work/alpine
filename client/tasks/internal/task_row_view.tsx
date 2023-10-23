@@ -770,6 +770,9 @@ function TaskRowView(
                     // Only refocus the cell if we got this `keydown` from a child.
                     if (event.target === event.currentTarget) break;
 
+                    // If we do not have columns then the title cell is not focusable.
+                    if (!capabilities.hasColumns && column === "Title") break;
+
                     event.preventDefault();
                     event.stopPropagation();
 

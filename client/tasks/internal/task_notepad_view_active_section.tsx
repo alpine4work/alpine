@@ -106,6 +106,11 @@ function TaskNotepadViewActiveSection({
         (tasks.length > 3 || loadedState !== "FullyLoaded" ? parseRemLengthNumber(spacing["4"]) : 0)
     }rem)`;
 
+    const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
+        taskId: TaskId;
+        onAfterDelete?: () => void;
+    } | null>(null);
+
     const dndContext = useDndContext();
 
     // NOCOMMIT: Loading states
@@ -144,8 +149,8 @@ function TaskNotepadViewActiveSection({
                         onExpand={async () => {
                             await peekStackContext.push(`/s/${space.id}/tasks/${taskId}`);
                         }}
-                        deleteTaskAndAllChildrenMaybeWithConfirmation={() => {
-                            // NOCOMMIT
+                        deleteTaskAndAllChildren={() => {
+                            setTaskDeleteConfirmationState({taskId});
                         }}
                     />
                 ))}
@@ -298,25 +303,15 @@ function TaskNotepadViewActiveSection({
                     </Box>
                 )}
             </Box>
-        </Box>
-    );
-}
-
-function F() {
-    const [showDeleteConfirmationForTaskId, setShowDeleteConfirmationForTaskId] =
-        useState<TaskId | null>(null);
-
-    return (
-        <>
-            {showDeleteConfirmationForTaskId && (
+            {taskDeleteConfirmationState && (
                 <TaskDeleteConfirmationModalDialog
-                    state={state}
-                    dispatch={dispatch}
-                    taskId={showDeleteConfirmationForTaskId}
-                    onClose={() => setShowDeleteConfirmationForTaskId(null)}
+                    store={assigneeActiveQuery.store}
+                    taskId={taskDeleteConfirmationState.taskId}
+                    onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
+                    onClose={() => setTaskDeleteConfirmationState(null)}
                 />
             )}
-        </>
+        </Box>
     );
 }
 

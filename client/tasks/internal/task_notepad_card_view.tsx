@@ -38,14 +38,14 @@ export function TaskNotepadCardView({
     taskId,
     assigneeActivePosition,
     onExpand,
-    deleteTaskAndAllChildrenMaybeWithConfirmation,
+    deleteTaskAndAllChildren,
 }: {
     widthStyle: string;
     query: TaskClientQuery;
     taskId: TaskId;
     assigneeActivePosition: TaskPosition;
     onExpand: () => Promise<void>;
-    deleteTaskAndAllChildrenMaybeWithConfirmation: () => void;
+    deleteTaskAndAllChildren: () => void;
 }) {
     const context = useAppContext();
     const {timeZone} = useClientInfo();
@@ -204,7 +204,7 @@ export function TaskNotepadCardView({
         contextMenuActions.push([
             {
                 label: "Delete",
-                onPress: deleteTaskAndAllChildrenMaybeWithConfirmation,
+                onPress: deleteTaskAndAllChildren,
             },
         ]);
     }
