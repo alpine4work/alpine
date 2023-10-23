@@ -22,7 +22,7 @@ import {
 import {createPortal} from "react-dom";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
-import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
@@ -33,14 +33,14 @@ import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
-import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
 
 const TaskGridViewHasDndContext = createContext(false);
 
@@ -54,10 +54,14 @@ export type TaskGridViewDraggableData =
           readonly taskId: TaskId;
           readonly displayStatus: TaskDisplayStatus;
           readonly title: TaskTitleModel;
-          readonly getDropActions: (taskId: TaskId) => Array<TaskAction>;
+          readonly assigneeAccountId: AccountId | null;
+          readonly getDropOnRowActions: (taskId: TaskId) => Array<TaskAction>;
       }
     | {
           readonly type: "Card";
+          readonly taskId: TaskId;
+          readonly displayStatus: TaskDisplayStatus;
+          readonly assigneeAccountId: AccountId | null;
           readonly assigneeActivePosition: TaskPosition;
           readonly overlayNode: ReactElement;
       };
@@ -69,10 +73,23 @@ export type TaskGridViewDroppableData =
       }
     | {
           readonly type: "ActiveCard";
+          readonly taskId: TaskId | null;
           readonly showHintIndex: number;
           readonly previousAssigneeActivePosition: TaskPosition | null;
           readonly assigneeActivePosition: TaskPosition | null;
           readonly nextAssigneeActivePosition: TaskPosition | null;
+          readonly getDropActions: (
+              task: {
+                  taskId: TaskId;
+                  displayStatus: TaskDisplayStatus;
+                  assigneeAccountId: AccountId | null;
+              },
+              position:
+                  | {type: "Start"}
+                  | {type: "End"}
+                  | {type: "Above"; taskId: TaskId}
+                  | {type: "Below"; taskId: TaskId},
+          ) => Array<TaskAction>;
       };
 
 class MouseSensorWithImmediatePriorityEnd extends MouseSensor {
@@ -121,20 +138,16 @@ export function TaskGridViewDndContext({
     // have other keyboard shortcuts.
     const sensors = useSensors(mouseSensor);
 
-    const {onDragStart, onDragEnd, onDragCancel} = useEvents({
-        onDragStart: ({active}: DragEndEvent) => {},
-        onDragCancel: ({active, over}: DragEndEvent) => {},
-        onDragEnd: ({active, over}: DragEndEvent) => {
-            if (!over) return;
+    const onDragEnd = useEvent(({active, over}: DragEndEvent) => {
+        if (!over) return;
 
-            const activeData = assertExists(active.data.current) as TaskGridViewDraggableData;
-            assert(typeof activeData.type === "string");
+        const activeData = assertExists(active.data.current) as TaskGridViewDraggableData;
+        assert(typeof activeData.type === "string");
 
-            const overData = assertExists(over.data.current) as TaskGridViewDroppableData;
-            assert(typeof overData.type === "string");
+        const overData = assertExists(over.data.current) as TaskGridViewDroppableData;
+        assert(typeof overData.type === "string");
 
-            onActuallyDragEnd(activeData, overData);
-        },
+        onActuallyDragEnd(activeData, overData);
     });
 
     // If we already have a parent `<TaskGridViewDndContext>` then don't render
@@ -154,7 +167,7 @@ export function TaskGridViewDndContext({
                         );
 
                         const actions = [
-                            ...activeData.getDropActions(activeData.taskId),
+                            ...activeData.getDropOnRowActions(activeData.taskId),
                             ...overData.getDropActions(activeData.taskId),
                         ];
 
@@ -230,155 +243,46 @@ export function TaskGridViewDndContext({
                 break;
             }
             case "ActiveCard": {
-                // NOCOMMIT:
-                // let taskRow: TaskRow;
-                // let beforeAssigneeActiveStatus: TaskAssigneeActiveStatus | null = null;
-                // let afterAssigneeActiveStatus: TaskAssigneeActiveStatus | null = null;
-                // switch (activeData.type) {
-                //     case "Row": {
-                //         taskRow = activeData.taskRow;
-                //         beforeAssigneeActiveStatus =
-                //             overData.previousAssigneeActiveStatus;
-                //         afterAssigneeActiveStatus = overData.assigneeActiveStatus;
-                //         break;
-                //     }
-                //     case "Card": {
-                //         // @ts-expect-error: Hack. This should get cleaned up in a production
-                //         // implementation.
-                //         taskRow = {task: {id: activeData.id}};
-                //         if (
-                //             activeData.assignee?.status.type === "Active" &&
-                //             overData.assigneeActiveStatus &&
-                //             compareTaskAssigneeActiveStatus(
-                //                 activeData.assignee.status,
-                //                 overData.assigneeActiveStatus,
-                //             ) < 0
-                //         ) {
-                //             beforeAssigneeActiveStatus = overData.assigneeActiveStatus;
-                //             afterAssigneeActiveStatus =
-                //                 overData.nextAssigneeActiveStatus;
-                //         } else {
-                //             beforeAssigneeActiveStatus =
-                //                 overData.previousAssigneeActiveStatus;
-                //             afterAssigneeActiveStatus = overData.assigneeActiveStatus;
-                //         }
-                //         break;
-                //     }
-                //     default:
-                //         throw exhaustive(activeData);
-                // }
-                // const assignedTime = new Date();
-                // const assignedDate = toCalendarDate(
-                //     parseAbsolute(assignedTime.toISOString(), timeZone),
-                // );
-                // if (afterAssigneeActiveStatus && beforeAssigneeActiveStatus) {
-                //     if (
-                //         afterAssigneeActiveStatus.orderTime.toString() ===
-                //         beforeAssigneeActiveStatus.orderTime.toString()
-                //     ) {
-                //         onTaskAssigneeChange(taskRow, {
-                //             account: currentAccount,
-                //             // TODO(calebmer): This probably should be a new assigned time...
-                //             assignerId: currentAccount.id,
-                //             assignedTime,
-                //             assignerTimeZone: timeZone,
-                //             assignedDate,
-                //             status: {
-                //                 type: "Active",
-                //                 orderTime: afterAssigneeActiveStatus.orderTime,
-                //                 orderKey: generateOrderKeyBetween(
-                //                     beforeAssigneeActiveStatus.orderKey,
-                //                     afterAssigneeActiveStatus.orderKey,
-                //                 ),
-                //                 activatorId: currentAccount.id,
-                //                 activatedTime: assignedTime,
-                //                 activatorTimeZone: timeZone,
-                //                 activatedDate: assignedDate,
-                //             },
-                //         });
-                //     } else {
-                //         onTaskAssigneeChange(taskRow, {
-                //             account: currentAccount,
-                //             // TODO(calebmer): This probably should be a new assigned time...
-                //             assignerId: currentAccount.id,
-                //             assignedTime,
-                //             assignerTimeZone: timeZone,
-                //             assignedDate,
-                //             status: {
-                //                 type: "Active",
-                //                 orderTime: beforeAssigneeActiveStatus.orderTime,
-                //                 orderKey: generateOrderKeyBetween(
-                //                     beforeAssigneeActiveStatus.orderKey,
-                //                     null,
-                //                 ),
-                //                 activatorId: currentAccount.id,
-                //                 activatedTime: assignedTime,
-                //                 activatorTimeZone: timeZone,
-                //                 activatedDate: assignedDate,
-                //             },
-                //         });
-                //     }
-                // } else if (beforeAssigneeActiveStatus) {
-                //     onTaskAssigneeChange(taskRow, {
-                //         account: currentAccount,
-                //         // TODO(calebmer): This probably should be a new assigned time...
-                //         assignerId: currentAccount.id,
-                //         assignedTime,
-                //         assignerTimeZone: timeZone,
-                //         assignedDate,
-                //         status: {
-                //             type: "Active",
-                //             orderTime: beforeAssigneeActiveStatus.orderTime,
-                //             orderKey: generateOrderKeyBetween(
-                //                 beforeAssigneeActiveStatus.orderKey,
-                //                 null,
-                //             ),
-                //             activatorId: currentAccount.id,
-                //             activatedTime: assignedTime,
-                //             activatorTimeZone: timeZone,
-                //             activatedDate: assignedDate,
-                //         },
-                //     });
-                // } else if (afterAssigneeActiveStatus) {
-                //     onTaskAssigneeChange(taskRow, {
-                //         account: currentAccount,
-                //         // TODO(calebmer): This probably should be a new assigned time...
-                //         assignerId: currentAccount.id,
-                //         assignedTime,
-                //         assignerTimeZone: timeZone,
-                //         assignedDate,
-                //         status: {
-                //             type: "Active",
-                //             orderTime: afterAssigneeActiveStatus.orderTime,
-                //             orderKey: generateOrderKeyBetween(
-                //                 null,
-                //                 afterAssigneeActiveStatus.orderKey,
-                //             ),
-                //             activatorId: currentAccount.id,
-                //             activatedTime: assignedTime,
-                //             activatorTimeZone: timeZone,
-                //             activatedDate: assignedDate,
-                //         },
-                //     });
-                // } else {
-                //     onTaskAssigneeChange(taskRow, {
-                //         account: currentAccount,
-                //         // TODO(calebmer): This probably should be a new assigned time...
-                //         assignerId: currentAccount.id,
-                //         assignedTime,
-                //         assignerTimeZone: timeZone,
-                //         assignedDate,
-                //         status: {
-                //             type: "Active",
-                //             orderTime: new Date(),
-                //             orderKey: initialOrderKey,
-                //             activatorId: currentAccount.id,
-                //             activatedTime: assignedTime,
-                //             activatorTimeZone: timeZone,
-                //             activatedDate: assignedDate,
-                //         },
-                //     });
-                // }
+                let position:
+                    | {type: "Start"}
+                    | {type: "End"}
+                    | {type: "Above"; taskId: TaskId}
+                    | {type: "Below"; taskId: TaskId};
+
+                // Rows always push cards to the right.
+                if (activeData.type === "Row" || !overData.assigneeActivePosition) {
+                    position = !overData.previousAssigneeActivePosition
+                        ? {type: "Start"}
+                        : overData.taskId
+                        ? {type: "Above", taskId: overData.taskId}
+                        : {type: "End"};
+                }
+                // Cards push to the right when moved to an earlier position and push to the
+                // left when moved to a later position.
+                else {
+                    if (
+                        compareTaskPosition(
+                            activeData.assigneeActivePosition,
+                            overData.assigneeActivePosition,
+                        ) > 0
+                    ) {
+                        position = !overData.nextAssigneeActivePosition
+                            ? {type: "End"}
+                            : overData.taskId
+                            ? {type: "Below", taskId: overData.taskId}
+                            : {type: "Start"};
+                    } else {
+                        position = !overData.previousAssigneeActivePosition
+                            ? {type: "Start"}
+                            : overData.taskId
+                            ? {type: "Above", taskId: overData.taskId}
+                            : {type: "End"};
+                    }
+                }
+
+                const actions = overData.getDropActions(activeData, position);
+
+                store.commitTaskActionTransaction(context, actions);
                 break;
             }
             default:
@@ -391,8 +295,6 @@ export function TaskGridViewDndContext({
             <DndContext
                 sensors={sensors}
                 collisionDetection={taskGridViewDndCollisionDetection}
-                onDragStart={onDragStart}
-                onDragCancel={onDragCancel}
                 onDragEnd={onDragEnd}
                 // NOTE(calebmer): We patch `@dnd-kit/core` to add this property. If the node
                 // we're dragging unmounts, we still want `active.data.current` to return the

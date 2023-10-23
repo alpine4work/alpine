@@ -44,6 +44,13 @@ export function getNewTaskPositionForQuerySortedByPosition(
 
     switch (position.type) {
         case "Start": {
+            if (firstQuerySort.direction === "Descending") {
+                return {
+                    orderTime: time,
+                    orderKey: initialOrderKey,
+                };
+            }
+
             const firstCursor = query.taskOrderStore.getSnapshot().begin.key;
 
             if (!firstCursor) {
@@ -61,10 +68,28 @@ export function getNewTaskPositionForQuerySortedByPosition(
             });
         }
         case "End": {
-            return {
-                orderTime: time,
-                orderKey: initialOrderKey,
-            };
+            if (firstQuerySort.direction === "Ascending") {
+                return {
+                    orderTime: time,
+                    orderKey: initialOrderKey,
+                };
+            }
+
+            const lastCursor = query.taskOrderStore.getSnapshot().end.key;
+
+            if (!lastCursor) {
+                return {
+                    orderTime: time,
+                    orderKey: initialOrderKey,
+                };
+            }
+
+            const lastTaskId = getTaskQuerySortCursorTaskId(lastCursor);
+
+            return getNewTaskPositionForQuerySortedByPosition(time, query, {
+                type: "Below",
+                taskId: lastTaskId,
+            });
         }
         case "Above":
         case "Below": {
@@ -128,7 +153,8 @@ export function getNewTaskPositionForQuerySortedByPosition(
             return {
                 orderTime: position1.orderTime,
                 orderKey:
-                    position.type === "Above"
+                    (position.type === "Above" && firstQuerySort.direction === "Ascending") ||
+                    (position.type === "Below" && firstQuerySort.direction === "Descending")
                         ? generateOrderKeyBetween(orderKey2, position1.orderKey)
                         : generateOrderKeyBetween(position1.orderKey, orderKey2),
             };

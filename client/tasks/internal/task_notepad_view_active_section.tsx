@@ -4,7 +4,9 @@ import {Box} from "~/client/design/box.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {taskCardViewMaxWidth} from "~/client/tasks/internal/task_card_view_content.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
@@ -19,6 +21,8 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 
@@ -191,6 +195,8 @@ function TaskNotepadViewActiveSection({
                 >
                     {tasks.length === 0 ? (
                         <TaskNotepadViewActiveSectionDroppable
+                            query={assigneeActiveQuery}
+                            taskId={null}
                             showHintIndex={0}
                             previousAssigneeActivePosition={null}
                             assigneeActivePosition={null}
@@ -198,9 +204,11 @@ function TaskNotepadViewActiveSection({
                             flexGrow="1"
                         />
                     ) : (
-                        tasks.map(({assigneeActivePosition}, index) => (
+                        tasks.map(({id: taskId, assigneeActivePosition}, index) => (
                             <TaskNotepadViewActiveSectionDroppable
                                 key={index}
+                                query={assigneeActiveQuery}
+                                taskId={taskId}
                                 showHintIndex={index}
                                 previousAssigneeActivePosition={
                                     tasks[index - 1]?.assigneeActivePosition ?? null
@@ -225,6 +233,8 @@ function TaskNotepadViewActiveSection({
                     )}
                     {tasks.length > 0 && activeDraggableData?.type === "Row" && (
                         <TaskNotepadViewActiveSectionDroppable
+                            query={assigneeActiveQuery}
+                            taskId={null}
                             showHintIndex={tasks.length}
                             previousAssigneeActivePosition={
                                 tasks[tasks.length - 1]?.assigneeActivePosition ?? null
@@ -311,6 +321,8 @@ function F() {
 }
 
 function TaskNotepadViewActiveSectionDroppable({
+    query,
+    taskId,
     showHintIndex,
     previousAssigneeActivePosition,
     assigneeActivePosition,
@@ -321,6 +333,8 @@ function TaskNotepadViewActiveSectionDroppable({
     maxWidthStyle,
     withMarginRight,
 }: {
+    query: TaskClientQuery;
+    taskId: TaskId | null;
     showHintIndex: number;
     previousAssigneeActivePosition: TaskPosition | null;
     assigneeActivePosition: TaskPosition | null;
@@ -335,14 +349,92 @@ function TaskNotepadViewActiveSectionDroppable({
     // the droppable area bounds. Switch back to `false` before committing!
     const shouldDebug = false;
 
+    const {currentAccount} = useSpaceContext();
+    const {timeZone} = useClientInfo();
+
     const {setNodeRef} = useDroppable({
         id: useId(),
         data: {
             type: "ActiveCard",
+            taskId,
             showHintIndex,
             previousAssigneeActivePosition,
             assigneeActivePosition,
             nextAssigneeActivePosition,
+            getDropActions: (task, position) => {
+                const actions: Array<TaskAction> = [];
+
+                const updateTime = new TaskFilterableTime({
+                    absoluteTime: query.store.clock.now(),
+                    setterTimeZone: timeZone,
+                });
+
+                // Moving to our active task section means we need to assign ourselves to
+                // the task if we aren't already.
+                if (task.assigneeAccountId !== currentAccount.id) {
+                    actions.push({
+                        type: "UpdateTask",
+                        time: query.store.clock.now(),
+                        taskId: task.taskId,
+                        taskAction: {
+                            type: "UpdateAssignee",
+                            assignee: {
+                                assigneeId: currentAccount.id,
+                                assignerId: currentAccount.id,
+                                assignedTime: updateTime,
+                            },
+                        },
+                    });
+                }
+
+                // Moving to our active task section means we need to mark the task as active
+                // if it's not active already.
+                if (task.displayStatus !== "OpenActive") {
+                    if (task.displayStatus === "Closed") {
+                        actions.push({
+                            type: "UpdateTask",
+                            time: query.store.clock.now(),
+                            taskId: task.taskId,
+                            taskAction: {
+                                type: "UpdateStatus",
+                                status: {type: "Open"},
+                            },
+                        });
+                    }
+
+                    actions.push({
+                        type: "UpdateTask",
+                        time: query.store.clock.now(),
+                        taskId: task.taskId,
+                        taskAction: {
+                            type: "UpdateAssigneeStatus",
+                            assigneeStatus: {
+                                type: "Active",
+                                activatedTime: updateTime,
+                            },
+                        },
+                    });
+                }
+
+                const moveTime = query.store.clock.now();
+
+                actions.push({
+                    type: "UpdateTask",
+                    time: moveTime,
+                    taskId: task.taskId,
+                    taskAction: {
+                        type: "UpdateAssigneeActivePosition",
+                        accountId: currentAccount.id,
+                        position: getNewTaskPositionForQuerySortedByPosition(
+                            moveTime,
+                            query,
+                            position,
+                        ),
+                    },
+                });
+
+                return actions;
+            },
         } satisfies TaskGridViewDroppableData,
     });
 

@@ -36,7 +36,6 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
@@ -70,6 +69,7 @@ import {
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
@@ -1474,8 +1474,9 @@ function TaskRowViewDragHandle({
                   type: "Row",
                   taskId: task.id,
                   displayStatus: task.getDisplayStatus(),
+                  assigneeAccountId: task.getAssignee()?.assignee.accountId ?? null,
                   title: task.getTitle(),
-                  getDropActions: getMaybeRemoveTaskFromQueryActions,
+                  getDropOnRowActions: getMaybeRemoveTaskFromQueryActions,
               })
             : undefined,
         disabled: !task,

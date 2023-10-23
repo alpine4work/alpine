@@ -109,6 +109,9 @@ export function TaskNotepadCardView({
         id: useId(),
         data: {
             type: "Card",
+            taskId,
+            displayStatus,
+            assigneeAccountId: task?.getAssignee()?.assignee.accountId ?? null,
             assigneeActivePosition,
             // We render a `<TaskCardPresentationalViewContent>` in the overlay since it
             // doesn't depend on any store state. So if the task is removed from the query
