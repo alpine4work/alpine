@@ -382,7 +382,7 @@ export function TaskNotepadView({
                         if (index === 0) {
                             return {
                                 key: "ActiveCards",
-                                minHeight: "12.25rem",
+                                minHeight: "11rem",
                                 node: (
                                     <TaskNotepadViewActiveSection
                                         assigneeActiveQuery={assigneeActiveQuery}
