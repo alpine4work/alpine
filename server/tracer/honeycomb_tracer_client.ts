@@ -1,4 +1,4 @@
-import {DataLossError} from "~/shared/error/error.js";
+import {DataLossError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";
@@ -99,10 +99,12 @@ export class HoneycombTracerClient {
                             }
                         }
                     } catch (error) {
-                        retry(DataLossError.from(error, "Failed to send event batch to Honeycomb"));
+                        retry(error);
                     }
                 });
-            })();
+            })().catch(error => {
+                throw DataLossError.from("Failed to send event batch to Honeycomb", error);
+            });
 
             this._waitUntil(
                 promise.catch(error => {
