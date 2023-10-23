@@ -190,6 +190,11 @@ export abstract class Store<Value> {
      *
      * Same as `Store.mapMany()` with the identity function as the map function.
      */
+    // TODO(calebmer): We could implement an optimized store class that if a single
+    // store invalidates we only need to call `getSnapshot()` on that store.
+    // Instead of calling `getSnapshot()` on every store. Like what we do in
+    // `FlattenedMappedTreeStore`. We add weak invalidation listeners to each value
+    // store so we only need to update that key when it changes.
     public static many<Stores extends ReadonlyArray<Store<any>>>(
         stores: Stores,
     ): Store<{

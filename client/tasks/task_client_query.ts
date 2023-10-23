@@ -602,6 +602,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
         // If the query is fully loaded we can't load more tasks.
         if (this._taskOrderAndLoadedStateStore.getSnapshot().loadedState?.type === "Full") return;
 
+        if (limit <= 0) return;
+
         this.loadMoreTaskCountStore.set(loadMoreTaskCount =>
             // Take the max since if we're already loading more tasks this call will be
             // covered by the ongoing load.

@@ -1,4 +1,3 @@
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {
@@ -133,6 +132,20 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         this._errorStateStore.set(errorState =>
             errorState.hasError ? {hasError: false} : errorState,
         );
+    }
+
+    /**
+     * Returns the store for the provided `TaskId` if it's loaded in this
+     * subscription. Throws an error on tasks that aren't loaded. Only the
+     * `TaskId` this subscription is directly for is considered loaded.
+     * An easier way to access the store would be `subscription.taskEntryStore`.
+     *
+     * We include this function for compatibility with `TaskClientQuery`. Makes it
+     * convenient to get the store you care about with the same method.
+     */
+    public getLoadedTaskEntryStore(taskId: TaskId): Store<TaskClientStoreTaskEntry> {
+        assert(this.taskId === taskId);
+        return this.taskEntryStore;
     }
 
     // This is a private function we expose publicly so `TaskClientStoreInternal`

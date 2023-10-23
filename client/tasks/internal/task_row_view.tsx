@@ -36,7 +36,7 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {TaskGridViewDraggableData} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
+import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
@@ -1472,7 +1472,9 @@ function TaskRowViewDragHandle({
         data: task
             ? cast<TaskGridViewDraggableData>({
                   type: "Row",
-                  task,
+                  taskId: task.id,
+                  displayStatus: task.getDisplayStatus(),
+                  title: task.getTitle(),
                   getDropActions: getMaybeRemoveTaskFromQueryActions,
               })
             : undefined,

@@ -2,11 +2,11 @@ import {useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} 
 import {Box} from "~/client/design/box.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {TaskNotepadViewActiveSection} from "~/client/tasks/internal/task_notepad_view_active_section.js";
 import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_view_paginator.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -19,6 +19,7 @@ import {
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -32,14 +33,18 @@ import {
     TaskNotepadPageIdCompressedSet,
 } from "~/shared/tasks/task_notepad_page_id.js";
 
+export {taskNotepadAssigneeActiveLoadLimit} from "~/client/tasks/internal/task_notepad_view_active_section.js";
+
 export function TaskNotepadView({
     store,
+    assigneeActiveQuery,
     initialQuery,
     initialNotepadPageId,
     allNotepadPageIds: allNotepadPageIdsWithoutNewNotepadPageIds,
     onNotepadPageIdChange,
 }: {
     store: TaskClientStore;
+    assigneeActiveQuery: TaskClientQuery;
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
@@ -50,6 +55,21 @@ export function TaskNotepadView({
     onNotepadPageIdChange: (notepadPageId: TaskNotepadPageId) => void;
 }) {
     const {currentAccount} = useSpaceContext();
+
+    // Retain `assigneeActiveQuery`. We can't retain it in
+    // `<TaskNotepadViewActiveSection>` since that component may be scrolled
+    // offscreen, unmounted, then back onscreen.
+    useEffect(() => {
+        assigneeActiveQuery.retain();
+
+        return () => {
+            // Release after a microtask in case the effect re-runs in which case we'll
+            // synchronously call `retain()` again.
+            scheduleMicrotask(() => {
+                assigneeActiveQuery.release();
+            });
+        };
+    }, [assigneeActiveQuery]);
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
@@ -342,45 +362,46 @@ export function TaskNotepadView({
                 onSelectAll: () => focusGridViewEnd(),
             })}
         >
-            <TaskGridViewDndContext store={store}>
-                {gridViewModals}
-                <VirtualizedScrollView
-                    ref={viewRef}
-                    stateKey={gridViewStateKey}
-                    bufferedItemHeight={gridViewBufferedItemHeight}
-                    itemCount={1 + gridViewItemCount}
-                    alwaysRenderAdditionalItemIndexes={useMemo(
-                        () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
-                        [alwaysRenderGridViewItemIndexes],
-                    )}
-                    insetScrollbarItemIndex={
-                        insetScrollbarGridViewItemIndex !== undefined
-                            ? insetScrollbarGridViewItemIndex + 1
-                            : undefined
-                    }
-                    renderItem={useCallback(
-                        index => {
-                            if (index === 0) {
-                                return {
-                                    key: "ActiveCards",
-                                    // NOCOMMIT: Real height
-                                    minHeight: 200,
-                                    node: null,
-                                };
-                            }
+            {gridViewModals}
+            <VirtualizedScrollView
+                ref={viewRef}
+                stateKey={gridViewStateKey}
+                bufferedItemHeight={gridViewBufferedItemHeight}
+                itemCount={1 + gridViewItemCount}
+                alwaysRenderAdditionalItemIndexes={useMemo(
+                    () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
+                    [alwaysRenderGridViewItemIndexes],
+                )}
+                insetScrollbarItemIndex={
+                    insetScrollbarGridViewItemIndex !== undefined
+                        ? insetScrollbarGridViewItemIndex + 1
+                        : undefined
+                }
+                renderItem={useCallback(
+                    index => {
+                        if (index === 0) {
+                            return {
+                                key: "ActiveCards",
+                                minHeight: "12.25rem",
+                                node: (
+                                    <TaskNotepadViewActiveSection
+                                        assigneeActiveQuery={assigneeActiveQuery}
+                                    />
+                                ),
+                            };
+                        }
 
-                            return renderGridViewItem(index - 1);
-                        },
-                        [renderGridViewItem],
-                    )}
-                    onRenderedRangeChange={range => {
-                        onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));
-                    }}
-                    onRenderedRangeLayoutChange={range => {
-                        onGridViewRenderedRangeLayoutChange(shiftRenderedRangeForGridView(range));
-                    }}
-                />
-            </TaskGridViewDndContext>
+                        return renderGridViewItem(index - 1);
+                    },
+                    [assigneeActiveQuery, renderGridViewItem],
+                )}
+                onRenderedRangeChange={range => {
+                    onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));
+                }}
+                onRenderedRangeLayoutChange={range => {
+                    onGridViewRenderedRangeLayoutChange(shiftRenderedRangeForGridView(range));
+                }}
+            />
         </Box>
     );
 }

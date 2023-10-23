@@ -8,6 +8,13 @@ export type HybridLogicalTime = readonly [time: number, ticks: number];
 
 export const zeroHybridLogicalTime: HybridLogicalTime = [0, 0];
 
+/**
+ * Compare two hybrid logical times.
+ *
+ * - If <0 then `time1 < time2`
+ * - If >0 then `time1 > time2`
+ * - If 0 then `time1 = time2`
+ */
 export function compareHybridLogicalTimes(
     [time1, ticks1]: HybridLogicalTime,
     [time2, ticks2]: HybridLogicalTime,

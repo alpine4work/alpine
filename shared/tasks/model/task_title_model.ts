@@ -47,6 +47,8 @@ export class TaskTitleModel {
     private _preparedYDoc: (Y.Doc & {release: () => void}) | null = null;
     private _prosemirrorNode: Node | null = null;
 
+    public static empty = new Lazy(() => TaskTitleModel.new(emptyTaskTitle.get()));
+
     public static readonly schema = TaskTitleSchema.transform<TaskTitleModel>({
         serialize: title => title.raw,
         deserialize: title => new TaskTitleModel(title, null),

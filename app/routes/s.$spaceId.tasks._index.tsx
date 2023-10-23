@@ -1,10 +1,12 @@
-import {useEffect} from "react";
 import {Params} from "react-router";
-import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-import {TaskNotepadView} from "~/client/tasks/task_notepad_view.js";
+import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
+import {
+    TaskNotepadView,
+    taskNotepadAssigneeActiveLoadLimit,
+} from "~/client/tasks/task_notepad_view.js";
 import {
     clientLoaderTaskStoreLoaderData,
     useTaskClientStore,
@@ -14,7 +16,6 @@ import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {getTaskNotepadPageIds} from "~/server/tasks/data/task_table.js";
 import {NotFoundError} from "~/shared/error/error.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
@@ -81,7 +82,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
     } = {
-        limit: getTaskGridViewLoadQueryLimit(context.loader.getClientInfo()),
+        limit: taskNotepadAssigneeActiveLoadLimit,
 
         filters: {
             displayStatusFilter: {
@@ -215,48 +216,36 @@ export default function TasksRoute() {
         initialNotepadPageGridViewExpansionState,
         initialBottomGhostTaskId,
     } = useLoaderDataWithSchema(LoaderSchema);
+
+    // We don't retain here since the components that consume our queries are
+    // expected to retain them.
     const {
         queries: [assigneeActiveQuery, initialNotepadPageQuery],
     } = useTaskStoreLoaderDataWithoutRetaining();
     assert(assigneeActiveQuery && initialNotepadPageQuery);
 
-    // Retain our `assigneeActiveQuery` so it isn't destroyed while we're
-    // using it. But we don't retain `initialNotepadPageQuery`! Instead
-    // `initialNotepadPageQuery` is retained by `<TaskNotepadView>`. That way when
-    // the query changes we can release the query and retain a new one.
-    useEffect(() => {
-        assigneeActiveQuery.retain();
-
-        return () => {
-            // Release after a microtask in case the component is re-rendering which will
-            // synchronously call `retain()` again.
-            scheduleMicrotask(() => {
-                batchStoreUpdates(() => {
-                    assigneeActiveQuery.release();
-                });
-            });
-        };
-    }, [assigneeActiveQuery]);
-
     return (
-        <TaskNotepadView
-            store={store}
-            initialQuery={{
-                query: initialNotepadPageQuery,
-                initialGridViewExpansionState: initialNotepadPageGridViewExpansionState,
-                initialBottomGhostTaskId,
-            }}
-            initialNotepadPageId={initialNotepadPageId}
-            allNotepadPageIds={allNotepadPageIds}
-            onNotepadPageIdChange={notepadPageId => {
-                const url = new URL(window.location.href);
+        <TaskGridViewDndContext store={store}>
+            <TaskNotepadView
+                store={store}
+                assigneeActiveQuery={assigneeActiveQuery}
+                initialQuery={{
+                    query: initialNotepadPageQuery,
+                    initialGridViewExpansionState: initialNotepadPageGridViewExpansionState,
+                    initialBottomGhostTaskId,
+                }}
+                initialNotepadPageId={initialNotepadPageId}
+                allNotepadPageIds={allNotepadPageIds}
+                onNotepadPageIdChange={notepadPageId => {
+                    const url = new URL(window.location.href);
 
-                url.searchParams.set("page", String(notepadPageId));
+                    url.searchParams.set("page", String(notepadPageId));
 
-                // Silently update the URL without telling Remix so our component doesn't
-                // re-render unnecessarily.
-                window.history.replaceState(null, "", url);
-            }}
-        />
+                    // Silently update the URL without telling Remix so our component doesn't
+                    // re-render unnecessarily.
+                    window.history.replaceState(null, "", url);
+                }}
+            />
+        </TaskGridViewDndContext>
     );
 }

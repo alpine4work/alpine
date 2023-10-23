@@ -34,7 +34,6 @@ import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskDetailNotesField} from "~/client/tasks/internal/task_detail_notes_field.js";
 import {TaskDetailTitleInput} from "~/client/tasks/internal/task_detail_title_input.js";
-import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
@@ -260,7 +259,7 @@ export function TaskDetailView({
     });
 
     return (
-        <TaskGridViewDndContext store={store}>
+        <>
             {childrenGridViewModals}
             <VirtualizedScrollView
                 ref={viewRef}
@@ -328,7 +327,7 @@ export function TaskDetailView({
                     );
                 }}
             />
-        </TaskGridViewDndContext>
+        </>
     );
 }
 

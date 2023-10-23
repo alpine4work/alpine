@@ -1,5 +1,3 @@
-import {CalendarDate} from "@internationalized/date";
-import {compareDesc} from "date-fns";
 import {KeyboardEvent, Ref, forwardRef, useRef} from "react";
 import {mergeProps, useButton} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -9,59 +7,9 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
-import {TimeZone} from "~/shared/helpers/date/time_zone.js";
-import {OrderKey} from "~/shared/helpers/sort/order_key.js";
-import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
-import {AccountId} from "~/shared/id/types/id_types.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
-
-export type TaskStatus =
-    | {readonly type: "Open"}
-    | {
-          readonly type: "Closed";
-          readonly closerId: AccountId;
-          readonly closedTime: Date;
-          readonly closerTimeZone: TimeZone;
-          readonly closedDate: CalendarDate;
-      };
-
-export type TaskAssigneeStatus = TaskAssigneeInactiveStatus | TaskAssigneeActiveStatus;
-
-export type TaskAssigneeInactiveStatus = {
-    readonly type: "Inactive";
-};
-
-export type TaskAssigneeActiveStatus = {
-    readonly type: "Active";
-    readonly orderTime: Date;
-    readonly orderKey: OrderKey;
-    readonly activatorId: AccountId;
-    readonly activatedTime: Date;
-    readonly activatorTimeZone: TimeZone;
-    readonly activatedDate: CalendarDate;
-};
-
-export type TaskAssignee = {
-    readonly account: AccountModel;
-    readonly assignerId: AccountId;
-    readonly assignedTime: Date;
-    readonly assignerTimeZone: TimeZone;
-    readonly assignedDate: CalendarDate;
-    readonly status: TaskAssigneeStatus;
-};
-
-export function compareTaskAssigneeActiveStatus(
-    status1: TaskAssigneeActiveStatus,
-    status2: TaskAssigneeActiveStatus,
-): number {
-    return (
-        compareDesc(status1.orderTime, status2.orderTime) ||
-        defaultCompareStrings(status1.orderKey, status2.orderKey)
-    );
-}
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
 // file. It is critical for scroll performance that this component renders

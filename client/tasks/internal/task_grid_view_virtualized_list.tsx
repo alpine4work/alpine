@@ -1,3 +1,4 @@
+import {useDndContext} from "@dnd-kit/core";
 import {AnimationControls, animate} from "motion";
 import {SpinnerGap} from "phosphor-react";
 import {Selection} from "prosemirror-state";
@@ -49,6 +50,7 @@ import {
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {useHasTaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
@@ -274,6 +276,14 @@ export function useTaskGridViewVirtualizedList({
 } {
     const context = useAppContext();
     const remPx = useRemPx();
+
+    assert(
+        useHasTaskGridViewDndContext(),
+        "Expected task grid view virtualized list to be rendered inside `<TaskGridViewDndContext>`",
+    );
+
+    const dndContext = useDndContext();
+    const isDragging = !!dndContext.active;
 
     const [bottomGhostTaskId, setBottomGhostTaskId] = useStateWithDependencies(
         rootQueryWithInitialState?.initialBottomGhostTaskId ?? null,
@@ -1420,8 +1430,11 @@ export function useTaskGridViewVirtualizedList({
                                         cursor={null}
                                         ghostTaskId={bottomGhostTaskId}
                                         parents={emptyArray}
+                                        // Don't disable expensive features while auto-scrolling during drag since one
+                                        // of the expensive features this flag disables is droppable zones. The user
+                                        // still needs to be able to reach droppable zones during a drag auto-scroll.
                                         disableExpensiveFeaturesDuringScroll={
-                                            disableExpensiveFeaturesDuringScroll
+                                            !isDragging && disableExpensiveFeaturesDuringScroll
                                         }
                                         isFirstRow={stateItemCount === 0}
                                         nextIndentation={0}
@@ -1493,8 +1506,11 @@ export function useTaskGridViewVirtualizedList({
                                 taskKey={taskKey}
                                 cursor={item.cursor}
                                 parents={item.parents}
+                                // Don't disable expensive features while auto-scrolling during drag since one
+                                // of the expensive features this flag disables is droppable zones. The user
+                                // still needs to be able to reach droppable zones during a drag auto-scroll.
                                 disableExpensiveFeaturesDuringScroll={
-                                    disableExpensiveFeaturesDuringScroll
+                                    !isDragging && disableExpensiveFeaturesDuringScroll
                                 }
                                 isFirstRow={itemIndex - itemCountBeforeState === 0}
                                 nextIndentation={
@@ -1557,6 +1573,7 @@ export function useTaskGridViewVirtualizedList({
         events,
         getAreChildTasksExpandedStore,
         hasBottomGhostTask,
+        isDragging,
         isRootQueryManuallySorted,
         isRootQueryNull,
         itemCount,

@@ -8,7 +8,6 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {
     TaskQueryViewCustomizationBar,
@@ -16,6 +15,7 @@ import {
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
@@ -38,6 +38,7 @@ import {normalizeTaskQuerySorts} from "~/shared/tasks/task_query_normalized_sort
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskQueryView({
+    store,
     initialQuery,
     initialFilters,
     initialFilterReferences,
@@ -45,6 +46,7 @@ export function TaskQueryView({
     initialSorts,
     onSortsChange,
 }: {
+    store: TaskClientStore;
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
@@ -57,7 +59,6 @@ export function TaskQueryView({
     onSortsChange: (sorts: ReadonlyArray<TaskQuerySort>) => void;
 }) {
     const remPx = useRemPx();
-    const store = useTaskClientStore();
     const currentDate = useCurrentDate();
     const {currentAccount} = useSpaceContext();
 
@@ -258,54 +259,52 @@ export function TaskQueryView({
                 onSelectAll: () => focusGridViewEnd(),
             })}
         >
-            <TaskGridViewDndContext store={store}>
-                {gridViewModals}
-                <VirtualizedScrollView
-                    ref={viewRef}
-                    stateKey={gridViewStateKey}
-                    bufferedItemHeight={gridViewBufferedItemHeight}
-                    itemCount={gridViewItemCount}
-                    alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
-                    insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
-                    renderItem={renderGridViewItem}
-                    onRenderedRangeChange={onGridViewRenderedRangeChange}
-                    onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
-                    extraChildren={
-                        !queryState.activeQuery.isAvailable &&
-                        queryState.activeQuery.isMissingRequiredFilters
-                            ? ({contentHeight, viewHeight, shouldRenderWithRelativePositioning}) =>
-                                  !shouldRenderWithRelativePositioning && (
+            {gridViewModals}
+            <VirtualizedScrollView
+                ref={viewRef}
+                stateKey={gridViewStateKey}
+                bufferedItemHeight={gridViewBufferedItemHeight}
+                itemCount={gridViewItemCount}
+                alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
+                insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
+                renderItem={renderGridViewItem}
+                onRenderedRangeChange={onGridViewRenderedRangeChange}
+                onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
+                extraChildren={
+                    !queryState.activeQuery.isAvailable &&
+                    queryState.activeQuery.isMissingRequiredFilters
+                        ? ({contentHeight, viewHeight, shouldRenderWithRelativePositioning}) =>
+                              !shouldRenderWithRelativePositioning && (
+                                  <Box
+                                      position="absolute"
+                                      left="0"
+                                      right="0"
+                                      paddingX={taskRowViewPaddingX}
+                                      pointerEvents="auto"
+                                      style={{
+                                          top: contentHeight,
+                                          height: Math.min(
+                                              convertRemLengthToPx(spacing["128"], remPx),
+                                              viewHeight - contentHeight,
+                                          ),
+                                      }}
+                                  >
                                       <Box
-                                          position="absolute"
-                                          left="0"
-                                          right="0"
-                                          paddingX={taskRowViewPaddingX}
-                                          pointerEvents="auto"
-                                          style={{
-                                              top: contentHeight,
-                                              height: Math.min(
-                                                  convertRemLengthToPx(spacing["128"], remPx),
-                                                  viewHeight - contentHeight,
-                                              ),
-                                          }}
+                                          height="full"
+                                          display="flex"
+                                          justifyContent="center"
+                                          alignItems="center"
                                       >
-                                          <Box
-                                              height="full"
-                                              display="flex"
-                                              justifyContent="center"
-                                              alignItems="center"
-                                          >
-                                              <TaskQueryViewInstructionalPlaceholder
-                                                  filters={filters}
-                                                  onFiltersChange={updateFilters}
-                                              />
-                                          </Box>
+                                          <TaskQueryViewInstructionalPlaceholder
+                                              filters={filters}
+                                              onFiltersChange={updateFilters}
+                                          />
                                       </Box>
-                                  )
-                            : undefined
-                    }
-                />
-            </TaskGridViewDndContext>
+                                  </Box>
+                              )
+                        : undefined
+                }
+            />
         </Box>
     );
 }

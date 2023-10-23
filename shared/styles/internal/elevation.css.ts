@@ -48,12 +48,6 @@ const elevation = {
         darkElevated1: `0 0 0 1px ${colors["grey-70-elevated-1"]}, 0px 20px 24px -4px rgb(0 0 0 / 0.24), 0px 8px 8px -4px rgb(0 0 0 / 0.09)`,
         darkElevated2: `0 0 0 1px ${colors["grey-70-elevated-2"]}, 0px 20px 24px -4px rgb(0 0 0 / 0.24), 0px 8px 8px -4px rgb(0 0 0 / 0.09)`,
     },
-    "elevation-40-with-dark-color-scheme-lighter-border": {
-        light: "0px 20px 24px -4px rgb(18 18 20 / 0.08), 0px 8px 8px -4px rgb(18 18 20 / 0.03), 0 0 0 1px rgb(0 0 0 / 0.08)",
-        dark: `0 0 0 1px ${colors["grey-70"]}, 0px 20px 24px -4px rgb(0 0 0 / 0.24), 0px 8px 8px -4px rgb(0 0 0 / 0.09)`,
-        darkElevated1: `0 0 0 1px ${colors["grey-70-elevated-1"]}, 0px 20px 24px -4px rgb(0 0 0 / 0.24), 0px 8px 8px -4px rgb(0 0 0 / 0.09)`,
-        darkElevated2: `0 0 0 1px ${colors["grey-70-elevated-2"]}, 0px 20px 24px -4px rgb(0 0 0 / 0.24), 0px 8px 8px -4px rgb(0 0 0 / 0.09)`,
-    },
     "elevation-50": {
         light: "0px 24px 48px -12px rgb(18 18 20 / 0.18), 0 0 0 1px rgb(0 0 0 / 0.08)",
         dark: `0 0 0 1px ${colors["grey-70"]}, 0px 24px 48px -12px rgb(0 0 0 / 0.46)`,

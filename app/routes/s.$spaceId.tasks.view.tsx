@@ -1,13 +1,15 @@
-import {useMemo, useState} from "react";
+import {useState} from "react";
 import {useLocation} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
+import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {TaskQueryView} from "~/client/tasks/task_query_view.js";
 import {
     clientLoaderTaskStoreLoaderData,
+    useTaskClientStore,
     useTaskStoreLoaderDataWithoutRetaining,
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {isTaskQueryMissingRequiredFilters} from "~/client/tasks/use_task_query_state.js";
@@ -157,6 +159,7 @@ function TaskQueryRouteInner() {
     const [searchParams] = useSearchParams();
     const {initialGridViewExpansionState, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
+    const store = useTaskClientStore();
     const {
         queries: [initialQuery],
     } = useTaskStoreLoaderDataWithoutRetaining();
@@ -176,45 +179,51 @@ function TaskQueryRouteInner() {
     const {filterReferences: initialFilterReferences} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
-        <TaskQueryView
-            initialQuery={
-                initialQuery
-                    ? {
-                          query: initialQuery,
-                          initialGridViewExpansionState,
-                          initialBottomGhostTaskId,
-                      }
-                    : null
-            }
-            initialFilters={initialFilters}
-            initialFilterReferences={initialFilterReferences}
-            initialSorts={initialSorts}
-            onFiltersChange={filters => {
-                const url = new URL(window.location.href);
-
-                if (filters.length === 0) {
-                    url.searchParams.delete("filter");
-                } else {
-                    url.searchParams.set("filter", serializeTaskQueryFiltersSearchParam(filters));
+        <TaskGridViewDndContext store={store}>
+            <TaskQueryView
+                store={store}
+                initialQuery={
+                    initialQuery
+                        ? {
+                              query: initialQuery,
+                              initialGridViewExpansionState,
+                              initialBottomGhostTaskId,
+                          }
+                        : null
                 }
+                initialFilters={initialFilters}
+                initialFilterReferences={initialFilterReferences}
+                initialSorts={initialSorts}
+                onFiltersChange={filters => {
+                    const url = new URL(window.location.href);
 
-                // Silently update the URL without telling Remix so our component doesn't
-                // re-render unnecessarily.
-                window.history.replaceState(null, "", url);
-            }}
-            onSortsChange={sorts => {
-                const url = new URL(window.location.href);
+                    if (filters.length === 0) {
+                        url.searchParams.delete("filter");
+                    } else {
+                        url.searchParams.set(
+                            "filter",
+                            serializeTaskQueryFiltersSearchParam(filters),
+                        );
+                    }
 
-                if (sorts.length === 0) {
-                    url.searchParams.delete("sort");
-                } else {
-                    url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
-                }
+                    // Silently update the URL without telling Remix so our component doesn't
+                    // re-render unnecessarily.
+                    window.history.replaceState(null, "", url);
+                }}
+                onSortsChange={sorts => {
+                    const url = new URL(window.location.href);
 
-                // Silently update the URL without telling Remix so our component doesn't
-                // re-render unnecessarily.
-                window.history.replaceState(null, "", url);
-            }}
-        />
+                    if (sorts.length === 0) {
+                        url.searchParams.delete("sort");
+                    } else {
+                        url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
+                    }
+
+                    // Silently update the URL without telling Remix so our component doesn't
+                    // re-render unnecessarily.
+                    window.history.replaceState(null, "", url);
+                }}
+            />
+        </TaskGridViewDndContext>
     );
 }

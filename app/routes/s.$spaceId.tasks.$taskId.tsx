@@ -6,6 +6,7 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskDetailView, taskDetailViewMaxWidth} from "~/client/tasks/task_detail_view.js";
+import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     clientLoaderTaskStoreLoaderData,
     useTaskStoreLoaderDataWithoutRetaining,
@@ -204,16 +205,18 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
                 boxShadow={!withMobileLayout ? {desktop: "elevation-5"} : undefined}
                 backgroundColor="grey-0"
             >
-                <TaskDetailView
-                    // Remount when the `TaskId` changes.
-                    key={taskSubscription.taskId}
-                    taskSubscription={taskSubscription}
-                    childrenQuery={childrenQuery}
-                    initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
-                    initialBottomGhostTaskId={initialBottomGhostTaskId}
-                    initialNotesVersion={initialNotesVersion}
-                    initialNotesContent={initialNotesContent}
-                />
+                <TaskGridViewDndContext store={taskSubscription.store}>
+                    <TaskDetailView
+                        // Remount when the `TaskId` changes.
+                        key={taskSubscription.taskId}
+                        taskSubscription={taskSubscription}
+                        childrenQuery={childrenQuery}
+                        initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
+                        initialBottomGhostTaskId={initialBottomGhostTaskId}
+                        initialNotesVersion={initialNotesVersion}
+                        initialNotesContent={initialNotesContent}
+                    />
+                </TaskGridViewDndContext>
             </Box>
         </Box>
     );

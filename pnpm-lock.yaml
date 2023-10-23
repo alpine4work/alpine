@@ -16,6 +16,9 @@ patchedDependencies:
   '@cloudflare/workers-types@3.18.0':
     hash: hd2oz2xlphxbe5w65c4x3qmfrm
     path: admin/patches/@cloudflare__workers-types@3.18.0.patch
+  '@dnd-kit/core@6.0.8':
+    hash: u3sbbmgyu7yhmvwpqnp62zdlsi
+    path: admin/patches/@dnd-kit__core@6.0.8.patch
   '@dnd-kit/utilities@3.2.1':
     hash: di55vvis5paiupfudkzzxlvcfm
     path: admin/patches/@dnd-kit__utilities@3.2.1.patch
@@ -131,7 +134,7 @@ dependencies:
     version: 3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)
   '@dnd-kit/core':
     specifier: 6.0.8
-    version: 6.0.8(react-dom@18.2.0)(react@18.2.0)
+    version: 6.0.8(patch_hash=u3sbbmgyu7yhmvwpqnp62zdlsi)(react-dom@18.2.0)(react@18.2.0)
   '@dnd-kit/modifiers':
     specifier: ^6.0.1
     version: 6.0.1(@dnd-kit/core@6.0.8)(react@18.2.0)
@@ -2700,7 +2703,7 @@ packages:
       tslib: 2.5.0
     dev: false
 
-  /@dnd-kit/core@6.0.8(react-dom@18.2.0)(react@18.2.0):
+  /@dnd-kit/core@6.0.8(patch_hash=u3sbbmgyu7yhmvwpqnp62zdlsi)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-lYaoP8yHTQSLlZe6Rr9qogouGUz9oRUj4AHhDQGQzq/hqaJRpFo65X+JKsdHf8oUFBzx5A+SJPUvxAwTF2OabA==}
     peerDependencies:
       react: '>=16.8.0 || 18'
@@ -2712,6 +2715,7 @@ packages:
       react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
       tslib: 2.5.0
     dev: false
+    patched: true
 
   /@dnd-kit/modifiers@6.0.1(@dnd-kit/core@6.0.8)(react@18.2.0):
     resolution: {integrity: sha512-rbxcsg3HhzlcMHVHWDuh9LCjpOVAgqbV78wLGI8tziXY3+qcMQ61qVXIvNKQFuhj75dSfD+o+PYZQ/NUk2A23A==}
@@ -2719,7 +2723,7 @@ packages:
       '@dnd-kit/core': ^6.0.6
       react: '>=16.8.0 || 18'
     dependencies:
-      '@dnd-kit/core': 6.0.8(react-dom@18.2.0)(react@18.2.0)
+      '@dnd-kit/core': 6.0.8(patch_hash=u3sbbmgyu7yhmvwpqnp62zdlsi)(react-dom@18.2.0)(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.4.0
@@ -2731,7 +2735,7 @@ packages:
       '@dnd-kit/core': ^6.0.7
       react: '>=16.8.0 || 18'
     dependencies:
-      '@dnd-kit/core': 6.0.8(react-dom@18.2.0)(react@18.2.0)
+      '@dnd-kit/core': 6.0.8(patch_hash=u3sbbmgyu7yhmvwpqnp62zdlsi)(react-dom@18.2.0)(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.5.0

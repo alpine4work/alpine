@@ -2,11 +2,12 @@ import {useDroppable} from "@dnd-kit/core";
 import {Memo, useId} from "react";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {TaskGridViewDroppableData} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {isTaskQueryManuallySorted} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskGridViewDroppableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
@@ -296,7 +297,21 @@ export function TaskRowViewDroppable({
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!isOver) return;
 
-        return setRowZIndex(10);
+        // Call `setRowZIndex` after a microtask since our parent effects need to run
+        // before we can update the `z-index` on the correct row DOM node. If we don't
+        // call in a microtask then we only set the `z-index` if this is not the row's
+        // first render.
+        let isCancelled = false;
+        let unsetRowZIndex: (() => void) | null = null;
+        scheduleMicrotask(() => {
+            if (isCancelled) return;
+            unsetRowZIndex = setRowZIndex(10);
+        });
+
+        return () => {
+            isCancelled = true;
+            unsetRowZIndex?.();
+        };
     }, [isOver, setRowZIndex]);
 
     return (

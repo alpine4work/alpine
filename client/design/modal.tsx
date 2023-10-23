@@ -150,7 +150,7 @@ export function Modal({
                                     width: "full",
                                     maxHeight: "full",
                                     backgroundColor: "grey-0",
-                                    boxShadow: "elevation-40-with-dark-color-scheme-lighter-border",
+                                    boxShadow: "elevation-40",
                                     borderRadius: "md",
                                     display: "flex",
                                     overflow: "hidden",

@@ -7,7 +7,6 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskCollectionSubscriptionAccessStore} from "~/client/tasks/internal/get_task_subscription_access_store.js";
 import {TaskCollectionViewHeader} from "~/client/tasks/internal/task_collection_view_header.js";
-import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
 import {
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
@@ -363,20 +362,18 @@ export function TaskCollectionView({
                 onSelectAll: () => focusGridViewEnd(),
             })}
         >
-            <TaskGridViewDndContext store={store}>
-                {gridViewModals}
-                <VirtualizedScrollView
-                    ref={viewRef}
-                    stateKey={gridViewStateKey}
-                    bufferedItemHeight={gridViewBufferedItemHeight}
-                    itemCount={gridViewItemCount}
-                    alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
-                    insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
-                    renderItem={renderGridViewItem}
-                    onRenderedRangeChange={onGridViewRenderedRangeChange}
-                    onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
-                />
-            </TaskGridViewDndContext>
+            {gridViewModals}
+            <VirtualizedScrollView
+                ref={viewRef}
+                stateKey={gridViewStateKey}
+                bufferedItemHeight={gridViewBufferedItemHeight}
+                itemCount={gridViewItemCount}
+                alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
+                insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
+                renderItem={renderGridViewItem}
+                onRenderedRangeChange={onGridViewRenderedRangeChange}
+                onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
+            />
         </Box>
     );
 }

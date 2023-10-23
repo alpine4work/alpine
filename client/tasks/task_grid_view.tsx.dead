@@ -68,7 +68,7 @@ import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_k
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {TaskGridViewDndContext} from "~/client/tasks/internal/task_grid_view_dnd_context.js";
+import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 // NOCOMMIT:
 // import {TaskTitle, emptyTaskTitle} from "~/shared/tasks/task_title_schema_old.js";
 

@@ -1,0 +1,250 @@
+diff --git a/dist/components/DndContext/DndContext.d.ts b/dist/components/DndContext/DndContext.d.ts
+index 68f1a95179a27aaed272ef98c02c2aae12c98e24..5810aa1e3199fbad2d2307620350a734c78fd2fa 100644
+--- a/dist/components/DndContext/DndContext.d.ts
++++ b/dist/components/DndContext/DndContext.d.ts
+@@ -29,2 +29,7 @@ export interface Props {
+     onDragCancel?(event: DragCancelEvent): void;
++    // NOTE(calebmer): In a virtualized list, if we drag an item so far that
++    // it's unmounted, we need to preserve the data so when the user drops we
++    // don't throw an error. We continue using the last rendered data ref if
++    // this unstable property is true.
++    unstableShouldPreserveDataAfterDraggableUnmounts?: boolean;
+ }
+diff --git a/dist/core.cjs.development.js b/dist/core.cjs.development.js
+index a9282a8733e10c1c8acfeda1597b2ef54194456f..2e4237eb2abd7e24a7fa0e5ffeab287cd38b25c6 100644
+--- a/dist/core.cjs.development.js
++++ b/dist/core.cjs.development.js
+@@ -2340,12 +2340,15 @@ function useRects(elements, measure) {
+ 
+   const [firstElement] = elements;
+   const windowRect = useWindowRect(firstElement ? utilities.getWindow(firstElement) : null);
+-  const [rects, measureRects] = React.useReducer(reducer, defaultValue$2);
++  const [{elements: previousElements, rects}, measureRects] = React.useReducer(reducer, {elements, rects: defaultValue$2});
+   const resizeObserver = useResizeObserver({
+     callback: measureRects
+   });
+ 
+-  if (elements.length > 0 && rects === defaultValue$2) {
++  // NOTE(calebmer): If scrollable ancestors change we need to re-measure rects.
++  // This happens in our task product when the active card section goes
++  // offscreen and is unmounted. This is a bug in `@dnd-kit/core` we fix.
++  if (elements.length > 0 && rects === defaultValue$2 || elements !== previousElements) {
+     measureRects();
+   }
+ 
+@@ -2361,10 +2364,10 @@ function useRects(elements, measure) {
+ 
+   function reducer() {
+     if (!elements.length) {
+-      return defaultValue$2;
++      return {elements, rects: defaultValue$2};
+     }
+ 
+-    return elements.map(element => isDocumentScrollingElement(element) ? windowRect : new Rect(measure(element), element));
++    return {elements, rects: elements.map(element => isDocumentScrollingElement(element) ? windowRect : new Rect(measure(element), element))};
+   }
+ }
+ 
+@@ -2520,6 +2523,7 @@ function getInitialState() {
+   return {
+     draggable: {
+       active: null,
++      activeDefaultData: {current: defaultData},
+       initialCoordinates: {
+         x: 0,
+         y: 0
+@@ -2541,7 +2545,8 @@ function reducer(state, action) {
+       return { ...state,
+         draggable: { ...state.draggable,
+           initialCoordinates: action.initialCoordinates,
+-          active: action.active
++          active: action.active,
++          activeDefaultData: {current: defaultData}
+         }
+       };
+ 
+@@ -2564,6 +2569,7 @@ function reducer(state, action) {
+       return { ...state,
+         draggable: { ...state.draggable,
+           active: null,
++          activeDefaultData: {current: defaultData},
+           initialCoordinates: {
+             x: 0,
+             y: 0
+@@ -2822,6 +2828,7 @@ const DndContext = /*#__PURE__*/React.memo(function DndContext(_ref) {
+     collisionDetection = rectIntersection,
+     measuring,
+     modifiers,
++    unstableShouldPreserveDataAfterDraggableUnmounts,
+     ...props
+   } = _ref;
+   const store = React.useReducer(reducer, undefined, getInitialState);
+@@ -2832,6 +2839,7 @@ const DndContext = /*#__PURE__*/React.memo(function DndContext(_ref) {
+   const {
+     draggable: {
+       active: activeId,
++      activeDefaultData,
+       nodes: draggableNodes,
+       translate
+     },
+@@ -2850,7 +2858,7 @@ const DndContext = /*#__PURE__*/React.memo(function DndContext(_ref) {
+     return activeId != null ? {
+       id: activeId,
+       // It's possible for the active node to unmount while dragging
+-      data: (_node$data = node == null ? void 0 : node.data) != null ? _node$data : defaultData,
++      data: (_node$data = node == null ? void 0 : node.data) != null ? _node$data : activeDefaultData.current,
+       rect: activeRects
+     } : null;
+   }, [activeId, node]);
+@@ -3198,6 +3206,14 @@ const DndContext = /*#__PURE__*/React.memo(function DndContext(_ref) {
+   }, // eslint-disable-next-line react-hooks/exhaustive-deps
+   [overId]);
+   utilities.useIsomorphicLayoutEffect(() => {
++    // NOTE(calebmer): In a virtualized list, if we drag an item so far that
++    // it's unmounted, we need to preserve the data so when the user drops we
++    // don't throw an error. We continue using the last rendered data ref if
++    // this unstable property is true.
++    if (unstableShouldPreserveDataAfterDraggableUnmounts && active != null) {
++      activeDefaultData.current = active.data;
++    }    
++
+     sensorContext.current = {
+       activatorEvent,
+       active,
+@@ -3217,7 +3233,7 @@ const DndContext = /*#__PURE__*/React.memo(function DndContext(_ref) {
+       initial: draggingNodeRect,
+       translated: collisionRect
+     };
+-  }, [active, activeNode, collisions, collisionRect, draggableNodes, draggingNode, draggingNodeRect, droppableRects, droppableContainers, over, scrollableAncestors, scrollAdjustedTranslate]);
++  }, [active, activeNode, collisions, collisionRect, draggableNodes, draggingNode, draggingNodeRect, droppableRects, droppableContainers, over, scrollableAncestors, scrollAdjustedTranslate, unstableShouldPreserveDataAfterDraggableUnmounts]);
+   useAutoScroller({ ...autoScrollOptions,
+     delta: translate,
+     draggingRect: collisionRect,
+diff --git a/dist/core.esm.js b/dist/core.esm.js
+index 91671e94105af35a13703236af1ab507319bfeef..cf5872eac154b2dbae2e1f87915bba1b11dda1fc 100644
+--- a/dist/core.esm.js
++++ b/dist/core.esm.js
+@@ -2343,12 +2343,15 @@ function useRects(elements, measure) {
+ 
+   const [firstElement] = elements;
+   const windowRect = useWindowRect(firstElement ? getWindow(firstElement) : null);
+-  const [rects, measureRects] = useReducer(reducer, defaultValue$2);
++  const [{elements: previousElements, rects}, measureRects] = useReducer(reducer, {elements, rects: defaultValue$2});
+   const resizeObserver = useResizeObserver({
+     callback: measureRects
+   });
+ 
+-  if (elements.length > 0 && rects === defaultValue$2) {
++  // NOTE(calebmer): If scrollable ancestors change we need to re-measure rects.
++  // This happens in our task product when the active card section goes
++  // offscreen and is unmounted. This is a bug in `@dnd-kit/core` we fix.
++  if (elements.length > 0 && rects === defaultValue$2 || elements !== previousElements) {
+     measureRects();
+   }
+ 
+@@ -2364,10 +2367,10 @@ function useRects(elements, measure) {
+ 
+   function reducer() {
+     if (!elements.length) {
+-      return defaultValue$2;
++      return {elements, rects: defaultValue$2};
+     }
+ 
+-    return elements.map(element => isDocumentScrollingElement(element) ? windowRect : new Rect(measure(element), element));
++    return {elements, rects: elements.map(element => isDocumentScrollingElement(element) ? windowRect : new Rect(measure(element), element))};
+   }
+ }
+ 
+@@ -2523,6 +2526,7 @@ function getInitialState() {
+   return {
+     draggable: {
+       active: null,
++      activeDefaultData: {current: defaultData},
+       initialCoordinates: {
+         x: 0,
+         y: 0
+@@ -2544,7 +2548,8 @@ function reducer(state, action) {
+       return { ...state,
+         draggable: { ...state.draggable,
+           initialCoordinates: action.initialCoordinates,
+-          active: action.active
++          active: action.active,
++          activeDefaultData: {current: defaultData}
+         }
+       };
+ 
+@@ -2567,6 +2572,7 @@ function reducer(state, action) {
+       return { ...state,
+         draggable: { ...state.draggable,
+           active: null,
++          activeDefaultData: {current: defaultData},
+           initialCoordinates: {
+             x: 0,
+             y: 0
+@@ -2825,6 +2831,7 @@ const DndContext = /*#__PURE__*/memo(function DndContext(_ref) {
+     collisionDetection = rectIntersection,
+     measuring,
+     modifiers,
++    unstableShouldPreserveDataAfterDraggableUnmounts,
+     ...props
+   } = _ref;
+   const store = useReducer(reducer, undefined, getInitialState);
+@@ -2835,6 +2842,7 @@ const DndContext = /*#__PURE__*/memo(function DndContext(_ref) {
+   const {
+     draggable: {
+       active: activeId,
++      activeDefaultData,
+       nodes: draggableNodes,
+       translate
+     },
+@@ -2853,7 +2861,7 @@ const DndContext = /*#__PURE__*/memo(function DndContext(_ref) {
+     return activeId != null ? {
+       id: activeId,
+       // It's possible for the active node to unmount while dragging
+-      data: (_node$data = node == null ? void 0 : node.data) != null ? _node$data : defaultData,
++      data: (_node$data = node == null ? void 0 : node.data) != null ? _node$data : activeDefaultData.current,
+       rect: activeRects
+     } : null;
+   }, [activeId, node]);
+@@ -3201,6 +3209,14 @@ const DndContext = /*#__PURE__*/memo(function DndContext(_ref) {
+   }, // eslint-disable-next-line react-hooks/exhaustive-deps
+   [overId]);
+   useIsomorphicLayoutEffect(() => {
++    // NOTE(calebmer): In a virtualized list, if we drag an item so far that
++    // it's unmounted, we need to preserve the data so when the user drops we
++    // don't throw an error. We continue using the last rendered data ref if
++    // this unstable property is true.
++    if (unstableShouldPreserveDataAfterDraggableUnmounts && active != null) {
++      activeDefaultData.current = active.data;
++    }
++
+     sensorContext.current = {
+       activatorEvent,
+       active,
+@@ -3220,7 +3236,7 @@ const DndContext = /*#__PURE__*/memo(function DndContext(_ref) {
+       initial: draggingNodeRect,
+       translated: collisionRect
+     };
+-  }, [active, activeNode, collisions, collisionRect, draggableNodes, draggingNode, draggingNodeRect, droppableRects, droppableContainers, over, scrollableAncestors, scrollAdjustedTranslate]);
++  }, [active, activeNode, collisions, collisionRect, draggableNodes, draggingNode, draggingNodeRect, droppableRects, droppableContainers, over, scrollableAncestors, scrollAdjustedTranslate, unstableShouldPreserveDataAfterDraggableUnmounts]);
+   useAutoScroller({ ...autoScrollOptions,
+     delta: translate,
+     draggingRect: collisionRect,
+diff --git a/dist/index.js b/dist/index.js
+index 5fec47389d27ef25efb49191ba16af960622c77c..fd9b9e59dd36b531e9cf52844e0f20460f247cce 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1,8 +1,8 @@
+ 
+ 'use strict'
+ 
+-if (process.env.NODE_ENV === 'production') {
+-  module.exports = require('./core.cjs.production.min.js')
+-} else {
+-  module.exports = require('./core.cjs.development.js')
+-}
++// NOTE(calebmer): It appears to me that the only difference between the
++// `production` and `development` bundle is that the `production` bundle is
++// minified. Given we minify all our code anyway in production, always use the
++// `development` bundle so we don't have to patch the `production` bundle.
++module.exports = require('./core.cjs.development.js')

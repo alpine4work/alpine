@@ -1,4 +1,6 @@
 import {CrdtRegister, createCrdtRegister} from "~/shared/crdt/crdt_register.js";
+import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {OrderKeySchema} from "~/shared/schema/helpers/order_key_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -30,3 +32,17 @@ export const TaskPositionSchema = Schema.object({
 
 export const TaskPositionRegister = createCrdtRegister(TaskPositionSchema);
 export type TaskPositionRegister = CrdtRegister<TaskPosition>;
+
+/**
+ * Compare two task positions.
+ *
+ * - If <0 then `position1 < position2`
+ * - If >0 then `position1 > position2`
+ * - If 0 then `position1 = position2`
+ */
+export function compareTaskPosition(position1: TaskPosition, position2: TaskPosition): number {
+    return (
+        compareHybridLogicalTimes(position1.orderTime, position2.orderTime) ||
+        defaultCompareStrings(position1.orderKey, position2.orderKey)
+    );
+}

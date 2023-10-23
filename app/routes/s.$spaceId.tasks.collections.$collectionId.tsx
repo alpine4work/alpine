@@ -15,6 +15,7 @@ import {
     TaskCollectionView,
     newTaskCollectionNamePlaceholder,
 } from "~/client/tasks/task_collection_view.js";
+import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     clientLoaderTaskStoreLoaderData,
     useTaskClientStore,
@@ -384,62 +385,67 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
     useAddTaskCollectionViewingTimeAffinityPoints(collectionSubscription);
 
     return (
-        <TaskCollectionView
-            store={store}
-            collectionId={collectionId}
-            collectionSubscription={collectionSubscription ?? null}
-            initialQuery={
-                initialQuery && collectionState.type === "Exists"
-                    ? {
-                          query: initialQuery,
-                          initialGridViewExpansionState:
-                              collectionState.initialGridViewExpansionState,
-                          initialBottomGhostTaskId: collectionState.initialBottomGhostTaskId,
-                      }
-                    : null
-            }
-            initialFilters={initialFilters}
-            initialFilterReferences={initialFilterReferences}
-            initialSorts={initialSorts}
-            onFiltersChange={filters => {
-                const url = new URL(window.location.href);
-
-                if (filters.length === 0) {
-                    url.searchParams.delete("filter");
-                } else {
-                    url.searchParams.set("filter", serializeTaskQueryFiltersSearchParam(filters));
+        <TaskGridViewDndContext store={store}>
+            <TaskCollectionView
+                store={store}
+                collectionId={collectionId}
+                collectionSubscription={collectionSubscription ?? null}
+                initialQuery={
+                    initialQuery && collectionState.type === "Exists"
+                        ? {
+                              query: initialQuery,
+                              initialGridViewExpansionState:
+                                  collectionState.initialGridViewExpansionState,
+                              initialBottomGhostTaskId: collectionState.initialBottomGhostTaskId,
+                          }
+                        : null
                 }
+                initialFilters={initialFilters}
+                initialFilterReferences={initialFilterReferences}
+                initialSorts={initialSorts}
+                onFiltersChange={filters => {
+                    const url = new URL(window.location.href);
 
-                // Silently update the URL without telling Remix so our component doesn't
-                // re-render unnecessarily.
-                window.history.replaceState(null, "", url);
-            }}
-            onSortsChange={sorts => {
-                const url = new URL(window.location.href);
+                    if (filters.length === 0) {
+                        url.searchParams.delete("filter");
+                    } else {
+                        url.searchParams.set(
+                            "filter",
+                            serializeTaskQueryFiltersSearchParam(filters),
+                        );
+                    }
 
-                if (sorts.length === 0) {
-                    url.searchParams.delete("sort");
-                } else {
-                    url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
-                }
+                    // Silently update the URL without telling Remix so our component doesn't
+                    // re-render unnecessarily.
+                    window.history.replaceState(null, "", url);
+                }}
+                onSortsChange={sorts => {
+                    const url = new URL(window.location.href);
 
-                // Silently update the URL without telling Remix so our component doesn't
-                // re-render unnecessarily.
-                window.history.replaceState(null, "", url);
-            }}
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises
-            createCollection={useEvent(async name => {
-                const newSearchParams = new URLSearchParams(searchParams);
-                newSearchParams.set("create", name);
+                    if (sorts.length === 0) {
+                        url.searchParams.delete("sort");
+                    } else {
+                        url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
+                    }
 
-                await navigate(
-                    `/s/${
-                        store.spaceId
-                    }/tasks/collections/${collectionId}?${newSearchParams.toString()}`,
-                    {replace: true},
-                );
-            })}
-        />
+                    // Silently update the URL without telling Remix so our component doesn't
+                    // re-render unnecessarily.
+                    window.history.replaceState(null, "", url);
+                }}
+                // eslint-disable-next-line @typescript-eslint/no-misused-promises
+                createCollection={useEvent(async name => {
+                    const newSearchParams = new URLSearchParams(searchParams);
+                    newSearchParams.set("create", name);
+
+                    await navigate(
+                        `/s/${
+                            store.spaceId
+                        }/tasks/collections/${collectionId}?${newSearchParams.toString()}`,
+                        {replace: true},
+                    );
+                })}
+            />
+        </TaskGridViewDndContext>
     );
 }
 

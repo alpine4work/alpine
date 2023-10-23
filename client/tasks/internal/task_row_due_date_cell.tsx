@@ -134,6 +134,7 @@ function TaskRowDueDateCell(
     const sprinkles = null;
 
     const dueDate = task?.getDueDate() ?? null;
+    const shouldWarnIfAfterDate = !!task && task.getDisplayStatus() !== "Closed";
 
     const cellRef = useRef<HTMLDivElement>(null);
     const [isHovered, hoverRef] = useHoverWithOverlaySupport();
@@ -197,7 +198,12 @@ function TaskRowDueDateCell(
                 onKeyDownCapture={event => onCellKeyDownCapture("DueDate", event)}
             >
                 {isReadOnly ? (
-                    dueDate && <TaskRowDueDateCellPreview dueDate={dueDate} />
+                    dueDate && (
+                        <TaskRowDueDateCellPreview
+                            dueDate={dueDate}
+                            shouldWarnIfAfterDate={shouldWarnIfAfterDate}
+                        />
+                    )
                 ) : (
                     <TaskDateInput
                         aria-label="Due date"
@@ -208,7 +214,7 @@ function TaskRowDueDateCell(
                         overlayOffset="-1"
                         focusRingAroundText={true}
                         shouldIncludeCalendarIcon={true}
-                        shouldWarnIfAfterDate={true}
+                        shouldWarnIfAfterDate={shouldWarnIfAfterDate}
                         shouldFormatAroundToday={true}
                         date={dueDate}
                         onDateChange={dueDate => {
@@ -235,7 +241,13 @@ function TaskRowDueDateCell(
     );
 }
 
-function TaskRowDueDateCellPreview({dueDate}: {dueDate: CalendarDate}) {
+function TaskRowDueDateCellPreview({
+    dueDate,
+    shouldWarnIfAfterDate,
+}: {
+    dueDate: CalendarDate;
+    shouldWarnIfAfterDate: boolean;
+}) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
     // this file. It is critical for scroll performance that this component renders
     // fast. Use the `sprinkles()` function in the module body instead. We've
@@ -270,7 +282,7 @@ function TaskRowDueDateCellPreview({dueDate}: {dueDate: CalendarDate}) {
     return (
         <div
             className={
-                formattedDate.isAfterDate
+                shouldWarnIfAfterDate && formattedDate.isAfterDate
                     ? previewAfterDueDateClassName
                     : previewBeforeDueDateClassName
             }
