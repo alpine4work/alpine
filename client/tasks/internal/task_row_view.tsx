@@ -1431,6 +1431,7 @@ function TaskRowView(
                             // us down.
                             <TaskRowViewDenseFields
                                 ref={denseFieldsRef}
+                                isReadOnly={capabilities.isReadOnly}
                                 store={query.store}
                                 task={task}
                                 marginLeft={marginLeft}

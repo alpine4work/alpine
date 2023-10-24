@@ -26,9 +26,9 @@ export type TaskRowViewDenseFieldsRef = {
 const TaskRowViewDenseFieldsForwardRef = forwardRef(TaskRowViewDenseFields);
 export {TaskRowViewDenseFieldsForwardRef as TaskRowViewDenseFields};
 
-// TODO(calebmer): Read-only mode hasn't been implemented yet for dense fields.
 function TaskRowViewDenseFields(
     {
+        isReadOnly,
         store,
         task,
         marginLeft,
@@ -36,6 +36,7 @@ function TaskRowViewDenseFields(
         focusTitleEnd,
         focusTitleAll,
     }: {
+        isReadOnly: boolean;
         store: TaskClientStore;
         task: TaskModel;
         marginLeft: RemLength;
@@ -224,9 +225,10 @@ function TaskRowViewDenseFields(
         <Box display="flex" alignItems="stretch">
             <Box
                 flexShrink="0"
-                cursor="text"
+                cursor={!isReadOnly ? "text" : undefined}
                 style={{width: marginLeft}}
                 {...useOutOfBoundsClickSelection({
+                    isDisabled: isReadOnly,
                     onSelect: focusTitleStart,
                     onSelectAll: focusTitleAll,
                 })}
@@ -241,8 +243,9 @@ function TaskRowViewDenseFields(
                 // Since above us is text, not a divider line.
                 marginTop="-0.5"
                 paddingBottom="2"
-                className={tasksStyles.textCursorNotInheritedClassName}
+                className={!isReadOnly ? tasksStyles.textCursorNotInheritedClassName : undefined}
                 {...useOutOfBoundsClickSelection({
+                    isDisabled: isReadOnly,
                     onSelect: focusTitleEnd,
                     onSelectAll: focusTitleAll,
                 })}
@@ -272,6 +275,7 @@ function TaskRowViewDenseFields(
                         }}
                     >
                         <TaskAssigneeInput
+                            isReadOnly={isReadOnly}
                             aria-label="Assignee"
                             color="grey-60"
                             avatarSize="4"
@@ -329,6 +333,7 @@ function TaskRowViewDenseFields(
                         }}
                     >
                         <TaskPriorityInput
+                            isReadOnly={isReadOnly}
                             aria-label="Priority"
                             color="grey-60"
                             // If a task is closed, suppress the urgent warning.
@@ -375,6 +380,7 @@ function TaskRowViewDenseFields(
                         }}
                     >
                         <TaskDateInput
+                            isReadOnly={isReadOnly}
                             aria-label="Due date"
                             date={dueDate}
                             shouldIncludeCalendarIcon={true}
