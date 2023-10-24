@@ -315,6 +315,7 @@ export class TaskRealtimeClient {
                                         const extraQuery = this.store.createAndRetainQuery({
                                             filters: extraQueryResult.filters,
                                             sorts: extraQueryResult.sorts,
+                                            limit: extraQueryResult.limit,
                                             // The client may, as an optimization, reuse an existing `TaskClientQuery` when
                                             // `createAndRetainQuery()` is called. However, we can't do that here! The
                                             // server has setup a fresh subscription for us that we must respect.

@@ -9,7 +9,8 @@ import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
-import {useBrowserId} from "~/client/remix/client_info_context.js";
+import {getClientInfoWithoutListening, useBrowserId} from "~/client/remix/client_info_context.js";
+import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore, getParentTaskIdIfChildrenQuery} from "~/client/tasks/task_client_store.js";
@@ -415,7 +416,9 @@ export function useTaskGridViewExpansionState({
                     // visible once the task is expanded. We wait a bit for these tasks to load
                     // then actually expand.
                     const queries = Array.from(taskIdsToLoad, taskId =>
-                        stateManager.store.ensureAndRetainTaskChildrenQuery(taskId),
+                        stateManager.store.ensureAndRetainTaskChildrenQuery(taskId, {
+                            limit: getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
+                        }),
                     );
 
                     const actuallyExpand = () => {
@@ -604,6 +607,11 @@ export function useTaskGridViewExpansionState({
                     ) {
                         const query = stateManager.store.ensureAndRetainTaskChildrenQuery(
                             newTaskPath[newTaskPath.length - 1]!,
+                            {
+                                limit: getTaskGridViewLoadQueryLimit(
+                                    getClientInfoWithoutListening(),
+                                ),
+                            },
                         );
 
                         // Release our query at the end of this code block. `stateManager` will grab

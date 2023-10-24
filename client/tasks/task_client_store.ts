@@ -328,6 +328,7 @@ export class TaskClientStore {
     public createAndRetainQuery(options: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        limit: number;
         withoutReuse?: boolean;
     }): TaskClientQuery {
         return this._internal.createAndRetainQuery(options);
@@ -337,6 +338,7 @@ export class TaskClientStore {
         queries: ReadonlyArray<{
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
         }>,
     ): Array<TaskClientQuery> {
         return this._internal.createAndRetainQueries(queries);
@@ -357,8 +359,8 @@ export class TaskClientStore {
         this._internal.loadTasksIntoQuery(query, options);
     }
 
-    public ensureAndRetainTaskChildrenQuery(parentTaskId: TaskId): TaskClientQuery {
-        return this._internal.ensureAndRetainTaskChildrenQuery(parentTaskId);
+    public ensureAndRetainTaskChildrenQuery(parentTaskId: TaskId, options: {limit: number}): TaskClientQuery {
+        return this._internal.ensureAndRetainTaskChildrenQuery(parentTaskId, options);
     }
 
     public getTaskChildrenQueryStore(parentTaskId: TaskId): Store<TaskClientQuery | undefined> {
@@ -3954,10 +3956,12 @@ export class TaskClientStoreInternal {
     public createAndRetainQuery({
         filters,
         sorts,
+        limit,
         withoutReuse,
     }: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        limit: number;
         withoutReuse?: boolean;
     }): TaskClientQuery {
         return batchStoreUpdates(() => {
@@ -3981,6 +3985,7 @@ export class TaskClientStoreInternal {
                 store: this,
                 filters,
                 sorts,
+                limit,
             });
 
             // If there was already a query for this `parentTaskId` then override it.
@@ -4005,10 +4010,11 @@ export class TaskClientStoreInternal {
         queries: ReadonlyArray<{
             filters: TaskQueryNormalizedFilters;
             sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+            limit: number;
         }>,
     ): Array<TaskClientQuery> {
         return batchStoreUpdates(() => {
-            const createdQueries = queries.map(({filters, sorts}) => {
+            const createdQueries = queries.map(({filters, sorts, limit}) => {
                 // Detect if this is a child task query (filters for all child tasks, sorted by
                 // parent position). If this is a child task query then:
                 //
@@ -4029,6 +4035,7 @@ export class TaskClientStoreInternal {
                     store: this,
                     filters,
                     sorts,
+                    limit,
                 });
 
                 if (parentTaskId) {
@@ -4156,14 +4163,24 @@ export class TaskClientStoreInternal {
      *
      * You should call `release()` when done with the query to free up resources.
      */
-    public ensureAndRetainTaskChildrenQuery(taskId: TaskId): TaskClientQuery {
+    public ensureAndRetainTaskChildrenQuery(
+        taskId: TaskId,
+        {limit}: {limit: number},
+    ): TaskClientQuery {
         const existingChildrenQuery = this._taskChildrenQueryByParentTaskId.getSnapshot(taskId);
         if (existingChildrenQuery) {
             existingChildrenQuery.retain();
+
+            const taskCount = existingChildrenQuery.taskOrderStore.getSnapshot().length;
+            if (taskCount < limit) {
+                existingChildrenQuery.loadMoreTasks(limit - taskCount);
+            }
+
             return existingChildrenQuery;
         }
 
         const query = this.createAndRetainQuery({
+            limit,
             filters: {
                 displayStatusFilter: {
                     ifOpenInactive: true,

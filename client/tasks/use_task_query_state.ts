@@ -197,10 +197,8 @@ export function useTaskQueryState({
             const newPendingQuery = store.createAndRetainQuery({
                 filters: expectedQuery.query.filters,
                 sorts: expectedQuery.query.sorts,
+                limit: getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
             });
-            newPendingQuery.loadMoreTasks(
-                getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
-            );
 
             // This needs to be called in `batchStoreUpdates()` since it delays our
             // `TaskRealtimeClient` subscribing to the query.

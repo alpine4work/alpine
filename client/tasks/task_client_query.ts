@@ -353,21 +353,25 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
      * Instead `TaskRealtimeClient` listens to this store and will make a request
      * to load more data.
      */
-    public readonly loadMoreTaskCountStore = new ValueStore(0);
+    public readonly loadMoreTaskCountStore: ValueStore<number>;
 
     constructor({
         store,
         filters,
         sorts,
+        limit,
     }: {
         store: TaskClientStoreInternal;
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+        limit: number;
     }) {
         super();
         this.store = store;
         this.filters = filters;
         this.sorts = sorts;
+        this.loadMoreTaskCountStore = new ValueStore(limit);
+
         this._taskOrderAndLoadedStateStore = new ValueStore<{
             // `loadedState` is null when the query has not finished loading for the
             // first time.
