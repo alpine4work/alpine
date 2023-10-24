@@ -18,12 +18,14 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 
 export function TaskRowCollectionsCellOverlay({
+    isReadOnly,
     query,
     task,
     focusPreviousCell,
     cellRef,
     commitActionTransaction,
 }: {
+    isReadOnly: boolean;
     query: TaskClientQuery;
     task: TaskModel | null;
     focusPreviousCell: () => void;
@@ -70,6 +72,8 @@ export function TaskRowCollectionsCellOverlay({
                 }}
             >
                 <TaskCollectionsInput
+                    isReadOnly={isReadOnly}
+                    shouldNotRenderInput={isReadOnly}
                     aria-label="Collections"
                     referencesSubscription={query}
                     task={task}

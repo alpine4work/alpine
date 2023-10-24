@@ -25,7 +25,11 @@ export async function getTaskQueryFilterReferences(
         ),
         assembleTaskCollectionSearchResults(
             context,
-            Array.from(collectionIds, collectionId => ({id: collectionId, score: 0})),
+            Array.from(collectionIds, collectionId => ({
+                id: collectionId,
+                score: 0,
+                isRequired: true,
+            })),
         ),
     ]);
 

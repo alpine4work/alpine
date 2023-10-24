@@ -1331,6 +1331,7 @@ function TaskRowView(
                 <>
                     <TaskRowAssigneeCell
                         ref={assigneeCellRef}
+                        isReadOnly={capabilities.isReadOnly}
                         store={query.store}
                         task={task}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
@@ -1343,6 +1344,7 @@ function TaskRowView(
                     />
                     <TaskRowPriorityCell
                         ref={priorityCellRef}
+                        isReadOnly={capabilities.isReadOnly}
                         store={query.store}
                         task={task}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
@@ -1354,6 +1356,7 @@ function TaskRowView(
                     />
                     <TaskRowDueDateCell
                         ref={dueDateCellRef}
+                        isReadOnly={capabilities.isReadOnly}
                         store={query.store}
                         task={task}
                         disableExpensiveFeaturesDuringScroll={disableExpensiveFeaturesDuringScroll}
@@ -1365,6 +1368,7 @@ function TaskRowView(
                     />
                     <TaskRowCollectionsCell
                         ref={collectionsCellRef}
+                        isReadOnly={capabilities.isReadOnly}
                         query={query}
                         task={task}
                         onCellKeyDown={handleCellKeyDown}

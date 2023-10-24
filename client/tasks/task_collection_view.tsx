@@ -1,12 +1,15 @@
-import {Memo, useEffect, useMemo, useRef, useState} from "react";
+import {IconContext, Trash} from "phosphor-react";
+import {Memo, ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
+import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {getTaskCollectionSubscriptionAccessStore} from "~/client/tasks/internal/get_task_subscription_access_store.js";
+import {getTaskCollectionSubscriptionAccess} from "~/client/tasks/internal/get_task_subscription_access_store.js";
+import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {TaskCollectionViewHeader} from "~/client/tasks/internal/task_collection_view_header.js";
 import {
     isTaskQueryManuallySorted,
@@ -17,6 +20,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {getTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
@@ -28,8 +32,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween} from "~/shared/helpers/sort/order_key.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {tasksStyles} from "~/shared/styles/styles.js";
+import {invertSelectionColorsClassName, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
+import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -76,28 +81,6 @@ export function TaskCollectionView({
 }) {
     const {currentAccount} = useSpaceContext();
     const currentDate = useCurrentDate();
-
-    const isReadOnly = useStore(
-        useMemo(() => {
-            // If we're creating a new collection, it should be editable.
-            if (!collectionSubscription) return new ConstStore(false);
-
-            return getTaskCollectionSubscriptionAccessStore(
-                currentAccount.id,
-                collectionSubscription,
-            ).map(access => {
-                switch (access.type) {
-                    case "Deleted":
-                    case "PermissionDenied":
-                        return true;
-                    case "PermissionGranted":
-                        return false;
-                    default:
-                        throw exhaustive(access);
-                }
-            });
-        }, [currentAccount.id, collectionSubscription]),
-    );
 
     const [{filters, filterReferences}, _setFiltersState] = useState({
         filters: initialFilters,
@@ -196,6 +179,70 @@ export function TaskCollectionView({
         sorts: normalizedSorts,
     });
 
+    const readOnlyReason1 = useStore(
+        useMemo((): Store<{icon: ReactNode; message: string | null} | null> => {
+            // If we're creating a new collection, it shouldn't be editable. But we don't
+            // want to show a message.
+            if (!collectionSubscription) return new ConstStore({icon: null, message: null});
+            if (!queryState.activeQuery) return new ConstStore({icon: null, message: null});
+
+            return collectionSubscription.collectionEntryStore
+                .map(collectionEntry =>
+                    getTaskCollectionSubscriptionAccess(currentAccount.id, collectionEntry),
+                )
+                .map(access => {
+                    switch (access.type) {
+                        case "Deleted": {
+                            // TODO(calebmer): Add an "undelete" button when we support undo?
+                            return {
+                                icon: <Trash />,
+                                message: "This collection was deleted. You can’t make changes",
+                            };
+                        }
+                        case "PermissionDenied": {
+                            // TODO(calebmer): If the user removed their own access by removing a
+                            // collection or changing the assignee, we should hint to them that they're
+                            // allowed to undo and give them an undo button.
+                            return {
+                                icon: <PencilSimpleSlash />,
+                                message:
+                                    "You’ve lost access to this collection. You can’t make changes",
+                            };
+                        }
+                        case "PermissionGranted": {
+                            if (hasTaskCollectionAccessLevel(access.level, "Edit")) return null;
+
+                            // TODO(calebmer): If the user removed their own access by removing a
+                            // collection or changing the assignee, we should hint to them that they're
+                            // allowed to undo and give them an undo button.
+                            return {
+                                icon: <PencilSimpleSlash />,
+                                message: "You’re aren’t allowed to make changes to this collection",
+                            };
+                        }
+                        default:
+                            throw exhaustive(access);
+                    }
+                });
+        }, [collectionSubscription, currentAccount.id, queryState.activeQuery]),
+    );
+
+    const readOnlyReason2 = useStore(
+        useMemo(
+            () =>
+                getTaskQueryViewReadOnlyReasonStore({
+                    store,
+                    filters,
+                    filterReferences,
+                    currentAccount,
+                }),
+            [currentAccount, filterReferences, filters, store],
+        ),
+    );
+
+    const readOnlyReason = readOnlyReason1 ?? readOnlyReason2;
+    const isReadOnly = readOnlyReason !== null;
+
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
     const {
@@ -292,44 +339,70 @@ export function TaskCollectionView({
             ];
         },
         withColumnHeaderBorderTop: true,
+        // TODO(calebmer): I'd like to kill extra scroll space. Feels wrong. Looks
+        // particularly wrong with `readOnlyReason`.
         withColumnHeaderExtraScrollSpace: "1.5",
         columnHeaderControls: useMemo(() => {
             return {
                 minHeight: "2.875rem",
                 node: (
-                    <Box display="flex" paddingX={taskRowViewPaddingX}>
-                        <Box paddingTop="1.5" paddingBottom="3" maxWidth="1/2">
-                            <TaskCollectionViewHeader
-                                store={store}
-                                collectionId={collectionId}
-                                collectionSubscription={collectionSubscription}
-                                createCollection={createCollection}
-                            />
-                        </Box>
-                        <Box
-                            flexGrow="1"
-                            paddingLeft="5"
-                            paddingTop="2"
-                            style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
-                        >
-                            <Box borderLeft="grey-5" paddingLeft="5">
-                                <TaskQueryViewCustomizationBar
+                    <>
+                        {readOnlyReason?.message && (
+                            // TODO(calebmer): This should really be a sticky header. We should probably
+                            // have a sticky header for the task title too.
+                            <Box
+                                className={invertSelectionColorsClassName}
+                                height="8"
+                                paddingX="2"
+                                color="grey-0"
+                                backgroundColor={{light: "grey-80", dark: "grey-90"}}
+                                display="flex"
+                                alignItems="center"
+                                gap="1.5"
+                            >
+                                <IconContext.Provider
+                                    value={{color: "currentColor", size: spacing["4"]}}
+                                >
+                                    {readOnlyReason.icon}
+                                </IconContext.Provider>
+                                <Box userSelect="text">{readOnlyReason.message}</Box>
+                            </Box>
+                        )}
+                        <Box display="flex" paddingX={taskRowViewPaddingX}>
+                            <Box paddingTop="1.5" paddingBottom="3" maxWidth="1/2">
+                                <TaskCollectionViewHeader
+                                    isReadOnly={isReadOnly}
                                     store={store}
-                                    shouldCollapseWhenFiltersAreEmpty={true}
-                                    defaultOrderSentence={
-                                        filters.length > 0
-                                            ? "When filtered, tasks are ordered by created date."
-                                            : "You can order tasks manually by dragging them."
-                                    }
-                                    filters={filters}
-                                    filterReferences={filterReferences}
-                                    onFiltersChange={updateFilters}
-                                    sorts={sorts}
-                                    onSortsChange={setSorts}
+                                    collectionId={collectionId}
+                                    collectionSubscription={collectionSubscription}
+                                    createCollection={createCollection}
                                 />
                             </Box>
+                            <Box
+                                flexGrow="1"
+                                paddingLeft="5"
+                                paddingTop="2"
+                                style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
+                            >
+                                <Box borderLeft="grey-5" paddingLeft="5">
+                                    <TaskQueryViewCustomizationBar
+                                        store={store}
+                                        shouldCollapseWhenFiltersAreEmpty={true}
+                                        defaultOrderSentence={
+                                            filters.length > 0
+                                                ? "When filtered, tasks are ordered by created date."
+                                                : "You can order tasks manually by dragging them."
+                                        }
+                                        filters={filters}
+                                        filterReferences={filterReferences}
+                                        onFiltersChange={updateFilters}
+                                        sorts={sorts}
+                                        onSortsChange={setSorts}
+                                    />
+                                </Box>
+                            </Box>
                         </Box>
-                    </Box>
+                    </>
                 ),
             };
         }, [
@@ -338,6 +411,8 @@ export function TaskCollectionView({
             createCollection,
             filterReferences,
             filters,
+            isReadOnly,
+            readOnlyReason,
             setSorts,
             sorts,
             store,
@@ -351,11 +426,9 @@ export function TaskCollectionView({
             width="full"
             overflow="hidden"
             backgroundColor="grey-0"
-            className={
-                queryState.activeQuery ? tasksStyles.textCursorNotInherited2ClassName : undefined
-            }
+            className={!isReadOnly ? tasksStyles.textCursorNotInherited2ClassName : undefined}
             {...useOutOfBoundsClickSelection({
-                isDisabled: !queryState.activeQuery,
+                isDisabled: isReadOnly,
                 // Accept clicks on our `<VirtualizedScrollView>` child too.
                 accept: event =>
                     event.target === event.currentTarget ||

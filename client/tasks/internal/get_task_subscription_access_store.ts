@@ -1,7 +1,6 @@
 import jsonStableStringify from "json-stable-stringify";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
-import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {
     TaskClientStoreCollectionEntry,
     TaskClientStoreTaskEntry,
@@ -127,19 +126,13 @@ export function getTaskSubscriptionAccessStore(
  * collection authorization functions (e.g.
  * `isTaskCollectionAccessAuthorized()`).
  */
-export function getTaskCollectionSubscriptionAccessStore(
+export function getTaskCollectionSubscriptionAccess(
     currentAccountId: AccountId,
-    collectionSubscription: TaskClientCollectionSubscription,
-): Store<TaskAccess> {
-    return collectionSubscription.collectionEntryStore.map(collectionEntry => {
-        const access = computeTaskCollectionSubscriptionAccess(currentAccountId, collectionEntry);
+    collectionEntry: TaskClientStoreCollectionEntry,
+): TaskAccess {
+    const access = computeTaskCollectionSubscriptionAccess(currentAccountId, collectionEntry);
 
-        return getOrSetDefaultMapValue(
-            taskAccessInternMap,
-            jsonStableStringify(access),
-            () => access,
-        );
-    });
+    return getOrSetDefaultMapValue(taskAccessInternMap, jsonStableStringify(access), () => access);
 }
 
 function computeTaskCollectionSubscriptionAccess(

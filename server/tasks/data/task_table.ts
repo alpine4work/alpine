@@ -4023,13 +4023,17 @@ function createTaskCollectionModelSearchResultFromItem(
  * in. Happens when the collection search index thinks our actor has access to
  * the collection but in fact the actor recently lost access and our search
  * index hasn't been refreshed.
+ *
+ * If a collection is required you may set the `isRequired` flag to true. Then
+ * we'll return the collection even if it's deleted and we'll throw if you
+ * don't have access to the collection.
  */
 export async function assembleTaskCollectionSearchResults(
     context: ServerSessionActionContext,
-    collections: Array<{score: number; id: TaskCollectionId}>,
+    collections: Array<{score: number; id: TaskCollectionId; isRequired?: boolean}>,
 ): Promise<Array<TaskCollectionModelSearchResult>> {
     const collectionItems = await runAllPromises(
-        collections.map(async ({score, id: collectionId}) => {
+        collections.map(async ({score, id: collectionId, isRequired = false}) => {
             const collectionItem = await TaskTable.getItem(context, {
                 partitionType: "TaskCollection",
                 sortRangeType: "EssentialAttributes",
@@ -4037,7 +4041,9 @@ export async function assembleTaskCollectionSearchResults(
             });
 
             // Don't include deleted collections in results.
-            if (isTaskCollectionItemDeleted(collectionItem)) return null;
+            if (!isRequired && isTaskCollectionItemDeleted(collectionItem)) return null;
+
+            const expectedAccessLevel = "View";
 
             // We need to double check that we have access to this collection. Since the
             // collection search index might be out of date.
@@ -4045,10 +4051,28 @@ export async function assembleTaskCollectionSearchResults(
                 context,
                 context.actor.getAccountId(),
                 collectionItem,
-                "View",
+                expectedAccessLevel,
             );
 
-            if (!hasAccess) return null;
+            if (!hasAccess) {
+                // If the collection is required, throw an error if the user doesn't
+                // have access.
+                if (isRequired) {
+                    throw new PermissionDeniedError(
+                        quote`Actor does not have ${expectedAccessLevel} access level to task collection`,
+                        {
+                            displayMessage:
+                                getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
+                                    collectionItem,
+                                    expectedAccessLevel,
+                                ),
+                        },
+                    );
+                }
+
+                return null;
+            }
+
             return createTaskCollectionModelSearchResultFromItem(score, collectionItem);
         }),
     );

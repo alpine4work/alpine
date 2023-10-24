@@ -1,5 +1,5 @@
-import {Plus} from "phosphor-react";
-import {useMemo, useRef, useState} from "react";
+import {IconContext, Plus, Trash} from "phosphor-react";
+import {ReactNode, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -7,9 +7,17 @@ import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {Store} from "~/client/helpers/store/store.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {
+    TaskAccess,
+    getTaskCollectionSubscriptionAccess,
+} from "~/client/tasks/internal/get_task_subscription_access_store.js";
+import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {getTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
@@ -23,10 +31,18 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {inputPlaceholderStyles, tasksStyles} from "~/shared/styles/styles.js";
+import {
+    inputPlaceholderStyles,
+    invertSelectionColorsClassName,
+    tasksStyles,
+} from "~/shared/styles/styles.js";
+import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -36,6 +52,106 @@ import {
 import {normalizeTaskQueryFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {normalizeTaskQuerySorts} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
+
+/**
+ * Determine whether our query is read-only. The query is read-only if one of
+ * the filtered collections is read-only. The user may then remove the
+ * collection causing the query to be read-only.
+ */
+export function getTaskQueryViewReadOnlyReasonStore({
+    store,
+    filters,
+    filterReferences,
+    currentAccount,
+}: {
+    store: TaskClientStore;
+    filters: ReadonlyArray<TaskQueryFilter>;
+    filterReferences: TaskQueryFilterReferences;
+    currentAccount: AccountModel;
+}): Store<{
+    icon: ReactNode;
+    message: string;
+} | null> {
+    const filterCollectionsLowestAccess = Store.many(
+        filterMapArray(filters, filter => {
+            if (filter.type !== "Collections") return null;
+
+            return getTaskQueryCollectionsFilterCollectionResultsStore({
+                store,
+                filter,
+                filterReferences,
+            }).map(collectionResults =>
+                collectionResults.map(collectionResult =>
+                    getTaskCollectionSubscriptionAccess(currentAccount.id, collectionResult.entry),
+                ),
+            );
+        }),
+    ).map(_accesses => {
+        const accesses = _accesses.flat();
+
+        let lowestAccess: TaskAccess = {type: "PermissionGranted", level: "Manage"};
+
+        for (const access of accesses) {
+            switch (access.type) {
+                case "PermissionDenied": {
+                    lowestAccess = access;
+                    break;
+                }
+                case "Deleted": {
+                    if (lowestAccess.type === "PermissionDenied") break;
+                    lowestAccess = access;
+                    break;
+                }
+                case "PermissionGranted": {
+                    if (lowestAccess.type === "PermissionDenied") break;
+                    if (lowestAccess.type === "Deleted") break;
+
+                    if (!hasTaskCollectionAccessLevel(access.level, lowestAccess.level)) {
+                        lowestAccess = access;
+                    }
+                    break;
+                }
+                default:
+                    throw exhaustive(access);
+            }
+        }
+
+        return lowestAccess;
+    });
+
+    return filterCollectionsLowestAccess.map(access => {
+        switch (access.type) {
+            case "Deleted": {
+                return {
+                    icon: <Trash />,
+                    message: "A filtered collection was deleted. You can’t make changes",
+                };
+            }
+            case "PermissionDenied": {
+                // TODO(calebmer): If the user removed their own access by removing a
+                // collection or changing the assignee, we should hint to them that they're
+                // allowed to undo and give them an undo button.
+                return {
+                    icon: <PencilSimpleSlash />,
+                    message: "You’ve lost access to a filtered collection. You can’t make changes",
+                };
+            }
+            case "PermissionGranted": {
+                if (hasTaskCollectionAccessLevel(access.level, "Edit")) return null;
+
+                // TODO(calebmer): If the user removed their own access by removing a
+                // collection or changing the assignee, we should hint to them that they're
+                // allowed to undo and give them an undo button.
+                return {
+                    icon: <PencilSimpleSlash />,
+                    message: "You’re aren’t allowed to make changes to a filtered collection",
+                };
+            }
+            default:
+                throw exhaustive(access);
+        }
+    });
+}
 
 export function TaskQueryView({
     store,
@@ -126,6 +242,21 @@ export function TaskQueryView({
 
     const normalizedSorts = useMemo(() => normalizeTaskQuerySorts(sorts), [sorts]);
 
+    const readOnlyReason = useStore(
+        useMemo(
+            () =>
+                getTaskQueryViewReadOnlyReasonStore({
+                    store,
+                    filters,
+                    filterReferences,
+                    currentAccount,
+                }),
+            [currentAccount, filterReferences, filters, store],
+        ),
+    );
+
+    const isReadOnly = readOnlyReason !== null;
+
     const queryState = useTaskQueryState({
         store,
         initialQuery,
@@ -152,13 +283,13 @@ export function TaskQueryView({
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
             () => ({
-                isReadOnly: false,
+                isReadOnly,
                 hasParentTaskTitle: true,
                 hasMultilineTitle: false,
                 hasDenseFields: false,
                 hasColumns: true,
             }),
-            [],
+            [isReadOnly],
         ),
         viewRef,
         query: queryState.activeQuery.query,
@@ -203,31 +334,55 @@ export function TaskQueryView({
         // level (subtasks are fine) and tab/shift-tab to indent.
         getMaybeRemoveTaskFromQueryActions: () => [],
         withColumnHeaderBorderTop: true,
+        // TODO(calebmer): I'd like to kill extra scroll space. Feels wrong.
         withColumnHeaderExtraScrollSpace: "1.5",
         columnHeaderControls: useMemo(() => {
             return {
                 minHeight: "2.75rem",
                 node: (
-                    <Box
-                        paddingX={taskRowViewPaddingX}
-                        paddingTop="2"
-                        style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
-                    >
-                        <TaskQueryViewCustomizationBar
-                            ref={customizationBarRef}
-                            store={store}
-                            shouldCollapseWhenFiltersAreEmpty={false}
-                            defaultOrderSentence="By default, tasks are ordered by created date."
-                            filters={filters}
-                            filterReferences={filterReferences}
-                            onFiltersChange={updateFilters}
-                            sorts={sorts}
-                            onSortsChange={setSorts}
-                        />
-                    </Box>
+                    <>
+                        {readOnlyReason?.message && (
+                            // TODO(calebmer): This should really be a sticky header. We should probably
+                            // have a sticky header for the task title too.
+                            <Box
+                                className={invertSelectionColorsClassName}
+                                height="8"
+                                paddingX="2"
+                                color="grey-0"
+                                backgroundColor={{light: "grey-80", dark: "grey-90"}}
+                                display="flex"
+                                alignItems="center"
+                                gap="1.5"
+                            >
+                                <IconContext.Provider
+                                    value={{color: "currentColor", size: spacing["4"]}}
+                                >
+                                    {readOnlyReason.icon}
+                                </IconContext.Provider>
+                                <Box userSelect="text">{readOnlyReason.message}</Box>
+                            </Box>
+                        )}
+                        <Box
+                            paddingX={taskRowViewPaddingX}
+                            paddingTop="2"
+                            style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
+                        >
+                            <TaskQueryViewCustomizationBar
+                                ref={customizationBarRef}
+                                store={store}
+                                shouldCollapseWhenFiltersAreEmpty={false}
+                                defaultOrderSentence="By default, tasks are ordered by created date."
+                                filters={filters}
+                                filterReferences={filterReferences}
+                                onFiltersChange={updateFilters}
+                                sorts={sorts}
+                                onSortsChange={setSorts}
+                            />
+                        </Box>
+                    </>
                 ),
             };
-        }, [filterReferences, filters, setSorts, sorts, store, updateFilters]),
+        }, [filterReferences, filters, readOnlyReason, setSorts, sorts, store, updateFilters]),
     });
 
     return (

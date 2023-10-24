@@ -97,6 +97,7 @@ const previewTextClassName = sprinkles({
 
 function TaskRowDueDateCell(
     {
+        isReadOnly: isActuallyReadOnly,
         store,
         task,
         disableExpensiveFeaturesDuringScroll,
@@ -106,6 +107,7 @@ function TaskRowDueDateCell(
         focusNextCell,
         commitActionTransaction,
     }: {
+        isReadOnly: boolean;
         store: TaskClientStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
@@ -156,10 +158,8 @@ function TaskRowDueDateCell(
         setDisableExpensiveFeatures(false);
     }
 
-    // NOTE(calebmer): We haven't implemented read-only task rows yet but when we
-    // do the optimized cell implementation and read-only mode should share an
-    // implementation.
-    const isReadOnly = disableExpensiveFeatures;
+    // Treat the cell as read-only while expensive features are disabled.
+    const isReadOnly = isActuallyReadOnly || disableExpensiveFeatures;
 
     useImperativeHandle(
         ref,
@@ -186,7 +186,10 @@ function TaskRowDueDateCell(
                 tabIndex={-1}
                 className={
                     isReadOnly
-                        ? classNames(tasksStyles.textCursorNotInheritedClassName, cellClassName)
+                        ? classNames(
+                              !isActuallyReadOnly && tasksStyles.textCursorNotInheritedClassName,
+                              cellClassName,
+                          )
                         : cellClassName
                 }
                 style={{opacity: dueDate || isHovered || isFocusWithin ? 1 : 0}}

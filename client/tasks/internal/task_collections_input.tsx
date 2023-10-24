@@ -75,7 +75,8 @@ export function TaskCollectionsInput({
     task,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
-    isReadOnly,
+    isReadOnly = false,
+    shouldNotRenderInput = false,
     areMarginsClickable = false,
     paddingX,
     paddingY,
@@ -89,6 +90,7 @@ export function TaskCollectionsInput({
     "aria-label"?: string;
     "aria-labelledby"?: string;
     isReadOnly?: boolean;
+    shouldNotRenderInput?: boolean;
     areMarginsClickable?: boolean;
     paddingX?: "2.5";
     paddingY?: "2.5";
@@ -555,9 +557,12 @@ export function TaskCollectionsInput({
             paddingX={paddingX}
             paddingY={paddingY}
             className={
-                areMarginsClickable ? tasksStyles.textCursorNotInheritedClassName : undefined
+                !isReadOnly && areMarginsClickable
+                    ? tasksStyles.textCursorNotInheritedClassName
+                    : undefined
             }
             onPointerDown={event => {
+                if (isReadOnly) return;
                 if (!areMarginsClickable) return;
 
                 if (event.target === event.currentTarget) {
@@ -640,137 +645,148 @@ export function TaskCollectionsInput({
                     />
                 </Box>
             )}
-            <OverlayAnimated
-                isVisible={comboBoxState.isOpen}
-                offset={defaultTooltipOffset}
-                disableAnimationIn={true}
-                disableAnimationOut={
-                    inputState.type === "Unfocused" && inputState.disableAnimationOut
-                }
-                placement="bottom-start"
-                // If we're approaching the edge of the screen (like in a row cell) don't allow
-                // flipping horizontally but still allow flipping vertically.
-                fallbackPlacements={["top-start"]}
-                overlay={
+            {!shouldNotRenderInput && (
+                <OverlayAnimated
+                    isVisible={comboBoxState.isOpen}
+                    offset={defaultTooltipOffset}
+                    disableAnimationIn={true}
+                    disableAnimationOut={
+                        inputState.type === "Unfocused" && inputState.disableAnimationOut
+                    }
+                    placement="bottom-start"
+                    // If we're approaching the edge of the screen (like in a row cell) don't allow
+                    // flipping horizontally but still allow flipping vertically.
+                    fallbackPlacements={["top-start"]}
+                    overlay={
+                        <Box
+                            ref={popoverRef}
+                            className={greyElevated2ClassName}
+                            position="relative"
+                            borderRadius="md"
+                            backgroundColor="grey-0"
+                            boxShadow="elevation-20"
+                            width="64"
+                            maxHeight="64"
+                            overflow="hidden"
+                            display="flex"
+                            flexDirection="column"
+                        >
+                            <TaskCollectionComboBoxListBox
+                                comboBoxState={comboBoxState}
+                                listBoxRef={listBoxRef}
+                                listBoxProps={listBoxProps}
+                            />
+                        </Box>
+                    }
+                >
                     <Box
-                        ref={popoverRef}
-                        className={greyElevated2ClassName}
-                        position="relative"
-                        borderRadius="md"
-                        backgroundColor="grey-0"
-                        boxShadow="elevation-20"
-                        width="64"
-                        maxHeight="64"
-                        overflow="hidden"
-                        display="flex"
-                        flexDirection="column"
-                    >
-                        <TaskCollectionComboBoxListBox
-                            comboBoxState={comboBoxState}
-                            listBoxRef={listBoxRef}
-                            listBoxProps={listBoxProps}
-                        />
-                    </Box>
-                }
-            >
-                <Box maxWidth="full" overflow="hidden" display="flex" alignItems="center" gap="2">
-                    <Box
-                        position="relative"
-                        zIndex="0"
                         maxWidth="full"
                         overflow="hidden"
-                        // The width of this element is determined by nested text boxes when `inline`.
-                        // The `<input>` then uses the parent width as its own width.
-                        //
-                        // We don't use `<InputWithAutoGrowingWidth>` because we want to render a custom
-                        // icon with the placeholder. Though our implementation here should closely
-                        // follow `<InputWithAutoGrowingWidth>`.
-                        display="inline-block"
-                        onKeyDown={event => {
-                            if (event.key === "Escape") {
-                                event.preventDefault();
-                                event.stopPropagation();
-                                event.target.blur();
-                                return;
-                            }
-                        }}
+                        display="flex"
+                        alignItems="center"
+                        gap="2"
                     >
                         <Box
                             position="relative"
-                            zIndex="-10"
-                            display="flex"
-                            alignItems="center"
-                            gap={shouldShowPrivatePlaceholder ? "1" : undefined}
-                            pointerEvents="none"
-                            // This is accessible through `aria-placeholder` on the `<input>`.
-                            aria-hidden={true}
-                            style={{
-                                ...inputPlaceholderStyles,
-                                opacity: inputState.value.length === 0 ? 1 : 0,
+                            zIndex="0"
+                            maxWidth="full"
+                            overflow="hidden"
+                            // The width of this element is determined by nested text boxes when `inline`.
+                            // The `<input>` then uses the parent width as its own width.
+                            //
+                            // We don't use `<InputWithAutoGrowingWidth>` because we want to render a custom
+                            // icon with the placeholder. Though our implementation here should closely
+                            // follow `<InputWithAutoGrowingWidth>`.
+                            display="inline-block"
+                            onKeyDown={event => {
+                                if (event.key === "Escape") {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    event.target.blur();
+                                    return;
+                                }
                             }}
                         >
-                            {shouldShowPrivatePlaceholder ? (
-                                <Lock size={spacing["4"]} />
-                            ) : (
-                                <Box paddingRight="0.5">
-                                    <Plus size={spacing["3"]} />
-                                </Box>
-                            )}
-                            <Box>{inputPlaceholder}</Box>
-                        </Box>
-                        <Box
-                            height="0"
-                            opacity="0"
-                            pointerEvents="none"
-                            aria-hidden={true}
-                            // Leading and trailing spaces should contribute to width.
-                            style={{whiteSpace: "pre"}}
-                        >
-                            {inputState.value}
-                        </Box>
-                        <FocusRing>
-                            <input
-                                {...inputProps}
-                                ref={inputRef}
-                                type="text"
-                                tabIndex={!isTabbable ? -1 : undefined}
-                                className={sprinkles({
-                                    position: "absolute",
-                                    inset: "0",
-                                    display: "inline-block",
-                                    backgroundColor: "transparent",
-                                    paddingLeft:
-                                        inputState.value.length === 0 &&
-                                        shouldShowPrivatePlaceholder
-                                            ? "5"
-                                            : undefined,
-                                })}
-                                // By default `<input>` elements have a `min-width` determined by the `size`
-                                // property. We want our `<input>`s `min-width` to be determined by our CSS
-                                // so set it to a small value as not to matter.
-                                // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
-                                size={1}
-                                // Use `aria-placeholder` since the placeholder text is rendered by another DOM
-                                // element with an icon.
-                                aria-placeholder={inputPlaceholder}
-                                // Make sure the combobox is always open when the user clicks on the collection
-                                // input. We've observed some bugs where `react-aria` doesn't happen to open
-                                // the combobox consistently on focus.
-                                onPointerDown={() => {
-                                    if (!isReadOnly) {
-                                        comboBoxState.open();
-                                    }
+                            <Box
+                                position="relative"
+                                zIndex="-10"
+                                display="flex"
+                                alignItems="center"
+                                gap={shouldShowPrivatePlaceholder ? "1" : undefined}
+                                pointerEvents="none"
+                                // This is accessible through `aria-placeholder` on the `<input>`.
+                                aria-hidden={true}
+                                style={{
+                                    ...inputPlaceholderStyles,
+                                    opacity: inputState.value.length === 0 ? 1 : 0,
                                 }}
-                            />
-                        </FocusRing>
-                    </Box>
-                    {shouldShowSearchLoadingIndicator && (
-                        <Box flexShrink="0">
-                            <SpinnerGap className={spinAnimationClassName} size={spacing["3"]} />
+                            >
+                                {shouldShowPrivatePlaceholder ? (
+                                    <Lock size={spacing["4"]} />
+                                ) : (
+                                    <Box paddingRight="0.5">
+                                        <Plus size={spacing["3"]} />
+                                    </Box>
+                                )}
+                                <Box>{inputPlaceholder}</Box>
+                            </Box>
+                            <Box
+                                height="0"
+                                opacity="0"
+                                pointerEvents="none"
+                                aria-hidden={true}
+                                // Leading and trailing spaces should contribute to width.
+                                style={{whiteSpace: "pre"}}
+                            >
+                                {inputState.value}
+                            </Box>
+                            <FocusRing>
+                                <input
+                                    {...inputProps}
+                                    ref={inputRef}
+                                    type="text"
+                                    tabIndex={!isTabbable ? -1 : undefined}
+                                    className={sprinkles({
+                                        position: "absolute",
+                                        inset: "0",
+                                        display: "inline-block",
+                                        backgroundColor: "transparent",
+                                        paddingLeft:
+                                            inputState.value.length === 0 &&
+                                            shouldShowPrivatePlaceholder
+                                                ? "5"
+                                                : undefined,
+                                    })}
+                                    // By default `<input>` elements have a `min-width` determined by the `size`
+                                    // property. We want our `<input>`s `min-width` to be determined by our CSS
+                                    // so set it to a small value as not to matter.
+                                    // https://stackoverflow.com/questions/29470676/why-doesnt-the-input-element-respect-min-width
+                                    size={1}
+                                    // Use `aria-placeholder` since the placeholder text is rendered by another DOM
+                                    // element with an icon.
+                                    aria-placeholder={inputPlaceholder}
+                                    // Make sure the combobox is always open when the user clicks on the collection
+                                    // input. We've observed some bugs where `react-aria` doesn't happen to open
+                                    // the combobox consistently on focus.
+                                    onPointerDown={() => {
+                                        if (!isReadOnly) {
+                                            comboBoxState.open();
+                                        }
+                                    }}
+                                />
+                            </FocusRing>
                         </Box>
-                    )}
-                </Box>
-            </OverlayAnimated>
+                        {shouldShowSearchLoadingIndicator && (
+                            <Box flexShrink="0">
+                                <SpinnerGap
+                                    className={spinAnimationClassName}
+                                    size={spacing["3"]}
+                                />
+                            </Box>
+                        )}
+                    </Box>
+                </OverlayAnimated>
+            )}
         </Box>
     );
 }

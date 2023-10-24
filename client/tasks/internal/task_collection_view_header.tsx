@@ -7,7 +7,7 @@ import {Box} from "~/client/design/box.js";
 import {FocusRing, useIsFocusRingVisible} from "~/client/design/focus_ring.js";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuButton} from "~/client/design/menu_button.js";
+import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip} from "~/client/design/tooltip.js";
@@ -32,11 +32,13 @@ import {colorSchemeVars, greyElevated2ClassName, sprinkles} from "~/shared/style
 export const newTaskCollectionNamePlaceholder = "New collection";
 
 export function TaskCollectionViewHeader({
+    isReadOnly,
     store,
     collectionId,
     collectionSubscription,
     createCollection,
 }: {
+    isReadOnly: boolean;
     store: TaskClientStore;
     collectionId: TaskCollectionId;
     // If `collectionSubscription` is null, that means we are creating a
@@ -71,6 +73,74 @@ export function TaskCollectionViewHeader({
     const name = collection?.getName() ?? "";
     const color = collection?.getColor() ?? null;
 
+    const menuActions: Array<ReadonlyArray<MenuAction>> = [];
+
+    menuActions.push([
+        {
+            label: "Copy link",
+            pressErrorTitle: "Couldn’t copy collection link",
+            onPress: async () => {
+                const url = new URL(
+                    `/s/${space.id}/tasks/collections/${collectionId}`,
+                    window.location.href,
+                );
+                await writeTextToClipboard(url.toString());
+            },
+        },
+    ]);
+
+    if (!isReadOnly) {
+        // Even though you can edit the collection name by double clicking and the
+        // color by clicking on the dot, we still include menu items since these
+        // interactions aren't necessarily obvious.
+        //
+        // Also, the color and name are not focusable. So the only way to edit
+        // name/color via keyboard are these menu items.
+        menuActions.push([
+            {
+                label: "Edit name",
+                onPress: () => setIsEditingName(true),
+            },
+            {
+                label: "Edit color",
+                onPress: () => setColorSelectorState({isExpanded: true}),
+            },
+        ]);
+
+        // TODO(calebmer): Collections support more involved permission rules than just
+        // public/private. Eventually I want a full sharing dialog (like in Google
+        // Docs) but I want that sharing dialog to work across all stuff in the space.
+        // Including docs and channels.
+        menuActions.push([
+            {
+                label: "Make public",
+                icon: <LockOpen />,
+                iconPlacement: "end",
+                onPress: () => {
+                    // NOCOMMIT
+                },
+            },
+        ]);
+
+        menuActions.push([
+            {
+                label: "Delete",
+                onPress: () => {
+                    store.commitTaskActionTransaction(context, [
+                        {
+                            type: "UpdateCollection",
+                            time: store.clock.now(),
+                            collectionId,
+                            collectionAction: {type: "Delete"},
+                        },
+                    ]);
+
+                    void navigate(-1);
+                },
+            },
+        ]);
+    }
+
     return (
         <Box paddingLeft="1" marginLeft="-1" overflow="hidden" display="flex" alignItems="center">
             {collectionSubscription && (
@@ -102,6 +172,8 @@ export function TaskCollectionViewHeader({
                     fontStyle="truncate-semi-bold"
                     userSelect="text"
                     onDoubleClick={event => {
+                        if (isReadOnly) return;
+
                         // Disable selection from double click.
                         event.preventDefault();
 
@@ -154,73 +226,7 @@ export function TaskCollectionViewHeader({
                 </Box>
             )}
             <Box flexShrink="0" paddingLeft="2">
-                <MenuButton
-                    actions={[
-                        [
-                            {
-                                label: "Copy link",
-                                pressErrorTitle: "Couldn’t copy collection link",
-                                onPress: async () => {
-                                    const url = new URL(
-                                        `/s/${space.id}/tasks/collections/${collectionId}`,
-                                        window.location.href,
-                                    );
-                                    await writeTextToClipboard(url.toString());
-                                },
-                            },
-                        ],
-
-                        // Even though you can edit the collection name by double clicking and the
-                        // color by clicking on the dot, we still include menu items since these
-                        // interactions aren't necessarily obvious.
-                        //
-                        // Also, the color and name are not focusable. So the only way to edit
-                        // name/color via keyboard are these menu items.
-                        [
-                            {
-                                label: "Edit name",
-                                onPress: () => setIsEditingName(true),
-                            },
-                            {
-                                label: "Edit color",
-                                onPress: () => setColorSelectorState({isExpanded: true}),
-                            },
-                        ],
-
-                        // TODO(calebmer): Collections support more involved permission rules than just
-                        // public/private. Eventually I want a full sharing dialog (like in Google
-                        // Docs) but I want that sharing dialog to work across all stuff in the space.
-                        // Including docs and channels.
-                        [
-                            {
-                                label: "Make public",
-                                icon: <LockOpen />,
-                                iconPlacement: "end",
-                                onPress: () => {
-                                    // NOCOMMIT
-                                },
-                            },
-                        ],
-
-                        [
-                            {
-                                label: "Delete",
-                                onPress: () => {
-                                    store.commitTaskActionTransaction(context, [
-                                        {
-                                            type: "UpdateCollection",
-                                            time: store.clock.now(),
-                                            collectionId,
-                                            collectionAction: {type: "Delete"},
-                                        },
-                                    ]);
-
-                                    void navigate(-1);
-                                },
-                            },
-                        ],
-                    ]}
-                >
+                <MenuButton actions={menuActions}>
                     <IconButton size="sm" description="More" withoutTooltip>
                         <DotsThree />
                     </IconButton>

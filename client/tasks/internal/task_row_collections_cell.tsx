@@ -94,6 +94,7 @@ const extraCollectionsClassName = sprinkles({
 
 function TaskRowCollectionsCell(
     {
+        isReadOnly,
         query,
         task,
         onCellKeyDown,
@@ -102,6 +103,7 @@ function TaskRowCollectionsCell(
         setRowZIndex,
         commitActionTransaction,
     }: {
+        isReadOnly: boolean;
         query: TaskClientQuery;
         task: TaskModel | null;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
@@ -171,8 +173,10 @@ function TaskRowCollectionsCell(
         if (!shouldFocusTextInputNextRenderRef.current) return;
         shouldFocusTextInputNextRenderRef.current = false;
 
+        if (isReadOnly) return;
+
         assertExists(cellRef.current?.querySelector("input")).focus();
-    }, [isFocusWithin]);
+    }, [isFocusWithin, isReadOnly]);
 
     // If collections are expanded then make sure our task row renders on top of
     // all other task rows.
@@ -186,7 +190,10 @@ function TaskRowCollectionsCell(
         <div
             ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
             tabIndex={-1}
-            className={classNames(tasksStyles.textCursorNotInheritedClassName, cellClassName)}
+            className={classNames(
+                !isReadOnly && tasksStyles.textCursorNotInheritedClassName,
+                cellClassName,
+            )}
             onFocus={() => setIsFocusWithin(true)}
             onBlur={event => {
                 setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
@@ -203,17 +210,19 @@ function TaskRowCollectionsCell(
         >
             {!isFocusWithin ? (
                 collectionsArray.length === 0 ? (
-                    // NOCOMMIT: Private is a misnomer when you have access to the parent
-                    <div
-                        className={emptyCollectionsClassName}
-                        style={{
-                            ...inputPlaceholderStyles,
-                            opacity: isHovered ? 1 : 0,
-                        }}
-                    >
-                        <Lock size={spacing["4"]} />
-                        <div>Private</div>
-                    </div>
+                    !isReadOnly && (
+                        // NOCOMMIT: Private is a misnomer when you have access to the parent
+                        <div
+                            className={emptyCollectionsClassName}
+                            style={{
+                                ...inputPlaceholderStyles,
+                                opacity: isHovered ? 1 : 0,
+                            }}
+                        >
+                            <Lock size={spacing["4"]} />
+                            <div>Private</div>
+                        </div>
+                    )
                 ) : (
                     <>
                         {collectionsArray.slice(0, 2).map(({collectionId}) => (
@@ -250,6 +259,7 @@ function TaskRowCollectionsCell(
                 )
             ) : (
                 <TaskRowCollectionsCellOverlay
+                    isReadOnly={isReadOnly}
                     query={query}
                     task={task}
                     focusPreviousCell={() => focusPreviousCell("Collections")}

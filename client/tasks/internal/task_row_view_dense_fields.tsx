@@ -26,6 +26,7 @@ export type TaskRowViewDenseFieldsRef = {
 const TaskRowViewDenseFieldsForwardRef = forwardRef(TaskRowViewDenseFields);
 export {TaskRowViewDenseFieldsForwardRef as TaskRowViewDenseFields};
 
+// TODO(calebmer): Read-only mode hasn't been implemented yet for dense fields.
 function TaskRowViewDenseFields(
     {
         store,

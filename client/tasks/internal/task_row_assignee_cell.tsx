@@ -86,6 +86,7 @@ const previewNameClassName = sprinkles({
 
 function TaskRowAssigneeCell(
     {
+        isReadOnly: isActuallyReadOnly,
         store,
         task,
         disableExpensiveFeaturesDuringScroll,
@@ -96,6 +97,7 @@ function TaskRowAssigneeCell(
         focusPreviousCell,
         commitActionTransaction,
     }: {
+        isReadOnly: boolean;
         store: TaskClientStore;
         task: TaskModel | null;
         disableExpensiveFeaturesDuringScroll: boolean;
@@ -151,10 +153,8 @@ function TaskRowAssigneeCell(
         setDisableExpensiveFeatures(false);
     }
 
-    // NOTE(calebmer): We haven't implemented read-only task rows yet but when we
-    // do the optimized cell implementation and read-only mode should share an
-    // implementation.
-    const isReadOnly = disableExpensiveFeatures;
+    // Treat the cell as read-only while expensive features are disabled.
+    const isReadOnly = isActuallyReadOnly || disableExpensiveFeatures;
 
     useImperativeHandle(
         ref,
@@ -176,7 +176,10 @@ function TaskRowAssigneeCell(
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
                 tabIndex={-1}
-                className={classNames(tasksStyles.textCursorNotInheritedClassName, cellClassName)}
+                className={classNames(
+                    !isActuallyReadOnly && tasksStyles.textCursorNotInheritedClassName,
+                    cellClassName,
+                )}
                 style={{opacity: assigneeAccountData || isHovered || isFocusWithin ? 1 : 0}}
                 {...useOutOfBoundsClickSelection({
                     isDisabled: isReadOnly,
