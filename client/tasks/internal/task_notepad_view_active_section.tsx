@@ -6,7 +6,7 @@ import {Button} from "~/client/design/button.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {
@@ -711,7 +711,7 @@ function TaskNotepadViewActiveSectionTruncatedExplainerCard({
     activeDraggableData: TaskGridViewDraggableData | undefined;
     overDroppableData: TaskGridViewDroppableData | undefined;
 }) {
-    const rootNavigate = useNavigate();
+    const rootNavigate = useRootNavigate();
     const {space} = useSpaceContext();
 
     const moreTaskCount = allTaskCount - taskCardCount;
