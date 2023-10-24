@@ -8,7 +8,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
-import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";

@@ -102,14 +102,9 @@ export function SpaceLayoutTopBarCreateButton() {
                 },
                 {
                     withCustomLayout: true,
-                    onPress: () => {
-                        showToast({
-                            type: "Error",
-                            title: "Can not create a task",
-                            error: new UnimplementedError("Tasks have not been implemented yet", {
-                                displayMessage: errorDisplayMessage`Tasks have not been implemented yet.`,
-                            }),
-                        });
+                    pressErrorTitle: "Couldn’t open tasks",
+                    onPress: async () => {
+                        await peekStackContext.push(`/s/${space.id}/tasks`);
                     },
                     render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
                         <SpaceLayoutTopBarCreateButtonItem

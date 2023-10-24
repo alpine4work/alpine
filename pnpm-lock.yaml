@@ -17,7 +17,7 @@ patchedDependencies:
     hash: hd2oz2xlphxbe5w65c4x3qmfrm
     path: admin/patches/@cloudflare__workers-types@3.18.0.patch
   '@dnd-kit/core@6.0.8':
-    hash: u3sbbmgyu7yhmvwpqnp62zdlsi
+    hash: aq43jon62mjk6q3sndzce5wqni
     path: admin/patches/@dnd-kit__core@6.0.8.patch
   '@dnd-kit/utilities@3.2.1':
     hash: di55vvis5paiupfudkzzxlvcfm
@@ -59,7 +59,7 @@ patchedDependencies:
     hash: jjglha5utcogf5q2swbngyl42q
     path: admin/patches/@remix-run__react@1.18.0.patch
   '@remix-run/router@1.7.0':
-    hash: vytmvafzhwlog3q2vg6d2kv4pu
+    hash: enqrbd4mwv2hpubewhaor3hnye
     path: admin/patches/@remix-run__router@1.7.0.patch
   '@remix-run/server-runtime@1.18.0':
     hash: aw4qjtd7azdvs67jkawigt7yqi
@@ -104,7 +104,7 @@ patchedDependencies:
     hash: kvpk374ql5erre4wvvaotuluya
     path: admin/patches/react-router-dom@6.14.0.patch
   react-router@6.14.0:
-    hash: 7mgs4cb3kjuu4mvyc3m7w3zr2m
+    hash: bdxc23p7hiyeequviwkdpc6xgu
     path: admin/patches/react-router@6.14.0.patch
   swr@2.1.0:
     hash: fjssuecdvmfeujlug2i3x2lofe
@@ -134,7 +134,7 @@ dependencies:
     version: 3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)
   '@dnd-kit/core':
     specifier: 6.0.8
-    version: 6.0.8(patch_hash=u3sbbmgyu7yhmvwpqnp62zdlsi)(react-dom@18.2.0)(react@18.2.0)
+    version: 6.0.8(patch_hash=aq43jon62mjk6q3sndzce5wqni)(react-dom@18.2.0)(react@18.2.0)
   '@dnd-kit/modifiers':
     specifier: ^6.0.1
     version: 6.0.1(@dnd-kit/core@6.0.8)(react@18.2.0)
@@ -200,7 +200,7 @@ dependencies:
     version: 1.18.0(patch_hash=jjglha5utcogf5q2swbngyl42q)(react-dom@18.2.0)(react@18.2.0)
   '@remix-run/router':
     specifier: 1.7.0
-    version: 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
+    version: 1.7.0(patch_hash=enqrbd4mwv2hpubewhaor3hnye)
   '@remix-run/server-runtime':
     specifier: 1.18.0
     version: 1.18.0(patch_hash=aw4qjtd7azdvs67jkawigt7yqi)
@@ -581,7 +581,7 @@ dependencies:
     version: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
   react-router:
     specifier: 6.14.0
-    version: 6.14.0(patch_hash=7mgs4cb3kjuu4mvyc3m7w3zr2m)(react@18.2.0)
+    version: 6.14.0(patch_hash=bdxc23p7hiyeequviwkdpc6xgu)(react@18.2.0)
   react-router-dom:
     specifier: 6.14.0
     version: 6.14.0(patch_hash=kvpk374ql5erre4wvvaotuluya)(react-dom@18.2.0)(react@18.2.0)
@@ -2703,7 +2703,7 @@ packages:
       tslib: 2.5.0
     dev: false
 
-  /@dnd-kit/core@6.0.8(patch_hash=u3sbbmgyu7yhmvwpqnp62zdlsi)(react-dom@18.2.0)(react@18.2.0):
+  /@dnd-kit/core@6.0.8(patch_hash=aq43jon62mjk6q3sndzce5wqni)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-lYaoP8yHTQSLlZe6Rr9qogouGUz9oRUj4AHhDQGQzq/hqaJRpFo65X+JKsdHf8oUFBzx5A+SJPUvxAwTF2OabA==}
     peerDependencies:
       react: '>=16.8.0 || 18'
@@ -2723,7 +2723,7 @@ packages:
       '@dnd-kit/core': ^6.0.6
       react: '>=16.8.0 || 18'
     dependencies:
-      '@dnd-kit/core': 6.0.8(patch_hash=u3sbbmgyu7yhmvwpqnp62zdlsi)(react-dom@18.2.0)(react@18.2.0)
+      '@dnd-kit/core': 6.0.8(patch_hash=aq43jon62mjk6q3sndzce5wqni)(react-dom@18.2.0)(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.4.0
@@ -2735,7 +2735,7 @@ packages:
       '@dnd-kit/core': ^6.0.7
       react: '>=16.8.0 || 18'
     dependencies:
-      '@dnd-kit/core': 6.0.8(patch_hash=u3sbbmgyu7yhmvwpqnp62zdlsi)(react-dom@18.2.0)(react@18.2.0)
+      '@dnd-kit/core': 6.0.8(patch_hash=aq43jon62mjk6q3sndzce5wqni)(react-dom@18.2.0)(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.5.0
@@ -5290,14 +5290,14 @@ packages:
       react: '>=16.8.0 || 18'
       react-dom: '>=16.8.0 || 18'
     dependencies:
-      '@remix-run/router': 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
+      '@remix-run/router': 1.7.0(patch_hash=enqrbd4mwv2hpubewhaor3hnye)
       react: 18.2.0
       react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
       react-router-dom: 6.14.0(patch_hash=kvpk374ql5erre4wvvaotuluya)(react-dom@18.2.0)(react@18.2.0)
     dev: false
     patched: true
 
-  /@remix-run/router@1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu):
+  /@remix-run/router@1.7.0(patch_hash=enqrbd4mwv2hpubewhaor3hnye):
     resolution: {integrity: sha512-Eu1V3kz3mV0wUpVTiFHuaT8UD1gj/0VnoFHQYX35xlslQUpe8CuYoKFn9d4WZFHm3yDywz6ALZuGdnUPKrNeAw==}
     engines: {node: '>=14'}
     dev: false
@@ -5307,7 +5307,7 @@ packages:
     resolution: {integrity: sha512-iiSKgGIWMkvf4ftnjGBmIJpgqxRwv8XQilAINapaYsx1zEM6egZGYE6WvaxLuRQSceZZNgLAYzL48TmK+DAU5g==}
     engines: {node: '>=14.0.0'}
     dependencies:
-      '@remix-run/router': 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
+      '@remix-run/router': 1.7.0(patch_hash=enqrbd4mwv2hpubewhaor3hnye)
       '@types/cookie': 0.4.1
       '@web3-storage/multipart-parser': 1.0.0
       cookie: 0.4.2
@@ -13355,20 +13355,20 @@ packages:
       react: '>=16.8 || 18'
       react-dom: '>=16.8 || 18'
     dependencies:
-      '@remix-run/router': 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
+      '@remix-run/router': 1.7.0(patch_hash=enqrbd4mwv2hpubewhaor3hnye)
       react: 18.2.0
       react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
-      react-router: 6.14.0(patch_hash=7mgs4cb3kjuu4mvyc3m7w3zr2m)(react@18.2.0)
+      react-router: 6.14.0(patch_hash=bdxc23p7hiyeequviwkdpc6xgu)(react@18.2.0)
     dev: false
     patched: true
 
-  /react-router@6.14.0(patch_hash=7mgs4cb3kjuu4mvyc3m7w3zr2m)(react@18.2.0):
+  /react-router@6.14.0(patch_hash=bdxc23p7hiyeequviwkdpc6xgu)(react@18.2.0):
     resolution: {integrity: sha512-OD+vkrcGbvlwkspUFDgMzsu1RXwdjNh83YgG/28lBnDzgslhCgxIqoExLlxsfTpIygp7fc+Hd3esloNwzkm2xA==}
     engines: {node: '>=14'}
     peerDependencies:
       react: '>=16.8 || 18'
     dependencies:
-      '@remix-run/router': 1.7.0(patch_hash=vytmvafzhwlog3q2vg6d2kv4pu)
+      '@remix-run/router': 1.7.0(patch_hash=enqrbd4mwv2hpubewhaor3hnye)
       react: 18.2.0
     dev: false
     patched: true

@@ -1,6 +1,6 @@
 import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {useEffect} from "react";
-import {metaTitlePostfix, useUpdateMetaTitle} from "~/app/internal/use_update_meta_title.js";
+import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -155,6 +155,10 @@ export default function DocumentRoute() {
 
                 // Silently update the URL without telling Remix so our component doesn't
                 // re-render unnecessarily.
+                //
+                // TODO(calebmer): Globally replacing the URL doesn't work in peeks! Eventually
+                // migrate this to `useSearchParams()` + `shouldRevalidate` to avoid a server
+                // fetch.
                 window.history.replaceState(null, "", url);
             }}
         />

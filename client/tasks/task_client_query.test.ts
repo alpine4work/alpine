@@ -4039,3 +4039,95 @@ test("deleting task and all children when subscribed to task and its children", 
 
     expect(query2.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 });
+
+test("backfilling tasks a store already has adds them to query", async () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const authorizationStateVersion = clock.now();
+
+    const task1 = createTask(store);
+    const task2 = createTask(store);
+    const task3 = createTask(store);
+
+    const query1 = store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
+
+    store.loadTasksIntoQuery(query1, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        defaultAuthorizationStateVersion: authorizationStateVersion,
+        actions: [],
+        backfillTasks: [
+            {type: "Authorized", task: task1},
+            {type: "Authorized", task: task2},
+            {type: "Authorized", task: task3},
+        ],
+        backfillCollections: [],
+        referencedAccounts: [],
+        originClientId: null,
+    });
+
+    expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task1.id,
+        task2.id,
+        task3.id,
+    ]);
+
+    const query2 = store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+    });
+
+    store.loadTasksIntoQuery(query2, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    expect(query2.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    store.applyUpdateEvent({
+        type: "Update",
+        defaultAuthorizationStateVersion: authorizationStateVersion,
+        actions: [],
+        backfillTasks: [
+            {type: "Authorized", task: task1},
+            {type: "Authorized", task: task2},
+            {type: "Authorized", task: task3},
+        ],
+        backfillCollections: [],
+        referencedAccounts: [],
+        originClientId: null,
+    });
+
+    expect(query2.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task1.id,
+        task2.id,
+        task3.id,
+    ]);
+});

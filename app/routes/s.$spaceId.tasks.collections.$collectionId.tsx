@@ -1,13 +1,13 @@
 import {useEffect, useState} from "react";
-import {useParams} from "react-router";
+import {ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
-import {metaTitlePostfix, useUpdateMetaTitle} from "~/app/internal/use_update_meta_title.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
@@ -64,6 +64,7 @@ import {
 import {TaskRealtimeUpdateEventBackfillCollection} from "~/shared/tasks/task_realtime_protocol.js";
 
 const LoaderSchema = Schema.object({
+    key: Schema.id(),
     collectionState: Schema.union({
         NotExists: Schema.object({
             type: Schema.value("NotExists"),
@@ -100,6 +101,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
         return jsonWithSchema(
             LoaderSchema,
             {
+                key: generateId(),
                 collectionState: {
                     type: "NotExists",
                 },
@@ -243,6 +245,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
     return jsonWithSchema(
         LoaderSchema,
         {
+            key: generateId(),
             collectionState: {
                 type: "Exists",
                 initialMetaTitleText: backfillCollection?.collection.getName() ?? "",
@@ -291,23 +294,41 @@ export async function clientLoader({
     clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+    currentUrl: _currentUrl,
+    nextUrl: _nextUrl,
+    defaultShouldRevalidate,
+}) => {
+    const currentUrl = new URL(_currentUrl);
+    const nextUrl = new URL(_nextUrl);
+
+    // The client removes the `create` search param. Don't revalidate when the
+    // client does this.
+    if (!nextUrl.searchParams.has("create") && currentUrl.searchParams.has("create")) {
+        return false;
+    }
+
+    return defaultShouldRevalidate;
+};
+
 export default function TaskCollectionRoute() {
-    const collectionId = Schema.id<TaskCollectionId>().deserialize(
-        useParams().collectionId ?? null,
-    );
+    const {key} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <TaskCollectionRouteInner
-            // Remount when the collection changes...
-            key={collectionId}
-            collectionId={collectionId}
+            // Completely re-mount the route when we get new data from the server.
+            key={key}
         />
     );
 }
 
-function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionId}) {
+function TaskCollectionRouteInner() {
     const navigate = useNavigate();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    const collectionId = Schema.id<TaskCollectionId>().deserialize(
+        useParams().collectionId ?? null,
+    );
 
     const store = useTaskClientStore();
 
@@ -351,16 +372,12 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
     useEffect(() => {
         if (!collectionSubscription) return;
 
-        const url = new URL(window.location.href);
-
-        if (url.searchParams.has("create")) {
-            url.searchParams.delete("create");
-
-            // Silently update the URL without telling Remix so our component doesn't
-            // re-render unnecessarily.
-            window.history.replaceState(null, "", url);
+        if (searchParams.has("create")) {
+            const newSearchParams = new URLSearchParams(searchParams);
+            newSearchParams.delete("create");
+            setSearchParams(newSearchParams, {replace: true});
         }
-    }, [collectionSubscription]);
+    }, [collectionSubscription, searchParams, setSearchParams]);
 
     const updateMetaTitle = useUpdateMetaTitle();
 
@@ -404,33 +421,41 @@ function TaskCollectionRouteInner({collectionId}: {collectionId: TaskCollectionI
                 initialFilterReferences={initialFilterReferences}
                 initialSorts={initialSorts}
                 onFiltersChange={filters => {
-                    const url = new URL(window.location.href);
+                    const newSearchParams = new URLSearchParams(searchParams);
 
                     if (filters.length === 0) {
-                        url.searchParams.delete("filter");
+                        newSearchParams.delete("filter");
                     } else {
-                        url.searchParams.set(
+                        newSearchParams.set(
                             "filter",
                             serializeTaskQueryFiltersSearchParam(filters),
                         );
                     }
 
-                    // Silently update the URL without telling Remix so our component doesn't
-                    // re-render unnecessarily.
-                    window.history.replaceState(null, "", url);
+                    setSearchParams(newSearchParams, {
+                        replace: true,
+                        // Don't revalidate when updating search params from here. We can't use the
+                        // stable `shouldRevalidate` route function because if the user navigates to
+                        // a new URL we want to load new data and re-render the route.
+                        unstable_shouldRevalidate: false,
+                    });
                 }}
                 onSortsChange={sorts => {
-                    const url = new URL(window.location.href);
+                    const newSearchParams = new URLSearchParams(searchParams);
 
                     if (sorts.length === 0) {
-                        url.searchParams.delete("sort");
+                        newSearchParams.delete("sort");
                     } else {
-                        url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
+                        newSearchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
                     }
 
-                    // Silently update the URL without telling Remix so our component doesn't
-                    // re-render unnecessarily.
-                    window.history.replaceState(null, "", url);
+                    setSearchParams(newSearchParams, {
+                        replace: true,
+                        // Don't revalidate when updating search params from here. We can't use the
+                        // stable `shouldRevalidate` route function because if the user navigates to
+                        // a new URL we want to load new data and re-render the route.
+                        unstable_shouldRevalidate: false,
+                    });
                 }}
                 // eslint-disable-next-line @typescript-eslint/no-misused-promises
                 createCollection={useEvent(async name => {

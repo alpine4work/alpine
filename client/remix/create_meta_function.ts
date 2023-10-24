@@ -1,7 +1,7 @@
 import {V2_MetaArgs as MetaArgs, V2_MetaDescriptor as MetaDescriptor} from "@remix-run/react";
 import {Location, Params} from "react-router-dom";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
-import {metaDefaultTitle, metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
+import {metaDefaultTitle, metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**

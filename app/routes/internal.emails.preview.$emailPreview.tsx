@@ -2,7 +2,7 @@ import {Link, ShouldRevalidateFunction, useParams} from "@remix-run/react";
 import {Code, Desktop, DeviceMobileCamera, EnvelopeSimple, IconContext} from "phosphor-react";
 import {ReactNode, useRef} from "react";
 import {useButton} from "react-aria";
-import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {FocusRing} from "~/client/design/focus_ring.js";

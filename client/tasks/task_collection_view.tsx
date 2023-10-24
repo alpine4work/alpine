@@ -1,5 +1,6 @@
 import {Memo, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -98,7 +99,7 @@ export function TaskCollectionView({
         }, [currentAccount.id, collectionSubscription]),
     );
 
-    const [{filters, filterReferences}, setFiltersState] = useState({
+    const [{filters, filterReferences}, _setFiltersState] = useState({
         filters: initialFilters,
         filterReferences: initialFilterReferences,
     });
@@ -111,35 +112,35 @@ export function TaskCollectionView({
         }
     }, [filters, onFiltersChange]);
 
-    const updateFilters = (
-        filters: ReadonlyArray<TaskQueryFilter>,
-        {
-            mergeFilterReferences,
-        }: {
-            mergeFilterReferences?: TaskQueryFilterReferences;
-        } = {},
-    ) => {
-        setFiltersState(({filterReferences}) => {
-            const newFilterReferences = mergeFilterReferences
-                ? mergeTaskQueryFilterReferences(filterReferences, mergeFilterReferences)
-                : filterReferences;
+    const [sorts, _setSorts] = useState(initialSorts);
 
-            return {
-                filters,
-                filterReferences: newFilterReferences,
-            };
-        });
-    };
+    const {updateFilters, setSorts} = useEvents({
+        updateFilters: (
+            filters: ReadonlyArray<TaskQueryFilter>,
+            {
+                mergeFilterReferences,
+            }: {
+                mergeFilterReferences?: TaskQueryFilterReferences;
+            } = {},
+        ) => {
+            _setFiltersState(({filterReferences}) => {
+                const newFilterReferences = mergeFilterReferences
+                    ? mergeTaskQueryFilterReferences(filterReferences, mergeFilterReferences)
+                    : filterReferences;
 
-    const [sorts, setSorts] = useState(initialSorts);
+                return {
+                    filters,
+                    filterReferences: newFilterReferences,
+                };
+            });
 
-    const lastSortsRef = useRef(sorts);
-    useEffect(() => {
-        if (lastSortsRef.current !== sorts) {
+            onFiltersChange(filters);
+        },
+        setSorts: (sorts: ReadonlyArray<TaskQuerySort>) => {
+            _setSorts(sorts);
             onSortsChange(sorts);
-            lastSortsRef.current = sorts;
-        }
-    }, [onSortsChange, sorts]);
+        },
+    });
 
     const normalizedFiltersResult = useMemo(() => {
         // Don't execute a query if our subscription hasn't been established yet.
@@ -337,8 +338,10 @@ export function TaskCollectionView({
             createCollection,
             filterReferences,
             filters,
+            setSorts,
             sorts,
             store,
+            updateFilters,
         ]),
     });
 

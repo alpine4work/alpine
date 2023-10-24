@@ -3,8 +3,8 @@ import {memo, useEffect, useId, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {taskCardViewMaxWidth} from "~/client/tasks/internal/task_card_view_content.js";
@@ -46,12 +46,14 @@ const TaskNotepadViewActiveSectionMemo = memo(TaskNotepadViewActiveSection);
 export {TaskNotepadViewActiveSectionMemo as TaskNotepadViewActiveSection};
 
 function TaskNotepadViewActiveSection({
+    withMobileLayout,
     assigneeActiveQuery,
 }: {
+    withMobileLayout: boolean;
     assigneeActiveQuery: TaskClientQuery;
 }) {
     const {space} = useSpaceContext();
-    const peekStackContext = usePeekStackContext();
+    const navigate = useNavigate();
 
     const loadedState = useStore(assigneeActiveQuery.loadedStateStore);
     const loadMoreTaskCount = useStore(assigneeActiveQuery.loadMoreTaskCountStore);
@@ -101,9 +103,14 @@ function TaskNotepadViewActiveSection({
         );
     }, [assigneeActiveQuery, loadMoreTaskCount, loadedState, tasks.length]);
 
-    const cardWidthStyle = `calc(${(1 / 3) * 100}% - ${
-        parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) * (2 / 3) +
-        (tasks.length > 3 || loadedState !== "FullyLoaded" ? parseRemLengthNumber(spacing["4"]) : 0)
+    const taskCountAboveTheFold = withMobileLayout ? 2 : 3;
+
+    const cardWidthStyle = `calc(${(1 / taskCountAboveTheFold) * 100}% - ${
+        parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) *
+            ((taskCountAboveTheFold - 1) / taskCountAboveTheFold) +
+        (Math.max(tasks.length, 3) > taskCountAboveTheFold || loadedState !== "FullyLoaded"
+            ? parseRemLengthNumber(spacing["4"])
+            : 0)
     }rem)`;
 
     const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
@@ -124,8 +131,8 @@ function TaskNotepadViewActiveSection({
         | undefined;
 
     return (
-        <Box paddingTop="4" paddingBottom="10">
-            <Box paddingX="5" fontSize="200" fontStyle="semi-bold">
+        <Box paddingTop="4" paddingBottom="8">
+            <Box paddingX="5" fontSize="100" fontStyle="semi-bold">
                 Active
             </Box>
             <Box
@@ -147,7 +154,7 @@ function TaskNotepadViewActiveSection({
                         taskId={taskId}
                         assigneeActivePosition={assigneeActivePosition}
                         onExpand={async () => {
-                            await peekStackContext.push(`/s/${space.id}/tasks/${taskId}`);
+                            await navigate(`/s/${space.id}/tasks/${taskId}`);
                         }}
                         deleteTaskAndAllChildren={() => {
                             setTaskDeleteConfirmationState({taskId});

@@ -758,6 +758,9 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                 // task before.
                 assert(oldTaskEntry?.task);
 
+                // If the task didn't change we don't need to update anything.
+                if (oldTaskEntry === newTaskEntry) continue;
+
                 // Task used to be visible in the query but not anymore.
                 if (!isVisible) {
                     const oldCursor = getTaskQueryNormalizedSortCursorForModel(

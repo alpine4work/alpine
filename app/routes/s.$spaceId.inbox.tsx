@@ -193,6 +193,10 @@ export default function InboxRoute() {
 
                     // Silently update the URL without telling Remix so our component doesn't
                     // re-render unnecessarily.
+                    //
+                    // TODO(calebmer): Globally replacing the URL doesn't work in peeks! Eventually
+                    // migrate this to `useSearchParams()` + `shouldRevalidate` to avoid a server
+                    // fetch.
                     window.history.replaceState(null, "", url);
                 }}
             />

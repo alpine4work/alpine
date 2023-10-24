@@ -1,4 +1,4 @@
-import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {DocumentCommentThreadListView} from "~/client/documents/document_comment_thread_list_view.js";
 import {documentCommentThreadCountAgainstLimit} from "~/client/documents/document_shared_styles.js";

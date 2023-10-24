@@ -141,6 +141,20 @@ index 49086d020b6121d05213b0554c1f4f30b35f81ce..aa668dce6b0eed1955cd52ed690dd0db
  }
  /**
   * Provides location context for the rest of the app.
+diff --git a/dist/lib/context.d.ts b/dist/lib/context.d.ts
+index 8ed080485b37f6b5589c8b90a416743260232403..63190c4b8b86d64b115b67a1dfab4cc345dbb94f 100644
+--- a/dist/lib/context.d.ts
++++ b/dist/lib/context.d.ts
+@@ -56,6 +56,9 @@ export interface NavigateOptions {
+     state?: any;
+     preventScrollReset?: boolean;
+     relative?: RelativeRoutingType;
++    // NOTE(calebmer): Add an `unstable_shouldRevalidate` option to allow
++    // developers to stop revalidation at navigation function call-sites.
++    unstable_shouldRevalidate?: boolean;
+ }
+ /**
+  * A Navigator is a "location changer"; it's how you get to different locations.
 diff --git a/dist/react-router.development.js b/dist/react-router.development.js
 index 307080dc1b458a04f3a340a8160a4b73feb49ba3..01a876cbc0abf85ffc7c0ad62ecfb254b005a864 100644
 --- a/dist/react-router.development.js

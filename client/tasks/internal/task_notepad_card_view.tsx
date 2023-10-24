@@ -120,7 +120,7 @@ export function TaskNotepadCardView({
                 <Box
                     overflow="hidden"
                     backgroundColor="grey-0"
-                    boxShadow="elevation-30"
+                    boxShadow="elevation-30-with-grey-10-border"
                     borderRadius="lg"
                     pointerEvents="none"
                 >
@@ -237,7 +237,7 @@ export function TaskNotepadCardView({
                     position="relative"
                     overflow="hidden"
                     backgroundColor="grey-0"
-                    boxShadow="elevation-5"
+                    boxShadow="elevation-5-with-grey-10-border"
                     borderRadius="lg"
                     opacity={isDragging ? "0" : undefined}
                     pointerEvents={isDragging ? "none" : undefined}

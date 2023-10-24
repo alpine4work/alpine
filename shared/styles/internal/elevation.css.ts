@@ -24,6 +24,12 @@ const elevation = {
         darkElevated1: `0 0 0 1px ${colors["grey-80-elevated-1"]}, 0px 1px 2px 0px rgb(0 0 0 / 0.15)`,
         darkElevated2: `0 0 0 1px ${colors["grey-80-elevated-2"]}, 0px 1px 2px 0px rgb(0 0 0 / 0.15)`,
     },
+    "elevation-5-with-grey-10-border": {
+        light: `0px 1px 2px 0px rgb(18 18 20 / 0.05), 0 0 0 1px ${colors["grey-10"]}`,
+        dark: `0 0 0 1px ${colors["grey-70"]}, 0px 1px 2px 0px rgb(0 0 0 / 0.15)`,
+        darkElevated1: `0 0 0 1px ${colors["grey-70-elevated-1"]}, 0px 1px 2px 0px rgb(0 0 0 / 0.15)`,
+        darkElevated2: `0 0 0 1px ${colors["grey-70-elevated-2"]}, 0px 1px 2px 0px rgb(0 0 0 / 0.15)`,
+    },
     "elevation-10": {
         light: "0px 1px 3px 0px rgb(18 18 20 / 0.1), 0px 1px 2px 0px rgb(18 18 20 / 0.06), 0 0 0 1px rgb(0 0 0 / 0.05)",
         dark: `0 0 0 1px ${colors["grey-80"]}, 0px 1px 3px 0px rgb(0 0 0 / 0.3), 0px 1px 2px 0px rgb(0 0 0 / 0.18)`,
@@ -38,6 +44,12 @@ const elevation = {
     },
     "elevation-30": {
         light: "0px 12px 16px -4px rgb(18 18 20 / 0.08), 0px 4px 6px -2px rgb(18 18 20 / 0.03), 0 0 0 1px rgb(0 0 0 / 0.08)",
+        dark: `0 0 0 1px ${colors["grey-70"]}, 0px 12px 16px -4px rgb(0 0 0 / 0.24), 0px 4px 6px -2px rgb(0 0 0 / 0.09)`,
+        darkElevated1: `0 0 0 1px ${colors["grey-70-elevated-1"]}, 0px 12px 16px -4px rgb(0 0 0 / 0.24), 0px 4px 6px -2px rgb(0 0 0 / 0.09)`,
+        darkElevated2: `0 0 0 1px ${colors["grey-70-elevated-2"]}, 0px 12px 16px -4px rgb(0 0 0 / 0.24), 0px 4px 6px -2px rgb(0 0 0 / 0.09)`,
+    },
+    "elevation-30-with-grey-10-border": {
+        light: `0px 12px 16px -4px rgb(18 18 20 / 0.08), 0px 4px 6px -2px rgb(18 18 20 / 0.03), 0 0 0 1px ${colors["grey-10"]}`,
         dark: `0 0 0 1px ${colors["grey-70"]}, 0px 12px 16px -4px rgb(0 0 0 / 0.24), 0px 4px 6px -2px rgb(0 0 0 / 0.09)`,
         darkElevated1: `0 0 0 1px ${colors["grey-70-elevated-1"]}, 0px 12px 16px -4px rgb(0 0 0 / 0.24), 0px 4px 6px -2px rgb(0 0 0 / 0.09)`,
         darkElevated2: `0 0 0 1px ${colors["grey-70-elevated-2"]}, 0px 12px 16px -4px rgb(0 0 0 / 0.24), 0px 4px 6px -2px rgb(0 0 0 / 0.09)`,

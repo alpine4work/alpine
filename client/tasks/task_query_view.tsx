@@ -1,10 +1,11 @@
 import {Plus} from "phosphor-react";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -16,7 +17,6 @@ import {
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
@@ -66,20 +66,12 @@ export function TaskQueryView({
 
     const [
         {filters, filterReferences, shouldOpenFirstCollectionsFilterOperationValueRef},
-        setFiltersState,
+        _setFiltersState,
     ] = useState({
         filters: initialFilters,
         filterReferences: initialFilterReferences,
         shouldOpenFirstCollectionsFilterOperationValueRef: {current: false},
     });
-
-    const lastFiltersRef = useRef(filters);
-    useEffect(() => {
-        if (lastFiltersRef.current !== filters) {
-            onFiltersChange(filters);
-            lastFiltersRef.current = filters;
-        }
-    }, [filters, onFiltersChange]);
 
     // After a render that asks for the first collection filter to be opened, go
     // ahead and attempt to open.
@@ -90,41 +82,41 @@ export function TaskQueryView({
         assertExists(customizationBarRef.current).openFirstCollectionsFilterOperationValue();
     }, [shouldOpenFirstCollectionsFilterOperationValueRef]);
 
-    const updateFilters = (
-        filters: ReadonlyArray<TaskQueryFilter>,
-        {
-            mergeFilterReferences,
-            shouldOpenFirstCollectionsFilterOperationValue,
-        }: {
-            mergeFilterReferences?: TaskQueryFilterReferences;
-            shouldOpenFirstCollectionsFilterOperationValue?: boolean;
-        } = {},
-    ) => {
-        setFiltersState(({filterReferences}) => {
-            const newFilterReferences = mergeFilterReferences
-                ? mergeTaskQueryFilterReferences(filterReferences, mergeFilterReferences)
-                : filterReferences;
+    const [sorts, _setSorts] = useState(initialSorts);
 
-            return {
-                filters,
-                filterReferences: newFilterReferences,
-                shouldOpenFirstCollectionsFilterOperationValueRef:
-                    shouldOpenFirstCollectionsFilterOperationValue
-                        ? {current: true}
-                        : {current: false},
-            };
-        });
-    };
+    const {updateFilters, setSorts} = useEvents({
+        updateFilters: (
+            filters: ReadonlyArray<TaskQueryFilter>,
+            {
+                mergeFilterReferences,
+                shouldOpenFirstCollectionsFilterOperationValue,
+            }: {
+                mergeFilterReferences?: TaskQueryFilterReferences;
+                shouldOpenFirstCollectionsFilterOperationValue?: boolean;
+            } = {},
+        ) => {
+            _setFiltersState(({filterReferences}) => {
+                const newFilterReferences = mergeFilterReferences
+                    ? mergeTaskQueryFilterReferences(filterReferences, mergeFilterReferences)
+                    : filterReferences;
 
-    const [sorts, setSorts] = useState(initialSorts);
+                return {
+                    filters,
+                    filterReferences: newFilterReferences,
+                    shouldOpenFirstCollectionsFilterOperationValueRef:
+                        shouldOpenFirstCollectionsFilterOperationValue
+                            ? {current: true}
+                            : {current: false},
+                };
+            });
 
-    const lastSortsRef = useRef(sorts);
-    useEffect(() => {
-        if (lastSortsRef.current !== sorts) {
+            onFiltersChange(filters);
+        },
+        setSorts: (sorts: ReadonlyArray<TaskQuerySort>) => {
+            _setSorts(sorts);
             onSortsChange(sorts);
-            lastSortsRef.current = sorts;
-        }
-    }, [onSortsChange, sorts]);
+        },
+    });
 
     const normalizedFiltersResult = useMemo(
         () =>
@@ -235,7 +227,7 @@ export function TaskQueryView({
                     </Box>
                 ),
             };
-        }, [filterReferences, filters, sorts, store]),
+        }, [filterReferences, filters, setSorts, sorts, store, updateFilters]),
     });
 
     return (

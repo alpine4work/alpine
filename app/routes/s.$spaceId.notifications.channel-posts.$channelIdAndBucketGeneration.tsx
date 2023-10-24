@@ -2,7 +2,7 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
 import {PostListView} from "~/client/forum/post_list_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";

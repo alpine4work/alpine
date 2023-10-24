@@ -166,6 +166,7 @@ const borderCoverClassName = sprinkles({
     left: taskRowViewPaddingX,
     right: taskRowViewPaddingX,
     pointerEvents: "none",
+    backgroundColor: "grey-0",
 });
 
 const marginLeftContainerClassName = sprinkles({
@@ -1146,7 +1147,6 @@ function TaskRowView(
                 // we open in edit mode can render outside the bounds of the row.
                 overflow: undefined,
                 display: "flex",
-                backgroundColor: colorSchemeVars["grey-0"],
             }}
         >
             {!capabilities.hasDenseFields && borderCoverNode}

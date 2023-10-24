@@ -1,5 +1,14 @@
-import {useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {
+    MutableRefObject,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {Box} from "~/client/design/box.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {
@@ -36,6 +45,7 @@ import {
 export {taskNotepadAssigneeActiveLoadLimit} from "~/client/tasks/internal/task_notepad_view_active_section.js";
 
 export function TaskNotepadView({
+    withMobileLayout,
     store,
     assigneeActiveQuery,
     initialQuery,
@@ -43,6 +53,7 @@ export function TaskNotepadView({
     allNotepadPageIds: allNotepadPageIdsWithoutNewNotepadPageIds,
     onNotepadPageIdChange,
 }: {
+    withMobileLayout: boolean;
     store: TaskClientStore;
     assigneeActiveQuery: TaskClientQuery;
     initialQuery: {
@@ -74,19 +85,22 @@ export function TaskNotepadView({
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
-    const [notepadPageState, setNotepadPageState] = useState({
+    const [notepadPageState, _setNotepadPageState] = useState({
         notepadPageId: initialNotepadPageId,
         shouldImmediatelyInitializeEmptyQueryRef: {current: false},
         promiseResolver: cast<PromiseResolver<void> | null>(null),
     });
 
-    const lastNotepadPageIdRef = useRef(notepadPageState.notepadPageId);
-    useEffect(() => {
-        if (lastNotepadPageIdRef.current !== notepadPageState.notepadPageId) {
+    const setNotepadPageState = useEvent(
+        (notepadPageState: {
+            notepadPageId: TaskNotepadPageId;
+            shouldImmediatelyInitializeEmptyQueryRef: MutableRefObject<boolean>;
+            promiseResolver: PromiseResolver<void> | null;
+        }) => {
+            _setNotepadPageState(notepadPageState);
             onNotepadPageIdChange(notepadPageState.notepadPageId);
-            lastNotepadPageIdRef.current = notepadPageState.notepadPageId;
-        }
-    }, [notepadPageState.notepadPageId, onNotepadPageIdChange]);
+        },
+    );
 
     const [newNotepadPageIds, setNewNotepadPageIds] =
         useState<ReadonlyArray<TaskNotepadPageId>>(emptyArray);
@@ -238,16 +252,25 @@ export function TaskNotepadView({
         insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
         focusEnd: focusGridViewEnd,
     } = useTaskGridViewVirtualizedList({
-        capabilities: useMemo(
-            () => ({
-                isReadOnly: false,
-                hasParentTaskTitle: true,
-                hasMultilineTitle: false,
-                hasColumns: true,
-                hasDenseFields: false,
-            }),
-            [],
-        ),
+        capabilities: useMemo(() => {
+            if (!withMobileLayout) {
+                return {
+                    isReadOnly: false,
+                    hasParentTaskTitle: false,
+                    hasMultilineTitle: false,
+                    hasColumns: true,
+                    hasDenseFields: false,
+                };
+            } else {
+                return {
+                    isReadOnly: false,
+                    hasParentTaskTitle: false,
+                    hasMultilineTitle: true,
+                    hasColumns: false,
+                    hasDenseFields: true,
+                };
+            }
+        }, [withMobileLayout]),
         query: queryState.activeQuery.query,
         viewRef: gridViewRef,
         getMoveTaskToQueryActions: (taskId, position) => {
@@ -283,14 +306,18 @@ export function TaskNotepadView({
                 },
             },
         ],
-        withColumnHeaderBorderTop: true,
+        withColumnHeaderBorderTop: !withMobileLayout,
         columnHeaderControls: useMemo(() => {
             return {
-                minHeight: "2.875rem",
+                minHeight: withMobileLayout ? "2.5rem" : "2.875rem",
                 node: (
                     <Box
                         paddingTop="2"
-                        style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
+                        style={{
+                            paddingBottom: withMobileLayout
+                                ? spacing["2"]
+                                : addRemLengths(spacing["3"], spacing["0.5"]),
+                        }}
                     >
                         <Box
                             paddingX="5"
@@ -299,7 +326,7 @@ export function TaskNotepadView({
                             alignItems="center"
                             justifyContent="space-between"
                         >
-                            <Box fontSize="200" fontStyle="semi-bold">
+                            <Box fontSize="100" fontStyle="semi-bold">
                                 Notepad
                             </Box>
                             <TaskNotepadViewPaginator
@@ -339,7 +366,12 @@ export function TaskNotepadView({
                     </Box>
                 ),
             };
-        }, [allNotepadPageIds, notepadPageState.notepadPageId]),
+        }, [
+            allNotepadPageIds,
+            notepadPageState.notepadPageId,
+            setNotepadPageState,
+            withMobileLayout,
+        ]),
     });
 
     return (
@@ -382,9 +414,10 @@ export function TaskNotepadView({
                         if (index === 0) {
                             return {
                                 key: "ActiveCards",
-                                minHeight: "11rem",
+                                minHeight: "10.375rem",
                                 node: (
                                     <TaskNotepadViewActiveSection
+                                        withMobileLayout={withMobileLayout}
                                         assigneeActiveQuery={assigneeActiveQuery}
                                     />
                                 ),
@@ -393,7 +426,7 @@ export function TaskNotepadView({
 
                         return renderGridViewItem(index - 1);
                     },
-                    [assigneeActiveQuery, renderGridViewItem],
+                    [assigneeActiveQuery, renderGridViewItem, withMobileLayout],
                 )}
                 onRenderedRangeChange={range => {
                     onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));

@@ -1,4 +1,5 @@
 import {Params} from "react-router";
+import {useSearchParams} from "react-router-dom";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -35,6 +36,7 @@ import {
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 
 const LoaderSchema = Schema.object({
+    key: Schema.id(),
     allNotepadPageIds: TaskNotepadPageIdCompressedSetSchema,
     initialNotepadPageId: TaskNotepadPageIdSchema,
     initialNotepadPageGridViewExpansionState: TaskGridViewExpansionStateSchema,
@@ -160,6 +162,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
     return jsonWithSchema(
         LoaderSchema,
         {
+            key: generateId(),
             allNotepadPageIds,
             initialNotepadPageId: notepadPageId,
             initialNotepadPageGridViewExpansionState: notepadPageGridViewExpansionState,
@@ -207,10 +210,12 @@ export async function clientLoader({
     clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
-export default function TasksRoute() {
+export default function TasksRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
+    const [searchParams, setSearchParams] = useSearchParams();
     const store = useTaskClientStore();
 
     const {
+        key,
         allNotepadPageIds,
         initialNotepadPageId,
         initialNotepadPageGridViewExpansionState,
@@ -227,6 +232,9 @@ export default function TasksRoute() {
     return (
         <TaskGridViewDndContext store={store}>
             <TaskNotepadView
+                // Completely re-mount the route when we get new data from the server.
+                key={key}
+                withMobileLayout={withMobileLayout}
                 store={store}
                 assigneeActiveQuery={assigneeActiveQuery}
                 initialQuery={{
@@ -237,13 +245,12 @@ export default function TasksRoute() {
                 initialNotepadPageId={initialNotepadPageId}
                 allNotepadPageIds={allNotepadPageIds}
                 onNotepadPageIdChange={notepadPageId => {
-                    const url = new URL(window.location.href);
+                    const newSearchParams = new URLSearchParams(searchParams);
+                    newSearchParams.set("page", String(notepadPageId));
 
-                    url.searchParams.set("page", String(notepadPageId));
-
-                    // Silently update the URL without telling Remix so our component doesn't
-                    // re-render unnecessarily.
-                    window.history.replaceState(null, "", url);
+                    setSearchParams(newSearchParams, {
+                        unstable_shouldRevalidate: false,
+                    });
                 }}
             />
         </TaskGridViewDndContext>

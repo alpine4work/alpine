@@ -1,5 +1,4 @@
 import {useState} from "react";
-import {useLocation} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -41,6 +40,7 @@ import {
 } from "~/shared/tasks/task_query_sort.js";
 
 const LoaderSchema = Schema.object({
+    key: Schema.id(),
     filterReferences: TaskQueryFilterReferencesSchema,
     initialGridViewExpansionState: TaskGridViewExpansionStateSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
@@ -104,6 +104,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
     return jsonWithSchema(
         LoaderSchema,
         {
+            key: generateId(),
             filterReferences,
             initialGridViewExpansionState: queryOutput?.gridViewExpansionState ?? null,
             initialBottomGhostTaskId: generateId<TaskId>(),
@@ -142,21 +143,18 @@ export async function clientLoader({
 }
 
 export default function TaskQueryRoute() {
-    const location = useLocation();
+    const {key} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <TaskQueryRouteInner
-            // Remount the route whenever the user navigates. As represented by the
-            // location key changing.
-            //
-            // We want to read the new filters from the URL.
-            key={location.key}
+            // Completely re-mount the route when we get new data from the server.
+            key={key}
         />
     );
 }
 
 function TaskQueryRouteInner() {
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const {initialGridViewExpansionState, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
     const store = useTaskClientStore();
@@ -195,33 +193,41 @@ function TaskQueryRouteInner() {
                 initialFilterReferences={initialFilterReferences}
                 initialSorts={initialSorts}
                 onFiltersChange={filters => {
-                    const url = new URL(window.location.href);
+                    const newSearchParams = new URLSearchParams(searchParams);
 
                     if (filters.length === 0) {
-                        url.searchParams.delete("filter");
+                        newSearchParams.delete("filter");
                     } else {
-                        url.searchParams.set(
+                        newSearchParams.set(
                             "filter",
                             serializeTaskQueryFiltersSearchParam(filters),
                         );
                     }
 
-                    // Silently update the URL without telling Remix so our component doesn't
-                    // re-render unnecessarily.
-                    window.history.replaceState(null, "", url);
+                    setSearchParams(newSearchParams, {
+                        replace: true,
+                        // Don't revalidate when updating search params from here. We can't use the
+                        // stable `shouldRevalidate` route function because if the user navigates to
+                        // a new URL we want to load new data and re-render the route.
+                        unstable_shouldRevalidate: false,
+                    });
                 }}
                 onSortsChange={sorts => {
-                    const url = new URL(window.location.href);
+                    const newSearchParams = new URLSearchParams(searchParams);
 
                     if (sorts.length === 0) {
-                        url.searchParams.delete("sort");
+                        newSearchParams.delete("sort");
                     } else {
-                        url.searchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
+                        newSearchParams.set("sort", serializeTaskQuerySortsSearchParam(sorts));
                     }
 
-                    // Silently update the URL without telling Remix so our component doesn't
-                    // re-render unnecessarily.
-                    window.history.replaceState(null, "", url);
+                    setSearchParams(newSearchParams, {
+                        replace: true,
+                        // Don't revalidate when updating search params from here. We can't use the
+                        // stable `shouldRevalidate` route function because if the user navigates to
+                        // a new URL we want to load new data and re-render the route.
+                        unstable_shouldRevalidate: false,
+                    });
                 }}
             />
         </TaskGridViewDndContext>

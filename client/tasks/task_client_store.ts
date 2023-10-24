@@ -391,6 +391,25 @@ export function setShouldDisableCommitTaskActionTransactionMutexForTest(shouldDi
     shouldDisableCommitTaskActionTransactionMutexForTest = shouldDisable;
 }
 
+export type TaskClientStoreBatchUpdate = {
+    readonly taskEntryUpdateById: ReadonlyMap<
+        TaskId,
+        {
+            readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
+            readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
+            readonly newTaskEntry: TaskClientStoreTaskEntry;
+        }
+    >;
+    readonly collectionEntryUpdateById: ReadonlyMap<
+        TaskCollectionId,
+        {
+            readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
+            readonly oldCollectionEntry: TaskClientStoreCollectionEntry | null;
+            readonly newCollectionEntry: TaskClientStoreCollectionEntry;
+        }
+    >;
+};
+
 export class TaskClientStoreInternal {
     public readonly external: TaskClientStore;
 
@@ -702,12 +721,25 @@ export class TaskClientStoreInternal {
         });
     }
 
-    private _applyUpdateEvent<Value>(event: TaskRealtimeUpdateEvent, action: () => Value): Value {
+    private _applyUpdateEvent<Value>(
+        event: TaskRealtimeUpdateEvent,
+        action: (batchUpdate: TaskClientStoreBatchUpdate) => Value,
+    ): Value {
         // If this event originated from our client then ignore it! We've already
         // applied the action or are in the process of applying it. (e.g. We're waiting
         // on a `commitTaskActionTransaction()` request to finish.)
+        //
+        // Actions are idempotent so it should be ok to apply the event but we avoid
+        // warnings from `_temporarilyRetainTaskEntryStore()` this way. If you commit
+        // an action that removes a task from a query (e.g. close a task) applying that
+        // action a second time here will create a null task entry that is temporarily
+        // retained. Then we warn when the task isn't retained by anyone else. By not
+        // applying the action we avoid a warning.
         if (event.originClientId === this._clientId) {
-            return action();
+            return action({
+                taskEntryUpdateById: new Map(),
+                collectionEntryUpdateById: new Map(),
+            });
         }
 
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
@@ -826,6 +858,18 @@ export class TaskClientStoreInternal {
                         oldTaskEntry.optimisticState?.original.task &&
                     newAuthorizationState === oldTaskEntry.authorizationState
                 ) {
+                    // We do still, however, add the task to our `newTaskEntryById` map since we
+                    // want to try adding all backfilled tasks to the queries in our store. Since
+                    // when loading a query the server sends relevant tasks in `backfilledTasks`.
+                    // If the server knows a task has already been backfilled
+                    // (`TaskRealtimeConnection` keeps track) then it will include the task in a
+                    // `previouslyBackfilledTaskIds` array. But the server only knows what it's
+                    // backfilled in the current WebSocket connection. It does not know what the
+                    // client has from before that.
+                    //
+                    // If applying an action results in a noop then we don't need to add to
+                    // `newTaskEntryById` since queries should have already seen the task.
+                    newTaskEntryById.set(backfillTask.task.id, oldTaskEntry);
                     continue;
                 }
 
@@ -1000,6 +1044,13 @@ export class TaskClientStoreInternal {
                         oldCollectionEntry.optimisticState?.original.collection &&
                     newAuthorizationState === oldCollectionEntry.authorizationState
                 ) {
+                    // For symmetry with tasks, backfilled collections go in
+                    // `newCollectionEntryById` even if the backfill was a noop. Actions that are a
+                    // noop do not go in `newCollectionEntryById`.
+                    newCollectionEntryById.set(
+                        backfillCollection.collection.id,
+                        oldCollectionEntry,
+                    );
                     continue;
                 }
 
@@ -3261,7 +3312,7 @@ export class TaskClientStoreInternal {
         // We use the `action` function format (instead of an event callback like
         // `onBatchUpdate`) to guarantee the action is called and its value is
         // returned.
-        action: () => Value,
+        action: (batchUpdate: TaskClientStoreBatchUpdate) => Value,
     ): Value {
         // Apply all the updates to our store in one batch...
         return batchStoreUpdates(() => {
@@ -3339,10 +3390,18 @@ export class TaskClientStoreInternal {
                             oldTaskEntry.authorizationState?.value ===
                                 newTaskEntry.authorizationState?.value
                         ) {
-                            // @ts-expect-error
-                            oldTaskEntry.authorizationState = newTaskEntry.authorizationState;
+                            if (
+                                oldTaskEntry.authorizationState !== newTaskEntry.authorizationState
+                            ) {
+                                // @ts-expect-error
+                                oldTaskEntry.authorizationState = newTaskEntry.authorizationState;
+                            }
 
-                            // Don't add this task to `taskEntryUpdateById`!
+                            taskEntryUpdateById.set(taskId, {
+                                taskEntryStore: taskEntryStore.store,
+                                oldTaskEntry,
+                                newTaskEntry: oldTaskEntry,
+                            });
                             continue;
                         } else {
                             taskEntryStore.store.set(newTaskEntry);
@@ -3396,11 +3455,20 @@ export class TaskClientStoreInternal {
                             oldCollectionEntry.authorizationState?.value ===
                                 newCollectionEntry.authorizationState?.value
                         ) {
-                            // @ts-expect-error
-                            oldCollectionEntry.authorizationState =
-                                newCollectionEntry.authorizationState;
+                            if (
+                                oldCollectionEntry.authorizationState !==
+                                newCollectionEntry.authorizationState
+                            ) {
+                                // @ts-expect-error
+                                oldCollectionEntry.authorizationState =
+                                    newCollectionEntry.authorizationState;
+                            }
 
-                            // Don't add this collection to `collectionEntryUpdateById`!
+                            collectionEntryUpdateById.set(collectionId, {
+                                collectionEntryStore: collectionEntryStore.store,
+                                oldCollectionEntry,
+                                newCollectionEntry: oldCollectionEntry,
+                            });
                             continue;
                         } else {
                             collectionEntryStore.store.set(newCollectionEntry);
@@ -3428,12 +3496,14 @@ export class TaskClientStoreInternal {
                     }
                 }
 
-                const actionValue = action();
-
-                this._batchUpdateEventEmitter.emit({
+                const batchUpdate = {
                     taskEntryUpdateById,
                     collectionEntryUpdateById,
-                });
+                };
+
+                const actionValue = action(batchUpdate);
+
+                this._batchUpdateEventEmitter.emit(batchUpdate);
 
                 return actionValue;
             } finally {
@@ -3523,24 +3593,7 @@ export class TaskClientStoreInternal {
         });
     }
 
-    private readonly _batchUpdateEventEmitter = new EventEmitter<{
-        taskEntryUpdateById: ReadonlyMap<
-            TaskId,
-            {
-                readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
-                readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
-                readonly newTaskEntry: TaskClientStoreTaskEntry;
-            }
-        >;
-        collectionEntryUpdateById: ReadonlyMap<
-            TaskCollectionId,
-            {
-                readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
-                readonly oldCollectionEntry: TaskClientStoreCollectionEntry | null;
-                readonly newCollectionEntry: TaskClientStoreCollectionEntry;
-            }
-        >;
-    }>();
+    private readonly _batchUpdateEventEmitter = new EventEmitter<TaskClientStoreBatchUpdate>();
 
     /**
      * Subscribes to all store task updates.
@@ -3549,26 +3602,7 @@ export class TaskClientStoreInternal {
      * listener is called within that `batchStoreUpdates()` context which means you
      * can make your own store updates that will fire listeners in the same batch.
      */
-    public subscribeToBatchUpdate(
-        listener: (update: {
-            taskEntryUpdateById: ReadonlyMap<
-                TaskId,
-                {
-                    readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
-                    readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
-                    readonly newTaskEntry: TaskClientStoreTaskEntry;
-                }
-            >;
-            collectionEntryUpdateById: ReadonlyMap<
-                TaskCollectionId,
-                {
-                    readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
-                    readonly oldCollectionEntry: TaskClientStoreCollectionEntry | null;
-                    readonly newCollectionEntry: TaskClientStoreCollectionEntry;
-                }
-            >;
-        }) => void,
-    ) {
+    public subscribeToBatchUpdate(listener: (update: TaskClientStoreBatchUpdate) => void) {
         return this._batchUpdateEventEmitter.subscribe(listener);
     }
 

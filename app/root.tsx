@@ -17,7 +17,7 @@ import {
     isRouteErrorResponse,
     useRouteError,
 } from "react-router";
-import {UpdateMetaTitleContextProvider} from "~/app/internal/use_update_meta_title.js";
+import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {AccountClientStoreContextProvider} from "~/client/accounts/account_client_store_context_provider.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";

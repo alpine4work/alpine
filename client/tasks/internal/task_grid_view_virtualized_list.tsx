@@ -332,7 +332,8 @@ export function useTaskGridViewVirtualizedList({
 
     const stateItemCount = state.getItemCount();
 
-    const itemCountBeforeState = capabilities.hasColumns ? 1 : 0;
+    const hasColumnHeaderItem: boolean = capabilities.hasColumns || !!columnHeaderControls;
+    const itemCountBeforeState = hasColumnHeaderItem ? 1 : 0;
 
     const hasBottomGhostTask =
         !capabilities.isReadOnly && isRootQueryManuallySorted && bottomGhostTaskId;
@@ -1362,7 +1363,7 @@ export function useTaskGridViewVirtualizedList({
                 const minHeight =
                     withColumnHeaderExtraScrollSpacePx +
                     (columnHeaderControlsWithMinHeightPx?.minHeight ?? 0) +
-                    convertRemLengthToPx("1.25rem", remPx) +
+                    (capabilities.hasColumns ? convertRemLengthToPx("1.25rem", remPx) : 0) +
                     // We add one extra pixel of bottom padding so the focus ring on the first row
                     // is not covered by our header.
                     1;
@@ -1376,6 +1377,7 @@ export function useTaskGridViewVirtualizedList({
                             ref={ref}
                             withColumnHeaderBorderTop={withColumnHeaderBorderTop}
                             withColumnHeaderExtraScrollSpace={withColumnHeaderExtraScrollSpacePx}
+                            hasColumns={capabilities.hasColumns}
                             columnHeaderControls={columnHeaderControlsWithMinHeightPx}
                             minHeight={minHeight}
                             offset={offset}
@@ -1608,10 +1610,10 @@ export function useTaskGridViewVirtualizedList({
             updateRowNumberCounter(renderedRange);
         },
         alwaysRenderAdditionalItemIndexes: useMemo(
-            () => (capabilities.hasColumns ? [0] : emptyArray),
-            [capabilities.hasColumns],
+            () => (hasColumnHeaderItem ? [0] : emptyArray),
+            [hasColumnHeaderItem],
         ),
-        insetScrollbarItemIndex: capabilities.hasColumns ? 0 : undefined,
+        insetScrollbarItemIndex: hasColumnHeaderItem ? 0 : undefined,
         modals: taskDeleteConfirmationState && rootQuery && (
             <TaskDeleteConfirmationModalDialog
                 store={rootQuery.store}
@@ -1666,6 +1668,7 @@ function TaskGridViewColumnHeader(
     {
         withColumnHeaderBorderTop,
         withColumnHeaderExtraScrollSpace,
+        hasColumns,
         columnHeaderControls,
         minHeight,
         offset,
@@ -1674,6 +1677,7 @@ function TaskGridViewColumnHeader(
     }: {
         withColumnHeaderBorderTop: boolean;
         withColumnHeaderExtraScrollSpace: number;
+        hasColumns: boolean;
         columnHeaderControls: Memo<{minHeight: number; node: ReactNode}> | null;
         minHeight: number;
         offset: number;
@@ -1827,7 +1831,9 @@ function TaskGridViewColumnHeader(
                         left="0"
                         right="0"
                         style={{
-                            top: 1 + withColumnHeaderExtraScrollSpace,
+                            top:
+                                (withColumnHeaderBorderTop ? 1 : 0) +
+                                withColumnHeaderExtraScrollSpace,
                             // Render background color with an absolute positioned `<div>` so we don't
                             // cover the border rendered by `<TaskRowView>` (or our separate sticky div).
                             bottom: 2,
@@ -1843,64 +1849,66 @@ function TaskGridViewColumnHeader(
                                 {columnHeaderControls.node}
                             </Box>
                         )}
-                        <Box paddingTop="0.5" display="flex">
-                            <Box
-                                flexShrink="0"
-                                width="32"
-                                paddingLeft="5"
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                            >
-                                Name
+                        {hasColumns && (
+                            <Box paddingTop="0.5" display="flex">
+                                <Box
+                                    flexShrink="0"
+                                    width="32"
+                                    paddingLeft="5"
+                                    paddingBottom="1"
+                                    color="grey-40"
+                                    fontSize="50"
+                                >
+                                    Name
+                                </Box>
+                                <Box flexGrow="1" />
+                                <Box
+                                    flexShrink="0"
+                                    style={{
+                                        width: taskRowViewFirstColumnWidth,
+                                        paddingLeft: taskRowViewFirstColumnPaddingLeft,
+                                    }}
+                                    paddingX={taskRowViewColumnPaddingX}
+                                    paddingBottom="1"
+                                    color="grey-40"
+                                    fontSize="50"
+                                >
+                                    Assignee
+                                </Box>
+                                <Box
+                                    flexShrink="0"
+                                    width={taskRowViewColumnWidth}
+                                    paddingX={taskRowViewColumnPaddingX}
+                                    paddingBottom="1"
+                                    color="grey-40"
+                                    fontSize="50"
+                                >
+                                    Priority
+                                </Box>
+                                <Box
+                                    flexShrink="0"
+                                    width={taskRowViewColumnWidth}
+                                    paddingX={taskRowViewColumnPaddingX}
+                                    paddingBottom="1"
+                                    color="grey-40"
+                                    fontSize="50"
+                                >
+                                    Due date
+                                </Box>
+                                <Box
+                                    flexShrink="0"
+                                    width={taskRowViewCollectionsColumnWidth}
+                                    paddingLeft={taskRowViewColumnPaddingX}
+                                    paddingRight={taskRowViewLastColumnPaddingRight}
+                                    paddingBottom="1"
+                                    color="grey-40"
+                                    fontSize="50"
+                                >
+                                    Collections
+                                </Box>
+                                <Box flexShrink="0" width="5" />
                             </Box>
-                            <Box flexGrow="1" />
-                            <Box
-                                flexShrink="0"
-                                style={{
-                                    width: taskRowViewFirstColumnWidth,
-                                    paddingLeft: taskRowViewFirstColumnPaddingLeft,
-                                }}
-                                paddingX={taskRowViewColumnPaddingX}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                            >
-                                Assignee
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                width={taskRowViewColumnWidth}
-                                paddingX={taskRowViewColumnPaddingX}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                            >
-                                Priority
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                width={taskRowViewColumnWidth}
-                                paddingX={taskRowViewColumnPaddingX}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                            >
-                                Due date
-                            </Box>
-                            <Box
-                                flexShrink="0"
-                                width={taskRowViewCollectionsColumnWidth}
-                                paddingLeft={taskRowViewColumnPaddingX}
-                                paddingRight={taskRowViewLastColumnPaddingRight}
-                                paddingBottom="1"
-                                color="grey-40"
-                                fontSize="50"
-                            >
-                                Collections
-                            </Box>
-                            <Box flexShrink="0" width="5" />
-                        </Box>
+                        )}
                     </OverlayScopeContextProvider>
                 </Box>
             </Box>

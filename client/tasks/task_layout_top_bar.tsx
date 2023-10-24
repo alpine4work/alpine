@@ -2,7 +2,7 @@ import {CaretDown, Plus, User, UserPlus, Users} from "phosphor-react";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/internal/task_layout_top_bar_collections_button.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -21,7 +21,7 @@ export function TaskLayoutTopBar({
     isViewsTabActive: boolean;
     withoutBorderBottom: boolean;
 }) {
-    const navigate = useNavigate();
+    const rootNavigate = useRootNavigate();
     const {space} = useSpaceContext();
 
     return (
@@ -45,7 +45,7 @@ export function TaskLayoutTopBar({
                 height="6"
                 paddingX="2"
                 pressErrorTitle="Couldn’t open notepad"
-                onPress={() => navigate(`/s/${space.id}/tasks`)}
+                onPress={() => rootNavigate(`/s/${space.id}/tasks`)}
             >
                 Notepad
             </Button>
@@ -60,7 +60,7 @@ export function TaskLayoutTopBar({
                             icon: <Plus />,
                             pressErrorTitle: "Couldn’t create new view",
                             onPress: async () => {
-                                await navigate(`/s/${space.id}/tasks/view`);
+                                await rootNavigate(`/s/${space.id}/tasks/view`);
                             },
                         },
                     ],
@@ -87,7 +87,7 @@ export function TaskLayoutTopBar({
                                     },
                                 ]);
 
-                                await navigate(
+                                await rootNavigate(
                                     `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                                 );
                             },
@@ -114,7 +114,7 @@ export function TaskLayoutTopBar({
                                     },
                                 ]);
 
-                                await navigate(
+                                await rootNavigate(
                                     `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                                 );
                             },
@@ -155,7 +155,7 @@ export function TaskLayoutTopBar({
                                     },
                                 ]);
 
-                                await navigate(
+                                await rootNavigate(
                                     `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
                                 );
                             },

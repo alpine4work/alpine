@@ -7,7 +7,7 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js"
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {metaTitlePostfix} from "~/app/internal/use_update_meta_title.js";
+import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
