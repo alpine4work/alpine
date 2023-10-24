@@ -88,16 +88,18 @@ export function getTaskQueryCollectionsFilterCollectionResultsStore({
                             return {
                                 ...collectionResult,
                                 collection,
-                                entry: collectionEntry ?? {
-                                    collection,
-                                    actions: null,
-                                    optimisticState: null,
-                                    authorizationState: new TaskAuthorizationStateRegister(
-                                        "Authorized",
-                                        // Any authorization state change from the server should override us.
-                                        zeroHybridLogicalTime,
-                                    ),
-                                },
+                                entry: collectionEntry?.collection
+                                    ? collectionEntry
+                                    : {
+                                          collection,
+                                          actions: null,
+                                          optimisticState: null,
+                                          authorizationState: new TaskAuthorizationStateRegister(
+                                              "Authorized",
+                                              // Any authorization state change from the server should override us.
+                                              zeroHybridLogicalTime,
+                                          ),
+                                      },
                             };
                         },
                     )

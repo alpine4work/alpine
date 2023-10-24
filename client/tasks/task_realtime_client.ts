@@ -139,6 +139,11 @@ export class TaskRealtimeClient {
                 connectionId = null;
                 updateSubscribedQueries();
             }
+
+            if (clientState.hasError) {
+                // NOCOMMIT: Present error to user
+                console.error(clientState.error);
+            }
         });
 
         const unsubscribeFromEvents = this._client.subscribeToEvents(event => {

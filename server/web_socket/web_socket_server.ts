@@ -1117,7 +1117,11 @@ class WebSocketServerConnectionWrapper<
                       ),
             );
 
-            context.process.waitUntil(authorizationPromise);
+            context.process.waitUntil(
+                // Ignore errors in the `waitUntil()` call. We'll close the connection with an
+                // error so the user will see it.
+                authorizationPromise.catch(() => {}),
+            );
 
             this._authorizationState.next = {
                 startTime: currentTime,

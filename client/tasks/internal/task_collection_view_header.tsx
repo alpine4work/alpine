@@ -1,5 +1,5 @@
 import {getInteractionModality} from "@react-aria/interactions";
-import {DotsThree, LockOpen} from "phosphor-react";
+import {DotsThree, Lock, LockOpen} from "phosphor-react";
 import {RefCallback, useCallback, useRef, useState} from "react";
 import {mergeProps, useHover, usePress} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
@@ -51,7 +51,7 @@ export function TaskCollectionViewHeader({
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
-    const {space} = useSpaceContext();
+    const {space, currentAccount} = useSpaceContext();
 
     // Reset `isEditingName` if `collectionSubscription` changes. e.g. If it goes
     // from `null` to a non-null value when we create a collection.
@@ -107,17 +107,53 @@ export function TaskCollectionViewHeader({
             },
         ]);
 
+        const isPrivate = !collection?.getAccessPolicy().defaultGrant;
+
         // TODO(calebmer): Collections support more involved permission rules than just
         // public/private. Eventually I want a full sharing dialog (like in Google
         // Docs) but I want that sharing dialog to work across all stuff in the space.
         // Including docs and channels.
         menuActions.push([
             {
-                label: "Make public",
-                icon: <LockOpen />,
+                label: isPrivate ? "Make public" : "Make private",
+                icon: isPrivate ? <LockOpen /> : <Lock />,
                 iconPlacement: "end",
                 onPress: () => {
-                    // NOCOMMIT
+                    if (isPrivate) {
+                        store.commitTaskActionTransaction(context, [
+                            {
+                                type: "UpdateCollection",
+                                time: store.clock.now(),
+                                collectionId,
+                                collectionAction: {
+                                    type: "UpdateAccessPolicy",
+                                    accessPolicy: {
+                                        accountGrantById: new Map([
+                                            [currentAccount.id, {level: "Manage"}],
+                                        ]),
+                                        defaultGrant: {type: "Space", level: "Manage"},
+                                    },
+                                },
+                            },
+                        ]);
+                    } else {
+                        store.commitTaskActionTransaction(context, [
+                            {
+                                type: "UpdateCollection",
+                                time: store.clock.now(),
+                                collectionId,
+                                collectionAction: {
+                                    type: "UpdateAccessPolicy",
+                                    accessPolicy: {
+                                        accountGrantById: new Map([
+                                            [currentAccount.id, {level: "Manage"}],
+                                        ]),
+                                        defaultGrant: null,
+                                    },
+                                },
+                            },
+                        ]);
+                    }
                 },
             },
         ]);

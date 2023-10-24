@@ -141,13 +141,16 @@ function computeTaskCollectionSubscriptionAccess(
 ): TaskAccess {
     // The collection is not loaded. Assume we don't have permission. Principle of
     // least privilege.
-    if (!collectionEntry.collection) return {type: "PermissionDenied"};
+    if (!collectionEntry.collection) {
+        return {type: "PermissionDenied"};
+    }
 
     // If the collection is marked as unauthorized, we don't have permission. Even
     // if the task was previously loaded. Our client might not see the action which
     // makes the task unauthorized.
-    if (collectionEntry.authorizationState.value !== "Authorized")
+    if (collectionEntry.authorizationState.value !== "Authorized") {
         return {type: "PermissionDenied"};
+    }
 
     // Delete collections don't grant access.
     if (collectionEntry.collection.isDeleted()) return {type: "Deleted"};
@@ -169,7 +172,9 @@ function computeTaskCollectionSubscriptionAccess(
         accessLevels.push(accountGrant.level);
     }
 
-    if (accessLevels.length === 0) return {type: "PermissionDenied"};
+    if (accessLevels.length === 0) {
+        return {type: "PermissionDenied"};
+    }
 
     return {
         type: "PermissionGranted",
