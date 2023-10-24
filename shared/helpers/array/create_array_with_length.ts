@@ -7,12 +7,12 @@
  */
 export function createArrayWithLength<Item>(
     length: number,
-    createItem: (index: number) => Item,
+    createItem: (index: number, length: number) => Item,
 ): Array<Item> {
     const array = [];
 
     for (let index = 0; index < length; index++) {
-        array.push(createItem(index));
+        array.push(createItem(index, length));
     }
 
     return array;

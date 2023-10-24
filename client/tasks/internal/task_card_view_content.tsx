@@ -22,6 +22,7 @@ import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
+export const taskCardViewMinHeight = "5.25rem";
 export const taskCardViewMaxWidth = "96";
 
 const TaskCardViewContentForwardRef = forwardRef(TaskCardViewContent);

@@ -1,3 +1,4 @@
+import {useDndContext} from "@dnd-kit/core";
 import {
     MutableRefObject,
     useCallback,
@@ -20,6 +21,10 @@ import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_vie
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {
+    TaskGridViewDraggableData,
+    TaskGridViewDroppableData,
+} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
     VirtualizedScrollView,
@@ -183,6 +188,16 @@ export function TaskNotepadView({
             notepadPageState.promiseResolver.resolve();
         }
     }, [notepadPageState, queryState]);
+
+    // Call the `useDndContext()` hook here and pass in active/over data so child
+    // components don't re-render whenever the drag context changes.
+    const {active: dndContextActive, over: dndContextOver} = useDndContext();
+
+    const activeDraggableData = dndContextActive?.data.current as
+        | TaskGridViewDraggableData
+        | undefined;
+
+    const overDroppableData = dndContextOver?.data.current as TaskGridViewDroppableData | undefined;
 
     const shiftRenderedRangeForGridView = useCallback(
         (range: {startIndex: number; endIndex: number} | null) => {
@@ -419,6 +434,8 @@ export function TaskNotepadView({
                                     <TaskNotepadViewActiveSection
                                         withMobileLayout={withMobileLayout}
                                         assigneeActiveQuery={assigneeActiveQuery}
+                                        activeDraggableData={activeDraggableData}
+                                        overDroppableData={overDroppableData}
                                     />
                                 ),
                             };
@@ -426,7 +443,13 @@ export function TaskNotepadView({
 
                         return renderGridViewItem(index - 1);
                     },
-                    [assigneeActiveQuery, renderGridViewItem, withMobileLayout],
+                    [
+                        activeDraggableData,
+                        assigneeActiveQuery,
+                        overDroppableData,
+                        renderGridViewItem,
+                        withMobileLayout,
+                    ],
                 )}
                 onRenderedRangeChange={range => {
                     onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));

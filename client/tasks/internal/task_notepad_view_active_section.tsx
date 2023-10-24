@@ -1,13 +1,18 @@
-import {useDndContext, useDroppable} from "@dnd-kit/core";
-import {memo, useEffect, useId, useMemo, useState} from "react";
+import {useDroppable} from "@dnd-kit/core";
+import {CaretRight} from "phosphor-react";
+import {memo, useCallback, useEffect, useId, useMemo, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {taskCardViewMaxWidth} from "~/client/tasks/internal/task_card_view_content.js";
+import {
+    taskCardViewMaxWidth,
+    taskCardViewMinHeight,
+} from "~/client/tasks/internal/task_card_view_content.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskNotepadCardView} from "~/client/tasks/internal/task_notepad_card_view.js";
@@ -20,11 +25,24 @@ import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {colorSchemeVars, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
+import {
+    colorSchemeVars,
+    fontSizes,
+    pressOpacityOverlayClassName,
+    pulseAnimationClassName,
+} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPosition} from "~/shared/tasks/task_position.js";
+import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
+import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
+
+/**
+ * The maximum number of cards to render before rendering a card saying you
+ * have too many active tasks.
+ */
+const maxTaskNotepadActiveCardCount = 7;
 
 /**
  * The minimum number of tasks we expect in our `assigneeActiveQuery`. If the
@@ -48,9 +66,13 @@ export {TaskNotepadViewActiveSectionMemo as TaskNotepadViewActiveSection};
 function TaskNotepadViewActiveSection({
     withMobileLayout,
     assigneeActiveQuery,
+    activeDraggableData,
+    overDroppableData,
 }: {
     withMobileLayout: boolean;
     assigneeActiveQuery: TaskClientQuery;
+    activeDraggableData: TaskGridViewDraggableData | undefined;
+    overDroppableData: TaskGridViewDroppableData | undefined;
 }) {
     const {space} = useSpaceContext();
     const navigate = useNavigate();
@@ -58,7 +80,7 @@ function TaskNotepadViewActiveSection({
     const loadedState = useStore(assigneeActiveQuery.loadedStateStore);
     const loadMoreTaskCount = useStore(assigneeActiveQuery.loadMoreTaskCountStore);
 
-    const tasks = useStore(
+    const allTasks = useStore(
         useMemo(
             () =>
                 assigneeActiveQuery.taskOrderStore.flatMap(taskOrder => {
@@ -94,41 +116,54 @@ function TaskNotepadViewActiveSection({
         if (loadedState === "FullyLoaded") return;
 
         // We have enough tasks, no need to load more.
-        if (tasks.length >= taskNotepadAssigneeActiveMinLimit) return;
+        if (allTasks.length >= taskNotepadAssigneeActiveMinLimit) return;
 
         // Load tasks so our `taskOrder` reaches the load limit. If we're already
         // loading tasks and this hook runs again we don't need to load even more.
         assigneeActiveQuery.loadMoreTasks(
-            taskNotepadAssigneeActiveLoadLimit - tasks.length - loadMoreTaskCount,
+            taskNotepadAssigneeActiveLoadLimit - allTasks.length - loadMoreTaskCount,
         );
-    }, [assigneeActiveQuery, loadMoreTaskCount, loadedState, tasks.length]);
-
-    const taskCountAboveTheFold = withMobileLayout ? 2 : 3;
-
-    const cardWidthStyle = `calc(${(1 / taskCountAboveTheFold) * 100}% - ${
-        parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) *
-            ((taskCountAboveTheFold - 1) / taskCountAboveTheFold) +
-        (Math.max(tasks.length, 3) > taskCountAboveTheFold || loadedState !== "FullyLoaded"
-            ? parseRemLengthNumber(spacing["4"])
-            : 0)
-    }rem)`;
+    }, [assigneeActiveQuery, loadMoreTaskCount, loadedState, allTasks.length]);
 
     const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
         taskId: TaskId;
         onAfterDelete?: () => void;
     } | null>(null);
 
-    const dndContext = useDndContext();
+    const expand = useCallback(
+        async (taskId: TaskId) => {
+            await navigate(`/s/${space.id}/tasks/${taskId}`);
+        },
+        [navigate, space.id],
+    );
 
-    // NOCOMMIT: Loading states
+    const deleteTaskAndAllChildren = useCallback((taskId: TaskId) => {
+        setTaskDeleteConfirmationState({taskId});
+    }, []);
 
-    const activeDraggableData = dndContext.active?.data.current as
-        | TaskGridViewDraggableData
-        | undefined;
+    const shouldRenderCardShimmer =
+        loadedState !== "FullyLoaded" && allTasks.length < taskNotepadAssigneeActiveMinLimit;
 
-    const overDroppableData = dndContext.over?.data.current as
-        | TaskGridViewDroppableData
-        | undefined;
+    const shouldRenderTruncatedExplainerCard =
+        !shouldRenderCardShimmer && allTasks.length > maxTaskNotepadActiveCardCount;
+
+    const taskCardCount = Math.min(allTasks.length, maxTaskNotepadActiveCardCount);
+
+    // Count of cards excluding placeholder cards.
+    const cardCount =
+        taskCardCount +
+        (shouldRenderCardShimmer ? 1 : 0) +
+        (shouldRenderTruncatedExplainerCard ? 1 : 0);
+
+    const taskCountAboveTheFold = withMobileLayout ? 2 : 3;
+
+    const cardWidthStyle = `calc(${(1 / taskCountAboveTheFold) * 100}% - ${
+        parseRemLengthNumber(spacing[taskNotepadViewActiveSectionCardGap]) *
+            ((taskCountAboveTheFold - 1) / taskCountAboveTheFold) +
+        (Math.max(cardCount, taskCountAboveTheFold) > taskCountAboveTheFold
+            ? parseRemLengthNumber(spacing["4"])
+            : 0)
+    }rem)`;
 
     return (
         <Box paddingTop="4" paddingBottom="8">
@@ -146,53 +181,62 @@ function TaskNotepadViewActiveSection({
                 position="relative"
                 zIndex="0"
             >
-                {tasks.map(({id: taskId, assigneeActivePosition}) => (
+                {allTasks.slice(0, taskCardCount).map(({id: taskId, assigneeActivePosition}) => (
                     <TaskNotepadCardView
                         key={taskId}
                         widthStyle={cardWidthStyle}
                         query={assigneeActiveQuery}
                         taskId={taskId}
                         assigneeActivePosition={assigneeActivePosition}
-                        onExpand={async () => {
-                            await navigate(`/s/${space.id}/tasks/${taskId}`);
-                        }}
-                        deleteTaskAndAllChildren={() => {
-                            setTaskDeleteConfirmationState({taskId});
-                        }}
+                        onExpand={expand}
+                        deleteTaskAndAllChildren={deleteTaskAndAllChildren}
                     />
                 ))}
-                {loadedState === "FullyLoaded" && (
-                    <>
-                        {tasks.length === 0 && (
-                            <TaskNotepadViewActiveSectionInstructionalPlaceholderCard
-                                widthStyle={cardWidthStyle}
-                            />
-                        )}
-                        {tasks.length <= 1 && (
-                            <TaskNotepadViewActiveSectionPlaceholderCard
-                                widthStyle={cardWidthStyle}
-                                // If we are dragging a row into our active section, it will push a card into
-                                // our placeholder space so hide the placeholder space.
-                                shouldHide={
-                                    overDroppableData?.type === "ActiveCard" &&
-                                    activeDraggableData?.type === "Row" &&
-                                    tasks.length >= 1
-                                }
-                            />
-                        )}
-                        {tasks.length <= 2 && (
-                            <TaskNotepadViewActiveSectionPlaceholderCard
-                                widthStyle={cardWidthStyle}
-                                // If we are dragging a row into our active section, it will push a card into
-                                // our placeholder space so hide the placeholder space.
-                                shouldHide={
-                                    overDroppableData?.type === "ActiveCard" &&
-                                    activeDraggableData?.type === "Row" &&
-                                    tasks.length >= 2
-                                }
-                            />
-                        )}
-                    </>
+                {shouldRenderCardShimmer && (
+                    <TaskNotepadViewActiveSectionCardShimmer
+                        widthStyle={cardWidthStyle}
+                        activeDraggableData={activeDraggableData}
+                        overDroppableData={overDroppableData}
+                    />
+                )}
+                {shouldRenderTruncatedExplainerCard && (
+                    <TaskNotepadViewActiveSectionTruncatedExplainerCard
+                        taskCardCount={taskCardCount}
+                        allTaskCount={allTasks.length}
+                        loadedState={loadedState}
+                        widthStyle={cardWidthStyle}
+                        activeDraggableData={activeDraggableData}
+                        overDroppableData={overDroppableData}
+                    />
+                )}
+                {cardCount === 0 && (
+                    <TaskNotepadViewActiveSectionInstructionalPlaceholderCard
+                        widthStyle={cardWidthStyle}
+                    />
+                )}
+                {cardCount <= 1 && (
+                    <TaskNotepadViewActiveSectionPlaceholderCard
+                        widthStyle={cardWidthStyle}
+                        // If we are dragging a row into our active section, it will push a card into
+                        // our placeholder space so hide the placeholder space.
+                        shouldHide={
+                            overDroppableData?.type === "ActiveCard" &&
+                            activeDraggableData?.type === "Row" &&
+                            cardCount >= 1
+                        }
+                    />
+                )}
+                {cardCount <= 2 && (
+                    <TaskNotepadViewActiveSectionPlaceholderCard
+                        widthStyle={cardWidthStyle}
+                        // If we are dragging a row into our active section, it will push a card into
+                        // our placeholder space so hide the placeholder space.
+                        shouldHide={
+                            overDroppableData?.type === "ActiveCard" &&
+                            activeDraggableData?.type === "Row" &&
+                            cardCount >= 2
+                        }
+                    />
                 )}
                 <Box
                     pointerEvents="none"
@@ -205,7 +249,7 @@ function TaskNotepadViewActiveSection({
                     display="flex"
                     gap={taskNotepadViewActiveSectionCardGap}
                 >
-                    {tasks.length === 0 ? (
+                    {taskCardCount === 0 ? (
                         <TaskNotepadViewActiveSectionDroppable
                             query={assigneeActiveQuery}
                             taskId={null}
@@ -216,55 +260,65 @@ function TaskNotepadViewActiveSection({
                             flexGrow="1"
                         />
                     ) : (
-                        tasks.map(({id: taskId, assigneeActivePosition}, index) => (
-                            <TaskNotepadViewActiveSectionDroppable
-                                key={index}
-                                query={assigneeActiveQuery}
-                                taskId={taskId}
-                                showHintIndex={index}
-                                previousAssigneeActivePosition={
-                                    tasks[index - 1]?.assigneeActivePosition ?? null
-                                }
-                                assigneeActivePosition={assigneeActivePosition}
-                                nextAssigneeActivePosition={
-                                    tasks[index + 1]?.assigneeActivePosition ?? null
-                                }
-                                {...(index === tasks.length - 1 &&
-                                tasks.length <= 3 &&
-                                activeDraggableData?.type !== "Row"
-                                    ? {
-                                          flexGrow: "1",
-                                      }
-                                    : {
-                                          flexShrink: "0",
-                                          maxWidthStyle: spacing[taskCardViewMaxWidth],
-                                          widthStyle: cardWidthStyle,
-                                      })}
-                            />
-                        ))
+                        allTasks
+                            .slice(0, taskCardCount)
+                            .map(({id: taskId, assigneeActivePosition}, index) => (
+                                <TaskNotepadViewActiveSectionDroppable
+                                    key={index}
+                                    query={assigneeActiveQuery}
+                                    taskId={taskId}
+                                    showHintIndex={index}
+                                    previousAssigneeActivePosition={
+                                        allTasks[index - 1]?.assigneeActivePosition ?? null
+                                    }
+                                    assigneeActivePosition={assigneeActivePosition}
+                                    nextAssigneeActivePosition={
+                                        index < taskCardCount - 1
+                                            ? allTasks[index + 1]?.assigneeActivePosition ?? null
+                                            : null
+                                    }
+                                    {...(index === taskCardCount - 1 &&
+                                    taskCardCount <= 3 &&
+                                    activeDraggableData?.type !== "Row"
+                                        ? {
+                                              flexGrow: "1",
+                                          }
+                                        : {
+                                              flexShrink: "0",
+                                              maxWidthStyle: spacing[taskCardViewMaxWidth],
+                                              widthStyle: cardWidthStyle,
+                                          })}
+                                />
+                            ))
                     )}
-                    {tasks.length > 0 && activeDraggableData?.type === "Row" && (
-                        <TaskNotepadViewActiveSectionDroppable
-                            query={assigneeActiveQuery}
-                            taskId={null}
-                            showHintIndex={tasks.length}
-                            previousAssigneeActivePosition={
-                                tasks[tasks.length - 1]?.assigneeActivePosition ?? null
-                            }
-                            assigneeActivePosition={null}
-                            nextAssigneeActivePosition={null}
-                            {...(tasks.length < 3
-                                ? {
-                                      flexGrow: "1",
-                                  }
-                                : {
-                                      flexShrink: "0",
-                                      maxWidthStyle: spacing[taskCardViewMaxWidth],
-                                      widthStyle: cardWidthStyle,
-                                  })}
-                            withMarginRight={true}
-                        />
-                    )}
+                    {taskCardCount > 0 &&
+                        activeDraggableData?.type === "Row" &&
+                        createArrayWithLength(
+                            cardCount < taskCountAboveTheFold ? 1 : cardCount - taskCardCount + 1,
+                            (index, length) => (
+                                <TaskNotepadViewActiveSectionDroppable
+                                    key={index}
+                                    query={assigneeActiveQuery}
+                                    taskId={null}
+                                    showHintIndex={taskCardCount}
+                                    previousAssigneeActivePosition={
+                                        allTasks[taskCardCount - 1]?.assigneeActivePosition ?? null
+                                    }
+                                    assigneeActivePosition={null}
+                                    nextAssigneeActivePosition={null}
+                                    {...(cardCount < taskCountAboveTheFold && index === length - 1
+                                        ? {
+                                              flexGrow: "1",
+                                          }
+                                        : {
+                                              flexShrink: "0",
+                                              maxWidthStyle: spacing[taskCardViewMaxWidth],
+                                              widthStyle: cardWidthStyle,
+                                              withMarginRight: index === length - 1,
+                                          })}
+                                />
+                            ),
+                        )}
                 </Box>
                 {overDroppableData && overDroppableData.type === "ActiveCard" && (
                     <Box
@@ -281,8 +335,8 @@ function TaskNotepadViewActiveSection({
                         {createArrayWithLength(
                             Math.max(
                                 1,
-                                tasks.length +
-                                    (tasks.length > 0 && activeDraggableData?.type === "Row"
+                                taskCardCount +
+                                    (taskCardCount > 0 && activeDraggableData?.type === "Row"
                                         ? 1
                                         : 0),
                             ),
@@ -502,13 +556,7 @@ function TaskNotepadViewActiveSectionPlaceholderCard({
                 opacity: shouldHide ? 0 : undefined,
             }}
         >
-            <Box
-                style={{
-                    // Height of a card with an extra field (e.g. assignee) and one line of text in
-                    // the title.
-                    height: "5.25rem",
-                }}
-            />
+            <Box style={{height: taskCardViewMinHeight}} />
         </Box>
     );
 }
@@ -555,7 +603,7 @@ function TaskNotepadViewActiveSectionInstructionalPlaceholderCard({
                 style={{width: `calc(100% - ${illustrationWidth})`, minWidth: minTextWidth}}
             >
                 <Box fontSize="75" fontStyle="semi-bold" color="grey-70" paddingBottom="1">
-                    Mark tasks as active
+                    Mark active
                 </Box>
                 <Box fontSize="50" color="grey-50">
                     Active tasks help you track what you’re currently working on
@@ -596,6 +644,158 @@ function TaskNotepadViewActiveSectionInstructionalPlaceholderCard({
                         style={{opacity: 0.5}}
                     />
                 </Box>
+            </Box>
+        </Box>
+    );
+}
+
+function TaskNotepadViewActiveSectionCardShimmer({
+    widthStyle,
+    activeDraggableData,
+    overDroppableData,
+}: {
+    widthStyle: string;
+    activeDraggableData: TaskGridViewDraggableData | undefined;
+    overDroppableData: TaskGridViewDroppableData | undefined;
+}) {
+    const shouldPushRight =
+        overDroppableData?.type === "ActiveCard" && activeDraggableData?.type !== "Card";
+
+    return (
+        <Box
+            className={pulseAnimationClassName}
+            flexShrink="0"
+            maxWidth={taskCardViewMaxWidth}
+            minHeight="full"
+            borderRadius="lg"
+            backgroundColor="grey-5"
+            style={{
+                width: widthStyle,
+                transform: shouldPushRight
+                    ? `translateX(100%) translateX(${spacing[taskNotepadViewActiveSectionCardGap]})`
+                    : undefined,
+                transition: activeDraggableData
+                    ? `transform ${taskNotepadViewActiveSectionCardTranslateDurationMs}ms ease`
+                    : undefined,
+            }}
+        >
+            <Box style={{height: taskCardViewMinHeight}} />
+        </Box>
+    );
+}
+
+// TODO(calebmer): I feel like we may be missing two important pieces of
+// functionality:
+//
+// 1. The ability to reorder all active tasks. Not just the first 5 or so.
+// 2. The ability to mark all active tasks other than the first 5 as inactive.
+//
+// We want users to have a small number of active tasks so their co-workers
+// actually know what they're working on. 2 helps right-size a user's active
+// tasks.
+//
+// For 1 right now we open a view where the tasks are sorted by activated date.
+// Ideally we'd open a view where the tasks are manually sortable.
+function TaskNotepadViewActiveSectionTruncatedExplainerCard({
+    taskCardCount,
+    allTaskCount,
+    loadedState,
+    widthStyle,
+    activeDraggableData,
+    overDroppableData,
+}: {
+    taskCardCount: number;
+    allTaskCount: number;
+    loadedState: "Unloaded" | "PartiallyLoaded" | "FullyLoaded";
+    widthStyle: string;
+    activeDraggableData: TaskGridViewDraggableData | undefined;
+    overDroppableData: TaskGridViewDroppableData | undefined;
+}) {
+    const rootNavigate = useNavigate();
+    const {space} = useSpaceContext();
+
+    const moreTaskCount = allTaskCount - taskCardCount;
+
+    const shouldPushRight =
+        overDroppableData?.type === "ActiveCard" && activeDraggableData?.type !== "Card";
+
+    return (
+        <Box
+            flexShrink="0"
+            maxWidth={taskCardViewMaxWidth}
+            minHeight="full"
+            borderRadius="lg"
+            padding="4"
+            display="flex"
+            flexDirection="column"
+            justifyContent="space-between"
+            style={{
+                width: widthStyle,
+                transform: shouldPushRight
+                    ? `translateX(100%) translateX(${spacing[taskNotepadViewActiveSectionCardGap]})`
+                    : undefined,
+                transition: activeDraggableData
+                    ? `transform ${taskNotepadViewActiveSectionCardTranslateDurationMs}ms ease`
+                    : undefined,
+                // Use a box shadow for the border since cards use elevation for their border
+                // which uses a box shadow. So this means our placeholders have
+                // consistent layout.
+                boxShadow: `0 0 0 1px ${colorSchemeVars["grey-5"]}`,
+            }}
+        >
+            <Box display="flex" gap="2">
+                <Box
+                    style={{height: fontSizes["100"].lineHeight}}
+                    display="flex"
+                    alignItems="center"
+                >
+                    <Box width="4" height="4" borderRadius="full" border="grey-10" />
+                </Box>
+                <Box fontSize="100">
+                    {`${moreTaskCount}${loadedState !== "FullyLoaded" ? "+" : ""}`} more{" "}
+                    {moreTaskCount !== 1 ? "tasks" : "task"}
+                </Box>
+            </Box>
+            <Box marginX="-2" marginBottom="-2" alignSelf="flex-end">
+                <Button
+                    variant="quieter"
+                    icon={<CaretRight />}
+                    iconPlacement="end"
+                    height="6"
+                    paddingX="2"
+                    pressErrorTitle="Couldn’t open view"
+                    onPress={async () => {
+                        const filtersSearchParam = serializeTaskQueryFiltersSearchParam([
+                            {
+                                type: "Assignee",
+                                operation: {
+                                    type: "OneOf",
+                                    accounts: [{type: "CurrentAccount"}],
+                                },
+                            },
+                            {
+                                type: "DisplayStatus",
+                                operation: {
+                                    type: "OneOf",
+                                    displayStatuses: new Set(["OpenActive"]),
+                                },
+                            },
+                        ]);
+
+                        const sortsSearchParam = serializeTaskQuerySortsSearchParam([
+                            {
+                                type: "ActivatedTime",
+                                direction: "Descending",
+                            },
+                        ]);
+
+                        await rootNavigate(
+                            `/s/${space.id}/tasks/view?filter=${filtersSearchParam}&sort=${sortsSearchParam}`,
+                        );
+                    }}
+                >
+                    See all active tasks
+                </Button>
             </Box>
         </Box>
     );

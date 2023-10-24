@@ -1,5 +1,5 @@
 import {useDraggable} from "@dnd-kit/core";
-import {PointerEvent, useId, useMemo, useState} from "react";
+import {Memo, PointerEvent, memo, useId, useMemo, useState} from "react";
 import {mergeProps} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -32,7 +32,10 @@ import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
 
-export function TaskNotepadCardView({
+const TaskNotepadCardViewMemo = memo(TaskNotepadCardView);
+export {TaskNotepadCardViewMemo as TaskNotepadCardView};
+
+function TaskNotepadCardView({
     widthStyle,
     query,
     taskId,
@@ -44,8 +47,8 @@ export function TaskNotepadCardView({
     query: TaskClientQuery;
     taskId: TaskId;
     assigneeActivePosition: TaskPosition;
-    onExpand: () => Promise<void>;
-    deleteTaskAndAllChildren: () => void;
+    onExpand: Memo<(taskId: TaskId) => Promise<void>>;
+    deleteTaskAndAllChildren: Memo<(taskId: TaskId) => void>;
 }) {
     const context = useAppContext();
     const {timeZone} = useClientInfo();
@@ -66,7 +69,7 @@ export function TaskNotepadCardView({
     const [isPressed, setIsPressed] = useState(false);
 
     const onPress = () => {
-        const promise = onExpand();
+        const promise = onExpand(taskId);
 
         // TODO(calebmer, #global-loading-indicator): Some kind of global loading
         // indicator for navigation?
@@ -204,7 +207,7 @@ export function TaskNotepadCardView({
         contextMenuActions.push([
             {
                 label: "Delete",
-                onPress: deleteTaskAndAllChildren,
+                onPress: () => deleteTaskAndAllChildren(taskId),
             },
         ]);
     }

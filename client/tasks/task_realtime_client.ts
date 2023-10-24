@@ -1,8 +1,6 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
-import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
@@ -222,17 +220,13 @@ export class TaskRealtimeClient {
                 const newTaskSubscriptionsArray = Array.from(newTaskSubscriptions);
                 const newCollectionSubscriptionsArray = Array.from(newCollectionSubscriptions);
 
-                const newQueryLimits = newQueriesArray.map(query =>
-                    // When subscribing to a query, load at least the grid view limit.
-                    //
-                    // If we're re-subscribing to a query that had many tasks then we want to load
-                    // all those tasks back. If the query requested to load more tasks then add
-                    // those on as well.
-                    Math.max(
+                const newQueryLimits = newQueriesArray.map(
+                    query =>
+                        // If we're re-subscribing to a query that had many tasks then we want to load
+                        // all those tasks back. If the query requested to load more tasks then add
+                        // those on as well.
                         query.taskOrderStore.getSnapshot().length +
-                            query.loadMoreTaskCountStore.getSnapshot(),
-                        getTaskGridViewLoadQueryLimit(getClientInfoWithoutListening()),
-                    ),
+                        query.loadMoreTaskCountStore.getSnapshot(),
                 );
 
                 // When either:
