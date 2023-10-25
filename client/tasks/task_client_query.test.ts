@@ -4,11 +4,9 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
 import {
-    HybridLogicalClock,
     HybridLogicalTime,
     zeroHybridLogicalTime,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
@@ -32,7 +30,10 @@ import {
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {defaultTaskQueryNormalizedSorts} from "~/shared/tasks/task_query_normalized_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
-import {TaskRealtimeUpdateEventSchema} from "~/shared/tasks/task_realtime_protocol.js";
+import {
+    TaskAuthorizationStateRegister,
+    TaskRealtimeUpdateEventSchema,
+} from "~/shared/tasks/task_realtime_protocol.js";
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
@@ -45,8 +46,6 @@ afterEach(() => {
     assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
 });
 
-const clock = new HybridLogicalClock(unsynchronizedSystemClock);
-
 const accountStore = getAccountClientStoreForClient();
 
 const account1 = new AccountModel({
@@ -57,9 +56,19 @@ const account1 = new AccountModel({
     version: 0,
 });
 
+const account2 = new AccountModel({
+    id: generateId(),
+    name: "Test Account 2",
+    nameVersion: 0,
+    createdTime: new Date(),
+    version: 0,
+});
+
 // Make sure we hold a reference to the `account1` store for the entire test.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const account1Store = accountStore.getAccountStore(account1);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const account2Store = accountStore.getAccountStore(account2);
 
 const getSortableAccount = (accountId: AccountId) => {
     const accountData = assertExists(
@@ -320,7 +329,7 @@ test("task can be added to query through backfill", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
@@ -363,7 +372,7 @@ test("task can be added to query through previously backfilled tasks", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
@@ -463,7 +472,7 @@ test("task can be added to query through action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task}],
         backfillCollections: [],
@@ -475,7 +484,7 @@ test("task can be added to query through action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action],
         backfillTasks: [],
         backfillCollections: [],
@@ -546,7 +555,7 @@ test("task can be removed from a query through an action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task.applyAction(action1, getSortableAccount)}],
         backfillCollections: [],
@@ -560,7 +569,7 @@ test("task can be removed from a query through an action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action2],
         backfillTasks: [],
         backfillCollections: [],
@@ -649,7 +658,7 @@ test("task can be moved in query through an action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1.applyAction(action1, getSortableAccount)},
@@ -669,7 +678,7 @@ test("task can be moved in query through an action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action4],
         backfillTasks: [],
         backfillCollections: [],
@@ -759,7 +768,7 @@ test("task can be left alone through an action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1.applyAction(action1, getSortableAccount)},
@@ -779,7 +788,7 @@ test("task can be left alone through an action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action4],
         backfillTasks: [],
         backfillCollections: [],
@@ -1018,7 +1027,7 @@ test("task references can be added to query through backfill", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1},
@@ -1261,7 +1270,7 @@ test("task references can be added to query through previous backfill", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1},
@@ -1537,7 +1546,7 @@ test("task references can be added to query through action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task4.applyAction(action1, getSortableAccount)},
@@ -1562,7 +1571,7 @@ test("task references can be added to query through action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1.applyAction(action2, getSortableAccount)},
@@ -1586,7 +1595,7 @@ test("task references can be added to query through action", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action3],
         backfillTasks: [],
         backfillCollections: [],
@@ -1860,7 +1869,7 @@ test("task references can be removed from query through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1},
@@ -1891,7 +1900,7 @@ test("task references can be removed from query through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action1],
         backfillTasks: [],
         backfillCollections: [],
@@ -1911,7 +1920,7 @@ test("task references can be removed from query through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action2],
         backfillTasks: [],
         backfillCollections: [],
@@ -1928,7 +1937,7 @@ test("task references can be removed from query through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action3],
         backfillTasks: [],
         backfillCollections: [],
@@ -2131,7 +2140,7 @@ test("references from optimistic task can be removed", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1},
@@ -2205,7 +2214,7 @@ test("references from optimistic task can be removed", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task5}],
         backfillCollections: [{type: "Authorized", collection: collection3}],
@@ -2428,7 +2437,7 @@ test("task references can be added and removed through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task1}],
         backfillCollections: [],
@@ -2445,7 +2454,7 @@ test("task references can be added and removed through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action1],
         backfillTasks: [{type: "Authorized", task: task2}],
         backfillCollections: [{type: "Authorized", collection: collection2}],
@@ -2462,7 +2471,7 @@ test("task references can be added and removed through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action2],
         backfillTasks: [{type: "Authorized", task: task3}],
         backfillCollections: [{type: "Authorized", collection: collection3}],
@@ -2479,7 +2488,7 @@ test("task references can be added and removed through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action3],
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection1}],
@@ -2498,7 +2507,7 @@ test("task references can be added and removed through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action4],
         backfillTasks: [],
         backfillCollections: [],
@@ -2515,7 +2524,7 @@ test("task references can be added and removed through actions", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action5],
         backfillTasks: [],
         backfillCollections: [],
@@ -2725,7 +2734,7 @@ test("task references can be added and removed through actions on a referenced t
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1},
@@ -2745,7 +2754,7 @@ test("task references can be added and removed through actions on a referenced t
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action1],
         backfillTasks: [{type: "Authorized", task: task3}],
         backfillCollections: [{type: "Authorized", collection: collection2}],
@@ -2762,7 +2771,7 @@ test("task references can be added and removed through actions on a referenced t
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action2],
         backfillTasks: [{type: "Authorized", task: task4}],
         backfillCollections: [{type: "Authorized", collection: collection3}],
@@ -2779,7 +2788,7 @@ test("task references can be added and removed through actions on a referenced t
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action3],
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection1}],
@@ -2798,7 +2807,7 @@ test("task references can be added and removed through actions on a referenced t
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action4],
         backfillTasks: [],
         backfillCollections: [],
@@ -2815,7 +2824,7 @@ test("task references can be added and removed through actions on a referenced t
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action5],
         backfillTasks: [],
         backfillCollections: [],
@@ -3038,7 +3047,7 @@ test("task references can be added and removed through actions on a task that's 
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1},
@@ -3059,7 +3068,7 @@ test("task references can be added and removed through actions on a task that's 
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action1],
         backfillTasks: [{type: "Authorized", task: task3}],
         backfillCollections: [{type: "Authorized", collection: collection2}],
@@ -3077,7 +3086,7 @@ test("task references can be added and removed through actions on a task that's 
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action2],
         backfillTasks: [{type: "Authorized", task: task4}],
         backfillCollections: [{type: "Authorized", collection: collection3}],
@@ -3095,7 +3104,7 @@ test("task references can be added and removed through actions on a task that's 
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action3],
         backfillTasks: [],
         backfillCollections: [{type: "Authorized", collection: collection1}],
@@ -3115,7 +3124,7 @@ test("task references can be added and removed through actions on a task that's 
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action4],
         backfillTasks: [],
         backfillCollections: [],
@@ -3133,7 +3142,7 @@ test("task references can be added and removed through actions on a task that's 
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action5],
         backfillTasks: [],
         backfillCollections: [],
@@ -3254,7 +3263,7 @@ test("can handle a temporary cycle", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task3}],
         backfillCollections: [],
@@ -3271,7 +3280,7 @@ test("can handle a temporary cycle", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action1],
         backfillTasks: [
             {type: "Authorized", task: task1},
@@ -3291,7 +3300,7 @@ test("can handle a temporary cycle", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action2],
         backfillTasks: [],
         backfillCollections: [],
@@ -3426,7 +3435,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task4},
@@ -3447,7 +3456,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action1],
         backfillTasks: [{type: "Authorized", task: task1}],
         backfillCollections: [],
@@ -3464,7 +3473,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action2],
         backfillTasks: [],
         backfillCollections: [],
@@ -3501,7 +3510,7 @@ test("temporarily holds on to actions applied to task that wasn't backfilled", (
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action],
         backfillTasks: [],
         backfillCollections: [],
@@ -3548,7 +3557,7 @@ test("temporarily holds on to actions applied to collection that wasn't backfill
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action],
         backfillTasks: [],
         backfillCollections: [],
@@ -3643,7 +3652,7 @@ test("action removing from the query immediately releases task", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task.applyAction(action2, getSortableAccount)}],
         backfillCollections: [],
@@ -3658,7 +3667,7 @@ test("action removing from the query immediately releases task", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [action3],
         backfillTasks: [],
         backfillCollections: [],
@@ -3744,7 +3753,7 @@ test("optimistic update retains task until resolved", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task.applyAction(action2, getSortableAccount)}],
         backfillCollections: [],
@@ -3845,7 +3854,7 @@ test("optimistic update retains task until rejected", async () => {
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [{type: "Authorized", task: task.applyAction(action2, getSortableAccount)}],
         backfillCollections: [],
@@ -4013,7 +4022,7 @@ test("deleting task and all children when subscribed to task and its children", 
 
     store.applyUpdateEvent({
         type: "Update",
-        defaultAuthorizationStateVersion: clock.now(),
+        defaultAuthorizationStateVersion: store.clock.now(),
         actions: [],
         backfillTasks: [
             {type: "Authorized", task: task1},
@@ -4104,7 +4113,7 @@ test("backfilling tasks a store already has adds them to query", async () => {
         onError: handleError,
     });
 
-    const authorizationStateVersion = clock.now();
+    const authorizationStateVersion = store.clock.now();
 
     const task1 = createTask(store);
     const task2 = createTask(store);
@@ -4541,4 +4550,223 @@ test("peek task over collection initial load scenario", () => {
             originClientId: null,
         }),
     );
+});
+
+test("can handle unauthorized task with another unauthorized task parent due to a collection becoming authorized", () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const collection = TaskCollectionModel.createFromAction(
+        store.spaceId,
+        generateId(),
+        store.clock.now(),
+        {
+            type: "Create",
+            name: "Test",
+            accessPolicy: {
+                accountGrantById: new Map([[account2.id, {level: "Manage"}]]),
+                defaultGrant: null,
+            },
+        },
+    );
+
+    const collectionAction = {
+        type: "UpdateCollection",
+        time: store.clock.now(),
+        collectionId: collection.id,
+        collectionAction: {
+            type: "UpdateAccessPolicy",
+            accessPolicy: {
+                accountGrantById: new Map([[account2.id, {level: "Manage"}]]),
+                defaultGrant: {type: "Space", level: "Manage"},
+            },
+        },
+    } satisfies TaskAction;
+
+    const task1 = createTask(store, {
+        taskAction: {
+            type: "Create",
+            creatorId: account2.id,
+            creatorTimeZone: defaultTimeZone,
+        },
+    });
+
+    let task2 = createTask(store, {
+        taskAction: {
+            type: "Create",
+            creatorId: account2.id,
+            creatorTimeZone: defaultTimeZone,
+        },
+    });
+
+    task2 = task2
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2.id,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: task1.id,
+                },
+            },
+            getSortableAccount,
+        )
+        .applyAction(
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId: task2.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            getSortableAccount,
+        );
+
+    let task3 = createTask(store);
+
+    task3 = task3.applyAction(
+        {
+            type: "UpdateTask",
+            time: store.clock.now(),
+            taskId: task3.id,
+            taskAction: {
+                type: "UpdateParentTaskId",
+                parentTaskId: task2.id,
+            },
+        },
+        getSortableAccount,
+    );
+
+    const query = store.createAndRetainQuery({
+        filters: {
+            ...defaultTaskQueryNormalizedFilters,
+            creatorFilter: {
+                type: "OneOf",
+                accountIds: assertNonEmptyReadonlySet(new Set([account1.id])),
+            },
+        },
+        sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
+    });
+
+    store.loadTasksIntoQuery(query, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+
+    expect(getTaskEntryIfExists(store, task2.id)).toEqual(null);
+    expect(getTaskEntryIfExists(store, task3.id)).toEqual(null);
+    expect(store.getCollectionEntryStoreIfExists(collection.id)).toEqual(null);
+
+    const authorizationStateVersion1 = store.clock.now();
+
+    store.applyUpdateEvent({
+        type: "Update",
+        defaultAuthorizationStateVersion: authorizationStateVersion1,
+        actions: [],
+        backfillTasks: [
+            {type: "Authorized", task: task3},
+            {type: "Unauthorized", taskId: task2.id},
+        ],
+        backfillCollections: [],
+        referencedAccounts: [],
+        originClientId: null,
+    });
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task3.id,
+    ]);
+
+    expect(getTaskEntryIfExists(store, task2.id)).toEqual({
+        task: null,
+        actions: [],
+        authorizationState: new TaskAuthorizationStateRegister(
+            "Unauthorized",
+            authorizationStateVersion1,
+        ),
+        optimisticState: null,
+    });
+
+    expect(getTaskEntryIfExists(store, task3.id)).toEqual({
+        task: task3,
+        actions: null,
+        authorizationState: new TaskAuthorizationStateRegister(
+            "Authorized",
+            authorizationStateVersion1,
+        ),
+        optimisticState: null,
+    });
+
+    expect(store.getCollectionEntryStoreIfExists(collection.id)).toEqual(null);
+
+    const authorizationStateVersion2 = store.clock.now();
+
+    store.applyUpdateEvent({
+        type: "Update",
+        defaultAuthorizationStateVersion: authorizationStateVersion2,
+        actions: [],
+        backfillTasks: [
+            {type: "Authorized", task: task2},
+            {type: "Unauthorized", taskId: task1.id},
+        ],
+        backfillCollections: [
+            {type: "Authorized", collection: collection.applyAction(collectionAction)},
+        ],
+        referencedAccounts: [],
+        originClientId: null,
+    });
+
+    expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task3.id,
+    ]);
+
+    expect(getTaskEntryIfExists(store, task2.id)).toEqual({
+        task: task2,
+        actions: null,
+        authorizationState: new TaskAuthorizationStateRegister(
+            "Authorized",
+            authorizationStateVersion2,
+        ),
+        optimisticState: null,
+    });
+
+    expect(getTaskEntryIfExists(store, task3.id)).toEqual({
+        task: task3,
+        actions: null,
+        authorizationState: new TaskAuthorizationStateRegister(
+            "Authorized",
+            authorizationStateVersion1,
+        ),
+        optimisticState: null,
+    });
+
+    expect(store.getCollectionEntryStoreIfExists(collection.id)?.getSnapshot()).toEqual({
+        collection: collection.applyAction(collectionAction),
+        actions: null,
+        authorizationState: new TaskAuthorizationStateRegister(
+            "Authorized",
+            authorizationStateVersion2,
+        ),
+        optimisticState: null,
+    });
+
+    expect(query.getReferencedCollectionEntryStore(collection.id).getSnapshot()).toEqual({
+        collection: collection.applyAction(collectionAction),
+        actions: null,
+        authorizationState: new TaskAuthorizationStateRegister(
+            "Authorized",
+            authorizationStateVersion2,
+        ),
+        optimisticState: null,
+    });
 });

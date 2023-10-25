@@ -779,6 +779,20 @@ function TaskRowTitleInput(
                         }
 
                         view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+
+                        // NOTE(calebmer): We need to focus the selection again after a turn of the
+                        // event loop for it to stick. Otherwise I've seen the selection jump to the
+                        // end. If I had to bet, I'd bet it has to do with [the Y.js ProseMirror][1]
+                        // re-render timeout.
+                        //
+                        // [1]: https://github.com/yjs/y-prosemirror/blob/e0e5e951614abe1be2295e5ab8987ab5916bcaec/src/plugins/sync-plugin.js#L180-L184
+                        setTimeout(() => {
+                            if (selection.$from.doc !== view.state.doc) {
+                            selection = selection.getBookmark().resolve(view.state.doc);
+                            }
+
+                            view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                        }, 0);
                     });
                 },
             }),

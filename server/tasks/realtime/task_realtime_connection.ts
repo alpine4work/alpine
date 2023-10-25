@@ -1552,6 +1552,82 @@ export class TaskRealtimeConnection {
                                 task,
                                 authorizationStateVersion,
                             );
+
+                            // If our task is transitioning from unauthorized to authorized then we need to
+                            // backfill all references of the task. While we should have backfilled these
+                            // tasks and collections before, the client doesn't hold on to them since it
+                            // doesn't see a reference on the unauthorized task.
+                            //
+                            // It is a slight security leak (and mismatch between client/server) that while
+                            // the server thinks the reference of an unauthorized task is retained, the
+                            // client does not retain the references of unauthorized tasks.
+                            const addReferencedTaskBackfills = (task: TaskIndexDoc) => {
+                                if (task.parent.taskId.value) {
+                                    const referencedTaskState = this._referencedTaskStateById.get(
+                                        task.parent.taskId.value,
+                                    );
+                                    if (referencedTaskState) {
+                                        const referencedTask = referencedTaskState.task;
+
+                                        eventBuilder.waitUntil(
+                                            context,
+                                            referencedTaskState.authorizationStatePromise.then(
+                                                authorizationState => {
+                                                    if (authorizationState === "Authorized") {
+                                                        eventBuilder.addAuthorizedTaskBackfill(
+                                                            this,
+                                                            referencedTask,
+                                                            authorizationStateVersion,
+                                                        );
+                                                    } else {
+                                                        eventBuilder.addUnauthorizedTaskBackfill(
+                                                            this,
+                                                            referencedTask.id,
+                                                            authorizationStateVersion,
+                                                        );
+                                                    }
+                                                },
+                                            ),
+                                        );
+
+                                        addReferencedTaskBackfills(referencedTask);
+                                    }
+                                }
+
+                                for (const {
+                                    collectionId,
+                                } of task.collections.raw.collections.getArray()) {
+                                    const referencedCollectionState =
+                                        this._referencedCollectionStateById.get(collectionId);
+                                    if (referencedCollectionState) {
+                                        const referencedCollection =
+                                            referencedCollectionState.collection;
+
+                                        eventBuilder.waitUntil(
+                                            context,
+                                            referencedCollectionState.authorizationStatePromise.then(
+                                                authorizationState => {
+                                                    if (authorizationState === "Authorized") {
+                                                        eventBuilder.addAuthorizedCollectionBackfill(
+                                                            this,
+                                                            referencedCollection,
+                                                            authorizationStateVersion,
+                                                        );
+                                                    } else {
+                                                        eventBuilder.addUnauthorizedCollectionBackfill(
+                                                            this,
+                                                            referencedCollection.id,
+                                                            authorizationStateVersion,
+                                                        );
+                                                    }
+                                                },
+                                            ),
+                                        );
+                                    }
+                                }
+                            };
+
+                            addReferencedTaskBackfills(task);
                         }
                     }
                 }),

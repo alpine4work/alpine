@@ -17,6 +17,7 @@ import {TaskClientStore, getParentTaskIdIfChildrenQuery} from "~/client/tasks/ta
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -582,7 +583,7 @@ export function useTaskGridViewExpansionState({
                     newTaskPath.reverse();
                 }
 
-                const finallyCallbacks: Array<() => void> = [];
+                const releaseCallbacks: Array<() => void> = [];
                 try {
                     // If this update was the result of an indent (task nested under previous task)
                     // and this is the first child task of the new parent then we want to
@@ -599,7 +600,6 @@ export function useTaskGridViewExpansionState({
                         newTaskPath.length === oldTaskPath.length + 1 &&
                         oldTaskPath.every((taskId, i) => newTaskPath[i] === taskId) &&
                         stateManager.areChildTasksExpanded(oldTaskPath) &&
-                        !stateManager.areChildTasksExpanded(newTaskPath) &&
                         stateManager.store
                             .getTaskEntryStoreIfExists(newTaskPath[newTaskPath.length - 1]!)
                             ?.getSnapshot()
@@ -607,18 +607,16 @@ export function useTaskGridViewExpansionState({
                     ) {
                         const query = stateManager.store.ensureAndRetainTaskChildrenQuery(
                             newTaskPath[newTaskPath.length - 1]!,
-                            {
-                                limit: getTaskGridViewLoadQueryLimit(
-                                    getClientInfoWithoutListening(),
-                                ),
-                            },
+                            {limit: 1},
                         );
 
                         // Release our query at the end of this code block. `stateManager` will grab
                         // its own reference to the query if we need it.
-                        finallyCallbacks.push(() => query.release());
+                        releaseCallbacks.push(() => {
+                            query.release();
+                        });
 
-                        if (query.loadedStateStore.getSnapshot() === "Unloaded") {
+                        if (query.loadedStateStore.getSnapshot() !== "FullyLoaded") {
                             stateManager.store.loadTasksIntoQuery(query, {
                                 limit: 1,
                                 loadedState: {type: "Full"},
@@ -638,9 +636,14 @@ export function useTaskGridViewExpansionState({
                         ),
                     );
                 } finally {
-                    for (const callback of finallyCallbacks) {
-                        callback();
-                    }
+                    // Run our release callbacks after a microtask so that `batchStoreUpdates()`
+                    // listeners can be called. They might retain our query so we don't want to
+                    // release before then.
+                    scheduleMicrotask(() => {
+                        for (const callback of releaseCallbacks) {
+                            callback();
+                        }
+                    });
                 }
             }
         });

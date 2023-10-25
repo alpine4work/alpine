@@ -292,7 +292,7 @@ function ToastView({
             display="flex"
         >
             <Box flexGrow="1" alignSelf="center" display="flex" padding="2">
-                <Box flexShrink="0" color="grey-70" paddingRight="1.5">
+                <Box flexShrink="0" color="grey-50" paddingRight="1.5">
                     <Box position="relative" style={{top: 1}}>
                         {dontShowErrorIcon ? (
                             <Info size={spacing["4"]} />

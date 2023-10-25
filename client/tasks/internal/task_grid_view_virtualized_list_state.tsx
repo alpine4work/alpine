@@ -864,7 +864,9 @@ export function isTaskGridViewVirtualizedListStateItemAfter(
         if (i === targetItem.parents.length) {
             // All preceding parents were after. Unloaded child tasks are always after any
             // tasks sharing the same parents.
-            if (targetItem.type === "UnloadedChildTask") return true;
+            if (targetItem.type === "UnloadedChildTask") {
+                return true;
+            }
 
             targetQuery = targetItem.query;
             targetCursor = targetItem.cursor;
@@ -876,7 +878,9 @@ export function isTaskGridViewVirtualizedListStateItemAfter(
 
         // All preceding parents were after. If our target item has more indentation
         // then the after item it's always considered after.
-        if (i > afterItem.parents.length) return true;
+        if (i > afterItem.parents.length) {
+            return true;
+        }
 
         let afterQuery;
         let afterCursor;

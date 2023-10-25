@@ -166,9 +166,26 @@ export function TaskGridViewDndContext({
                             activeData.taskId,
                         );
 
+                        const dropOnRowActions = activeData.getDropOnRowActions(activeData.taskId);
+
                         const actions = [
-                            ...activeData.getDropOnRowActions(activeData.taskId),
                             ...overData.getDropActions(activeData.taskId),
+
+                            // The order here is important! `overData.getDropActions()` will place our
+                            // task in its new position. `activeData.getDropOnRowActions()` will remove our
+                            // task from its old position. We have to add the task to its new position
+                            // before we can remove it since removing the task from its old position may
+                            // cause us to lose access causing an authorization failure when we try to add
+                            // the task to its new position.
+                            //
+                            // But we also want `overData.getDropActions()` actions to win in case of
+                            // conflict (e.g. if we both remove the task from a collection and add it back
+                            // in one transaction). So we call `activeData.getDropOnRowActions()` first
+                            // (to get earlier timestamps) but apply it second.
+                            //
+                            // The final result of an action transaction is determined by timestamps but
+                            // authorization is evaluated serially as individual actions are committed.
+                            ...dropOnRowActions,
                         ];
 
                         // Some drag operations may introduce a circular dependency. For example

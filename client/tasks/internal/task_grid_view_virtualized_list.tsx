@@ -346,6 +346,17 @@ export function useTaskGridViewVirtualizedList({
 
     const taskRowByTaskKeyRef = useRef(new Map<TaskGridViewTaskKey, TaskRowViewRef>());
 
+    const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const callbacks = onLayoutEffectCallbacksRef.current;
+        onLayoutEffectCallbacksRef.current = [];
+
+        for (const callback of callbacks) {
+            callback();
+        }
+    });
+
     /* ========================================================================== *\
      *                         Delete Confirmation State                          *
     \* ========================================================================== */
@@ -1453,6 +1464,7 @@ export function useTaskGridViewVirtualizedList({
                                         viewRef={viewRef}
                                         events={events}
                                         taskRowByTaskKeyRef={taskRowByTaskKeyRef}
+                                        onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
                                         getAreChildTasksExpandedStore={
                                             getAreChildTasksExpandedStore
                                         }
@@ -1532,6 +1544,7 @@ export function useTaskGridViewVirtualizedList({
                                 viewRef={viewRef}
                                 events={events}
                                 taskRowByTaskKeyRef={taskRowByTaskKeyRef}
+                                onLayoutEffectCallbacksRef={onLayoutEffectCallbacksRef}
                                 getAreChildTasksExpandedStore={getAreChildTasksExpandedStore}
                                 toggleAreChildTasksExpanded={toggleAreChildTasksExpanded}
                                 setTaskDeleteConfirmationState={setTaskDeleteConfirmationState}
@@ -2076,6 +2089,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     viewRef,
     events,
     taskRowByTaskKeyRef,
+    onLayoutEffectCallbacksRef,
     getAreChildTasksExpandedStore,
     toggleAreChildTasksExpanded,
     setTaskDeleteConfirmationState,
@@ -2100,6 +2114,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
     events: TaskGridViewVirtualizedListEvents;
     taskRowByTaskKeyRef: MutableRefObject<Map<TaskGridViewTaskKey, TaskRowViewRef>>;
+    onLayoutEffectCallbacksRef: MutableRefObject<Array<() => void>>;
     getAreChildTasksExpandedStore: Memo<
         (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>
     >;
@@ -2209,16 +2224,12 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             const nest = () => {
                 disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
-                rootQuery.store.commitTaskActionTransaction(context, [
-                    // If we are indenting at the root of our query then we want to remove the task
-                    // from the query root since it lives in its parent task now.
-                    //
-                    // Must come first since if we're removing a task from its parent then our
-                    // following action needs to set the parent again.
-                    ...(query === rootQuery
+                const maybeRemoveActions =
+                    query === rootQuery
                         ? events.getMaybeRemoveTaskFromRootQueryActions(taskId)
-                        : []),
+                        : [];
 
+                rootQuery.store.commitTaskActionTransaction(context, [
                     {
                         type: "UpdateTask",
                         time: rootQuery.store.clock.now(),
@@ -2228,11 +2239,21 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                             parentTaskId: previousTaskId,
                         },
                     },
+
+                    // If we are indenting at the root of our query then we want to remove the task
+                    // from the query root since it lives in its parent task now.
+                    //
+                    // Must come first since if we're removing a task from its parent then our
+                    // following action needs to set the parent again.
+                    //
+                    // Order is important! We create these actions before `UpdateParentTaskId` so
+                    // they have earlier timestamps but put them later in the array so our serial
+                    // action authorization check doesn't remove our access to the task before
+                    // `UpdateParentTaskId` which grants it back.
+                    ...maybeRemoveActions,
                 ]);
 
-                // Store updates are rendered by React immediately. So focus our task before
-                // the next paint.
-                requestAnimationFrame(() => {
+                onLayoutEffectCallbacksRef.current.push(() => {
                     if (previousItem.parents.length === 0) {
                         events.focusTaskTitleSelection(
                             `${previousTaskId}-${taskId}`,
@@ -2286,20 +2307,28 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
             disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
-            rootQuery.store.commitTaskActionTransaction(context, [
-                {
-                    type: "UpdateTask",
-                    time: rootQuery.store.clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateParentTaskId",
-                        parentTaskId: null,
-                    },
+            const removeAction: TaskAction = {
+                type: "UpdateTask",
+                time: rootQuery.store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateParentTaskId",
+                    parentTaskId: null,
                 },
+            };
+
+            rootQuery.store.commitTaskActionTransaction(context, [
                 ...events.getMoveTaskToRootQueryActions(taskId, {
                     type: "Below",
                     taskId: oldParentTaskId,
                 }),
+
+                // Order is important! Removing the task from its parent may remove our access
+                // to the task resulting in an authorization error. Perform our update that puts
+                // us in the right spot first to make sure we maintain permission to access
+                // this task. But the timestamp on our remove action needs to be earlier in
+                // case of conflict.
+                removeAction,
             ]);
         }
         // Move the task to our parent's parent. If we have access to the new parent's
@@ -2346,7 +2375,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
         // Store updates are rendered by React immediately. So focus our task before
         // the next paint.
-        requestAnimationFrame(() => {
+        onLayoutEffectCallbacksRef.current.push(() => {
             if (parents.length <= 1) {
                 events.focusTaskTitleSelection(taskId, titleSelection);
             } else {

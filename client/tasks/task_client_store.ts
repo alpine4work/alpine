@@ -359,7 +359,10 @@ export class TaskClientStore {
         this._internal.loadTasksIntoQuery(query, options);
     }
 
-    public ensureAndRetainTaskChildrenQuery(parentTaskId: TaskId, options: {limit: number}): TaskClientQuery {
+    public ensureAndRetainTaskChildrenQuery(
+        parentTaskId: TaskId,
+        options: {limit: number},
+    ): TaskClientQuery {
         return this._internal.ensureAndRetainTaskChildrenQuery(parentTaskId, options);
     }
 
