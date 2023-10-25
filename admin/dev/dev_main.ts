@@ -368,22 +368,13 @@ async function rebuildArtifact(artifact: Artifact) {
             artifact.executablePath,
         );
 
-        const subprocess = spawnWithCoordinatedStdio(
-            executablePath,
-            [`--port=${artifact.privatePort}`, ...(artifact.args ?? [])],
-            {
-                env: {...process.env, ...artifact.env},
-                stdioPrefix: artifact.stdioPrefix,
-            },
-        );
-
         // TODO(calebmer): Our dev process manager is occasionally completely breaking
         // with EBADF errors and it's very unclear where these errors are coming from
         // or how to fix them. So I'm going to start logging extra debug information to
         // help get to the bottom of this issue. Once this issue is fixed, we should
         // remove this extra logging.
-        subprocess.on("error", error => {
-            if ((error as any).code === "EBADF") {
+        const debugEbadfError = (error: any) => {
+            if (error.code === "EBADF") {
                 // eslint-disable-next-line no-console
                 console.error(`Extra debugging information for EBADF error:`, {
                     executablePath,
@@ -391,34 +382,52 @@ async function rebuildArtifact(artifact: Artifact) {
                     lstat: fs.lstatSync(executablePath),
                 });
             }
-        });
-
-        // Make sure to assign this before our `await` below which may throw if the
-        // process exists.
-        artifactServerRef.current = {
-            buildId,
-            hasBuildFailed,
-            subprocess,
         };
 
-        await runAllPromises([
-            waitForProcessSpawn(subprocess).then(() =>
-                Promise.race([
-                    waitForHttpServer(`http://localhost:${artifact.privatePort}`).catch(error => {
-                        // Don't log an error. If a server never starts, the user will see a 504
-                        // gateway timeout when they try to access the artifact's URL.
-                    }),
+        try {
+            const subprocess = spawnWithCoordinatedStdio(
+                executablePath,
+                [`--port=${artifact.privatePort}`, ...(artifact.args ?? [])],
+                {
+                    env: {...process.env, ...artifact.env},
+                    stdioPrefix: artifact.stdioPrefix,
+                },
+            );
 
-                    // If the process exits immediately after starting then immediately free the
-                    // mutex instead of continuing to wait for the HTTP server to start.
-                    waitForProcessExit(subprocess).catch(error => {
-                        // Don't log an error. If the process exits, the developer will see when they
-                        // try to access the artifact's  URL.
-                    }),
-                ]),
-            ),
-            artifact.onServerRestart?.(),
-        ]);
+            subprocess.on("error", debugEbadfError);
+
+            // Make sure to assign this before our `await` below which may throw if the
+            // process exists.
+            artifactServerRef.current = {
+                buildId,
+                hasBuildFailed,
+                subprocess,
+            };
+
+            await runAllPromises([
+                waitForProcessSpawn(subprocess).then(() =>
+                    Promise.race([
+                        waitForHttpServer(`http://localhost:${artifact.privatePort}`).catch(
+                            error => {
+                                // Don't log an error. If a server never starts, the user will see a 504
+                                // gateway timeout when they try to access the artifact's URL.
+                            },
+                        ),
+
+                        // If the process exits immediately after starting then immediately free the
+                        // mutex instead of continuing to wait for the HTTP server to start.
+                        waitForProcessExit(subprocess).catch(error => {
+                            // Don't log an error. If the process exits, the developer will see when they
+                            // try to access the artifact's  URL.
+                        }),
+                    ]),
+                ),
+                artifact.onServerRestart?.(),
+            ]);
+        } catch (error) {
+            debugEbadfError(error);
+            throw error;
+        }
     });
 }
 

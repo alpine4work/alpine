@@ -118,42 +118,13 @@ function scheduleBuildBazelTargets() {
 }
 
 async function actuallyBuildBazelTargets(targets: Array<string>) {
-    assert(targets.length > 0);
-
-    const startTime = Date.now();
-    bazelBuildEvents.emit({type: "BuildStart", targets});
-
-    const subprocess = spawnWithBlockingStdio(
-        bazelExecutablePath,
-        [
-            "build",
-            `--cpu=${bazelBuildTargetCpu}`,
-            `--compilation_mode=${bazelBuildCompilationMode}`,
-            `--color=${chalk.supportsColor ? "yes" : "no"}`,
-            `--curses=${chalk.supportsColor ? "yes" : "no"}`,
-            ...targets,
-        ],
-        {
-            cwd: workspacePath,
-            env: process.env,
-            onStdioBlocked: () => {
-                // Explain what the following process output is.
-                writeWithStdioPrefix(
-                    process.stdout,
-                    `\n\n${chalk.dim("$")} bazel build ${chalk.bold(targets.join(" "))}\n`,
-                    null,
-                );
-            },
-        },
-    );
-
     // TODO(calebmer): Our dev process manager is occasionally completely breaking
     // with EBADF errors and it's very unclear where these errors are coming from
     // or how to fix them. So I'm going to start logging extra debug information to
     // help get to the bottom of this issue. Once this issue is fixed, we should
     // remove this extra logging.
-    subprocess.on("error", error => {
-        if ((error as any).code === "EBADF") {
+    const debugEbadfError = (error: any) => {
+        if (error.code === "EBADF") {
             // eslint-disable-next-line no-console
             console.error(`Extra debugging information for EBADF error:`, {
                 bazelExecutablePath,
@@ -161,37 +132,73 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
                 lstat: fs.lstatSync(bazelExecutablePath),
             });
         }
-    });
-
-    const messageByTarget = new Map<string, string>();
-
-    const handleStdioData = (chunk: Buffer) => {
-        const chunkString = chunk.toString();
-        const matches = chunkString.matchAll(/Target (\/\/.*?) (.*?)(?::|$)/gm);
-
-        for (const match of matches) {
-            const matchTarget = match[1]!;
-            const matchMessage = match[2]!;
-
-            for (const target of targets) {
-                const canonicalTarget = target.replace(/^(\/\/[^:]*?([^:/]+))$/, "$1:$2");
-                if (canonicalTarget === matchTarget) {
-                    messageByTarget.set(target, matchMessage);
-                }
-            }
-        }
     };
 
-    subprocess.stdout.on("data", handleStdioData);
-    subprocess.stderr.on("data", handleStdioData);
+    try {
+        assert(targets.length > 0);
 
-    const {exitCode} = await waitForProcessExitWithAnyCode(subprocess);
-    const hasFailed = exitCode !== 0;
+        const startTime = Date.now();
+        bazelBuildEvents.emit({type: "BuildStart", targets});
 
-    const durationMs = Date.now() - startTime;
-    bazelBuildEvents.emit({type: "BuildFinish", targets, durationMs, hasFailed});
+        const subprocess = spawnWithBlockingStdio(
+            bazelExecutablePath,
+            [
+                "build",
+                `--cpu=${bazelBuildTargetCpu}`,
+                `--compilation_mode=${bazelBuildCompilationMode}`,
+                `--color=${chalk.supportsColor ? "yes" : "no"}`,
+                `--curses=${chalk.supportsColor ? "yes" : "no"}`,
+                ...targets,
+            ],
+            {
+                cwd: workspacePath,
+                env: process.env,
+                onStdioBlocked: () => {
+                    // Explain what the following process output is.
+                    writeWithStdioPrefix(
+                        process.stdout,
+                        `\n\n${chalk.dim("$")} bazel build ${chalk.bold(targets.join(" "))}\n`,
+                        null,
+                    );
+                },
+            },
+        );
 
-    return {messageByTarget};
+        subprocess.on("error", debugEbadfError);
+
+        const messageByTarget = new Map<string, string>();
+
+        const handleStdioData = (chunk: Buffer) => {
+            const chunkString = chunk.toString();
+            const matches = chunkString.matchAll(/Target (\/\/.*?) (.*?)(?::|$)/gm);
+
+            for (const match of matches) {
+                const matchTarget = match[1]!;
+                const matchMessage = match[2]!;
+
+                for (const target of targets) {
+                    const canonicalTarget = target.replace(/^(\/\/[^:]*?([^:/]+))$/, "$1:$2");
+                    if (canonicalTarget === matchTarget) {
+                        messageByTarget.set(target, matchMessage);
+                    }
+                }
+            }
+        };
+
+        subprocess.stdout.on("data", handleStdioData);
+        subprocess.stderr.on("data", handleStdioData);
+
+        const {exitCode} = await waitForProcessExitWithAnyCode(subprocess);
+        const hasFailed = exitCode !== 0;
+
+        const durationMs = Date.now() - startTime;
+        bazelBuildEvents.emit({type: "BuildFinish", targets, durationMs, hasFailed});
+
+        return {messageByTarget};
+    } catch (error) {
+        debugEbadfError(error);
+        throw error;
+    }
 }
 
 export type BazelBuildEvent =
