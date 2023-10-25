@@ -296,7 +296,7 @@ process.on("uncaughtException", error => {
 });
 
 function logError(reason: string, error: unknown) {
-    writeToCoordinatedStderr(`${reason}:\n${inspect(error, {colors: !!chalk.supportsColor})}\n`);
+    writeToCoordinatedStderr(`${reason}: ${inspect(error, {colors: !!chalk.supportsColor})}\n`);
 }
 
 /**
