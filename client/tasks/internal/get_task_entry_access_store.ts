@@ -1,6 +1,7 @@
 import jsonStableStringify from "json-stable-stringify";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
     TaskClientStoreCollectionEntry,
     TaskClientStoreTaskEntry,
@@ -40,9 +41,10 @@ const taskAccessInternMap = new Map<string, TaskAccess>();
  * `Store` so the UI can immediately re-render if any dependency changes such
  * that we no longer have access.
  */
-export function getTaskSubscriptionAccessStore(
+export function getTaskEntryAccessStore(
     currentAccountId: AccountId,
-    taskSubscription: TaskClientTaskSubscription,
+    referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
+    taskEntryStore: Store<TaskClientStoreTaskEntry>,
 ): Store<TaskAccess> {
     return computeStore(get => {
         const getTaskAccess = (taskEntry: TaskClientStoreTaskEntry): TaskAccess => {
@@ -76,10 +78,10 @@ export function getTaskSubscriptionAccessStore(
             // We inherit the highest access level of our collections.
             for (const {collectionId} of taskEntry.task.getCollections().getArray()) {
                 const collectionEntry = get(
-                    taskSubscription.getReferencedCollectionEntryStore(collectionId),
+                    referencesSubscription.getReferencedCollectionEntryStore(collectionId),
                 );
 
-                const collectionAccess = computeTaskCollectionSubscriptionAccess(
+                const collectionAccess = computeTaskCollectionEntryAccess(
                     currentAccountId,
                     collectionEntry,
                 );
@@ -92,7 +94,7 @@ export function getTaskSubscriptionAccessStore(
             const parent = taskEntry.task.getParent();
             if (parent) {
                 const parentTaskEntry = get(
-                    taskSubscription.getReferencedTaskEntryStore(parent.taskId),
+                    referencesSubscription.getReferencedTaskEntryStore(parent.taskId),
                 );
                 const parentAccess = getTaskAccess(parentTaskEntry);
 
@@ -109,7 +111,7 @@ export function getTaskSubscriptionAccessStore(
             };
         };
 
-        const taskEntry = get(taskSubscription.taskEntryStore);
+        const taskEntry = get(taskEntryStore);
         const access = getTaskAccess(taskEntry);
 
         return getOrSetDefaultMapValue(
@@ -126,16 +128,16 @@ export function getTaskSubscriptionAccessStore(
  * collection authorization functions (e.g.
  * `isTaskCollectionAccessAuthorized()`).
  */
-export function getTaskCollectionSubscriptionAccess(
+export function getTaskCollectionEntryAccess(
     currentAccountId: AccountId,
     collectionEntry: TaskClientStoreCollectionEntry,
 ): TaskAccess {
-    const access = computeTaskCollectionSubscriptionAccess(currentAccountId, collectionEntry);
+    const access = computeTaskCollectionEntryAccess(currentAccountId, collectionEntry);
 
     return getOrSetDefaultMapValue(taskAccessInternMap, jsonStableStringify(access), () => access);
 }
 
-function computeTaskCollectionSubscriptionAccess(
+function computeTaskCollectionEntryAccess(
     currentAccountId: AccountId,
     collectionEntry: TaskClientStoreCollectionEntry,
 ): TaskAccess {

@@ -1,6 +1,6 @@
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
-import {getTaskCollectionSubscriptionAccess} from "~/client/tasks/internal/get_task_subscription_access_store.js";
+import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/get_task_entry_access_store.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -31,7 +31,7 @@ export function getDisplayTaskCollectionsStore({
 
             // Test that the collection is not deleted and we have access via the
             // access policy.
-            const access = getTaskCollectionSubscriptionAccess(currentAccount.id, collectionEntry);
+            const access = getTaskCollectionEntryAccess(currentAccount.id, collectionEntry);
             if (access.type !== "PermissionGranted") return null;
 
             return collectionEntry.collection;

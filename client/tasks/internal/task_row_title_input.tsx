@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {CaretLeft} from "phosphor-react";
+import {CaretLeft, Lock} from "phosphor-react";
 import {AllSelection, EditorState, Selection, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {
@@ -22,6 +22,8 @@ import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_a
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getTaskEntryAccessStore} from "~/client/tasks/internal/get_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {
     TaskRowTitleChildTasksButton,
@@ -29,6 +31,7 @@ import {
 } from "~/client/tasks/internal/task_row_title_child_tasks_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_model_y_doc.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
@@ -108,11 +111,6 @@ const taskRowTitleInputMultilineStyle: CSSProperties = {
     verticalAlign: "top",
 };
 
-const TaskRowTitleInputForwardRef = forwardRef(TaskRowTitleInput);
-export {TaskRowTitleInputForwardRef as TaskRowTitleInput};
-
-let scheduledDestroyTaskRowTitleInputEditorViewCallbacks: Array<() => void> | null = null;
-
 const rootClassName = sprinkles({
     display: "flex",
     overflow: "hidden",
@@ -147,10 +145,36 @@ const marginRightContainerClassName = sprinkles({
     height: taskRowTitleInputSingleLineHeight,
 });
 
+const parentTaskTitleClassName = sprinkles({
+    pointerEvents: "none",
+    color: "grey-50",
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5",
+    marginLeft: "1.5",
+});
+
+const parentTaskTitlePermissionDeniedClassName = sprinkles({
+    display: "flex",
+    alignItems: "center",
+    gap: "1",
+});
+
+const parentTaskTitleTextClassName = sprinkles({
+    fontStyle: "truncate",
+    maxWidth: "48",
+});
+
+const TaskRowTitleInputForwardRef = forwardRef(TaskRowTitleInput);
+export {TaskRowTitleInputForwardRef as TaskRowTitleInput};
+
+let scheduledDestroyTaskRowTitleInputEditorViewCallbacks: Array<() => void> | null = null;
+
 function TaskRowTitleInput(
     {
         capabilities,
         stateKey,
+        query,
         title,
         onTitleChange,
         placeholder,
@@ -176,6 +200,7 @@ function TaskRowTitleInput(
     }: {
         capabilities: TaskGridViewCapabilities;
         stateKey: Key | undefined;
+        query: TaskClientQuery;
         title: TaskTitleModel;
         onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
         placeholder?: string;
@@ -865,7 +890,10 @@ function TaskRowTitleInput(
                 })}
             >
                 {capabilities.hasParentTaskTitle && parentTaskEntryStore && indentation === 0 && (
-                    <TaskRowTitleParentTaskTitle parentTaskEntryStore={parentTaskEntryStore} />
+                    <TaskRowTitleParentTaskTitle
+                        query={query}
+                        parentTaskEntryStore={parentTaskEntryStore}
+                    />
                 )}
                 {childTaskCount > 0 && (
                     <TaskRowTitleChildTasksButton
@@ -901,42 +929,66 @@ function TaskRowTitleInput(
 }
 
 function TaskRowTitleParentTaskTitle({
+    query,
     parentTaskEntryStore,
 }: {
+    query: TaskClientQuery;
     parentTaskEntryStore: Store<TaskClientStoreTaskEntry>;
 }) {
+    // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
+    // this file. It is critical for scroll performance that this component renders
+    // fast. Use the `sprinkles()` function in the module body instead. We've
+    // observed while profiling the sprinkles function takes a meaningful amount of
+    // time during render.
+    //
+    // One day we'd like to introduce transformations that automatically
+    // pre-evaluates `sprinkles()` functions at which point lifting them to the
+    // module scope wouldn't do anything.
+    //
+    // So we assign the `sprinkles` variable to null here so you get a TypeScript
+    // error if you try to use `sprinkles()`.
+    //
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const sprinkles = null;
+
+    const {currentAccount} = useSpaceContext();
+
+    const access = useStore(
+        useMemo(
+            () => getTaskEntryAccessStore(currentAccount.id, query, parentTaskEntryStore),
+            [currentAccount.id, parentTaskEntryStore, query],
+        ),
+    );
+
     const parentTaskEntry = useStore(parentTaskEntryStore);
     const parentTaskTitle = parentTaskEntry.task?.getTitle();
 
-    const parentTaskTitleHtml = useMemo(
-        () =>
-            serializeProsemirrorFragmentToHtml(
-                (parentTaskTitle?.getProsemirrorNode() ?? emptyTaskTitleProsemirrorNode).content,
-            ),
-        [parentTaskTitle],
-    );
+    return useMemo(() => {
+        // If the parent task was deleted, don't show the deleted task's title.
+        if (access.type === "Deleted") return null;
 
-    return (
-        <div
-            className={sprinkles({
-                pointerEvents: "none",
-                color: "grey-50",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.5",
-                marginLeft: "1.5",
-            })}
-        >
-            <CaretLeft size={spacing["3"]} />
-            <div
-                className={sprinkles({
-                    fontStyle: "truncate",
-                    maxWidth: "48",
-                })}
-                dangerouslySetInnerHTML={{
-                    __html: parentTaskTitleHtml,
-                }}
-            />
-        </div>
-    );
+        return (
+            <div className={parentTaskTitleClassName}>
+                <CaretLeft size={spacing["3"]} />
+                {access.type !== "PermissionGranted" ? (
+                    <div className={parentTaskTitlePermissionDeniedClassName}>
+                        <Lock size={spacing["3"]} />
+                        <div className={parentTaskTitleTextClassName}>Private</div>
+                    </div>
+                ) : (
+                    <div
+                        className={parentTaskTitleTextClassName}
+                        dangerouslySetInnerHTML={{
+                            __html: serializeProsemirrorFragmentToHtml(
+                                (
+                                    parentTaskTitle?.getProsemirrorNode() ??
+                                    emptyTaskTitleProsemirrorNode
+                                ).content,
+                            ),
+                        }}
+                    />
+                )}
+            </div>
+        );
+    }, [access.type, parentTaskTitle]);
 }

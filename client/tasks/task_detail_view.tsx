@@ -15,8 +15,8 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {getTaskEntryAccessStore} from "~/client/tasks/internal/get_task_entry_access_store.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
-import {getTaskSubscriptionAccessStore} from "~/client/tasks/internal/get_task_subscription_access_store.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
@@ -82,7 +82,11 @@ export function TaskDetailView({
     const readOnlyReason = useStore(
         useMemo(
             () =>
-                getTaskSubscriptionAccessStore(currentAccount.id, taskSubscription).map(access => {
+                getTaskEntryAccessStore(
+                    currentAccount.id,
+                    taskSubscription,
+                    taskSubscription.taskEntryStore,
+                ).map(access => {
                     switch (access.type) {
                         case "Deleted": {
                             // TODO(calebmer): Add an "undelete" button when we support undo?

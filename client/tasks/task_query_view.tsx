@@ -13,8 +13,8 @@ import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     TaskAccess,
-    getTaskCollectionSubscriptionAccess,
-} from "~/client/tasks/internal/get_task_subscription_access_store.js";
+    getTaskCollectionEntryAccess,
+} from "~/client/tasks/internal/get_task_entry_access_store.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {getTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
@@ -82,7 +82,7 @@ export function getTaskQueryViewReadOnlyReasonStore({
                 filterReferences,
             }).map(collectionResults =>
                 collectionResults.map(collectionResult =>
-                    getTaskCollectionSubscriptionAccess(currentAccount.id, collectionResult.entry),
+                    getTaskCollectionEntryAccess(currentAccount.id, collectionResult.entry),
                 ),
             );
         }),

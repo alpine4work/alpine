@@ -1292,6 +1292,7 @@ function TaskRowView(
                         ref={titleInputRef}
                         capabilities={capabilities}
                         stateKey={stateKey}
+                        query={query}
                         title={task?.getTitle() ?? emptyTaskTitleModel.get()}
                         onTitleChange={onTitleChange}
                         placeholder={titlePlaceholder}
