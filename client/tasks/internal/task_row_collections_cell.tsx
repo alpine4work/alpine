@@ -14,9 +14,10 @@ import {
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getDisplayTaskCollectionsStore} from "~/client/tasks/internal/get_display_task_collections_store.js";
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
@@ -135,17 +136,20 @@ function TaskRowCollectionsCell(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
+    const {currentAccount} = useSpaceContext();
+
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
 
-    const collectionsArray = useStore(
-        useMemo(() => {
-            return computeStore(get => {
-                return collections.getArray().filter(({collectionId}) => {
-                    const {collection} = get(query.getReferencedCollectionEntryStore(collectionId));
-                    return collection && !collection.isDeleted();
-                });
-            });
-        }, [collections, query]),
+    const displayCollections = useStore(
+        useMemo(
+            () =>
+                getDisplayTaskCollectionsStore({
+                    currentAccount,
+                    referencesSubscription: query,
+                    collections,
+                }),
+            [collections, currentAccount, query],
+        ),
     );
 
     const cellRef = useRef<HTMLDivElement>(null);
@@ -209,7 +213,7 @@ function TaskRowCollectionsCell(
             }}
         >
             {!isFocusWithin ? (
-                collectionsArray.length === 0 ? (
+                displayCollections.length === 0 ? (
                     !isReadOnly && (
                         // NOCOMMIT: Private is a misnomer when you have access to the parent
                         <div
@@ -225,9 +229,9 @@ function TaskRowCollectionsCell(
                     )
                 ) : (
                     <>
-                        {collectionsArray.slice(0, 2).map(({collectionId}) => (
+                        {displayCollections.slice(0, 2).map(collection => (
                             <div
-                                key={collectionId}
+                                key={collection.id}
                                 className={collectionChipContainerClassName}
                                 style={{
                                     // Don't allow item to grow beyond flexbox bounds. By default flexbox items
@@ -240,19 +244,15 @@ function TaskRowCollectionsCell(
                                     assertExists(cellRef.current).focus();
                                 }}
                             >
-                                <TaskCollectionChip
-                                    collectionEntryStore={query.getReferencedCollectionEntryStore(
-                                        collectionId,
-                                    )}
-                                />
+                                <TaskCollectionChip collection={collection} />
                             </div>
                         ))}
-                        {collectionsArray.length > 2 && (
+                        {displayCollections.length > 2 && (
                             <div
                                 className={extraCollectionsClassName}
                                 style={{fontFeatureSettings: '"calt"'}}
                             >
-                                {`+${collectionsArray.length - 2}`}
+                                {`+${displayCollections.length - 2}`}
                             </div>
                         )}
                     </>

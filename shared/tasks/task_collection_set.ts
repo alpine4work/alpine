@@ -25,6 +25,15 @@ export type TaskCollectionSetAction = CrdtMapAction<TaskCollectionId, OrderKey>;
  * determines the order of the list so you can easily insert move
  * `TaskCollectionId`s.
  *
+ * This set includes:
+ *
+ * - Deleted collections
+ * - Collections the current account doesn't have access to
+ *
+ * Clients must take care to only render undeleted collections the current
+ * account has access to out of this set. Trying to render everything may cause
+ * problems. The `getDisplayTaskCollectionsStore()` function can help with this.
+ *
  * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
  */
 export class TaskCollectionSet {

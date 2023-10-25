@@ -9,15 +9,17 @@ import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
 import {TaskChildTasksProgressWheel} from "~/client/tasks/internal/task_child_tasks_progress_wheel.js";
-import {taskCollectionChipContainerMaxWidth} from "~/client/tasks/internal/task_collection_chip.js";
-import {TaskCollectionChipBase} from "~/client/tasks/internal/task_collection_chip_base.js";
+import {
+    TaskCollectionChip,
+    taskCollectionChipContainerMaxWidth,
+} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskPriorityIcon} from "~/client/tasks/internal/task_priority_icon.js";
-import {TaskClientStoreCollectionEntry} from "~/client/tasks/task_client_store.js";
 import {AccountModelData} from "~/shared/accounts/account_model.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
@@ -38,7 +40,7 @@ function TaskCardViewContent(
         displayStatus,
         title,
         assigneeAccountData,
-        collectionEntries,
+        displayCollections,
         dueDate,
         priority,
         childTaskCount,
@@ -47,7 +49,7 @@ function TaskCardViewContent(
         displayStatus: TaskDisplayStatus;
         title: TaskTitleModel;
         assigneeAccountData: AccountModelData | null;
-        collectionEntries: ReadonlyArray<TaskClientStoreCollectionEntry>;
+        displayCollections: ReadonlyArray<TaskCollectionModel>;
         dueDate: CalendarDate | null;
         priority: TaskPriority | null;
         childTaskCount: number;
@@ -181,10 +183,7 @@ function TaskCardViewContent(
     // to tell if we are the last field before collections.
     fieldElements.reverse();
 
-    for (const collectionEntry of collectionEntries.slice(0, 5)) {
-        if (!collectionEntry.collection) continue;
-        if (collectionEntry.collection.isDeleted()) continue;
-
+    for (const collection of displayCollections.slice(0, 5)) {
         fieldElements.push(
             <Box
                 overflow="hidden"
@@ -192,18 +191,15 @@ function TaskCardViewContent(
                 marginLeft="-1"
                 style={{maxWidth: taskCollectionChipContainerMaxWidth}}
             >
-                <TaskCollectionChipBase
-                    color={collectionEntry.collection.getColor()}
-                    name={collectionEntry.collection.getName()}
-                />
+                <TaskCollectionChip collection={collection} />
             </Box>,
         );
     }
 
-    if (collectionEntries.length > 5) {
+    if (displayCollections.length > 5) {
         fieldElements.push(
             <Box color="grey-70" marginLeft="-1" style={{fontFeatureSettings: '"calt"'}}>
-                +{collectionEntries.length - 5}
+                +{displayCollections.length - 5}
             </Box>,
         );
     }

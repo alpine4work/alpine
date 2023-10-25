@@ -6,11 +6,11 @@ import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {MenuAction} from "~/client/design/menu_button.js";
-import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getDisplayTaskCollectionsStore} from "~/client/tasks/internal/get_display_task_collections_store.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {
     TaskCardViewContent,
@@ -81,17 +81,15 @@ function TaskNotepadCardView({
             displayStatus={displayStatus}
             title={title}
             assigneeAccountData={assigneeAccountData}
-            collectionEntries={useStore(
+            displayCollections={useStore(
                 useMemo(
                     () =>
-                        Store.many(
-                            collections
-                                .getArray()
-                                .map(({collectionId}) =>
-                                    query.getReferencedCollectionEntryStore(collectionId),
-                                ),
-                        ),
-                    [collections, query],
+                        getDisplayTaskCollectionsStore({
+                            currentAccount,
+                            referencesSubscription: query,
+                            collections,
+                        }),
+                    [collections, currentAccount, query],
                 ),
             )}
             dueDate={dueDate}

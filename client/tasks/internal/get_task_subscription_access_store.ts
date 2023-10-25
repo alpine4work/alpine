@@ -152,8 +152,10 @@ function computeTaskCollectionSubscriptionAccess(
         return {type: "PermissionDenied"};
     }
 
-    // Delete collections don't grant access.
-    if (collectionEntry.collection.isDeleted()) return {type: "Deleted"};
+    // Deleted collections don't grant access.
+    if (collectionEntry.collection.isDeleted()) {
+        return {type: "Deleted"};
+    }
 
     const accessPolicy = collectionEntry.collection.getAccessPolicy();
 

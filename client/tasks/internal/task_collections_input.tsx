@@ -15,10 +15,10 @@ import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
-import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {getDisplayTaskCollectionsStore} from "~/client/tasks/internal/get_display_task_collections_store.js";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
@@ -126,17 +126,16 @@ export function TaskCollectionsInput({
 
     const [shouldLoadItems, setShouldLoadItems] = useState(false);
 
-    const collectionsArray = useStore(
-        useMemo(() => {
-            return computeStore(get => {
-                return collections.getArray().filter(({collectionId}) => {
-                    const {collection} = get(
-                        referencesSubscription.getReferencedCollectionEntryStore(collectionId),
-                    );
-                    return collection && !collection.isDeleted();
-                });
-            });
-        }, [collections, referencesSubscription]),
+    const displayCollections = useStore(
+        useMemo(
+            () =>
+                getDisplayTaskCollectionsStore({
+                    currentAccount,
+                    referencesSubscription,
+                    collections,
+                }),
+            [collections, currentAccount, referencesSubscription],
+        ),
     );
 
     const [inputState, setInputState] = useState<TaskDetailCollectionsFieldInputState>({
@@ -150,8 +149,8 @@ export function TaskCollectionsInput({
         // Only load items when our overlay is open.
         shouldLoadItems,
         excludeCollectionIds: useMemo(
-            () => new Set(collectionsArray.map(({collectionId}) => collectionId)),
-            [collectionsArray],
+            () => new Set(displayCollections.map(collection => collection.id)),
+            [displayCollections],
         ),
     });
 
@@ -330,8 +329,8 @@ export function TaskCollectionsInput({
     const listBoxRef = useRef<HTMLUListElement>(null);
 
     const collectionRefs = useMemo(
-        () => createArrayWithLength(collectionsArray.length, () => createRef<HTMLDivElement>()),
-        [collectionsArray.length],
+        () => createArrayWithLength(displayCollections.length, () => createRef<HTMLDivElement>()),
+        [displayCollections.length],
     );
 
     const {inputProps, listBoxProps} = useComboBox(
@@ -349,7 +348,7 @@ export function TaskCollectionsInput({
                     // will delete the last collection.
                     case "Backspace": {
                         if (
-                            collectionsArray.length > 0 &&
+                            displayCollections.length > 0 &&
                             event.currentTarget.selectionStart ===
                                 event.currentTarget.selectionEnd &&
                             event.currentTarget.selectionStart === 0
@@ -357,7 +356,7 @@ export function TaskCollectionsInput({
                             event.preventDefault();
                             event.stopPropagation();
 
-                            const {collectionId} = collectionsArray[collectionsArray.length - 1]!;
+                            const collection = displayCollections[displayCollections.length - 1]!;
 
                             commitActionTransaction(taskId => [
                                 {
@@ -366,7 +365,7 @@ export function TaskCollectionsInput({
                                     taskId,
                                     taskAction: {
                                         type: "RemoveCollection",
-                                        collectionId,
+                                        collectionId: collection.id,
                                     },
                                 },
                             ]);
@@ -400,12 +399,12 @@ export function TaskCollectionsInput({
     );
 
     const shouldShowPrivatePlaceholder =
-        !createCollectionInputState.isVisible && collectionsArray.length === 0;
+        !createCollectionInputState.isVisible && displayCollections.length === 0;
 
     // NOCOMMIT: Private is a misnomer when you have access to the parent
     const inputPlaceholder = shouldShowPrivatePlaceholder ? "Private" : "Add";
 
-    const collectionsChildren = collectionsArray.map(({collectionId}, index) => {
+    const collectionsChildren = displayCollections.map((collection, index) => {
         const handleKeyDown = (event: KeyboardEvent) => {
             switch (event.key) {
                 // Backspace or delete will remove our selected account.
@@ -421,7 +420,7 @@ export function TaskCollectionsInput({
                             taskId,
                             taskAction: {
                                 type: "RemoveCollection",
-                                collectionId,
+                                collectionId: collection.id,
                             },
                         },
                     ]);
@@ -477,7 +476,7 @@ export function TaskCollectionsInput({
                                 taskId,
                                 taskAction: {
                                     type: "RemoveCollection",
-                                    collectionId,
+                                    collectionId: collection.id,
                                 },
                             },
                         ]);
@@ -491,7 +490,7 @@ export function TaskCollectionsInput({
         };
 
         return (
-            <FocusRing key={collectionId}>
+            <FocusRing key={collection.id}>
                 <Box
                     ref={collectionRefs[index]}
                     overflow="hidden"
@@ -509,12 +508,10 @@ export function TaskCollectionsInput({
                     onKeyDown={handleKeyDown}
                 >
                     <TaskCollectionChip
-                        collectionEntryStore={referencesSubscription.getReferencedCollectionEntryStore(
-                            collectionId,
-                        )}
+                        collection={collection}
                         onPress={() => {
                             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
-                            rootNavigate(`/s/${space.id}/tasks/collections/${collectionId}`).catch(
+                            rootNavigate(`/s/${space.id}/tasks/collections/${collection.id}`).catch(
                                 error => {
                                     showToast({
                                         type: "Error",
@@ -534,7 +531,7 @@ export function TaskCollectionsInput({
                                               taskId,
                                               taskAction: {
                                                   type: "RemoveCollection",
-                                                  collectionId,
+                                                  collectionId: collection.id,
                                               },
                                           },
                                       ]);
