@@ -47,79 +47,94 @@ export function getTaskEntryAccessStore(
     taskEntryStore: Store<TaskClientStoreTaskEntry>,
 ): Store<TaskAccess> {
     return computeStore(get => {
-        const getTaskAccess = (taskEntry: TaskClientStoreTaskEntry): TaskAccess => {
-            // The task is not loaded. Assume we don't have permission. Principle of
-            // least privilege.
-            if (!taskEntry.task) return {type: "PermissionDenied"};
-
-            // If the task is marked as unauthorized, we don't have permission. Even if the
-            // task was previously loaded. Our client might not see the action which makes
-            // the task unauthorized.
-            if (taskEntry.authorizationState.value !== "Authorized")
-                return {type: "PermissionDenied"};
-
-            // The task is deleted. Special access rules apply.
-            if (taskEntry.task.isDeleted()) {
-                return {type: "Deleted"};
-            }
-
-            // The task creator has edit access level on their own task.
-            if (taskEntry.task.getCreator().accountId === currentAccountId) {
-                return {type: "PermissionGranted", level: "Edit"};
-            }
-
-            // The task assignee has edit access level on their own task.
-            if (taskEntry.task.getAssignee()?.assignee.accountId === currentAccountId) {
-                return {type: "PermissionGranted", level: "Edit"};
-            }
-
-            const accessLevels: Array<TaskCollectionAccessLevel> = [];
-
-            // We inherit the highest access level of our collections.
-            for (const {collectionId} of taskEntry.task.getCollections().getArray()) {
-                const collectionEntry = get(
-                    referencesSubscription.getReferencedCollectionEntryStore(collectionId),
-                );
-
-                const collectionAccess = computeTaskCollectionEntryAccess(
-                    currentAccountId,
-                    collectionEntry,
-                );
-                if (collectionAccess.type === "PermissionGranted") {
-                    accessLevels.push(collectionAccess.level);
-                }
-            }
-
-            // We inherit our parent's access level.
-            const parent = taskEntry.task.getParent();
-            if (parent) {
-                const parentTaskEntry = get(
-                    referencesSubscription.getReferencedTaskEntryStore(parent.taskId),
-                );
-                const parentAccess = getTaskAccess(parentTaskEntry);
-
-                if (parentAccess.type === "PermissionGranted") {
-                    accessLevels.push(parentAccess.level);
-                }
-            }
-
-            if (accessLevels.length === 0) return {type: "PermissionDenied"};
-
-            return {
-                type: "PermissionGranted",
-                level: accessLevels.slice(1).reduce(maxTaskCollectionAccessLevel, accessLevels[0]!),
-            };
-        };
-
         const taskEntry = get(taskEntryStore);
-        const access = getTaskAccess(taskEntry);
 
-        return getOrSetDefaultMapValue(
-            taskAccessInternMap,
-            jsonStableStringify(access),
-            () => access,
+        return computeTaskEntryAccessStore(
+            get,
+            currentAccountId,
+            referencesSubscription,
+            taskEntry,
         );
     });
+}
+
+/**
+ * Underlying implementation of `getTaskEntryAccessStore()`. Expects to be
+ * called within the context of a `computeStore()` function call. May be called
+ * directly if you're building a larger `computeStore()` computation.
+ */
+export function computeTaskEntryAccessStore(
+    get: <Value>(store: Store<Value>) => Value,
+    currentAccountId: AccountId,
+    referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
+    taskEntry: TaskClientStoreTaskEntry,
+): TaskAccess {
+    const getTaskAccess = (taskEntry: TaskClientStoreTaskEntry): TaskAccess => {
+        // The task is not loaded. Assume we don't have permission. Principle of
+        // least privilege.
+        if (!taskEntry.task) return {type: "PermissionDenied"};
+
+        // If the task is marked as unauthorized, we don't have permission. Even if the
+        // task was previously loaded. Our client might not see the action which makes
+        // the task unauthorized.
+        if (taskEntry.authorizationState.value !== "Authorized") return {type: "PermissionDenied"};
+
+        // The task is deleted. Special access rules apply.
+        if (taskEntry.task.isDeleted()) {
+            return {type: "Deleted"};
+        }
+
+        // The task creator has edit access level on their own task.
+        if (taskEntry.task.getCreator().accountId === currentAccountId) {
+            return {type: "PermissionGranted", level: "Edit"};
+        }
+
+        // The task assignee has edit access level on their own task.
+        if (taskEntry.task.getAssignee()?.assignee.accountId === currentAccountId) {
+            return {type: "PermissionGranted", level: "Edit"};
+        }
+
+        const accessLevels: Array<TaskCollectionAccessLevel> = [];
+
+        // We inherit the highest access level of our collections.
+        for (const {collectionId} of taskEntry.task.getCollections().getArray()) {
+            const collectionEntry = get(
+                referencesSubscription.getReferencedCollectionEntryStore(collectionId),
+            );
+
+            const collectionAccess = computeTaskCollectionEntryAccess(
+                currentAccountId,
+                collectionEntry,
+            );
+            if (collectionAccess.type === "PermissionGranted") {
+                accessLevels.push(collectionAccess.level);
+            }
+        }
+
+        // We inherit our parent's access level.
+        const parent = taskEntry.task.getParent();
+        if (parent) {
+            const parentTaskEntry = get(
+                referencesSubscription.getReferencedTaskEntryStore(parent.taskId),
+            );
+            const parentAccess = getTaskAccess(parentTaskEntry);
+
+            if (parentAccess.type === "PermissionGranted") {
+                accessLevels.push(parentAccess.level);
+            }
+        }
+
+        if (accessLevels.length === 0) return {type: "PermissionDenied"};
+
+        return {
+            type: "PermissionGranted",
+            level: accessLevels.slice(1).reduce(maxTaskCollectionAccessLevel, accessLevels[0]!),
+        };
+    };
+
+    const access = getTaskAccess(taskEntry);
+
+    return getOrSetDefaultMapValue(taskAccessInternMap, jsonStableStringify(access), () => access);
 }
 
 /**

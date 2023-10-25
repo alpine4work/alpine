@@ -1,13 +1,16 @@
-import {DotsThree, IconContext, Trash} from "phosphor-react";
+import {CaretRight, DotsThree, IconContext, Lock, Trash} from "phosphor-react";
 import {ReactNode, useCallback, useId, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {Tooltip} from "~/client/design/tooltip.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -15,7 +18,10 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {getTaskEntryAccessStore} from "~/client/tasks/internal/get_task_entry_access_store.js";
+import {
+    computeTaskEntryAccessStore,
+    getTaskEntryAccessStore,
+} from "~/client/tasks/internal/get_task_entry_access_store.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
@@ -39,12 +45,15 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Context} from "~/shared/context/context.js";
 import {Spacing, assertSpacing, spacing} from "~/shared/design/spacing.js";
+import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize_prosemirror_node_to_html.js";
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {invertSelectionColorsClassName, sprinkles} from "~/shared/styles/styles.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {emptyTaskTitleModel, taskFallbackTitle} from "~/shared/tasks/model/task_title_model.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -653,12 +662,18 @@ function TaskDetailViewMain({
                                 </IconButton>
                             </MenuButton>
                         </Box>
-                        <TaskDetailTitleInput
-                            isReadOnly={isReadOnly}
-                            title={task?.getTitle() ?? emptyTaskTitleModel.get()}
-                            onTitleChange={onTitleChange}
-                            placeholder={taskFallbackTitle}
-                        />
+                        <Box>
+                            <TaskDetailViewParentBreadcrumbs
+                                task={task}
+                                taskSubscription={taskSubscription}
+                            />
+                            <TaskDetailTitleInput
+                                isReadOnly={isReadOnly}
+                                title={task?.getTitle() ?? emptyTaskTitleModel.get()}
+                                onTitleChange={onTitleChange}
+                                placeholder={taskFallbackTitle}
+                            />
+                        </Box>
                     </Box>
                 </ContextMenuActions>
                 <Box
@@ -915,4 +930,132 @@ function TaskDetailViewDenseField({
             </Box>
         </>
     );
+}
+
+function TaskDetailViewParentBreadcrumbs({
+    task,
+    taskSubscription,
+}: {
+    task: TaskModel | null;
+    taskSubscription: TaskClientTaskSubscription;
+}) {
+    const navigate = useNavigate();
+    const {currentAccount} = useSpaceContext();
+
+    const nodeStore = useMemo(() => {
+        return computeStore(get => {
+            const parentNodes: Array<ReactNode> = [];
+
+            let loopTask = task;
+            while (loopTask !== null) {
+                const parent = loopTask.getParent();
+                if (parent === null) {
+                    loopTask = null;
+                    continue;
+                }
+
+                const parentTaskEntry = get(
+                    taskSubscription.getReferencedTaskEntryStore(parent.taskId),
+                );
+
+                const parentAccess = computeTaskEntryAccessStore(
+                    get,
+                    currentAccount.id,
+                    taskSubscription,
+                    parentTaskEntry,
+                );
+
+                // Treat deleted parents as if they don't exist.
+                if (parentAccess.type === "Deleted") {
+                    loopTask = null;
+                    continue;
+                }
+
+                // Null tasks are treated with a `PermissionDenied` access level.
+                if (parentTaskEntry.task === null || parentAccess.type !== "PermissionGranted") {
+                    parentNodes.push(
+                        <Tooltip
+                            key={parentTaskEntry.task?.id ?? "Private"}
+                            content="You don’t have access to the task this is a subtask of"
+                        >
+                            <Box
+                                color="grey-60"
+                                height="5"
+                                paddingX="1.5"
+                                flexShrink="1"
+                                display="flex"
+                                alignItems="center"
+                                gap="1"
+                            >
+                                <Lock size={spacing["3"]} />
+                                <Box>Private</Box>
+                            </Box>
+                        </Tooltip>,
+                    );
+
+                    loopTask = null;
+                    continue;
+                }
+
+                parentNodes.push(
+                    <Button
+                        key={parentTaskEntry.task.id}
+                        variant="quieter"
+                        height="5"
+                        paddingX="1.5"
+                        flexShrink="1"
+                        pressErrorTitle="Couldn’t open task"
+                        onPress={() =>
+                            navigate(
+                                `/s/${parentTaskEntry.task.getSpaceId()}/tasks/${
+                                    parentTaskEntry.task.id
+                                }`,
+                            )
+                        }
+                    >
+                        <span
+                            dangerouslySetInnerHTML={{
+                                __html: serializeProsemirrorFragmentToHtml(
+                                    parentTaskEntry.task.getTitle().getProsemirrorNode().content,
+                                ),
+                            }}
+                        />
+                    </Button>,
+                );
+
+                loopTask = parentTaskEntry.task;
+                continue;
+            }
+
+            // If the task has no parents then don't render breadcrumbs UI.
+            if (parentNodes.length === 0) return null;
+
+            // We insert parent nodes at the end of the list but we want the top level
+            // parent to appear first.
+            parentNodes.reverse();
+
+            return (
+                <Box
+                    width="full"
+                    overflow="hidden"
+                    marginX="-1.5"
+                    paddingBottom="0.5"
+                    color="grey-60"
+                    display="flex"
+                    alignItems="center"
+                >
+                    {interleaveArray(parentNodes, index => (
+                        <CaretRight
+                            key={index}
+                            size={spacing["3"]}
+                            className={sprinkles({flexShrink: "0"})}
+                        />
+                    ))}
+                    <CaretRight size={spacing["3"]} className={sprinkles({flexShrink: "0"})} />
+                </Box>
+            );
+        });
+    }, [currentAccount.id, navigate, task, taskSubscription]);
+
+    return useStore(nodeStore);
 }

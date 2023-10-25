@@ -126,6 +126,11 @@ function Button(
          * `base`. Only really used to remove border radius.
          */
         borderRightRadius?: "base" | "none";
+
+        /**
+         * What to set `flexShrink` to. Defaults to 0.
+         */
+        flexShrink?: "0" | "1";
     },
     foreignRef: Ref<HTMLButtonElement>,
 ) {
@@ -144,6 +149,7 @@ function Button(
         paddingX = "3",
         height = "7",
         borderRightRadius = "base",
+        flexShrink = "0",
     } = props;
     const showToast = useShowToast();
     const localRef = useRef<HTMLButtonElement>(null);
@@ -288,7 +294,7 @@ function Button(
                       : isHoveredOrTriggeredOverlayOpen
                       ? "grey-5"
                       : undefined,
-                  color: isPressed ? "grey-text" : "grey-70",
+                  color: isPressed ? "grey-text" : "grey-60",
               }
             : {
                   backgroundColor: undefined,
@@ -401,7 +407,7 @@ function Button(
                     cursor: "default",
                     // If this button is in a `display: flex` element, don't shrink the button based
                     // on other contents.
-                    flexShrink: "0",
+                    flexShrink,
                 })}
                 style={{
                     // Use a box-shadow for drawing the border so it doesn't affect layout.
@@ -441,7 +447,12 @@ function Button(
                     />
                 )}
                 <span
-                    className={sprinkles({display: "flex", alignItems: "center", gap: "1"})}
+                    className={sprinkles({
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "1",
+                        maxWidth: "full",
+                    })}
                     style={{
                         // Keep the icon and label in the DOM so we keep the shape of the button but
                         // hide them so we can show a spinner.

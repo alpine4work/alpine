@@ -1210,8 +1210,8 @@ function TaskRowView(
                                 // little distracting to see it move as you arrow key up/down.
                                 isTooltipVisibleWhenFocused={false}
                                 size="xs"
-                                description="Expand"
-                                pressErrorTitle="Couldn’t expand task"
+                                description="Open"
+                                pressErrorTitle="Couldn’t open task"
                                 onPress={async () => {
                                     // If we are already in a peek then navigate the peek instead of opening a
                                     // new one.
