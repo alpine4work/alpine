@@ -1,6 +1,7 @@
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {AppContext} from "~/client/context/app_context.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
+import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
@@ -285,6 +286,9 @@ export class TaskRealtimeClient {
                         }, unknownTaskQueryFromServerRetentionPeriodMs);
 
                         batchStoreUpdates(() => {
+                            // Don't animate when loading new tasks into query.
+                            indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
+
                             for (let i = 0; i < output.querySubscriptionResults.length; i++) {
                                 const query = newQueriesArray[i]!;
                                 const result = output.querySubscriptionResults[i]!;
@@ -628,6 +632,9 @@ export class TaskRealtimeClient {
                         });
 
                     batchStoreUpdates(() => {
+                        // Don't animate when loading new tasks into query.
+                        indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
+
                         this.store.loadTasksIntoQuery(query, {
                             limit: loadMoreTaskCount,
                             loadedState,

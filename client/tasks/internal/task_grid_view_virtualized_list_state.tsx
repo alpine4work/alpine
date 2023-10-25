@@ -476,6 +476,8 @@ export class TaskGridViewVirtualizedListState {
         const getAnimations = (
             oldTree: TaskGridViewVirtualizedTaskTree | null,
             newTree: TaskGridViewVirtualizedTaskTree | null,
+            oldUnloadedChildTaskCount: number,
+            newUnloadedChildTaskCount: number,
         ) => {
             if (!oldTree) {
                 newTree?.tasks.forEach((key, value) => {
@@ -548,9 +550,29 @@ export class TaskGridViewVirtualizedListState {
 
             const changes = symmetricDiffTree(oldTree.tasks, newTree.tasks);
 
+            let remainingUnloadedChildTaskCount =
+                oldUnloadedChildTaskCount - newUnloadedChildTaskCount;
+
             for (const change of changes) {
                 switch (change.type) {
                     case "CreateEntry": {
+                        // If a task was created to replace an unloaded child task then we don't want
+                        // to animate that task when it appears. This prevents an animation when you
+                        // expand a task in grid view and the tasks within are unloaded.
+                        const oldLastCursor = oldTree.tasks.end.key;
+                        if (
+                            (!oldLastCursor ||
+                                compareTaskQuerySortCursors(
+                                    oldTree.query.sorts,
+                                    oldLastCursor,
+                                    change.key,
+                                ) < 0) &&
+                            remainingUnloadedChildTaskCount > 0
+                        ) {
+                            remainingUnloadedChildTaskCount--;
+                            break;
+                        }
+
                         const newChildrenCount = this._getSubtreeItemCount(
                             change.newValue?.childrenTree?.tasks.root ?? null,
                         );
@@ -614,6 +636,8 @@ export class TaskGridViewVirtualizedListState {
                         getAnimations(
                             change.oldValue?.childrenTree ?? null,
                             change.newValue?.childrenTree ?? null,
+                            change.oldValue?.unloadedChildTaskCount ?? 0,
+                            change.newValue?.unloadedChildTaskCount ?? 0,
                         );
                         break;
                     }
@@ -626,7 +650,7 @@ export class TaskGridViewVirtualizedListState {
         // If our root tree is transitioning to null or away from null then don't
         // animate all children.
         if (previousState._tree && this._tree) {
-            getAnimations(previousState._tree, this._tree);
+            getAnimations(previousState._tree, this._tree, 0, 0);
         }
 
         // If a task was both deleted and recreated then collapse that into one
