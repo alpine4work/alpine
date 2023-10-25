@@ -168,9 +168,19 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
     ) {
         assert(internal instanceof TaskClientStoreInternal);
 
+        // Get the referenced `TaskId`s we need to update.
+        const updatedOriginalReferencedTaskIds = new Set<TaskId>();
+        for (const taskId of taskEntryUpdateById.keys()) {
+            if (this._referencedTaskEntryStoreById.has(taskId)) {
+                updatedOriginalReferencedTaskIds.add(taskId);
+            }
+        }
+
         const alreadyUpdatedReferencedTaskIds = new Set<TaskId>();
 
-        const onBeforeReferencedTaskRemove = (taskId: TaskId) => {
+        const onBeforeReferencedTaskAddOrRemove = (taskId: TaskId) => {
+            if (!updatedOriginalReferencedTaskIds.has(taskId)) return;
+
             if (alreadyUpdatedReferencedTaskIds.has(taskId)) return;
             alreadyUpdatedReferencedTaskIds.add(taskId);
 
@@ -189,16 +199,8 @@ export class TaskClientTaskSubscription extends TaskClientTaskReferencesSubscrip
         };
 
         assert(this._onBeforeReferencedTaskAddOrRemove === null);
-        this._onBeforeReferencedTaskAddOrRemove = onBeforeReferencedTaskRemove;
+        this._onBeforeReferencedTaskAddOrRemove = onBeforeReferencedTaskAddOrRemove;
         try {
-            // Get the referenced `TaskId`s we need to update.
-            const updatedOriginalReferencedTaskIds = new Set<TaskId>();
-            for (const taskId of taskEntryUpdateById.keys()) {
-                if (this._referencedTaskEntryStoreById.has(taskId)) {
-                    updatedOriginalReferencedTaskIds.add(taskId);
-                }
-            }
-
             for (const taskId of updatedOriginalReferencedTaskIds) {
                 if (alreadyUpdatedReferencedTaskIds.has(taskId)) continue;
 

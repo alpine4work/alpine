@@ -14,8 +14,8 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
-import {AccountId, TaskId} from "~/shared/id/types/id_types.js";
+import {assertId, generateId} from "~/shared/id/id.js";
+import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
     commitTaskActionTransaction,
     deleteTaskAndAllChildren,
@@ -32,6 +32,7 @@ import {
 } from "~/shared/tasks/task_query_normalized_filters.js";
 import {defaultTaskQueryNormalizedSorts} from "~/shared/tasks/task_query_normalized_sort.js";
 import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
+import {TaskRealtimeUpdateEventSchema} from "~/shared/tasks/task_realtime_protocol.js";
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
@@ -180,7 +181,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
     } satisfies TaskAction;
 
     // Make sure the task is retained when priority is not set.
-    store.createAndRetainQuery({
+    const allQuery = store.createAndRetainQuery({
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             creatorFilter: {
@@ -189,6 +190,13 @@ test("if optimistic task creation is reverted then queries remove the task", asy
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
+    });
+
+    store.loadTasksIntoQuery(allQuery, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     const query = store.createAndRetainQuery({
@@ -207,6 +215,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -298,6 +307,7 @@ test("task can be added to query through backfill", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -333,7 +343,7 @@ test("task can be added to query through previously backfilled tasks", () => {
     const task = createTask(store);
 
     // Make sure another query retains the task.
-    store.createAndRetainQuery({
+    const allQuery = store.createAndRetainQuery({
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             creatorFilter: {
@@ -342,6 +352,13 @@ test("task can be added to query through previously backfilled tasks", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
+    });
+
+    store.loadTasksIntoQuery(allQuery, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     store.applyUpdateEvent({
@@ -363,6 +380,7 @@ test("task can be added to query through previously backfilled tasks", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
@@ -398,7 +416,7 @@ test("task can be added to query through action", () => {
     } satisfies TaskAction;
 
     // Make sure another query retains the task.
-    store.createAndRetainQuery({
+    const allQuery = store.createAndRetainQuery({
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             creatorFilter: {
@@ -407,6 +425,13 @@ test("task can be added to query through action", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
+    });
+
+    store.loadTasksIntoQuery(allQuery, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     const query = store.createAndRetainQuery({
@@ -425,6 +450,7 @@ test("task can be added to query through action", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -507,6 +533,7 @@ test("task can be removed from a query through an action", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -609,6 +636,7 @@ test("task can be moved in query through an action", () => {
             {type: "Priority", direction: "Ascending", missing: "Last"},
             ...defaultTaskQueryNormalizedSorts,
         ],
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -718,6 +746,7 @@ test("task can be left alone through an action", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -973,6 +1002,7 @@ test("task references can be added to query through backfill", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -1211,7 +1241,7 @@ test("task references can be added to query through previous backfill", () => {
         );
 
     // Make sure another query retains everything.
-    store.createAndRetainQuery({
+    const allQuery = store.createAndRetainQuery({
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             creatorFilter: {
@@ -1220,6 +1250,13 @@ test("task references can be added to query through previous backfill", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
+    });
+
+    store.loadTasksIntoQuery(allQuery, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     store.applyUpdateEvent({
@@ -1258,6 +1295,7 @@ test("task references can be added to query through previous backfill", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
@@ -1483,6 +1521,7 @@ test("task references can be added to query through action", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -1805,6 +1844,7 @@ test("task references can be removed from query through actions", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -2041,7 +2081,7 @@ test("references from optimistic task can be removed", async () => {
     );
 
     // Make sure another query retains everything.
-    store.createAndRetainQuery({
+    const allQuery = store.createAndRetainQuery({
         filters: {
             ...defaultTaskQueryNormalizedFilters,
             creatorFilter: {
@@ -2050,6 +2090,13 @@ test("references from optimistic task can be removed", async () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
+    });
+
+    store.loadTasksIntoQuery(allQuery, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
     });
 
     const query = store.createAndRetainQuery({
@@ -2068,6 +2115,7 @@ test("references from optimistic task can be removed", async () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -2364,6 +2412,7 @@ test("task references can be added and removed through actions", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -2660,6 +2709,7 @@ test("task references can be added and removed through actions on a referenced t
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -2972,6 +3022,7 @@ test("task references can be added and removed through actions on a task that's 
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -3187,6 +3238,7 @@ test("can handle a temporary cycle", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -3358,6 +3410,7 @@ test("can handle a temporary cycle unrelated to loaded task", () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -3576,6 +3629,7 @@ test("action removing from the query immediately releases task", async () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -3676,6 +3730,7 @@ test("optimistic update retains task until resolved", async () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -3776,6 +3831,7 @@ test("optimistic update retains task until rejected", async () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query, {
@@ -3938,9 +3994,22 @@ test("deleting task and all children when subscribed to task and its children", 
             collectionsFilter: [assertNonEmptyReadonlyMap(new Map([[collection.id, false]]))],
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
-    const query2 = store.ensureAndRetainTaskChildrenQuery(task1.id);
+    const query2 = store.ensureAndRetainTaskChildrenQuery(task1.id, {limit: 100});
+
+    store.loadTasksIntoQuery(query1, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    store.loadTasksIntoQuery(query2, {
+        limit: 100,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
 
     store.applyUpdateEvent({
         type: "Update",
@@ -3956,18 +4025,6 @@ test("deleting task and all children when subscribed to task and its children", 
         backfillCollections: [{type: "Authorized", collection: collection}],
         referencedAccounts: [account1],
         originClientId: null,
-    });
-
-    store.loadTasksIntoQuery(query1, {
-        limit: 100,
-        loadedState: {type: "Full"},
-        previouslyBackfilledTaskIds: [],
-    });
-
-    store.loadTasksIntoQuery(query2, {
-        limit: 100,
-        loadedState: {type: "Full"},
-        previouslyBackfilledTaskIds: [],
     });
 
     expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -4062,6 +4119,7 @@ test("backfilling tasks a store already has adds them to query", async () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query1, {
@@ -4101,6 +4159,7 @@ test("backfilling tasks a store already has adds them to query", async () => {
             },
         },
         sorts: defaultTaskQueryNormalizedSorts,
+        limit: 100,
     });
 
     store.loadTasksIntoQuery(query2, {
@@ -4130,4 +4189,356 @@ test("backfilling tasks a store already has adds them to query", async () => {
         task2.id,
         task3.id,
     ]);
+});
+
+// NOTE(calebmer): This test scenario is reduced from a real scenario I was
+// seeing in my development environment with actual data.
+test("peek task over collection initial load scenario", () => {
+    const store = new TaskClientStore({
+        accountStore,
+        spaceId: generateId(),
+        onError: handleError,
+    });
+
+    const creator1 = {
+        accountId: account1.id,
+        workingAccountName: "Test Account 1",
+        workingAccountNameVersion: 8,
+    };
+
+    const task1Id = generateId<TaskId>();
+    const task2Id = generateId<TaskId>();
+    const task3Id = generateId<TaskId>();
+
+    const collection1Id = generateId<TaskCollectionId>();
+
+    const query1 = store.createAndRetainQuery({
+        filters: {
+            displayStatusFilter: {
+                ifOpenInactive: true,
+                ifOpenActive: true,
+                ifClosed: false,
+            },
+            collectionsFilter: [assertNonEmptyReadonlyMap(new Map([[collection1Id, false]]))],
+        },
+        sorts: [{type: "CreatedTime", direction: "Ascending", missing: "Last"}],
+        limit: 120,
+    });
+
+    const query2 = store.createAndRetainQuery({
+        filters: {
+            displayStatusFilter: {
+                ifOpenInactive: true,
+                ifOpenActive: true,
+                ifClosed: true,
+            },
+            parentFilter: {parentTaskId: task2Id},
+        },
+        sorts: [
+            {
+                type: "ParentPosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ],
+        limit: 4,
+    });
+
+    store.createAndRetainCollectionSubscription(collection1Id);
+
+    const query3 = store.createAndRetainQuery({
+        filters: {
+            displayStatusFilter: {
+                ifOpenInactive: true,
+                ifOpenActive: true,
+                ifClosed: true,
+            },
+            parentFilter: {parentTaskId: assertId<TaskId>(task3Id)},
+        },
+        sorts: [
+            {
+                type: "ParentPosition",
+                direction: "Ascending",
+                missing: "Last",
+            },
+            {type: "CreatedTime", direction: "Ascending", missing: "Last"},
+        ],
+        limit: 0,
+    });
+
+    store.createAndRetainTaskSubscription(assertId<TaskId>(task3Id));
+
+    store.loadTasksIntoQuery(query1, {
+        limit: 120,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    store.loadTasksIntoQuery(query2, {
+        limit: 4,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    store.applyUpdateEvent(
+        TaskRealtimeUpdateEventSchema.deserialize({
+            type: "Update",
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: {
+                        id: task1Id,
+                        spaceId: store.spaceId,
+                        creator: creator1,
+                        createdTime: {
+                            absoluteTime: "111292192539475968",
+                            setterTimeZone: "America/New_York",
+                        },
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: {value: task2Id, version: "111292192539475969"},
+                            position: {
+                                value: {orderTime: "111292192539475970", orderKey: "a0"},
+                                version: "111292192539475970",
+                            },
+                        },
+                        addedChildTaskCount: 2,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: [
+                            [collection1Id, {value: null, version: "111292211367378944"}],
+                        ],
+                        positionByCollectionId: [],
+                        positionByAccountIdAndNotepadPageId: [],
+                        status: {value: {type: "Open"}, version: "111292192539475968"},
+                        assignee: {value: null, version: "111296379693105152"},
+                        assigneeStatus: {value: {type: "Inactive"}, version: "111296379693105152"},
+                        assigneeActivePosition: {value: null, version: "111296379693105152"},
+                        title: "AAAG3f6e6hwRAwADDwAFBwAEAIQZFWRvY3dpdGggc29tZSBjaGlsZHJlbgNBEAMBAAABBgABEwAA",
+                        dueDate: {value: null, version: "111292192539475968"},
+                        priority: {value: "Medium", version: "111296380828516352"},
+                    },
+                },
+                {
+                    type: "Authorized",
+                    task: {
+                        id: task2Id,
+                        spaceId: store.spaceId,
+                        creator: creator1,
+                        createdTime: {
+                            absoluteTime: "111137674037297152",
+                            setterTimeZone: "America/New_York",
+                        },
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: {value: null, version: "111137674037297152"},
+                            position: {
+                                value: {orderTime: "111137674037297152", orderKey: "a0"},
+                                version: "111137674037297152",
+                            },
+                        },
+                        addedChildTaskCount: 37,
+                        removedChildTaskCount: 33,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: [
+                            [collection1Id, {value: "a0", version: "111268357449383936"}],
+                        ],
+                        positionByCollectionId: [],
+                        positionByAccountIdAndNotepadPageId: [],
+                        status: {value: {type: "Open"}, version: "111137674037297152"},
+                        assignee: {value: null, version: "111137674037297152"},
+                        assigneeStatus: {value: {type: "Inactive"}, version: "111137674037297152"},
+                        assigneeActivePosition: {value: null, version: "111137674037297152"},
+                        title: "AAAGyq/iiA0NAwADCwAFBwAEAIQVEWRvY3RoaXMgaXMgYSB0YXNrA0EMAwEAAAEGAAEPAAA=",
+                        dueDate: {value: null, version: "111137674037297152"},
+                        priority: {value: null, version: "111137674037297152"},
+                    },
+                },
+            ],
+            backfillCollections: [
+                {
+                    type: "Authorized",
+                    collection: {
+                        id: collection1Id,
+                        spaceId: store.spaceId,
+                        createdTime: "111178016799522816",
+                        deletedTime: null,
+                        undeletedTime: null,
+                        name: {value: "Awesome", version: "111267807335350272"},
+                        color: {value: "purple", version: "111267806774231040"},
+                        accessPolicy: {
+                            value: {
+                                accountGrantById: [[account1.id, {level: "Manage"}]],
+                                defaultGrant: null,
+                            },
+                            version: "111296374519169024",
+                        },
+                    },
+                },
+            ],
+            defaultAuthorizationStateVersion: "111296531173474304",
+            referencedAccounts: [AccountModel.schema.serialize(account1)],
+            originClientId: null,
+        }),
+    );
+
+    store.loadTasksIntoQuery(query3, {
+        limit: 120,
+        loadedState: {type: "Full"},
+        previouslyBackfilledTaskIds: [],
+    });
+
+    store.applyUpdateEvent(
+        TaskRealtimeUpdateEventSchema.deserialize({
+            type: "Update",
+            actions: [],
+            backfillTasks: [
+                {
+                    type: "Authorized",
+                    task: {
+                        id: task3Id,
+                        spaceId: store.spaceId,
+                        creator: creator1,
+                        createdTime: {
+                            absoluteTime: "111296386826108928",
+                            setterTimeZone: "America/New_York",
+                        },
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: {value: task1Id, version: "111296386826174464"},
+                            position: {
+                                value: {orderTime: "111296386826174465", orderKey: "a0"},
+                                version: "111296386826174465",
+                            },
+                        },
+                        addedChildTaskCount: 0,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: [],
+                        positionByCollectionId: [],
+                        positionByAccountIdAndNotepadPageId: [],
+                        status: {value: {type: "Open"}, version: "111296386826108928"},
+                        assignee: {value: null, version: "111296386826108928"},
+                        assigneeStatus: {value: {type: "Inactive"}, version: "111296386826108928"},
+                        assigneeActivePosition: {value: null, version: "111296386826108928"},
+                        title: "AAAG6vD8wBgWAwADFAAFBwAEAIQeGmRvY3RoaXMgaXMgYW5vdGhlciBzdWJ0YXNrA0EVAwEAAAEGAAEYAAA=",
+                        dueDate: {value: null, version: "111296386826108928"},
+                        priority: {value: null, version: "111296386826108928"},
+                    },
+                },
+                {
+                    type: "Authorized",
+                    task: {
+                        id: task2Id,
+                        spaceId: store.spaceId,
+                        creator: creator1,
+                        createdTime: {
+                            absoluteTime: "111137674037297152",
+                            setterTimeZone: "America/New_York",
+                        },
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: {value: null, version: "111137674037297152"},
+                            position: {
+                                value: {orderTime: "111137674037297152", orderKey: "a0"},
+                                version: "111137674037297152",
+                            },
+                        },
+                        addedChildTaskCount: 37,
+                        removedChildTaskCount: 33,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: [
+                            [collection1Id, {value: "a0", version: "111268357449383936"}],
+                        ],
+                        positionByCollectionId: [],
+                        positionByAccountIdAndNotepadPageId: [],
+                        status: {value: {type: "Open"}, version: "111137674037297152"},
+                        assignee: {value: null, version: "111137674037297152"},
+                        assigneeStatus: {value: {type: "Inactive"}, version: "111137674037297152"},
+                        assigneeActivePosition: {value: null, version: "111137674037297152"},
+                        title: "AAAGyq/iiA0NAwADCwAFBwAEAIQVEWRvY3RoaXMgaXMgYSB0YXNrA0EMAwEAAAEGAAEPAAA=",
+                        dueDate: {value: null, version: "111137674037297152"},
+                        priority: {value: null, version: "111137674037297152"},
+                    },
+                },
+                {
+                    type: "Authorized",
+                    task: {
+                        id: task1Id,
+                        spaceId: store.spaceId,
+                        creator: creator1,
+                        createdTime: {
+                            absoluteTime: "111292192539475968",
+                            setterTimeZone: "America/New_York",
+                        },
+                        deletedTime: null,
+                        undeletedTime: null,
+                        parent: {
+                            taskId: {value: task2Id, version: "111292192539475969"},
+                            position: {
+                                value: {orderTime: "111292192539475970", orderKey: "a0"},
+                                version: "111292192539475970",
+                            },
+                        },
+                        addedChildTaskCount: 2,
+                        removedChildTaskCount: 0,
+                        addedClosedChildTaskCount: 0,
+                        removedClosedChildTaskCount: 0,
+                        collections: [
+                            [collection1Id, {value: null, version: "111292211367378944"}],
+                        ],
+                        positionByCollectionId: [],
+                        positionByAccountIdAndNotepadPageId: [],
+                        status: {value: {type: "Open"}, version: "111292192539475968"},
+                        assignee: {value: null, version: "111296379693105152"},
+                        assigneeStatus: {value: {type: "Inactive"}, version: "111296379693105152"},
+                        assigneeActivePosition: {value: null, version: "111296379693105152"},
+                        title: "AAAG3f6e6hwRAwADDwAFBwAEAIQZFWRvY3dpdGggc29tZSBjaGlsZHJlbgNBEAMBAAABBgABEwAA",
+                        dueDate: {value: null, version: "111292192539475968"},
+                        priority: {value: "Medium", version: "111296380828516352"},
+                    },
+                },
+            ],
+            backfillCollections: [
+                {
+                    type: "Authorized",
+                    collection: {
+                        id: collection1Id,
+                        spaceId: store.spaceId,
+                        createdTime: "111178016799522816",
+                        deletedTime: null,
+                        undeletedTime: null,
+                        name: {
+                            value: "Awesome",
+                            version: "111267807335350272",
+                        },
+                        color: {
+                            value: "purple",
+                            version: "111267806774231040",
+                        },
+                        accessPolicy: {
+                            value: {
+                                accountGrantById: [[account1.id, {level: "Manage"}]],
+                                defaultGrant: null,
+                            },
+                            version: "111296374519169024",
+                        },
+                    },
+                },
+            ],
+            defaultAuthorizationStateVersion: "111296587857461248",
+            referencedAccounts: [AccountModel.schema.serialize(account1)],
+            originClientId: null,
+        }),
+    );
 });
