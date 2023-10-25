@@ -1,5 +1,4 @@
 import {WebSocket, WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
-import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
 import {Context} from "~/shared/context/context.js";
@@ -22,6 +21,7 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -1471,6 +1471,17 @@ export interface WebSocketServerTestConnection<
     getCloseError(): unknown;
 }
 
+let afterNextCallbacksForTest: Array<() => Promise<void>> | null = import.meta.jest ? [] : null;
+
+if (import.meta.jest) {
+    afterEach(async () => {
+        const callbacks = assertExists(afterNextCallbacksForTest);
+        afterNextCallbacksForTest = [];
+
+        await runAllPromises(callbacks.map(callback => callback()));
+    });
+}
+
 class WebSocketServerTestConnectionWrapper<
     ProcessContextModules extends {},
     SessionActionContextModules extends {
@@ -1522,7 +1533,7 @@ class WebSocketServerTestConnectionWrapper<
 
         // In tests, authorize every connection after the current test completes to
         // make sure we didn't lose access while the test was executing.
-        afterTestEnds(async () => {
+        assertExists(afterNextCallbacksForTest).push(async () => {
             if (this._isClosed) return;
 
             await this._actionContext.fork.withFork(
@@ -1531,7 +1542,7 @@ class WebSocketServerTestConnectionWrapper<
             );
         });
 
-        afterTestEnds(() => {
+        assertExists(afterNextCallbacksForTest).push(async () => {
             if (this._closeError.hasError && !this._closeError.wasCaught) {
                 throw new InternalError(
                     "WebSocket connection closed with error (catch error by calling `getCloseError()`)",
