@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import fs from "fs-extra";
 import {bazelExecutableMutex, bazelExecutablePath} from "~/admin/dev/bazel/bazel_executable.js";
 import {spawnWithBlockingStdio, writeWithStdioPrefix} from "~/admin/dev/stdio_coordinator.js";
 import {waitForProcessExitWithAnyCode} from "~/admin/helpers/wait_for_process_exit.js";
@@ -145,6 +146,22 @@ async function actuallyBuildBazelTargets(targets: Array<string>) {
             },
         },
     );
+
+    // TODO(calebmer): Our dev process manager is occasionally completely breaking
+    // with EBADF errors and it's very unclear where these errors are coming from
+    // or how to fix them. So I'm going to start logging extra debug information to
+    // help get to the bottom of this issue. Once this issue is fixed, we should
+    // remove this extra logging.
+    subprocess.on("error", error => {
+        if ((error as any).code === "EBADF") {
+            // eslint-disable-next-line no-console
+            console.error(`Extra debugging information for EBADF error:`, {
+                bazelExecutablePath,
+                stat: fs.statSync(bazelExecutablePath),
+                lstat: fs.lstatSync(bazelExecutablePath),
+            });
+        }
+    });
 
     const messageByTarget = new Map<string, string>();
 

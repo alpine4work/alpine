@@ -363,17 +363,35 @@ async function rebuildArtifact(artifact: Artifact) {
             "All artifact stdio prefixes should be 3 characters long",
         );
 
+        const executablePath = joinPath(
+            `${workspacePath}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin`,
+            artifact.executablePath,
+        );
+
         const subprocess = spawnWithCoordinatedStdio(
-            joinPath(
-                `${workspacePath}/bazel-out/${bazelBuildTargetCpu}-${bazelBuildCompilationMode}/bin`,
-                artifact.executablePath,
-            ),
+            executablePath,
             [`--port=${artifact.privatePort}`, ...(artifact.args ?? [])],
             {
                 env: {...process.env, ...artifact.env},
                 stdioPrefix: artifact.stdioPrefix,
             },
         );
+
+        // TODO(calebmer): Our dev process manager is occasionally completely breaking
+        // with EBADF errors and it's very unclear where these errors are coming from
+        // or how to fix them. So I'm going to start logging extra debug information to
+        // help get to the bottom of this issue. Once this issue is fixed, we should
+        // remove this extra logging.
+        subprocess.on("error", error => {
+            if ((error as any).code === "EBADF") {
+                // eslint-disable-next-line no-console
+                console.error(`Extra debugging information for EBADF error:`, {
+                    executablePath,
+                    stat: fs.statSync(executablePath),
+                    lstat: fs.lstatSync(executablePath),
+                });
+            }
+        });
 
         // Make sure to assign this before our `await` below which may throw if the
         // process exists.
