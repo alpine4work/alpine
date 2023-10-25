@@ -96,6 +96,7 @@ export class TaskRealtimeConnection {
     ) => Promise<Value>;
     public readonly sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
     private readonly _closeWithError: (context: ServerProcessContext, error: unknown) => void;
+    private readonly _resetAuthorizationTimer: (context: ServerProcessContext) => void;
 
     private readonly _querySubscriptionById = new Map<
         TaskRealtimeQuerySubscriptionId,
@@ -119,6 +120,7 @@ export class TaskRealtimeConnection {
         dangerouslyEscalateToSystemContext,
         sendEvent,
         closeWithError,
+        resetAuthorizationTimer,
     }: {
         server: TaskRealtimeServer;
         spaceId: SpaceId;
@@ -134,6 +136,7 @@ export class TaskRealtimeConnection {
         ) => Promise<Value>;
         sendEvent: (context: ServerProcessContext, event: TaskRealtimeEvent) => void;
         closeWithError: (context: ServerProcessContext, error: unknown) => void;
+        resetAuthorizationTimer: (context: ServerProcessContext) => void;
     }) {
         this._server = server;
         this.spaceId = spaceId;
@@ -141,6 +144,7 @@ export class TaskRealtimeConnection {
         this._dangerouslyEscalateToSystemContext = dangerouslyEscalateToSystemContext;
         this.sendEvent = sendEvent;
         this._closeWithError = closeWithError;
+        this._resetAuthorizationTimer = resetAuthorizationTimer;
     }
 
     public async handleClose(context: ServerProcessContext) {
@@ -1441,6 +1445,24 @@ export class TaskRealtimeConnection {
                     eventBuilder.addActions(this, actions);
                 }),
             );
+
+            // If the access policy of a referenced collection was updated then immediately
+            // re-run authorization. This authorization run will not effect the current
+            // event we're building but the authorization process will send an event
+            // backfilling data the user now has access to.
+            //
+            // We don't call `authorize()` directly since we want to reset our
+            // authorization timer as well. The next authorization should be in 3 minutes
+            // (or whatever the authorization time interval is currently configured as).
+            if (
+                actions.some(
+                    action =>
+                        action.type === "UpdateCollection" &&
+                        action.collectionAction.type === "UpdateAccessPolicy",
+                )
+            ) {
+                this._resetAuthorizationTimer(context);
+            }
         },
         onReferencedCollectionRemove: (eventBuilder, oldCollection) => {
             const referencedCollectionState = this._referencedCollectionStateById.get(

@@ -79,7 +79,7 @@ function createWebSocketServer(space: TestSpace) {
     >(
         context,
         TaskRealtimeProtocol,
-        ({accountId, sendEvent, closeWithError}) =>
+        ({accountId, sendEvent, closeWithError, resetAuthorizationTimer}) =>
             new TaskRealtimeConnection({
                 server: server.server,
                 spaceId: space.id,
@@ -87,6 +87,7 @@ function createWebSocketServer(space: TestSpace) {
                 dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
                 sendEvent,
                 closeWithError,
+                resetAuthorizationTimer,
             }),
     );
 
@@ -10223,15 +10224,6 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
     await collection2.setPublicAccessPolicy(session2);
     await server.wait();
 
-    expect(connection.takeEvents()).toEqual([]);
-
-    await collection2.updateName(session2, "Test 2");
-    await server.wait();
-
-    expect(connection.takeEvents()).toEqual([]);
-
-    await connection.authorize();
-
     expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
@@ -10243,6 +10235,35 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
             referencedAccounts: [],
         },
     ]);
+
+    await collection2.updateName(session2, "Test 2");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([
+        {
+            type: "Update",
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
+            actions: [
+                {
+                    type: "UpdateCollection",
+                    time: expect.any(Array),
+                    collectionId: collection2.id,
+                    collectionAction: {
+                        type: "UpdateName",
+                        name: "Test 2",
+                    },
+                },
+            ],
+            backfillTasks: [],
+            backfillCollections: [],
+            referencedAccounts: [],
+        },
+    ]);
+
+    await connection.authorize();
+
+    expect(connection.takeEvents()).toEqual([]);
 
     await collection2.updateName(session2, "Test 3");
     await server.wait();
@@ -10376,36 +10397,6 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
             backfillCollections: [],
             referencedAccounts: [],
         },
-    ]);
-
-    await collection2.updateName(session2, "Test 2");
-    await server.wait();
-
-    expect(connection.takeEvents()).toEqual([
-        {
-            type: "Update",
-            originClientId: null,
-            defaultAuthorizationStateVersion: expect.any(Array),
-            actions: [
-                {
-                    type: "UpdateCollection",
-                    time: expect.any(Array),
-                    collectionId: collection2.id,
-                    collectionAction: {
-                        type: "UpdateName",
-                        name: "Test 2",
-                    },
-                },
-            ],
-            backfillTasks: [],
-            backfillCollections: [],
-            referencedAccounts: [],
-        },
-    ]);
-
-    await connection.authorize();
-
-    expect(connection.takeEvents()).toEqual([
         {
             type: "Update",
             originClientId: null,
@@ -10416,6 +10407,15 @@ test("will reauthorize an authorized referenced collection to unauthorized", asy
             referencedAccounts: [],
         },
     ]);
+
+    await collection2.updateName(session2, "Test 2");
+    await server.wait();
+
+    expect(connection.takeEvents()).toEqual([]);
+
+    await connection.authorize();
+
+    expect(connection.takeEvents()).toEqual([]);
 
     await collection2.updateName(session2, "Test 3");
     await server.wait();
@@ -12326,10 +12326,14 @@ test("will lose access to subscribed task upon reauthorization", async () => {
 
     await connection.authorize();
 
+    expect(connection.isClosed()).toEqual(false);
     expect(connection.takeEvents()).toEqual([]);
 
     await collection1.setPrivateAccessPolicy(session1);
     await server.wait();
+
+    expect(connection.isClosed()).toEqual(true);
+    expect(connection.getCloseError()).toBeInstanceOf(PermissionDeniedError);
 
     expect(connection.takeEvents()).toEqual([
         {
@@ -12354,35 +12358,6 @@ test("will lose access to subscribed task upon reauthorization", async () => {
     ]);
 
     await task1.updatePriority(session1, "Medium");
-    await server.wait();
-
-    expect(connection.takeEvents()).toEqual([
-        {
-            type: "Update",
-            originClientId: null,
-            defaultAuthorizationStateVersion: expect.any(Array),
-            actions: [
-                {
-                    type: "UpdateTask",
-                    time: expect.any(Array),
-                    taskId: task1.id,
-                    taskAction: {
-                        type: "UpdatePriority",
-                        priority: "Medium",
-                    },
-                },
-            ],
-            backfillTasks: [],
-            backfillCollections: [],
-            referencedAccounts: [],
-        },
-    ]);
-
-    expect(connection.isClosed()).toEqual(false);
-    await expect(connection.authorize()).rejects.toThrow(PermissionDeniedError);
-    expect(connection.isClosed()).toEqual(true);
-
-    await task1.updatePriority(session1, "Low");
     await server.wait();
 
     expect(connection.takeEvents()).toEqual([]);
@@ -13197,6 +13172,7 @@ test("will lose access to subscribed collection upon reauthorization", async () 
     expect(connection.isClosed()).toEqual(false);
     await expect(connection.authorize()).rejects.toThrow(PermissionDeniedError);
     expect(connection.isClosed()).toEqual(true);
+    expect(connection.getCloseError()).toBeInstanceOf(PermissionDeniedError);
 
     await collection1.updateName(session1, "Test Test 3");
     await server.wait();
@@ -13228,11 +13204,10 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
 
     expect(connection.takeEvents()).toEqual([]);
 
-    const {collectionSubscriptionId, updateEvent: updateEvent1} =
-        await connection.procedures.subscribeToCollection({
-            clientTime: testClock.nowLogical(),
-            collectionId: collection2.id,
-        });
+    const {updateEvent: updateEvent1} = await connection.procedures.subscribeToCollection({
+        clientTime: testClock.nowLogical(),
+        collectionId: collection2.id,
+    });
 
     expect(updateEvent1).toEqual({
         type: "Update",
@@ -13263,8 +13238,14 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
 
     expect(connection.takeEvents()).toEqual([]);
 
+    expect(connection.isClosed()).toEqual(false);
+    expect(connection.getCloseError()).toEqual(null);
+
     await collection2.setPrivateAccessPolicy(session2);
     await server.wait();
+
+    expect(connection.isClosed()).toEqual(true);
+    expect(connection.getCloseError()).toBeInstanceOf(PermissionDeniedError);
 
     expect(connection.takeEvents()).toEqual([
         {
@@ -13283,26 +13264,6 @@ test("subscribed collection will become unauthorized after unsubscribed", async 
             ],
             backfillTasks: [],
             backfillCollections: [],
-            referencedAccounts: [],
-        },
-    ]);
-
-    await connection.procedures.unsubscribeFromCollection({
-        collectionSubscriptionId,
-    });
-
-    expect(connection.takeEvents()).toEqual([]);
-
-    await connection.authorize();
-
-    expect(connection.takeEvents()).toEqual([
-        {
-            type: "Update",
-            originClientId: null,
-            defaultAuthorizationStateVersion: expect.any(Array),
-            actions: [],
-            backfillTasks: [],
-            backfillCollections: [expectUnauthorizedCollection(collection2.id)],
             referencedAccounts: [],
         },
     ]);

@@ -1,4 +1,5 @@
 import {WebSocket, WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
+import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
 import {Context} from "~/shared/context/context.js";
@@ -12,6 +13,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     CancelledError,
     FailedPreconditionError,
+    InternalError,
     InvalidArgumentError,
     UnavailableError,
     UnimplementedError,
@@ -20,7 +22,6 @@ import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {Interval, createInterval} from "~/shared/helpers/async/interval.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -147,6 +148,7 @@ export class WebSocketServer<
         ) => void;
         iterateOtherConnections: () => Iterable<Connection>;
         closeWithError: (context: Context<ProcessContextModules>, error: unknown) => void;
+        resetAuthorizationTimer: (context: Context<ProcessContextModules>) => void;
     }) => Connection;
 
     private readonly _connections = new Map<
@@ -181,6 +183,7 @@ export class WebSocketServer<
             ) => void;
             iterateOtherConnections: () => Iterable<Connection>;
             closeWithError: (context: Context<ProcessContextModules>, error: unknown) => void;
+            resetAuthorizationTimer: (context: Context<ProcessContextModules>) => void;
         }) => Connection,
     ) {
         this._processContext = processContext;
@@ -311,6 +314,9 @@ export class WebSocketServer<
             },
             closeWithError: (context, error) => {
                 connection.closeWithError(context, error);
+            },
+            resetAuthorizationTimer: context => {
+                connection.resetAuthorizationTimer(context);
             },
         });
 
@@ -597,6 +603,15 @@ export class WebSocketServer<
             closeWithError: (context, error) => {
                 connection.closeWithError(context, error);
             },
+            resetAuthorizationTimer: context => {
+                context.process.waitUntil(
+                    connection
+                        .authorize()
+                        // We throw a close error in the test connection wrapper after a test completes
+                        // on our own. The developer can catch a close error with `getCloseError()`.
+                        .catch(() => {}),
+                );
+            },
         });
 
         // In tests, block establishing the connection on authorization.
@@ -641,6 +656,7 @@ export class WebSocketServer<
             authorize: () => connection.authorize(),
             isClosed: () => connection.isClosed(),
             close: () => connection.close(),
+            getCloseError: () => connection.getCloseError(),
         };
     }
 }
@@ -1025,8 +1041,20 @@ class WebSocketServerConnectionWrapper<
         }
     }
 
+    /**
+     * Resets the authorization timer and immediately reauthorizes the WebSocket
+     * connection in the background. Useful if you suspect a connection's access
+     * changed based on a realtime event and want to immediately reauthorize.
+     */
+    public resetAuthorizationTimer(
+        context: Context<ProcessContextModules> | Context<SessionActionContextModules>,
+    ) {
+        void this._authorize(context, {force: true});
+    }
+
     private _authorize(
         context: Context<ProcessContextModules> | Context<SessionActionContextModules>,
+        {force = false}: {force?: boolean} = {},
     ) {
         const currentTime = Date.now();
         const oldAuthorizationPromise = this._authorizationState?.promise;
@@ -1053,11 +1081,13 @@ class WebSocketServerConnectionWrapper<
         //    a new authorization promise in the background; OR
         // 3. We had started a new authorization promise in the background but enough
         //    time has passed that the background authorization promise has become
-        //    invalidated.
+        //    invalidated; OR
+        // 4. Reauthorization is forced by the `force` flag.
         //
         // We reach case 3 if the branch above sets the new authorization promise but
         // the new authorization promise is also invalidated.
         if (
+            force ||
             this._authorizationState === null ||
             currentTime - this._authorizationState.startTime >
                 webSocketConnectionAuthorizationInvalidatedMs
@@ -1433,17 +1463,12 @@ export interface WebSocketServerTestConnection<
      * Close the connection. Does nothing if the connection is already closed.
      */
     close(): void;
-}
 
-let afterNextCallbacksForTest: Array<() => Promise<void>> | null = import.meta.jest ? [] : null;
-
-if (import.meta.jest) {
-    afterEach(async () => {
-        const callbacks = assertExists(afterNextCallbacksForTest);
-        afterNextCallbacksForTest = [];
-
-        await runAllPromises(callbacks.map(callback => callback()));
-    });
+    /**
+     * If the connection was closed with an error this will be the error provided
+     * when closed.
+     */
+    getCloseError(): unknown;
 }
 
 class WebSocketServerTestConnectionWrapper<
@@ -1468,6 +1493,8 @@ class WebSocketServerTestConnectionWrapper<
     private readonly _messageFromServerSchema: Schema<WebSocketMessageFromServer<Protocol>>;
     private _isClosed = false;
     private readonly _closeEvent = new EventEmitter();
+    private _closeError: {hasError: false} | {hasError: true; error: unknown; wasCaught: boolean} =
+        {hasError: false};
     private _bufferedEvents: Array<WebSocketProtocolEventType<Protocol>> = [];
     private readonly _events = new EventEmitter<WebSocketProtocolEventType<Protocol>>();
 
@@ -1495,13 +1522,22 @@ class WebSocketServerTestConnectionWrapper<
 
         // In tests, authorize every connection after the current test completes to
         // make sure we didn't lose access while the test was executing.
-        assertExists(afterNextCallbacksForTest).push(async () => {
+        afterTestEnds(async () => {
             if (this._isClosed) return;
 
             await this._actionContext.fork.withFork(
                 webSocketConnectionAuthorizationSpanName,
                 context => this.connection.authorize(context),
             );
+        });
+
+        afterTestEnds(() => {
+            if (this._closeError.hasError && !this._closeError.wasCaught) {
+                throw new InternalError(
+                    "WebSocket connection closed with error (catch error by calling `getCloseError()`)",
+                    {cause: this._closeError.error},
+                );
+            }
         });
     }
 
@@ -1561,6 +1597,8 @@ class WebSocketServerTestConnectionWrapper<
     }
 
     public closeWithError(context: Context<{}>, error: unknown) {
+        this._closeError = {hasError: true, error, wasCaught: false};
+
         this.dangerouslySendRawMessageEvenWhenSoftClosed(
             context,
             "ClosingWithError",
@@ -1573,6 +1611,12 @@ class WebSocketServerTestConnectionWrapper<
         );
 
         this.close();
+    }
+
+    public getCloseError() {
+        if (!this._closeError.hasError) return null;
+        this._closeError.wasCaught = true;
+        return this._closeError.error;
     }
 
     public subscribeToClose(listener: () => void) {

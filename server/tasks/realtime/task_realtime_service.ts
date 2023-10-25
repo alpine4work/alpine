@@ -212,7 +212,7 @@ runService({
                 >(
                     processContext,
                     TaskRealtimeProtocol,
-                    ({accountId, sendEvent, closeWithError}) => {
+                    ({accountId, sendEvent, closeWithError, resetAuthorizationTimer}) => {
                         return new TaskRealtimeConnection({
                             server,
                             spaceId,
@@ -220,6 +220,7 @@ runService({
                             dangerouslyEscalateToSystemContext,
                             sendEvent,
                             closeWithError,
+                            resetAuthorizationTimer,
                         });
                     },
                 ),
