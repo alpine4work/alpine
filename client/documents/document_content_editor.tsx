@@ -72,6 +72,7 @@ import {
     colorSchemeVars,
     contentSchemaStyles,
     spinAnimationClassName,
+    sprinkles,
 } from "~/shared/styles/styles.js";
 
 export const documentContentEditorSidebarWidth = spacing["96"];
@@ -769,6 +770,7 @@ function DocumentContentEditorStateful({
                             aria-label="Document"
                             placeholder="Share your ideas…"
                             className={documentContentClassName}
+                            containerClassName={sprinkles({height: "full"})}
                             phantomSelections={phantomSelections}
                             openCommentThread={openCommentThread}
                             onCommentThreadPressedChange={(commentThreadId, isHovered) => {

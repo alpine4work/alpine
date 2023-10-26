@@ -305,7 +305,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     className,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
-    containerClassName,
+    containerClassName: customContainerClassName,
     editorRef,
 }: ContentEditorProps<Content> & {editorRef: Ref<ContentEditorRef>}) {
     useImperativeHandle(
@@ -340,7 +340,7 @@ function ContentEditorInitialAppRender<Content extends ContentWithReferences>({
     );
 
     return (
-        <div className={classNames(containerClassName, containerClassName)}>
+        <div className={classNames(containerClassName, customContainerClassName)}>
             <ContentView
                 content={state.getContent()}
                 placeholder={placeholder}

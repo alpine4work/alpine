@@ -27,7 +27,7 @@ import {
 } from "~/client/tasks/task_grid_view_dnd_context.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
+import {borderRadius, pressOpacityOverlayClassName} from "~/shared/styles/styles.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 import {TaskPosition, compareTaskPosition} from "~/shared/tasks/task_position.js";
@@ -258,12 +258,14 @@ function TaskNotepadCardView({
                         <Box
                             position="absolute"
                             zIndex="10"
-                            inset="0"
                             pointerEvents="none"
-                            borderWidth="thick"
-                            border="grey-0"
-                            borderRadius="lg"
                             className={pressOpacityOverlayClassName}
+                            style={{
+                                inset: 3,
+                                // Nested border radius calculated with:
+                                // https://www.30secondsofcode.org/css/s/nested-border-radius/
+                                borderRadius: `calc(${borderRadius.lg} - 3px)`,
+                            }}
                         />
                     )}
                     {content}
