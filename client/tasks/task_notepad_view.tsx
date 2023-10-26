@@ -6,7 +6,7 @@ import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/interna
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
-} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskNotepadViewActiveSection} from "~/client/tasks/internal/task_notepad_view_active_section.js";
 import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_view_paginator.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";

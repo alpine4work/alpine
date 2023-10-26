@@ -26,7 +26,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
-import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";

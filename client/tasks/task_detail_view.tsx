@@ -34,7 +34,7 @@ import {TaskDetailTitleInput} from "~/client/tasks/internal/task_detail_title_in
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
-} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";

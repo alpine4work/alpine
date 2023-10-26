@@ -16,7 +16,7 @@ import {
     getTaskCollectionEntryAccess,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
-import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
+import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {createTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {
     TaskQueryViewCustomizationBar,
