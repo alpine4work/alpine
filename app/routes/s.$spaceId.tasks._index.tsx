@@ -244,11 +244,13 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
                 }}
                 initialNotepadPageId={initialNotepadPageId}
                 allNotepadPageIds={allNotepadPageIds}
-                onNotepadPageIdChange={notepadPageId => {
+                onActiveNotepadPageIdChange={notepadPageId => {
                     const newSearchParams = new URLSearchParams(searchParams);
                     newSearchParams.set("page", String(notepadPageId));
 
                     setSearchParams(newSearchParams, {
+                        // Allow forward/back navigation across notepad pages.
+                        replace: false,
                         unstable_shouldRevalidate: false,
                     });
                 }}

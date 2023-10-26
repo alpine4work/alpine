@@ -1,4 +1,5 @@
-import {useEffect, useMemo, useState} from "react";
+import {startTransition, useEffect, useMemo, useState} from "react";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -92,6 +93,7 @@ export function useTaskQueryState({
     initialQuery,
     filters,
     sorts,
+    onActiveQueryChange,
 }: {
     store: TaskClientStore;
     initialQuery: {
@@ -101,6 +103,7 @@ export function useTaskQueryState({
     } | null;
     filters: TaskQueryNormalizedFilters | null;
     sorts: ReadonlyArray<TaskQueryNormalizedSort>;
+    onActiveQueryChange?: (query: TaskClientQuery | null) => void;
 }): TaskQueryState {
     const {space, currentAccount} = useSpaceContext();
 
@@ -112,11 +115,19 @@ export function useTaskQueryState({
         return isTaskQueryMissingRequiredFilters(currentAccount.id, filters);
     }, [currentAccount.id, filters]);
 
-    const [queryState, setQueryState] = useState<TaskQueryState>({
+    const [queryState, _setQueryState] = useState<TaskQueryState>({
         activeQuery: initialQuery
             ? {isAvailable: true, query: initialQuery}
             : {isAvailable: false, isMissingRequiredFilters, query: null},
         pendingQuery: null,
+    });
+
+    const setQueryState = useEvent((newQueryState: TaskQueryState) => {
+        _setQueryState(newQueryState);
+
+        if (queryState.activeQuery.query !== newQueryState.activeQuery.query) {
+            onActiveQueryChange?.(newQueryState.activeQuery.query?.query ?? null);
+        }
     });
 
     // Make sure the queries in `queryState` stay retained during this
@@ -184,9 +195,11 @@ export function useTaskQueryState({
         if (isDeepEqual(actualActiveQuery, expectedQuery)) return;
 
         if (!expectedQuery.isAvailable) {
-            setQueryState({
-                activeQuery: expectedQuery,
-                pendingQuery: null,
+            startTransition(() => {
+                setQueryState({
+                    activeQuery: expectedQuery,
+                    pendingQuery: null,
+                });
             });
             return;
         }
@@ -221,7 +234,7 @@ export function useTaskQueryState({
                 newPendingQuery.release();
             });
         };
-    }, [filters, isMissingRequiredFilters, queryState, sorts, space.id, store]);
+    }, [filters, isMissingRequiredFilters, queryState, setQueryState, sorts, space.id, store]);
 
     // Once the pending query has finished loading, swap it out as the new
     // active query.
@@ -241,27 +254,34 @@ export function useTaskQueryState({
             // Don't animate when changing the query.
             indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint();
 
-            setQueryState({
-                activeQuery: {
-                    isAvailable: true,
-                    query: {
-                        query: pendingQuery,
-                        initialGridViewExpansionState:
-                            getTaskRealtimeClientIfExistsForClient(
-                                space.id,
-                            )?.takeInitialGridViewExpansionStateForQueryIfExists(pendingQuery) ??
-                            null,
-                        initialBottomGhostTaskId: generateId(),
+            // Transition to our new query since it could be a big re-render. On the same
+            // level as navigating to a new page. (Which is behind a `startTransition()`
+            // call.) Allows React to time slice the render and handle more important
+            // updates if they occur.
+            startTransition(() => {
+                setQueryState({
+                    activeQuery: {
+                        isAvailable: true,
+                        query: {
+                            query: pendingQuery,
+                            initialGridViewExpansionState:
+                                getTaskRealtimeClientIfExistsForClient(
+                                    space.id,
+                                )?.takeInitialGridViewExpansionStateForQueryIfExists(
+                                    pendingQuery,
+                                ) ?? null,
+                            initialBottomGhostTaskId: generateId(),
+                        },
                     },
-                },
-                pendingQuery: null,
+                    pendingQuery: null,
+                });
             });
         });
 
         return () => {
             isCancelled = true;
         };
-    }, [queryState, space.id]);
+    }, [queryState, setQueryState, space.id]);
 
     return queryState;
 }

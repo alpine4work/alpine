@@ -1,15 +1,6 @@
 import {useDndContext} from "@dnd-kit/core";
-import {
-    MutableRefObject,
-    useCallback,
-    useEffect,
-    useImperativeHandle,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import {useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {
@@ -56,7 +47,7 @@ export function TaskNotepadView({
     initialQuery,
     initialNotepadPageId,
     allNotepadPageIds: allNotepadPageIdsWithoutNewNotepadPageIds,
-    onNotepadPageIdChange,
+    onActiveNotepadPageIdChange,
 }: {
     withMobileLayout: boolean;
     store: TaskClientStore;
@@ -68,7 +59,7 @@ export function TaskNotepadView({
     };
     initialNotepadPageId: TaskNotepadPageId;
     allNotepadPageIds: TaskNotepadPageIdCompressedSet;
-    onNotepadPageIdChange: (notepadPageId: TaskNotepadPageId) => void;
+    onActiveNotepadPageIdChange: (notepadPageId: TaskNotepadPageId) => void;
 }) {
     const {currentAccount} = useSpaceContext();
 
@@ -90,22 +81,11 @@ export function TaskNotepadView({
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const gridViewRef = useRef<TaskGridViewVirtualizedListViewRef>(null);
 
-    const [notepadPageState, _setNotepadPageState] = useState({
+    const [notepadPageState, setNotepadPageState] = useState({
         notepadPageId: initialNotepadPageId,
         shouldImmediatelyInitializeEmptyQueryRef: {current: false},
         promiseResolver: cast<PromiseResolver<void> | null>(null),
     });
-
-    const setNotepadPageState = useEvent(
-        (notepadPageState: {
-            notepadPageId: TaskNotepadPageId;
-            shouldImmediatelyInitializeEmptyQueryRef: MutableRefObject<boolean>;
-            promiseResolver: PromiseResolver<void> | null;
-        }) => {
-            _setNotepadPageState(notepadPageState);
-            onNotepadPageIdChange(notepadPageState.notepadPageId);
-        },
-    );
 
     const [newNotepadPageIds, setNewNotepadPageIds] =
         useState<ReadonlyArray<TaskNotepadPageId>>(emptyArray);
@@ -155,6 +135,17 @@ export function TaskNotepadView({
             ],
             [currentAccount.id, notepadPageState.notepadPageId],
         ),
+        onActiveQueryChange: query => {
+            // Wait until the new query has loaded before changing the notepad page in the
+            // URL. Since we push new notepad pages (via `history.pushState()` instead of
+            // `history.replaceState()`) this has the side effect of clearing the peek
+            // stack. We don't want to clear the peek stack until after the notepad data
+            // has changed.
+            const activeNotepadPageId = assertExists(
+                query?.filters.notepadPageFilter?.notepadPageId,
+            );
+            onActiveNotepadPageIdChange(activeNotepadPageId);
+        },
     });
 
     // When we create a new notepad page, immediately initialize the new query to
