@@ -14,10 +14,10 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     TaskAccess,
     getTaskCollectionEntryAccess,
-} from "~/client/tasks/internal/get_task_entry_access_store.js";
+} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/task_grid_view_virtualized_list.js";
-import {getTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
+import {createTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
@@ -58,7 +58,7 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
  * the filtered collections is read-only. The user may then remove the
  * collection causing the query to be read-only.
  */
-export function getTaskQueryViewReadOnlyReasonStore({
+export function createTaskQueryViewReadOnlyReasonStore({
     store,
     filters,
     filterReferences,
@@ -76,7 +76,7 @@ export function getTaskQueryViewReadOnlyReasonStore({
         filterMapArray(filters, filter => {
             if (filter.type !== "Collections") return null;
 
-            return getTaskQueryCollectionsFilterCollectionResultsStore({
+            return createTaskQueryCollectionsFilterCollectionResultsStore({
                 store,
                 filter,
                 filterReferences,
@@ -245,7 +245,7 @@ export function TaskQueryView({
     const readOnlyReason = useStore(
         useMemo(
             () =>
-                getTaskQueryViewReadOnlyReasonStore({
+                createTaskQueryViewReadOnlyReasonStore({
                     store,
                     filters,
                     filterReferences,

@@ -8,7 +8,7 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/get_task_entry_access_store.js";
+import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {TaskCollectionViewHeader} from "~/client/tasks/internal/task_collection_view_header.js";
 import {
@@ -20,7 +20,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
-import {getTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
+import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
@@ -230,7 +230,7 @@ export function TaskCollectionView({
     const readOnlyReason2 = useStore(
         useMemo(
             () =>
-                getTaskQueryViewReadOnlyReasonStore({
+                createTaskQueryViewReadOnlyReasonStore({
                     store,
                     filters,
                     filterReferences,

@@ -23,7 +23,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getTaskEntryAccessStore} from "~/client/tasks/internal/get_task_entry_access_store.js";
+import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {
     TaskRowTitleChildTasksButton,
@@ -788,7 +788,7 @@ function TaskRowTitleInput(
                         // [1]: https://github.com/yjs/y-prosemirror/blob/e0e5e951614abe1be2295e5ab8987ab5916bcaec/src/plugins/sync-plugin.js#L180-L184
                         setTimeout(() => {
                             if (selection.$from.doc !== view.state.doc) {
-                            selection = selection.getBookmark().resolve(view.state.doc);
+                                selection = selection.getBookmark().resolve(view.state.doc);
                             }
 
                             view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
@@ -969,7 +969,7 @@ function TaskRowTitleParentTaskTitle({
 
     const access = useStore(
         useMemo(
-            () => getTaskEntryAccessStore(currentAccount.id, query, parentTaskEntryStore),
+            () => createTaskEntryAccessStore(currentAccount.id, query, parentTaskEntryStore),
             [currentAccount.id, parentTaskEntryStore, query],
         ),
     );

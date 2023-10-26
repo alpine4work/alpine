@@ -1,7 +1,7 @@
 import classNames from "classnames";
 import {DOMOutputSpec, Node} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {getContentMentionTextStore} from "~/client/accounts/get_content_mention_text_store.js";
+import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -221,7 +221,7 @@ export function renderContentFragmentToHtmlStore(
                     textElement.appendChild(
                         new HtmlTextGenerator(
                             get(
-                                getContentMentionTextStore(
+                                createContentMentionTextStore(
                                     accountStore,
                                     content.references,
                                     mention,

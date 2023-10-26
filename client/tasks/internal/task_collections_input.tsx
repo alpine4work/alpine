@@ -18,7 +18,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getDisplayTaskCollectionsStore} from "~/client/tasks/internal/get_display_task_collections_store.js";
+import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {
     TaskCollectionChip,
     taskCollectionChipContainerMaxWidth,
@@ -129,7 +129,7 @@ export function TaskCollectionsInput({
     const displayCollections = useStore(
         useMemo(
             () =>
-                getDisplayTaskCollectionsStore({
+                createDisplayTaskCollectionsStore({
                     currentAccount,
                     referencesSubscription,
                     collections,

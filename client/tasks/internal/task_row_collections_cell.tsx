@@ -17,7 +17,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getDisplayTaskCollectionsStore} from "~/client/tasks/internal/get_display_task_collections_store.js";
+import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
 import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.js";
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
@@ -143,7 +143,7 @@ function TaskRowCollectionsCell(
     const displayCollections = useStore(
         useMemo(
             () =>
-                getDisplayTaskCollectionsStore({
+                createDisplayTaskCollectionsStore({
                     currentAccount,
                     referencesSubscription: query,
                     collections,

@@ -1,6 +1,6 @@
 import {DOMOutputSpec, DOMSerializer, Fragment, Mark, Node, Schema} from "prosemirror-model";
 import {AccountClientStore} from "~/client/accounts/account_client_store.js";
-import {getContentMentionTextStore} from "~/client/accounts/get_content_mention_text_store.js";
+import {createContentMentionTextStore} from "~/client/accounts/create_content_mention_text_store.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentReferences} from "~/shared/content/content_references.js";
 import {clampListItemIndentation} from "~/shared/content/content_schema.js";
@@ -80,7 +80,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
         if (node.type.name === "mention") {
             const dom = document.createElement("span");
             const mention: ContentMention = node.attrs.mention;
-            const mentionText = getContentMentionTextStore(
+            const mentionText = createContentMentionTextStore(
                 this._accountStore,
                 this._getContentReferences(),
                 mention,

@@ -44,7 +44,7 @@ import {TaskAuthorizationStateRegister} from "~/shared/tasks/task_realtime_proto
  * `TaskClientStoreCollectionEntry` object depending on what you're
  * looking for.
  */
-export function getTaskQueryCollectionsFilterCollectionResultsStore({
+export function createTaskQueryCollectionsFilterCollectionResultsStore({
     store,
     filter,
     filterReferences,
@@ -174,7 +174,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
 
     const collectionResultsStore = useMemo(
         () =>
-            getTaskQueryCollectionsFilterCollectionResultsStore({
+            createTaskQueryCollectionsFilterCollectionResultsStore({
                 store,
                 filter,
                 filterReferences,

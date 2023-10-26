@@ -19,9 +19,9 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {
-    computeTaskEntryAccessStore,
-    getTaskEntryAccessStore,
-} from "~/client/tasks/internal/get_task_entry_access_store.js";
+    computeTaskEntryAccess,
+    createTaskEntryAccessStore,
+} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
@@ -91,7 +91,7 @@ export function TaskDetailView({
     const readOnlyReason = useStore(
         useMemo(
             () =>
-                getTaskEntryAccessStore(
+                createTaskEntryAccessStore(
                     currentAccount.id,
                     taskSubscription,
                     taskSubscription.taskEntryStore,
@@ -958,7 +958,7 @@ function TaskDetailViewParentBreadcrumbs({
                     taskSubscription.getReferencedTaskEntryStore(parent.taskId),
                 );
 
-                const parentAccess = computeTaskEntryAccessStore(
+                const parentAccess = computeTaskEntryAccess(
                     get,
                     currentAccount.id,
                     taskSubscription,

@@ -41,7 +41,7 @@ const taskAccessInternMap = new Map<string, TaskAccess>();
  * `Store` so the UI can immediately re-render if any dependency changes such
  * that we no longer have access.
  */
-export function getTaskEntryAccessStore(
+export function createTaskEntryAccessStore(
     currentAccountId: AccountId,
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,
     taskEntryStore: Store<TaskClientStoreTaskEntry>,
@@ -49,12 +49,7 @@ export function getTaskEntryAccessStore(
     return computeStore(get => {
         const taskEntry = get(taskEntryStore);
 
-        return computeTaskEntryAccessStore(
-            get,
-            currentAccountId,
-            referencesSubscription,
-            taskEntry,
-        );
+        return computeTaskEntryAccess(get, currentAccountId, referencesSubscription, taskEntry);
     });
 }
 
@@ -63,7 +58,7 @@ export function getTaskEntryAccessStore(
  * called within the context of a `computeStore()` function call. May be called
  * directly if you're building a larger `computeStore()` computation.
  */
-export function computeTaskEntryAccessStore(
+export function computeTaskEntryAccess(
     get: <Value>(store: Store<Value>) => Value,
     currentAccountId: AccountId,
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription,

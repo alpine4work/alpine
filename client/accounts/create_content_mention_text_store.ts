@@ -9,7 +9,7 @@ import {ContentReferences} from "~/shared/content/content_references.js";
 /**
  * Get the text to display for a content mention.
  */
-export function getContentMentionTextStore(
+export function createContentMentionTextStore(
     accountStore: AccountClientStore,
     references: ContentReferences,
     mention: ContentMention,
