@@ -53,6 +53,7 @@ import {
     TaskRowViewRef,
 } from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {useTaskGhostRowPlaceholderTutorial} from "~/client/tasks/internal/use_task_ghost_row_placeholder_tutorial.js";
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
 import {
     TaskUndoStackEntry,
@@ -1624,6 +1625,8 @@ export function useTaskGridViewVirtualizedList({
      *                               Item Rendering                               *
     \* ========================================================================== */
 
+    const {taskGhostRowPlaceholder} = useTaskGhostRowPlaceholderTutorial(stateItemCount);
+
     const columnHeaderControlsWithMinHeightPx = useMemo(
         () =>
             columnHeaderControls
@@ -1729,9 +1732,10 @@ export function useTaskGridViewVirtualizedList({
                                         }
                                         isFirstRow={stateItemCount === 0}
                                         nextIndentation={0}
-                                        // NOCOMMIT: Ghost row placeholder sequence!
                                         titlePlaceholder={
-                                            !capabilities.isReadOnly ? "Add a task…" : undefined
+                                            !capabilities.isReadOnly
+                                                ? taskGhostRowPlaceholder ?? "Add a task…"
+                                                : undefined
                                         }
                                         viewRef={viewRef}
                                         events={events}
@@ -1877,6 +1881,7 @@ export function useTaskGridViewVirtualizedList({
         state,
         stateItemCount,
         stateKey,
+        taskGhostRowPlaceholder,
         toggleAreChildTasksExpanded,
         viewRef,
         withColumnHeaderBorderTop,
