@@ -494,7 +494,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         const result = tryLoadingMoreData(peekRenderedRange);
 
         if (!result.isLoading) {
-            view.scrollToIndex(scrollToIndex);
+            view.scrollToIndex(scrollToIndex, {withAnchor: true});
 
             setHighlightMessage({
                 messageIndex,
@@ -506,7 +506,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
                 isJumpingToMessageRef.current = false;
 
-                view.scrollToIndex(scrollToIndex);
+                view.scrollToIndex(scrollToIndex, {withAnchor: true});
 
                 setHighlightMessage({
                     messageIndex,
@@ -783,13 +783,7 @@ export function renderMessageListItem<
             // `renderVirtualizedScrollViewItemWithExpensiveFeaturesDisabledDuringScroll()`.
             // That helper was added after this code and this code has some `customRender`
             // stuff I'm going to leave alone. Ideally this code would use the helper.
-            const render = (isScrolling: boolean, wasPreviouslyInRenderedRange: boolean) => {
-                // If we previously rendered this item without expensive features disabled and
-                // now we're reintroducing it to the rendered range while scrolling, we want to
-                // render WITH expensive features disabled until we stop scrolling.
-                if (!wasPreviouslyInRenderedRange && isScrolling)
-                    elementWithoutExpensiveFeaturesDisabled = null;
-
+            const render = (isScrolling: boolean) => {
                 // If we already rendered the node without expensive features disabled, don't
                 // render a new version since that will cause a frame drop right at the start
                 // of the scroll as React re-renders every message.
@@ -816,13 +810,7 @@ export function renderMessageListItem<
                         : `UnloadedMessage:${item.messageIndex}`,
                 minHeight: messageViewMinHeight,
                 withManualLayout: true,
-                render: ({
-                    ref,
-                    shouldRenderWithRelativePositioning,
-                    offset,
-                    isScrolling,
-                    wasPreviouslyInRenderedRange,
-                }) => {
+                render: ({ref, shouldRenderWithRelativePositioning, offset, isScrolling}) => {
                     if (!customRender) {
                         return (
                             <div
@@ -840,14 +828,14 @@ export function renderMessageListItem<
                                 }}
                             >
                                 {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
-                                {render(isScrolling, wasPreviouslyInRenderedRange)}
+                                {render(isScrolling)}
                             </div>
                         );
                     } else {
                         const node = customRender(
                             <>
                                 {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
-                                {render(isScrolling, wasPreviouslyInRenderedRange)}
+                                {render(isScrolling)}
                             </>,
                         );
 

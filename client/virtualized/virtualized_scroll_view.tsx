@@ -764,7 +764,6 @@ function VirtualizedScrollView(
                     getPositionByIndex,
                     viewHeight,
                     originalContentHeight,
-                    wasPreviouslyInRenderedRange,
                 }) => {
                     const ref = (element: HTMLElement | null) => {
                         // To make sure `itemsRef` doesn't grow forever, we occasionally clean it up.
@@ -863,7 +862,6 @@ function VirtualizedScrollView(
                             getPositionByIndex,
                             viewHeight,
                             originalContentHeight,
-                            wasPreviouslyInRenderedRange,
                         });
                         return cloneElement(element, {key: item.key});
                     } else {
