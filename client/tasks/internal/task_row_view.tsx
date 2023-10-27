@@ -56,7 +56,6 @@ import {
 import {
     TaskRowTitleInput,
     TaskRowTitleInputRef,
-    YRelativeSelection,
 } from "~/client/tasks/internal/task_row_title_input.js";
 import {
     TaskRowViewDenseFields,
@@ -70,16 +69,14 @@ import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {
-    TaskClientStoreUpdateTitleActionTransactionBuilder,
-    TaskClientUndoManager,
-} from "~/client/tasks/task_client_store.js";
+import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
     taskRowViewPaddingX,
 } from "~/client/tasks/task_row_shared_styles.js";
+import {Context} from "~/shared/context/context.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -88,6 +85,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
@@ -141,9 +139,6 @@ export type TaskRowViewRef = {
     focusTitleAll(): void;
     focusTitleCoord(coord: number, side: "top" | "bottom"): void;
     focusTitleSelection(selection: Selection): void;
-    focusTitleAndSetBeforeTransactionYRelativeSelection(
-        yRelativeSelection: YRelativeSelection,
-    ): void;
     focusCell(column: TaskGridViewColumn): void;
 };
 
@@ -340,14 +335,15 @@ function TaskRowView(
         useStore((task?.getChildTaskCount() ?? 0) > 0 ? areChildTasksExpandedStore : null) ?? false;
 
     const titleCommitStateRef = useRef<{
-        pendingActionTransactionBuilder: TaskClientStoreUpdateTitleActionTransactionBuilder | null;
+        pendingActionTransactionBuilder: {
+            add: (titleUpdate: TaskTitleUpdate) => void;
+            commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
+                finally: (callback: () => void) => void;
+            };
+        } | null;
     } | null>(null);
 
     const onTitleChange = (titleUpdate: TaskTitleUpdate) => {
-        const previousTitleYRelativeSelection = assertExists(
-            titleInputRef.current,
-        ).getPreviousYRelativeSelection();
-
         // When our commit promise finishes, commit the pending update title action if
         // there is one.
         const handleCommitPromise = (commitPromise: {finally: (callback: () => void) => void}) => {
@@ -375,34 +371,28 @@ function TaskRowView(
         // current action commits.
         if (titleCommitStateRef.current) {
             if (titleCommitStateRef.current.pendingActionTransactionBuilder) {
-                titleCommitStateRef.current.pendingActionTransactionBuilder.add(titleUpdate, {
-                    previousTitleYRelativeSelection,
-                });
+                titleCommitStateRef.current.pendingActionTransactionBuilder.add(titleUpdate);
             } else {
                 titleCommitStateRef.current.pendingActionTransactionBuilder =
                     query.store.getTaskUpdateTitleActionTransactionBuilder(
                         assertExists(taskId ?? ghostTaskId),
                         titleUpdate,
-                        {undoManager, previousTitleYRelativeSelection},
                     );
             }
             return;
         }
 
-        const commitPromise = commitActionTransaction(
-            taskId => [
-                {
-                    type: "UpdateTask",
-                    time: query.store.clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateTitle",
-                        titleUpdate,
-                    },
+        const commitPromise = commitActionTransaction(taskId => [
+            {
+                type: "UpdateTask",
+                time: query.store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate,
                 },
-            ],
-            {previousTitleYRelativeSelection},
-        );
+            },
+        ]);
 
         handleCommitPromise(commitPromise);
     };
@@ -446,7 +436,6 @@ function TaskRowView(
         focusTitleAll,
         focusTitleCoord,
         focusTitleSelection,
-        focusTitleAndSetBeforeTransactionYRelativeSelection,
         focusCell,
         focusCellInput,
         focusNextCell,
@@ -475,14 +464,6 @@ function TaskRowView(
 
         focusTitleSelection: (selection: Selection) => {
             assertExists(titleInputRef.current).focusSelection(selection);
-        },
-
-        focusTitleAndSetBeforeTransactionYRelativeSelection: (
-            yRelativeSelection: YRelativeSelection,
-        ) => {
-            assertExists(titleInputRef.current).focusAndSetBeforeTransactionYRelativeSelection(
-                yRelativeSelection,
-            );
         },
 
         focusCell: (column: TaskGridViewColumn) => {
@@ -809,10 +790,7 @@ function TaskRowView(
         // we'll create a new task before applying the update.
         commitActionTransaction: (
             getActions: (taskId: TaskId) => Array<TaskAction>,
-            options?: {
-                referencedCollections?: ReadonlyArray<TaskCollectionModel>;
-                previousTitleYRelativeSelection?: YRelativeSelection | null;
-            },
+            options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
         ): {
             finally: (callback: () => void) => void;
         } => {
@@ -873,7 +851,6 @@ function TaskRowView(
         focusTitleAll,
         focusTitleCoord,
         focusTitleSelection,
-        focusTitleAndSetBeforeTransactionYRelativeSelection,
         focusCell,
     }));
 

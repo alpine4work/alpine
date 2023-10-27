@@ -2,7 +2,7 @@ import {Node, Schema as ProsemirrorSchema} from "prosemirror-model";
 import {prosemirrorToYXmlFragment, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
-import {getRealmId} from "~/shared/id/realm_id.js";
+import {generateId} from "~/shared/id/id.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 export const TaskTitleProsemirrorSchema = new ProsemirrorSchema({
@@ -82,19 +82,15 @@ export const TaskTitleSchema = Schema.bytes as any as Schema<TaskTitle>;
 export const emptyTaskTitleProsemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, []);
 
 export const emptyTaskTitle = new Lazy(() => {
-    const yDoc = new Y.Doc({guid: getYDocGuid()});
-    prosemirrorToYXmlFragment(emptyTaskTitleProsemirrorNode, yDoc.getXmlFragment("doc"));
-    const title = Y.encodeStateAsUpdateV2(yDoc) as TaskTitle;
-    yDoc.destroy();
-    return title;
+    const doc = new Y.Doc({guid: getYDocGuid()});
+    prosemirrorToYXmlFragment(emptyTaskTitleProsemirrorNode, doc.getXmlFragment("doc"));
+    return Y.encodeStateAsUpdateV2(doc) as TaskTitle;
 });
 
 export function getTaskTitleProsemirrorNode(title: TaskTitle): Node {
-    const yDoc = new Y.Doc({guid: getYDocGuid()});
-    Y.applyUpdateV2(yDoc, title);
-    const node = yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yDoc.getXmlFragment("doc"));
-    yDoc.destroy();
-    return node;
+    const doc = new Y.Doc({guid: getYDocGuid()});
+    Y.applyUpdateV2(doc, title);
+    return yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, doc.getXmlFragment("doc"));
 }
 
 let nextYDocGuid = 0;
@@ -106,7 +102,7 @@ let nextYDocGuid = 0;
  * profiling.
  */
 export function getYDocGuid() {
-    return `${getRealmId()}-${nextYDocGuid++}`;
+    return `${generateId()}-${nextYDocGuid++}`;
 }
 
 /**

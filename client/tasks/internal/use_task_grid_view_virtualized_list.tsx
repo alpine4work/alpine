@@ -46,7 +46,6 @@ import {
     isTaskGridViewVirtualizedListStateItemAfter,
 } from "~/client/tasks/internal/task_grid_view_virtualized_list_state.js";
 import {TaskRowShimmer} from "~/client/tasks/internal/task_row_shimmer.js";
-import {YRelativeSelection} from "~/client/tasks/internal/task_row_title_input.js";
 import {
     TaskGridViewColumn,
     TaskRowView,
@@ -54,12 +53,8 @@ import {
 } from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
-import {
-    TaskUndoStackEntry,
-    useTaskUndoStackState,
-} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore, TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
+import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
 import {useHasTaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     taskRowViewCollectionsColumnWidth,
@@ -220,7 +215,6 @@ const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, 
  */
 export function useTaskGridViewVirtualizedList({
     capabilities,
-    store,
     query: rootQueryWithInitialState,
     viewRef,
     getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
@@ -231,7 +225,6 @@ export function useTaskGridViewVirtualizedList({
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
-    store: TaskClientStore;
     query: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
@@ -619,36 +612,67 @@ export function useTaskGridViewVirtualizedList({
      *                                 Undo/Redo                                  *
     \* ========================================================================== */
 
-    const {
-        registerUndoActions,
-        registerUndoActionsFromRedo,
-        registerRedoActions,
-        popUndoActions,
-        popRedoActions,
-    } = useTaskUndoStackState({
-        clock: store.clock,
+    const [undoState] = useStateWithDependencies(
+        rootQuery => ({
+            undoStackRef: cast<
+                MutableRefObject<
+                    Array<{
+                        rootParentTaskId: TaskId;
+                        undoActions: TaskUndoActions;
+                        release: () => void;
+                    }>
+                >
+            >({current: []}),
+            redoStackRef: cast<
+                MutableRefObject<
+                    Array<{
+                        rootParentTaskId: TaskId;
+                        undoActions: TaskUndoActions;
+                        release: () => void;
+                    }>
+                >
+            >({current: []}),
+        }),
         // Whenever the query changes we reset our undo stack. If the query changes
         // it's unlikely we'll find the tasks the user was previously operating on so
         // we can't scroll to them.
-        stateKey,
-    });
+        [rootQuery],
+    );
+
+    // Clear the undo stack when the component unmounts. Undo stack entries may
+    // retain some data.
+    useEffect(() => {
+        return () => {
+            for (const entry of undoState.undoStackRef.current) entry.release();
+            undoState.undoStackRef.current = [];
+
+            for (const entry of undoState.redoStackRef.current) entry.release();
+            undoState.redoStackRef.current = [];
+        };
+    }, [undoState.redoStackRef, undoState.undoStackRef]);
+
+    const registerUndoActions = (entry: {
+        rootParentTaskId: TaskId;
+        undoActions: TaskUndoActions;
+        release: () => void;
+    }) => {
+        // Any action that's not an undo or redo clears our redo stack.
+        for (const oldEntry of undoState.redoStackRef.current) oldEntry.release();
+        undoState.redoStackRef.current = [];
+
+        undoState.undoStackRef.current.push(entry);
+    };
 
     const applyUndoStackEntry = (
-        {
-            rootParentTaskId,
-            undoActions,
-            previousTitleYRelativeSelection,
-        }: {
+        undoStackEntry: {
             rootParentTaskId: TaskId;
-            undoActions: ReadonlyArray<TaskUpdateTaskAction>;
-            previousTitleYRelativeSelection: YRelativeSelection | null;
+            undoActions: TaskUndoActions;
         },
         {
             registerUndoActions,
         }: {
             registerUndoActions: (entry: {
                 undoActions: TaskUndoActions;
-                previousTitleYRelativeSelection: YRelativeSelection | null;
                 release: () => void;
             }) => void;
         },
@@ -657,13 +681,14 @@ export function useTaskGridViewVirtualizedList({
 
         if (!rootQuery) return false;
 
+        const undoActions = undoStackEntry.undoActions.get(rootQuery.store.clock);
         const target = getTaskUndoActionsGridViewTargetIfExists(undoActions);
         if (!target) return false;
 
         const startIndex = findTaskIndexInGridViewVirtualizedListIfExists({
             state,
             iterateRootExpandedTaskIds,
-            rootParentTaskId,
+            rootParentTaskId: undoStackEntry.rootParentTaskId,
             taskId: target.taskId,
         });
 
@@ -691,81 +716,63 @@ export function useTaskGridViewVirtualizedList({
         // we handle.
         if (startIndex === null) return false;
 
-        let wasTaskFocused = false;
-
-        // If `previousTitleYRelativeSelection` was provided then we want to focus the
-        // target task's title input with a specific selection instead of using our
-        // default machinery. This does assume `previousTitleYRelativeSelection`
-        // corresponds to our targeted task but that should be a safe assumption.
-        if (previousTitleYRelativeSelection) {
-            const taskRow = events.getTaskRowByIndexIfExists(startIndex + itemCountBeforeState);
-            if (taskRow) {
-                wasTaskFocused = true;
-                taskRow.focusTitleAndSetBeforeTransactionYRelativeSelection(
-                    previousTitleYRelativeSelection,
-                );
-            }
-        }
-
         rootQuery.store.commitTaskActionTransaction(context, undoActions, {
             undoManager: {registerUndoActions},
         });
 
-        if (!wasTaskFocused) {
-            const endIndex = findTaskIndexInGridViewVirtualizedListIfExists({
-                // `stateStore` will have updated after the commit above but `state` will still
-                // be the old value.
-                state: stateStore.getSnapshot(),
-                iterateRootExpandedTaskIds,
-                rootParentTaskId,
-                taskId: target.taskId,
-            });
+        const endIndex = findTaskIndexInGridViewVirtualizedListIfExists({
+            // `stateStore` will have updated after the commit above but `state` will still
+            // be the old value.
+            state: stateStore.getSnapshot(),
+            iterateRootExpandedTaskIds,
+            rootParentTaskId: undoStackEntry.rootParentTaskId,
+            taskId: target.taskId,
+        });
 
-            const focusCell = (index: number) => {
-                const startTime = Date.now();
+        const focusCell = (index: number) => {
+            const startTime = Date.now();
 
-                // If the row is currently onscreen, great! We can focus immediately. However,
-                // we may be scrolling to the row. We've found the most consistent way to focus
-                // the row is to wait in a `requestAnimationFrame()` loop for the row to
-                // appear. Checking after `onRenderedRangeLayoutChange` doesn't always work
-                // since we've observed intermediate rendered range changes? This does depend
-                // on the scroll render taking less than 1s. If it takes more than 1s we have
-                // bigger problems. (Grid view rendering performance is unacceptably bad.)
-                const attempt = () => {
-                    if (Date.now() - startTime > 1000) return;
+            // If the row is currently onscreen, great! We can focus immediately. However,
+            // we may be scrolling to the row. We've found the most consistent way to focus
+            // the row is to wait in a `requestAnimationFrame()` loop for the row to
+            // appear. Checking after `onRenderedRangeLayoutChange` doesn't always work
+            // since we've observed intermediate rendered range changes? This does depend
+            // on the scroll render taking less than 1s. If it takes more than 1s we have
+            // bigger problems. (Grid view rendering performance is unacceptably bad.)
+            const attempt = () => {
+                if (Date.now() - startTime > 1000) return;
 
-                    const taskRow = events.getTaskRowByIndexIfExists(index);
-                    if (taskRow) {
-                        setInteractionModality("keyboard");
-                        taskRow.focusCell(target.column);
-                    } else {
-                        requestAnimationFrame(attempt);
-                    }
-                };
-
-                attempt();
+                const taskRow = events.getTaskRowByIndexIfExists(index);
+                if (taskRow) {
+                    setInteractionModality("keyboard");
+                    taskRow.focusCell(target.column);
+                } else {
+                    requestAnimationFrame(attempt);
+                }
             };
 
-            // If the task didn't move, scroll to it immediately. Otherwise wait for React
-            // to re-render, then scroll. Since we want to the virtualized list won't know
-            // our target task is at `endIndex` until after the React re-render.
-            //
-            // If we can't find the task after the update we scroll to the task's original
-            // position in the hope that's helpful to the user. We don't expect `endIndex`
-            // to be null outside of extreme edge cases! In order for the action's we're
-            // undoing to be applied in the first place the task had to have been in the
-            // query's loaded range. A query's loaded range never shrinks, it only grows.
-            if (endIndex === null || startIndex === endIndex) {
-                const index = startIndex + itemCountBeforeState;
+            attempt();
+        };
+
+        // If the task didn't move, scroll to it immediately. Otherwise wait for React
+        // to re-render, then scroll. Since we want to the virtualized list won't know
+        // our target task is at `endIndex` until after the React re-render.
+        //
+        // If we can't find the task after the update we scroll to the task's original
+        // position in the hope that's helpful to the user. We don't expect `endIndex`
+        // to be null outside of extreme edge cases! In order for the action's we're
+        // undoing to be applied in the first place the task had to have been in the
+        // query's loaded range. A query's loaded range never shrinks, it only grows.
+        if (endIndex === null || startIndex === endIndex) {
+            const index = startIndex + itemCountBeforeState;
+            view.scrollToIndex(index, {withAnchor: false});
+            focusCell(index);
+        } else {
+            onLayoutEffectCallbacksRef.current.push(() => {
+                const index = endIndex + itemCountBeforeState;
                 view.scrollToIndex(index, {withAnchor: false});
                 focusCell(index);
-            } else {
-                onLayoutEffectCallbacksRef.current.push(() => {
-                    const index = endIndex + itemCountBeforeState;
-                    view.scrollToIndex(index, {withAnchor: false});
-                    focusCell(index);
-                });
-            }
+            });
         }
 
         return true;
@@ -775,21 +782,25 @@ export function useTaskGridViewVirtualizedList({
     const undo = () => {
         // Keep trying to undo until we find an entry we can apply.
         while (true) {
-            const undoStackEntry = popUndoActions();
+            const undoStackEntry = undoState.undoStackRef.current.pop();
             if (!undoStackEntry) break;
 
-            if (
-                applyUndoStackEntry(undoStackEntry, {
-                    registerUndoActions: entry => {
-                        registerRedoActions({
-                            ...entry,
-                            rootParentTaskId: undoStackEntry.rootParentTaskId,
-                            previousTitleYRelativeSelection: null,
-                        });
-                    },
-                })
-            ) {
-                break;
+            try {
+                if (
+                    applyUndoStackEntry(undoStackEntry, {
+                        registerUndoActions: ({undoActions, release}) => {
+                            undoState.redoStackRef.current.push({
+                                rootParentTaskId: undoStackEntry.rootParentTaskId,
+                                undoActions,
+                                release,
+                            });
+                        },
+                    })
+                ) {
+                    break;
+                }
+            } finally {
+                undoStackEntry.release();
             }
         }
     };
@@ -797,21 +808,25 @@ export function useTaskGridViewVirtualizedList({
     const redo = () => {
         // Keep trying to redo until we find an entry we can apply.
         while (true) {
-            const undoStackEntry = popRedoActions();
+            const undoStackEntry = undoState.redoStackRef.current.pop();
             if (!undoStackEntry) break;
 
-            if (
-                applyUndoStackEntry(undoStackEntry, {
-                    registerUndoActions: entry => {
-                        registerUndoActionsFromRedo({
-                            ...entry,
-                            rootParentTaskId: undoStackEntry.rootParentTaskId,
-                            previousTitleYRelativeSelection: null,
-                        });
-                    },
-                })
-            ) {
-                break;
+            try {
+                if (
+                    applyUndoStackEntry(undoStackEntry, {
+                        registerUndoActions: ({undoActions, release}) => {
+                            undoState.undoStackRef.current.push({
+                                rootParentTaskId: undoStackEntry.rootParentTaskId,
+                                undoActions,
+                                release,
+                            });
+                        },
+                    })
+                ) {
+                    break;
+                }
+            } finally {
+                undoStackEntry.release();
             }
         }
     };
@@ -1940,7 +1955,11 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly getMaybeRemoveTaskFromRootQueryActions: (taskId: TaskId) => Array<TaskAction>;
     readonly getState: () => TaskGridViewVirtualizedListState;
     readonly getItemCountBeforeState: () => number;
-    readonly registerUndoActions: (entry: TaskUndoStackEntry) => void;
+    readonly registerUndoActions: (entry: {
+        rootParentTaskId: TaskId;
+        undoActions: TaskUndoActions;
+        release: () => void;
+    }) => void;
     readonly onGhostTaskCreated: () => void;
     readonly getTaskRowByIndexIfExists: (index: number) => TaskRowViewRef | null;
     readonly focusStart: () => void;
@@ -2436,11 +2455,10 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
     const undoManager: TaskClientUndoManager = useMemo(
         () => ({
-            registerUndoActions: ({undoActions, previousTitleYRelativeSelection, release}) =>
+            registerUndoActions: ({undoActions, release}) =>
                 events.registerUndoActions({
                     rootParentTaskId: rootParentTaskId ?? assertExists(ghostTaskId),
                     undoActions,
-                    previousTitleYRelativeSelection,
                     release,
                 }),
         }),

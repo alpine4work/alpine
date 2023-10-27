@@ -223,7 +223,6 @@ export function TaskDetailView({
             }),
             [isReadOnly],
         ),
-        store,
         query: {
             query: childrenQuery,
             initialGridViewExpansionState: initialChildrenGridViewExpansionState,
