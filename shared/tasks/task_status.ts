@@ -106,3 +106,20 @@ export const TaskStatusWithSortableAccountRegister = createCrdtRegister(
         },
     },
 );
+
+/**
+ * Cast `TaskStatusWithSortableAccount` to `TaskStatus`.
+ */
+export function upcastTaskStatusWithSortableAccount(
+    status: TaskStatusWithSortableAccount,
+): TaskStatus {
+    if (status.type === "Open") {
+        return status;
+    } else {
+        return {
+            type: "Closed",
+            closerId: status.closer.accountId,
+            closedTime: status.closedTime,
+        };
+    }
+}

@@ -119,3 +119,18 @@ export const TaskAssigneeWithSortableAccountRegister = createCrdtRegister(
         },
     },
 );
+
+/**
+ * Cast `TaskAssigneeWithSortableAccount` to `TaskAssignee`.
+ */
+export function upcastTaskAssigneeWithSortableAccount(
+    assignee: TaskAssigneeWithSortableAccount | null,
+): TaskAssignee | null {
+    if (assignee === null) return null;
+
+    return {
+        assigneeId: assignee.assignee.accountId,
+        assignerId: assignee.assigner.accountId,
+        assignedTime: assignee.assignedTime,
+    };
+}

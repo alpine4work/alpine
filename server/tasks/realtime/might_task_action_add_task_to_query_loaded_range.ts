@@ -241,6 +241,20 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             );
         }
         case "UpdateStatus": {
+            // If we are setting `assigneeStatus` as well then run our logic for an
+            // `UpdateAssigneeStatus` action.
+            if (
+                action.assigneeStatus &&
+                mightTaskActionAddTaskToQueryLoadedRange(
+                    actionTime,
+                    {type: "UpdateAssigneeStatus", assigneeStatus: action.assigneeStatus},
+                    filters,
+                    sorts,
+                )
+            ) {
+                return true;
+            }
+
             if (
                 sorts.some(
                     sort =>
@@ -290,6 +304,20 @@ export function mightTaskActionAddTaskToQueryLoadedRange(
             }
         }
         case "UpdateAssignee": {
+            // If we are setting `assigneeStatus` as well then run our logic for an
+            // `UpdateAssigneeStatus` action.
+            if (
+                action.assigneeStatus &&
+                mightTaskActionAddTaskToQueryLoadedRange(
+                    actionTime,
+                    {type: "UpdateAssigneeStatus", assigneeStatus: action.assigneeStatus},
+                    filters,
+                    sorts,
+                )
+            ) {
+                return true;
+            }
+
             if (
                 sorts.some(
                     sort =>

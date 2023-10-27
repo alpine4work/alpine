@@ -10569,7 +10569,7 @@ describe("old style", () => {
     test("can add task to notepad page", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10614,7 +10614,7 @@ describe("old style", () => {
     test("can add task to notepad page in one transaction", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10653,7 +10653,7 @@ describe("old style", () => {
     test("can add task to notepad page that hasn't been created", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10685,7 +10685,7 @@ describe("old style", () => {
 
     test("can't create a notepad page for someone else", async () => {
         const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await expect(
             commitTaskActionTransaction(context.action(session1), space.id, [
@@ -10705,7 +10705,7 @@ describe("old style", () => {
     test("can't add a task to someone else's notepad page", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10751,7 +10751,7 @@ describe("old style", () => {
 
     test("can't create a notepad page twice", async () => {
         const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10783,7 +10783,7 @@ describe("old style", () => {
     test("can remove task from notepad page that hasn't been created", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10816,7 +10816,7 @@ describe("old style", () => {
     test("can't add task to notepad page with an unreasonable update time", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10863,7 +10863,7 @@ describe("old style", () => {
     test("can't add task to notepad page with an unreasonable order time", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10910,7 +10910,7 @@ describe("old style", () => {
     test("can't add task to notepad page that doesn't exist", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10944,7 +10944,7 @@ describe("old style", () => {
     test("can't add task you don't have access to to notepad page", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -10990,7 +10990,7 @@ describe("old style", () => {
 
     test("can't add task you have view access to to notepad page", async () => {
         const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -11027,7 +11027,7 @@ describe("old style", () => {
 
     test("can't add tasks you didn't create to notepad page", async () => {
         const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -11065,7 +11065,7 @@ describe("old style", () => {
     test("can remove task from notepad page", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -11124,7 +11124,7 @@ describe("old style", () => {
     test("can remove task from notepad page twice", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -11197,7 +11197,7 @@ describe("old style", () => {
     test("can remove task from notepad page even if the task was not added", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -11242,7 +11242,7 @@ describe("old style", () => {
     test("can't remove task from notepad page with an unreasonable update time", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -11303,7 +11303,7 @@ describe("old style", () => {
     test("can't remove task from notepad page when the task doesn't exist", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -11337,7 +11337,7 @@ describe("old style", () => {
     test("can't remove task you don't have access to from notepad page", async () => {
         const {space} = await createSeparateSpace();
         const taskId = generateId<TaskId>();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -11383,7 +11383,7 @@ describe("old style", () => {
 
     test("can remove task you have view access to from notepad page", async () => {
         const {space} = await createSeparateSpace();
-        const notepadPageId = generateTaskNotepadPageId();
+        const notepadPageId = generateTaskNotepadPageId(testClock);
 
         await commitTaskActionTransaction(context.action(session1), space.id, [
             {
@@ -13201,7 +13201,7 @@ test("can authorize a query with notepad page filter", async () => {
             ...defaultTaskQueryNormalizedFilters,
             notepadPageFilter: {
                 accountId: session.account.id,
-                notepadPageId: generateTaskNotepadPageId(),
+                notepadPageId: generateTaskNotepadPageId(testClock),
             },
         },
     });
@@ -13218,7 +13218,7 @@ test("can't authorize a query with other account's notepad page filter", async (
                 ...defaultTaskQueryNormalizedFilters,
                 notepadPageFilter: {
                     accountId: session2.account.id,
-                    notepadPageId: generateTaskNotepadPageId(),
+                    notepadPageId: generateTaskNotepadPageId(testClock),
                 },
             },
         }),
@@ -13923,7 +13923,7 @@ test("can only sort by your notepad page positions", async () => {
                 {
                     type: "NotepadPagePosition",
                     accountId: session1.account.id,
-                    notepadPageId: generateTaskNotepadPageId(),
+                    notepadPageId: generateTaskNotepadPageId(testClock),
                     direction: "Ascending",
                     missing: "Last",
                 },
@@ -13946,7 +13946,7 @@ test("can only sort by your notepad page positions", async () => {
             {
                 type: "NotepadPagePosition",
                 accountId: session1.account.id,
-                notepadPageId: generateTaskNotepadPageId(),
+                notepadPageId: generateTaskNotepadPageId(testClock),
                 direction: "Ascending",
                 missing: "Last",
             },
@@ -13965,7 +13965,7 @@ test("can only sort by your notepad page positions", async () => {
                 {
                     type: "NotepadPagePosition",
                     accountId: session1.account.id,
-                    notepadPageId: generateTaskNotepadPageId(),
+                    notepadPageId: generateTaskNotepadPageId(testClock),
                     direction: "Ascending",
                     missing: "Last",
                 },

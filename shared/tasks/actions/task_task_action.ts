@@ -102,6 +102,8 @@ export type TaskUpdateParentTaskIdAction = SchemaType<typeof TaskUpdateParentTas
 const TaskUpdateParentTaskIdActionSchema = Schema.object({
     type: Schema.value("UpdateParentTaskId"),
     parentTaskId: Schema.id<TaskId>().nullable(),
+    // May also update the parent position in the same action.
+    parentPosition: TaskPositionSchema.optional(),
 });
 
 /**
@@ -300,6 +302,8 @@ export type TaskUpdateStatusAction = SchemaType<typeof TaskUpdateStatusActionSch
 const TaskUpdateStatusActionSchema = Schema.object({
     type: Schema.value("UpdateStatus"),
     status: TaskStatusSchema,
+    // May also update the assignee status in the same action.
+    assigneeStatus: TaskAssigneeStatusSchema.optional(),
 });
 
 /**
@@ -337,6 +341,8 @@ export type TaskUpdateAssigneeAction = SchemaType<typeof TaskUpdateAssigneeActio
 const TaskUpdateAssigneeActionSchema = Schema.object({
     type: Schema.value("UpdateAssignee"),
     assignee: TaskAssigneeSchema.nullable(),
+    // May also update the assignee status in the same action.
+    assigneeStatus: TaskAssigneeStatusSchema.optional(),
 });
 
 /**

@@ -151,6 +151,15 @@ function ContentEditorLinkInputClearButton({
             isDisabled,
             "aria-label": description,
             onPress,
+            onKeyDown: event => {
+                // `react-spectrum` prevents propagation by default. If
+                // `event.preventDefault()` wasn't called, we want the event to propagate. That
+                // way `<GlobalKeyDownEvent>` handlers can fire. Most notably our undo cmd-z
+                // handler.
+                if (!event.defaultPrevented) {
+                    event.continuePropagation();
+                }
+            },
         },
         buttonRef,
     );
@@ -201,7 +210,22 @@ function ContentEditorLinkInputSaveButton({
 }) {
     const buttonRef = useRef<HTMLButtonElement>(null);
 
-    const {buttonProps, isPressed} = useButton({isDisabled, onPress}, buttonRef);
+    const {buttonProps, isPressed} = useButton(
+        {
+            isDisabled,
+            onPress,
+            onKeyDown: event => {
+                // `react-spectrum` prevents propagation by default. If
+                // `event.preventDefault()` wasn't called, we want the event to propagate. That
+                // way `<GlobalKeyDownEvent>` handlers can fire. Most notably our undo cmd-z
+                // handler.
+                if (!event.defaultPrevented) {
+                    event.continuePropagation();
+                }
+            },
+        },
+        buttonRef,
+    );
     const {hoverProps, isHovered} = useHover({});
 
     return (

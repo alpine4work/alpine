@@ -22,6 +22,7 @@ import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.j
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
 import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
@@ -97,6 +98,7 @@ function TaskRowCollectionsCell(
     {
         isReadOnly,
         query,
+        undoManager,
         task,
         onCellKeyDown,
         onCellKeyDownCapture,
@@ -106,6 +108,7 @@ function TaskRowCollectionsCell(
     }: {
         isReadOnly: boolean;
         query: TaskClientQuery;
+        undoManager: TaskClientUndoManager;
         task: TaskModel | null;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
@@ -261,6 +264,7 @@ function TaskRowCollectionsCell(
                 <TaskRowCollectionsCellOverlay
                     isReadOnly={isReadOnly}
                     query={query}
+                    undoManager={undoManager}
                     task={task}
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}

@@ -206,6 +206,15 @@ function Button(
                     );
                 }
             },
+            onKeyDown: event => {
+                // `react-spectrum` prevents propagation by default. If
+                // `event.preventDefault()` wasn't called, we want the event to propagate. That
+                // way `<GlobalKeyDownEvent>` handlers can fire. Most notably our undo cmd-z
+                // handler.
+                if (!event.defaultPrevented) {
+                    event.continuePropagation();
+                }
+            },
         },
         localRef,
     );

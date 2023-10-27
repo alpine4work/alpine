@@ -88,7 +88,7 @@ export function applyTaskActionToTaskModelData(
             });
 
             const newParentPosition = task.parent.position.apply({
-                value: {orderTime: actionTime, orderKey: initialOrderKey},
+                value: action.parentPosition ?? {orderTime: actionTime, orderKey: initialOrderKey},
                 version: actionTime,
             });
 
@@ -243,7 +243,7 @@ export function applyTaskActionToTaskModelData(
             });
 
             const newAssigneeStatus = task.assigneeStatus.apply({
-                value: {type: "Inactive"},
+                value: action.assigneeStatus ?? {type: "Inactive"},
                 version: actionTime,
             });
 
@@ -285,7 +285,7 @@ export function applyTaskActionToTaskModelData(
             });
 
             const newAssigneeStatus = task.assigneeStatus.apply({
-                value: {type: "Inactive"},
+                value: action.assigneeStatus ?? {type: "Inactive"},
                 version: actionTime,
             });
 

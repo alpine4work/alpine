@@ -9,6 +9,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
@@ -17,11 +18,11 @@ import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {
     computeTaskEntryAccess,
     createTaskEntryAccessStore,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js";
@@ -31,12 +32,12 @@ import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
 import {TaskDetailNotesField} from "~/client/tasks/internal/task_detail_notes_field.js";
 import {TaskDetailTitleInput} from "~/client/tasks/internal/task_detail_title_input.js";
+import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
+import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
-import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
-import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {
@@ -157,6 +158,8 @@ export function TaskDetailView({
         [],
     );
 
+    // NOCOMMIT: Undo
+
     // Offset all the methods on our `VirtualizedScrollViewRef` by the number of
     // items which precede our children grid view.
     useImperativeHandle(
@@ -167,6 +170,8 @@ export function TaskDetailView({
             getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
             setScrollOffset: scrollOffset =>
                 assertExists(viewRef.current).setScrollOffset(scrollOffset),
+            scrollToIndex: (index, options) =>
+                assertExists(viewRef.current).scrollToIndex(index + 1, options),
             getRenderedRange: () =>
                 shiftRenderedRangeForChildrenGridView(
                     assertExists(viewRef.current).getRenderedRange(),
@@ -205,6 +210,7 @@ export function TaskDetailView({
         onRenderedRangeLayoutChange: onChildrenGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderChildrenGridViewItemIndexes,
         insetScrollbarItemIndex: insetScrollbarChildrenGridViewItemIndex,
+        onGlobalKeyDown: onChildrenGridViewGlobalKeyDown,
         focusStart: focusChildrenGridViewStart,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
@@ -265,72 +271,74 @@ export function TaskDetailView({
     return (
         <>
             {childrenGridViewModals}
-            <VirtualizedScrollView
-                ref={viewRef}
-                stateKey={childrenGridViewStateKey}
-                bufferedItemHeight={childrenGridViewBufferedItemHeight}
-                itemCount={hasSubtasks ? childrenGridViewItemCount + 1 : 1}
-                alwaysRenderAdditionalItemIndexes={useMemo(
-                    () => alwaysRenderChildrenGridViewItemIndexes.map(index => index + 1),
-                    [alwaysRenderChildrenGridViewItemIndexes],
-                )}
-                insetScrollbarItemIndex={
-                    insetScrollbarChildrenGridViewItemIndex !== undefined
-                        ? insetScrollbarChildrenGridViewItemIndex + 1
-                        : undefined
-                }
-                renderItem={useCallback(
-                    index => {
-                        if (index === 0) {
-                            return {
-                                key: "TaskDetailViewMain",
-                                // Initial height of:
-                                //
-                                // - Header (status button and more dropdown)
-                                // - One line of title text
-                                // - Assignee field
-                                // - Collections field
-                                // - Notes field
-                                // - Subtasks header
-                                //
-                                // Often the height is larger but never smaller.
-                                minHeight: "21.75rem",
-                                node: (
-                                    <TaskDetailViewMain
-                                        taskSubscription={taskSubscription}
-                                        initialNotesVersion={initialNotesVersion}
-                                        initialNotesContent={initialNotesContent}
-                                        hasSubtasks={hasSubtasks}
-                                        readOnlyReason={readOnlyReason}
-                                        focusChildrenGridViewStart={focusChildrenGridViewStart}
-                                    />
-                                ),
-                            };
-                        }
+            <GlobalKeyDownEvent onGlobalKeyDown={onChildrenGridViewGlobalKeyDown}>
+                <VirtualizedScrollView
+                    ref={viewRef}
+                    stateKey={childrenGridViewStateKey}
+                    bufferedItemHeight={childrenGridViewBufferedItemHeight}
+                    itemCount={hasSubtasks ? childrenGridViewItemCount + 1 : 1}
+                    alwaysRenderAdditionalItemIndexes={useMemo(
+                        () => alwaysRenderChildrenGridViewItemIndexes.map(index => index + 1),
+                        [alwaysRenderChildrenGridViewItemIndexes],
+                    )}
+                    insetScrollbarItemIndex={
+                        insetScrollbarChildrenGridViewItemIndex !== undefined
+                            ? insetScrollbarChildrenGridViewItemIndex + 1
+                            : undefined
+                    }
+                    renderItem={useCallback(
+                        index => {
+                            if (index === 0) {
+                                return {
+                                    key: "TaskDetailViewMain",
+                                    // Initial height of:
+                                    //
+                                    // - Header (status button and more dropdown)
+                                    // - One line of title text
+                                    // - Assignee field
+                                    // - Collections field
+                                    // - Notes field
+                                    // - Subtasks header
+                                    //
+                                    // Often the height is larger but never smaller.
+                                    minHeight: "21.75rem",
+                                    node: (
+                                        <TaskDetailViewMain
+                                            taskSubscription={taskSubscription}
+                                            initialNotesVersion={initialNotesVersion}
+                                            initialNotesContent={initialNotesContent}
+                                            hasSubtasks={hasSubtasks}
+                                            readOnlyReason={readOnlyReason}
+                                            focusChildrenGridViewStart={focusChildrenGridViewStart}
+                                        />
+                                    ),
+                                };
+                            }
 
-                        return renderChildrenGridViewItem(index - 1);
-                    },
-                    [
-                        focusChildrenGridViewStart,
-                        initialNotesContent,
-                        initialNotesVersion,
-                        hasSubtasks,
-                        readOnlyReason,
-                        renderChildrenGridViewItem,
-                        taskSubscription,
-                    ],
-                )}
-                onRenderedRangeChange={range => {
-                    onChildrenGridViewRenderedRangeChange(
-                        shiftRenderedRangeForChildrenGridView(range),
-                    );
-                }}
-                onRenderedRangeLayoutChange={range => {
-                    onChildrenGridViewRenderedRangeLayoutChange(
-                        shiftRenderedRangeForChildrenGridView(range),
-                    );
-                }}
-            />
+                            return renderChildrenGridViewItem(index - 1);
+                        },
+                        [
+                            focusChildrenGridViewStart,
+                            initialNotesContent,
+                            initialNotesVersion,
+                            hasSubtasks,
+                            readOnlyReason,
+                            renderChildrenGridViewItem,
+                            taskSubscription,
+                        ],
+                    )}
+                    onRenderedRangeChange={range => {
+                        onChildrenGridViewRenderedRangeChange(
+                            shiftRenderedRangeForChildrenGridView(range),
+                        );
+                    }}
+                    onRenderedRangeLayoutChange={range => {
+                        onChildrenGridViewRenderedRangeLayoutChange(
+                            shiftRenderedRangeForChildrenGridView(range),
+                        );
+                    }}
+                />
+            </GlobalKeyDownEvent>
         </>
     );
 }
@@ -639,6 +647,7 @@ function TaskDetailViewMain({
                             <TaskStatusButton
                                 size="5"
                                 store={store}
+                                undoManager={undoManager}
                                 task={task}
                                 isDisabled={isReadOnly}
                             />

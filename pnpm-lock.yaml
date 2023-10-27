@@ -35,7 +35,7 @@ patchedDependencies:
     hash: 5flxrjclbjek3cdjexecq7u2by
     path: admin/patches/@react-aria__i18n@3.8.3.patch
   '@react-aria/interactions@3.19.0':
-    hash: qy7ky7oxkrbz4pp5u4vsf3wrri
+    hash: o4wz3pcuzt3hb3q2shbq2hc5ky
     path: admin/patches/@react-aria__interactions@3.19.0.patch
   '@react-aria/label@3.7.1':
     hash: 4kaui6yu46mauqurrzjvzxfaky
@@ -104,7 +104,7 @@ patchedDependencies:
     hash: kvpk374ql5erre4wvvaotuluya
     path: admin/patches/react-router-dom@6.14.0.patch
   react-router@6.14.0:
-    hash: f2kv2kj3lhipwupnquu4cupfee
+    hash: qnfogjrk52ugz5xqt35a2gtvay
     path: admin/patches/react-router@6.14.0.patch
   swr@2.1.0:
     hash: fjssuecdvmfeujlug2i3x2lofe
@@ -167,7 +167,7 @@ dependencies:
     version: 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
   '@react-aria/interactions':
     specifier: 3.19.0
-    version: 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+    version: 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
   '@react-aria/label':
     specifier: 3.7.1
     version: 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
@@ -581,7 +581,7 @@ dependencies:
     version: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
   react-router:
     specifier: 6.14.0
-    version: 6.14.0(patch_hash=f2kv2kj3lhipwupnquu4cupfee)(react@18.2.0)
+    version: 6.14.0(patch_hash=qnfogjrk52ugz5xqt35a2gtvay)(react@18.2.0)
   react-router-dom:
     specifier: 6.14.0
     version: 6.14.0(patch_hash=kvpk374ql5erre4wvvaotuluya)(react-dom@18.2.0)(react@18.2.0)
@@ -3912,7 +3912,7 @@ packages:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/link': 3.6.0(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-types/breadcrumbs': 3.7.0(react@18.2.0)
@@ -3927,7 +3927,7 @@ packages:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/toggle': 3.6.3(react@18.2.0)
       '@react-types/button': 3.9.0(react@18.2.0)
@@ -3944,7 +3944,7 @@ packages:
     dependencies:
       '@internationalized/date': 3.5.0
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/live-announcer': 3.3.1
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/calendar': 3.4.1(react@18.2.0)
@@ -3979,7 +3979,7 @@ packages:
       react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/listbox': 3.11.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/live-announcer': 3.3.1
       '@react-aria/menu': 3.11.0(react-dom@18.2.0)(react@18.2.0)
@@ -4009,7 +4009,7 @@ packages:
       '@internationalized/string': 3.1.1
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/label': 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
       '@react-aria/spinbutton': 3.5.3(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
@@ -4050,7 +4050,7 @@ packages:
     dependencies:
       '@internationalized/string': 3.1.1
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/live-announcer': 3.3.1
       '@react-aria/overlays': 3.18.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
@@ -4068,7 +4068,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
@@ -4084,7 +4084,7 @@ packages:
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/live-announcer': 3.3.1
       '@react-aria/selection': 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
@@ -4109,7 +4109,7 @@ packages:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/grid': 3.8.3(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/selection': 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/list': 3.10.0(react@18.2.0)
@@ -4137,7 +4137,7 @@ packages:
     dev: false
     patched: true
 
-  /@react-aria/interactions@3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0):
+  /@react-aria/interactions@3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0):
     resolution: {integrity: sha512-nJ8VTmEOYJAAvV7wzeQVnamxWd3j16hGAzG++onjhluSWWKO1jMRN6WG9LDwvT5mBI0VYwf7JdVB3QBaCa9fsQ==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
@@ -4169,7 +4169,7 @@ packages:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-types/link': 3.5.0(react@18.2.0)
       '@react-types/shared': 3.21.0(react@18.2.0)
@@ -4184,7 +4184,7 @@ packages:
       react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/label': 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
       '@react-aria/selection': 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
@@ -4211,7 +4211,7 @@ packages:
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/overlays': 3.18.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/selection': 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
@@ -4245,7 +4245,7 @@ packages:
       react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/live-announcer': 3.3.1
       '@react-aria/spinbutton': 3.5.3(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/textfield': 3.12.1(react@18.2.0)
@@ -4268,7 +4268,7 @@ packages:
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/ssr': 3.8.0(patch_hash=cgn3hbn7gnmhjyutyvkech445y)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-aria/visually-hidden': 3.8.5(react@18.2.0)
@@ -4302,7 +4302,7 @@ packages:
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/label': 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/radio': 3.9.1(react@18.2.0)
@@ -4318,7 +4318,7 @@ packages:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/textfield': 3.12.1(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/searchfield': 3.4.6(react@18.2.0)
@@ -4336,7 +4336,7 @@ packages:
       react-dom: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/label': 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
       '@react-aria/listbox': 3.11.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/menu': 3.11.0(react-dom@18.2.0)(react@18.2.0)
@@ -4360,7 +4360,7 @@ packages:
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/collections': 3.10.2(patch_hash=c7k6giwt342kog44mzlradtusa)(react@18.2.0)
       '@react-stately/selection': 3.14.0(react@18.2.0)
@@ -4389,7 +4389,7 @@ packages:
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/label': 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/radio': 3.9.1(react@18.2.0)
@@ -4449,7 +4449,7 @@ packages:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/grid': 3.8.3(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/live-announcer': 3.3.1
       '@react-aria/selection': 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
@@ -4475,7 +4475,7 @@ packages:
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/selection': 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/list': 3.10.0(react@18.2.0)
@@ -4495,7 +4495,7 @@ packages:
     dependencies:
       '@react-aria/gridlist': 3.7.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/label': 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
       '@react-aria/selection': 3.17.0(patch_hash=eg54rmngwn4ny6roak6qnk7bfu)(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
@@ -4527,7 +4527,7 @@ packages:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/toggle': 3.6.3(react@18.2.0)
       '@react-types/checkbox': 3.5.2(react@18.2.0)
@@ -4543,7 +4543,7 @@ packages:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
       '@react-aria/focus': 3.14.2(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-stately/tooltip': 3.4.5(react@18.2.0)
       '@react-types/shared': 3.21.0(react@18.2.0)
@@ -4571,7 +4571,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/utils': 3.21.0(patch_hash=dxchx27ghulxtwkaaeme2y26ya)(react@18.2.0)
       '@react-types/shared': 3.21.0(react@18.2.0)
       '@swc/helpers': 0.5.2
@@ -4998,7 +4998,7 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0-rc.1 || ^18.0.0 || 18
     dependencies:
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-types/shared': 3.21.0(react@18.2.0)
       react: 18.2.0
     dev: false
@@ -13279,7 +13279,7 @@ packages:
       '@react-aria/focus': 3.14.2(react@18.2.0)
       '@react-aria/gridlist': 3.7.0(react-dom@18.2.0)(react@18.2.0)
       '@react-aria/i18n': 3.8.3(patch_hash=5flxrjclbjek3cdjexecq7u2by)(react@18.2.0)
-      '@react-aria/interactions': 3.19.0(patch_hash=qy7ky7oxkrbz4pp5u4vsf3wrri)(react@18.2.0)
+      '@react-aria/interactions': 3.19.0(patch_hash=o4wz3pcuzt3hb3q2shbq2hc5ky)(react@18.2.0)
       '@react-aria/label': 3.7.1(patch_hash=4kaui6yu46mauqurrzjvzxfaky)(react@18.2.0)
       '@react-aria/link': 3.6.0(react@18.2.0)
       '@react-aria/listbox': 3.11.0(react-dom@18.2.0)(react@18.2.0)
@@ -13358,11 +13358,11 @@ packages:
       '@remix-run/router': 1.7.0(patch_hash=enqrbd4mwv2hpubewhaor3hnye)
       react: 18.2.0
       react-dom: 18.2.0(patch_hash=tnikcvhudzlgolbl44e5npwiuq)(react@18.2.0)
-      react-router: 6.14.0(patch_hash=f2kv2kj3lhipwupnquu4cupfee)(react@18.2.0)
+      react-router: 6.14.0(patch_hash=qnfogjrk52ugz5xqt35a2gtvay)(react@18.2.0)
     dev: false
     patched: true
 
-  /react-router@6.14.0(patch_hash=f2kv2kj3lhipwupnquu4cupfee)(react@18.2.0):
+  /react-router@6.14.0(patch_hash=qnfogjrk52ugz5xqt35a2gtvay)(react@18.2.0):
     resolution: {integrity: sha512-OD+vkrcGbvlwkspUFDgMzsu1RXwdjNh83YgG/28lBnDzgslhCgxIqoExLlxsfTpIygp7fc+Hd3esloNwzkm2xA==}
     engines: {node: '>=14'}
     peerDependencies:

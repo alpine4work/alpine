@@ -511,7 +511,7 @@ function DocumentCommentThreadListView(
             const result = tryLoadingMoreData(peekRenderedRange);
 
             if (!result.isLoading) {
-                view.scrollToIndex(scrollToIndex);
+                view.scrollToIndex(scrollToIndex, {withAnchor: true});
 
                 setHighlightComment({
                     commentThreadId,
@@ -524,7 +524,7 @@ function DocumentCommentThreadListView(
                 Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
                     isJumpingToCommentRef.current = false;
 
-                    view.scrollToIndex(scrollToIndex);
+                    view.scrollToIndex(scrollToIndex, {withAnchor: true});
 
                     setHighlightComment({
                         commentThreadId,

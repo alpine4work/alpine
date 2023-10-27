@@ -5,6 +5,10 @@ import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
+import {
+    TaskUndoActions,
+    createTaskUndoActionsIfPossible,
+} from "~/client/tasks/internal/create_task_undo_actions_if_possible.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
@@ -197,6 +201,10 @@ export type TaskClientStoreSubscriptions = {
     >;
 };
 
+export interface TaskClientUndoManager {
+    registerUndoActions(entry: {undoActions: TaskUndoActions; release: () => void}): void;
+}
+
 /**
  * The client model store holds all our task data for a space on the client.
  * Similar to `TaskRealtimeStore` but whereas `TaskRealtimeStore` lives on the
@@ -297,7 +305,10 @@ export class TaskClientStore {
     public commitTaskActionTransaction(
         context: Context<{rpc: RpcContextModuleBase}>,
         actions: ReadonlyArray<TaskAction>,
-        options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+        options: {
+            undoManager: TaskClientUndoManager | null;
+            referencedCollections?: ReadonlyArray<TaskCollectionModel>;
+        },
     ): {finally: (callback: () => void) => void} {
         return this._internal.commitTaskActionTransaction(context, actions, options);
     }
@@ -1485,11 +1496,47 @@ export class TaskClientStoreInternal {
         context: Context<{rpc: RpcContextModuleBase}>,
         actions: ReadonlyArray<TaskAction>,
         {
+            undoManager,
             referencedCollections = [],
         }: {
+            // This property is required to force callers to make a decision on whether or
+            // not to pass in an `undoManager`. Most of the time you want to pass in an
+            // `undoManager`. If you pass in null the change can't be undone.
+            undoManager: TaskClientUndoManager | null;
             referencedCollections?: ReadonlyArray<TaskCollectionModel>;
-        } = {},
+        },
     ): {finally: (callback: () => void) => void} {
+        console.log(actions);
+
+        // We hold onto collections and tasks that become unreferenced after applying
+        // optimistic actions until both:
+        //
+        // 1. The action is commit (if it's reverted we need the collections/tasks back)
+        // 2. The undo stack corresponding to this action is applied or released
+        let referenceCount = 1;
+        let actuallyRelease: (() => void) | null = null;
+
+        const release = () => {
+            referenceCount--;
+            if (referenceCount === 0) actuallyRelease?.();
+        };
+
+        const undoActions = createTaskUndoActionsIfPossible(this, actions);
+        if (undoActions && undoManager) {
+            referenceCount++;
+
+            let isUndoEntryReleased = false;
+
+            undoManager.registerUndoActions({
+                undoActions,
+                release: () => {
+                    assert(!isUndoEntryReleased);
+                    isUndoEntryReleased = true;
+                    release();
+                },
+            });
+        }
+
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
         // close the page if we haven't finished committing their task action. It will
         // look committed on their machine but might not be on the server.
@@ -1504,37 +1551,9 @@ export class TaskClientStoreInternal {
             ? run()
             : this._commitTaskActionTransactionMutex.withLock(run);
 
-        const {pendingActions: allPendingActions, release} = batchStoreUpdates(() => {
-            if (referencedCollections.length === 0) {
-                const optimisticExtraActions = this._getOptimisticExtraActions(actions);
-
-                return this._applyOptimisticTaskActions(
-                    optimisticExtraActions.length > 0
-                        ? [...actions, ...optimisticExtraActions]
-                        : actions,
-                );
-            }
-
-            // If we have some `referencedCollections` then we want to backfill it in the
-            // store THEN apply our optimistic actions. We need to apply our optimistic
-            // actions in the `onBatchUpdate` callback or else the backfilled collections
-            // will be immediately released.
-            return this._applyUpdateEvent(
-                {
-                    type: "Update",
-                    actions: [],
-                    backfillTasks: [],
-                    backfillCollections: referencedCollections.map(collection => ({
-                        type: "Authorized",
-                        collection,
-                    })),
-                    // Any authorization state change from the server should override us.
-                    defaultAuthorizationStateVersion: zeroHybridLogicalTime,
-                    referencedAccounts: [],
-                    // Don't pass `this._clientId` in since we don't want to ignore this event.
-                    originClientId: null,
-                },
-                () => {
+        const {pendingActions: allPendingActions, release: _actuallyRelease} = batchStoreUpdates(
+            () => {
+                if (referencedCollections.length === 0) {
                     const optimisticExtraActions = this._getOptimisticExtraActions(actions);
 
                     return this._applyOptimisticTaskActions(
@@ -1542,9 +1561,40 @@ export class TaskClientStoreInternal {
                             ? [...actions, ...optimisticExtraActions]
                             : actions,
                     );
-                },
-            );
-        });
+                }
+
+                // If we have some `referencedCollections` then we want to backfill it in the
+                // store THEN apply our optimistic actions. We need to apply our optimistic
+                // actions in the `onBatchUpdate` callback or else the backfilled collections
+                // will be immediately released.
+                return this._applyUpdateEvent(
+                    {
+                        type: "Update",
+                        actions: [],
+                        backfillTasks: [],
+                        backfillCollections: referencedCollections.map(collection => ({
+                            type: "Authorized",
+                            collection,
+                        })),
+                        // Any authorization state change from the server should override us.
+                        defaultAuthorizationStateVersion: zeroHybridLogicalTime,
+                        referencedAccounts: [],
+                        // Don't pass `this._clientId` in since we don't want to ignore this event.
+                        originClientId: null,
+                    },
+                    () => {
+                        const optimisticExtraActions = this._getOptimisticExtraActions(actions);
+
+                        return this._applyOptimisticTaskActions(
+                            optimisticExtraActions.length > 0
+                                ? [...actions, ...optimisticExtraActions]
+                                : actions,
+                        );
+                    },
+                );
+            },
+        );
+        actuallyRelease = _actuallyRelease;
 
         const pendingActions = allPendingActions.slice(0, actions.length);
         const optimisticExtraPendingActions = allPendingActions.slice(actions.length);
@@ -1899,6 +1949,7 @@ export class TaskClientStoreInternal {
      * more children that we haven't loaded. The server will send us the full list
      * of actions to commit.
      */
+    // NOCOMMIT: Undo this
     public deleteTaskAndAllChildren(
         context: Context<{rpc: RpcContextModuleBase}>,
         taskId: TaskId,

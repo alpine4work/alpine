@@ -1,5 +1,6 @@
 import {parseAbsolute, toCalendarDate} from "@internationalized/date";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
@@ -9065,7 +9066,7 @@ test("can filter by notepad page", async () => {
     const task4Id = generateId<TaskId>();
     const task5Id = generateId<TaskId>();
 
-    const notepadPage1Id = generateTaskNotepadPageId();
+    const notepadPage1Id = generateTaskNotepadPageId(testClock);
     const notepadPage2Id = (notepadPage1Id + 1) as TaskNotepadPageId;
 
     await commitTaskActionTransaction(context.action(session1), space.id, [

@@ -10,7 +10,7 @@ import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js"
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore, TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {tasksStyles} from "~/shared/styles/styles.js";
@@ -30,6 +30,7 @@ function TaskRowViewDenseFields(
     {
         isReadOnly,
         store,
+        undoManager,
         task,
         marginLeft,
         focusTitleStart,
@@ -38,6 +39,7 @@ function TaskRowViewDenseFields(
     }: {
         isReadOnly: boolean;
         store: TaskClientStore;
+        undoManager: TaskClientUndoManager;
         task: TaskModel;
         marginLeft: RemLength;
         focusTitleEnd: () => void;
@@ -284,26 +286,30 @@ function TaskRowViewDenseFields(
                             onAssigneeAccountChange={assigneeAccount => {
                                 const time = store.clock.now();
 
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateTask",
-                                        time,
-                                        taskId: task.id,
-                                        taskAction: {
-                                            type: "UpdateAssignee",
-                                            assignee: assigneeAccount
-                                                ? {
-                                                      assigneeId: assigneeAccount.id,
-                                                      assignerId: currentAccount.id,
-                                                      assignedTime: new TaskFilterableTime({
-                                                          absoluteTime: time,
-                                                          setterTimeZone: timeZone,
-                                                      }),
-                                                  }
-                                                : null,
+                                store.commitTaskActionTransaction(
+                                    context,
+                                    [
+                                        {
+                                            type: "UpdateTask",
+                                            time,
+                                            taskId: task.id,
+                                            taskAction: {
+                                                type: "UpdateAssignee",
+                                                assignee: assigneeAccount
+                                                    ? {
+                                                          assigneeId: assigneeAccount.id,
+                                                          assignerId: currentAccount.id,
+                                                          assignedTime: new TaskFilterableTime({
+                                                              absoluteTime: time,
+                                                              setterTimeZone: timeZone,
+                                                          }),
+                                                      }
+                                                    : null,
+                                            },
                                         },
-                                    },
-                                ]);
+                                    ],
+                                    {undoManager},
+                                );
                             }}
                         />
                     </Box>
@@ -340,17 +346,21 @@ function TaskRowViewDenseFields(
                             shouldHighlightUrgent={task?.getDisplayStatus() !== "Closed"}
                             priority={priority}
                             onPriorityChange={priority => {
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateTask",
-                                        time: store.clock.now(),
-                                        taskId: task.id,
-                                        taskAction: {
-                                            type: "UpdatePriority",
-                                            priority,
+                                store.commitTaskActionTransaction(
+                                    context,
+                                    [
+                                        {
+                                            type: "UpdateTask",
+                                            time: store.clock.now(),
+                                            taskId: task.id,
+                                            taskAction: {
+                                                type: "UpdatePriority",
+                                                priority,
+                                            },
                                         },
-                                    },
-                                ]);
+                                    ],
+                                    {undoManager},
+                                );
                             }}
                         />
                     </Box>
@@ -388,17 +398,21 @@ function TaskRowViewDenseFields(
                             shouldFormatAroundToday={true}
                             color="grey-60"
                             onDateChange={dueDate => {
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateTask",
-                                        time: store.clock.now(),
-                                        taskId: task.id,
-                                        taskAction: {
-                                            type: "UpdateDueDate",
-                                            dueDate,
+                                store.commitTaskActionTransaction(
+                                    context,
+                                    [
+                                        {
+                                            type: "UpdateTask",
+                                            time: store.clock.now(),
+                                            taskId: task.id,
+                                            taskAction: {
+                                                type: "UpdateDueDate",
+                                                dueDate,
+                                            },
                                         },
-                                    },
-                                ]);
+                                    ],
+                                    {undoManager},
+                                );
                             }}
                         />
                     </Box>

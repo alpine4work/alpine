@@ -6,7 +6,7 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore, TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -45,6 +45,7 @@ const size5ClassName = sprinkles({
 function TaskStatusButton(
     {
         store,
+        undoManager,
         task,
         size = "4",
         isDisabled = false,
@@ -55,6 +56,7 @@ function TaskStatusButton(
         shouldShowClosedStatusWhenPressed,
     }: {
         store: TaskClientStore;
+        undoManager: TaskClientUndoManager;
         task: TaskModel;
         size?: "4" | "5";
         isDisabled?: boolean;
@@ -97,36 +99,44 @@ function TaskStatusButton(
                 const status = task.getStatus();
 
                 if (status.type === "Closed") {
-                    store.commitTaskActionTransaction(context, [
-                        {
-                            type: "UpdateTask",
-                            time,
-                            taskId: task.id,
-                            taskAction: {
-                                type: "UpdateStatus",
-                                status: {type: "Open"},
-                            },
-                        },
-                    ]);
-                } else {
-                    store.commitTaskActionTransaction(context, [
-                        {
-                            type: "UpdateTask",
-                            time,
-                            taskId: task.id,
-                            taskAction: {
-                                type: "UpdateStatus",
-                                status: {
-                                    type: "Closed",
-                                    closerId: currentAccount.id,
-                                    closedTime: new TaskFilterableTime({
-                                        absoluteTime: time,
-                                        setterTimeZone: timeZone,
-                                    }),
+                    store.commitTaskActionTransaction(
+                        context,
+                        [
+                            {
+                                type: "UpdateTask",
+                                time,
+                                taskId: task.id,
+                                taskAction: {
+                                    type: "UpdateStatus",
+                                    status: {type: "Open"},
                                 },
                             },
-                        },
-                    ]);
+                        ],
+                        {undoManager},
+                    );
+                } else {
+                    store.commitTaskActionTransaction(
+                        context,
+                        [
+                            {
+                                type: "UpdateTask",
+                                time,
+                                taskId: task.id,
+                                taskAction: {
+                                    type: "UpdateStatus",
+                                    status: {
+                                        type: "Closed",
+                                        closerId: currentAccount.id,
+                                        closedTime: new TaskFilterableTime({
+                                            absoluteTime: time,
+                                            setterTimeZone: timeZone,
+                                        }),
+                                    },
+                                },
+                            },
+                        ],
+                        {undoManager},
+                    );
                 }
             },
             onKeyDown,

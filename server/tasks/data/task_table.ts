@@ -1677,6 +1677,15 @@ async function actuallyCommitTaskActionTransaction(
                                 break;
                             }
                             case "UpdateParentTaskId": {
+                                if (
+                                    taskAction.parentPosition &&
+                                    !state.isTimeReasonable(taskAction.parentPosition.orderTime[0])
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `orderTime` is too far in the future",
+                                    );
+                                }
+
                                 // We want to prevent the creation of cycles even during race conditions. So we
                                 // call `updateTaskItemLockVersion()` on critical parent tasks that can't
                                 // update without us knowing about it. We call this method on:
@@ -2037,6 +2046,18 @@ async function actuallyCommitTaskActionTransaction(
                                     );
                                 }
 
+                                // NOCOMMIT: Tests? Ideally some permutation tests too.
+                                if (
+                                    taskAction.assigneeStatus?.type === "Active" &&
+                                    !state.isTimeReasonable(
+                                        taskAction.assigneeStatus.activatedTime.absoluteTime[0],
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `activatedTime` is too far in the future",
+                                    );
+                                }
+
                                 const oldStatusType = taskItem.statusType;
 
                                 const newStatusType = oldStatusType.apply({
@@ -2143,6 +2164,17 @@ async function actuallyCommitTaskActionTransaction(
                                 ) {
                                     throw new FailedPreconditionError(
                                         "Can't assign a task to an account outside of the current space",
+                                    );
+                                }
+
+                                if (
+                                    taskAction.assigneeStatus?.type === "Active" &&
+                                    !state.isTimeReasonable(
+                                        taskAction.assigneeStatus.activatedTime.absoluteTime[0],
+                                    )
+                                ) {
+                                    throw new InvalidArgumentError(
+                                        "Action `activatedTime` is too far in the future",
                                     );
                                 }
 

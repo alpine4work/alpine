@@ -120,39 +120,49 @@ export function TaskCollectionViewHeader({
                 iconPlacement: "end",
                 onPress: () => {
                     if (isPrivate) {
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateCollection",
-                                time: store.clock.now(),
-                                collectionId,
-                                collectionAction: {
-                                    type: "UpdateAccessPolicy",
-                                    accessPolicy: {
-                                        accountGrantById: new Map([
-                                            [currentAccount.id, {level: "Manage"}],
-                                        ]),
-                                        defaultGrant: {type: "Space", level: "Manage"},
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateCollection",
+                                    time: store.clock.now(),
+                                    collectionId,
+                                    collectionAction: {
+                                        type: "UpdateAccessPolicy",
+                                        accessPolicy: {
+                                            accountGrantById: new Map([
+                                                [currentAccount.id, {level: "Manage"}],
+                                            ]),
+                                            defaultGrant: {type: "Space", level: "Manage"},
+                                        },
                                     },
                                 },
-                            },
-                        ]);
+                            ],
+                            // Collection changes can't be undone.
+                            {undoManager: null},
+                        );
                     } else {
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateCollection",
-                                time: store.clock.now(),
-                                collectionId,
-                                collectionAction: {
-                                    type: "UpdateAccessPolicy",
-                                    accessPolicy: {
-                                        accountGrantById: new Map([
-                                            [currentAccount.id, {level: "Manage"}],
-                                        ]),
-                                        defaultGrant: null,
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateCollection",
+                                    time: store.clock.now(),
+                                    collectionId,
+                                    collectionAction: {
+                                        type: "UpdateAccessPolicy",
+                                        accessPolicy: {
+                                            accountGrantById: new Map([
+                                                [currentAccount.id, {level: "Manage"}],
+                                            ]),
+                                            defaultGrant: null,
+                                        },
                                     },
                                 },
-                            },
-                        ]);
+                            ],
+                            // Collection changes can't be undone.
+                            {undoManager: null},
+                        );
                     }
                 },
             },
@@ -162,14 +172,19 @@ export function TaskCollectionViewHeader({
             {
                 label: "Delete",
                 onPress: () => {
-                    store.commitTaskActionTransaction(context, [
-                        {
-                            type: "UpdateCollection",
-                            time: store.clock.now(),
-                            collectionId,
-                            collectionAction: {type: "Delete"},
-                        },
-                    ]);
+                    store.commitTaskActionTransaction(
+                        context,
+                        [
+                            {
+                                type: "UpdateCollection",
+                                time: store.clock.now(),
+                                collectionId,
+                                collectionAction: {type: "Delete"},
+                            },
+                        ],
+                        // Collection changes can't be undone.
+                        {undoManager: null},
+                    );
 
                     void navigate(-1);
                 },
@@ -184,17 +199,22 @@ export function TaskCollectionViewHeader({
                     <TaskCollectionViewHeaderColor
                         color={color}
                         onColorSelect={color => {
-                            store.commitTaskActionTransaction(context, [
-                                {
-                                    type: "UpdateCollection",
-                                    time: store.clock.now(),
-                                    collectionId,
-                                    collectionAction: {
-                                        type: "UpdateColor",
-                                        color,
+                            store.commitTaskActionTransaction(
+                                context,
+                                [
+                                    {
+                                        type: "UpdateCollection",
+                                        time: store.clock.now(),
+                                        collectionId,
+                                        collectionAction: {
+                                            type: "UpdateColor",
+                                            color,
+                                        },
                                     },
-                                },
-                            ]);
+                                ],
+                                // Collection changes can't be undone.
+                                {undoManager: null},
+                            );
                         }}
                         colorSelectorState={colorSelectorState}
                         setColorSelectorState={setColorSelectorState}
@@ -243,17 +263,22 @@ export function TaskCollectionViewHeader({
                             if (!collectionSubscription) {
                                 return createCollection(name);
                             } else {
-                                store.commitTaskActionTransaction(context, [
-                                    {
-                                        type: "UpdateCollection",
-                                        time: store.clock.now(),
-                                        collectionId,
-                                        collectionAction: {
-                                            type: "UpdateName",
-                                            name,
+                                store.commitTaskActionTransaction(
+                                    context,
+                                    [
+                                        {
+                                            type: "UpdateCollection",
+                                            time: store.clock.now(),
+                                            collectionId,
+                                            collectionAction: {
+                                                type: "UpdateName",
+                                                name,
+                                            },
                                         },
-                                    },
-                                ]);
+                                    ],
+                                    // Collection changes can't be undone.
+                                    {undoManager: null},
+                                );
 
                                 setIsEditingName(false);
                             }

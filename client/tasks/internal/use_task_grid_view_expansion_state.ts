@@ -283,6 +283,14 @@ function createTaskGridViewExpansionStateManager({
         iterateExpandedTaskIds,
 
         /**
+         * Iterate all the root expanded `TaskId`s in our state. Should not be called
+         * during React render as this reads mutable state.
+         */
+        iterateRootExpandedTaskIds: (): Iterable<TaskId> => {
+            return state?.keys() ?? emptyArray;
+        },
+
+        /**
          * Iterate all expanded `TaskId`s in our state under a certain path. Should not
          * be called during React render as this reads mutable state.
          *
@@ -758,6 +766,10 @@ export function useTaskGridViewExpansionState({
         getAreChildTasksExpandedStore: useMemo(
             () => stateManager?.getAreChildTasksExpandedStore ?? (() => undefinedConstStore),
             [stateManager?.getAreChildTasksExpandedStore],
+        ),
+        iterateRootExpandedTaskIds: useMemo(
+            () => stateManager?.iterateRootExpandedTaskIds ?? (() => emptyArray),
+            [stateManager?.iterateRootExpandedTaskIds],
         ),
         iterateExpandedTaskIdsUnderPath: useMemo(
             () => stateManager?.iterateExpandedTaskIdsUnderPath ?? (() => emptyArray),

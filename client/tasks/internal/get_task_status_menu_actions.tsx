@@ -1,7 +1,7 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore, TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
@@ -13,12 +13,14 @@ export function getTaskStatusMenuActions({
     timeZone,
     currentAccount,
     store,
+    undoManager,
     task,
 }: {
     context: AppContext;
     timeZone: TimeZone;
     currentAccount: AccountModel;
     store: TaskClientStore;
+    undoManager: TaskClientUndoManager | null;
     task: TaskModel;
 }): ReadonlyArray<MenuAction> {
     const displayStatus = task.getDisplayStatus();
@@ -37,45 +39,49 @@ export function getTaskStatusMenuActions({
 
                         // If we are marking a task as active and there's not currently an assignee,
                         // then set ourselves as the assignee.
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time: time1,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateAssignee",
-                                    assignee: currentAssignee
-                                        ? {
-                                              assigneeId: currentAssignee.assignee.accountId,
-                                              assignerId: currentAssignee.assigner.accountId,
-                                              assignedTime: currentAssignee.assignedTime,
-                                          }
-                                        : {
-                                              assigneeId: currentAccount.id,
-                                              assignerId: currentAccount.id,
-                                              assignedTime: new TaskFilterableTime({
-                                                  absoluteTime: time1,
-                                                  setterTimeZone: timeZone,
-                                              }),
-                                          },
-                                },
-                            },
-                            {
-                                type: "UpdateTask",
-                                time: time2,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateAssigneeStatus",
-                                    assigneeStatus: {
-                                        type: "Active",
-                                        activatedTime: new TaskFilterableTime({
-                                            absoluteTime: time1,
-                                            setterTimeZone: timeZone,
-                                        }),
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateTask",
+                                    time: time1,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateAssignee",
+                                        assignee: currentAssignee
+                                            ? {
+                                                  assigneeId: currentAssignee.assignee.accountId,
+                                                  assignerId: currentAssignee.assigner.accountId,
+                                                  assignedTime: currentAssignee.assignedTime,
+                                              }
+                                            : {
+                                                  assigneeId: currentAccount.id,
+                                                  assignerId: currentAccount.id,
+                                                  assignedTime: new TaskFilterableTime({
+                                                      absoluteTime: time1,
+                                                      setterTimeZone: timeZone,
+                                                  }),
+                                              },
                                     },
                                 },
-                            },
-                        ]);
+                                {
+                                    type: "UpdateTask",
+                                    time: time2,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateAssigneeStatus",
+                                        assigneeStatus: {
+                                            type: "Active",
+                                            activatedTime: new TaskFilterableTime({
+                                                absoluteTime: time1,
+                                                setterTimeZone: timeZone,
+                                            }),
+                                        },
+                                    },
+                                },
+                            ],
+                            {undoManager},
+                        );
                     },
                 },
                 {
@@ -85,24 +91,28 @@ export function getTaskStatusMenuActions({
                     onPress: () => {
                         const time = store.clock.now();
 
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateStatus",
-                                    status: {
-                                        type: "Closed",
-                                        closerId: currentAccount.id,
-                                        closedTime: new TaskFilterableTime({
-                                            absoluteTime: time,
-                                            setterTimeZone: timeZone,
-                                        }),
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateTask",
+                                    time,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateStatus",
+                                        status: {
+                                            type: "Closed",
+                                            closerId: currentAccount.id,
+                                            closedTime: new TaskFilterableTime({
+                                                absoluteTime: time,
+                                                setterTimeZone: timeZone,
+                                            }),
+                                        },
                                     },
                                 },
-                            },
-                        ]);
+                            ],
+                            {undoManager},
+                        );
                     },
                 },
             ];
@@ -116,17 +126,21 @@ export function getTaskStatusMenuActions({
                     onPress: () => {
                         const time = store.clock.now();
 
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateStatus",
-                                    status: {type: "Open"},
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateTask",
+                                    time,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateStatus",
+                                        status: {type: "Open"},
+                                    },
                                 },
-                            },
-                        ]);
+                            ],
+                            {undoManager},
+                        );
                     },
                 },
                 {
@@ -136,24 +150,28 @@ export function getTaskStatusMenuActions({
                     onPress: () => {
                         const time = store.clock.now();
 
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateStatus",
-                                    status: {
-                                        type: "Closed",
-                                        closerId: currentAccount.id,
-                                        closedTime: new TaskFilterableTime({
-                                            absoluteTime: time,
-                                            setterTimeZone: timeZone,
-                                        }),
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateTask",
+                                    time,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateStatus",
+                                        status: {
+                                            type: "Closed",
+                                            closerId: currentAccount.id,
+                                            closedTime: new TaskFilterableTime({
+                                                absoluteTime: time,
+                                                setterTimeZone: timeZone,
+                                            }),
+                                        },
                                     },
                                 },
-                            },
-                        ]);
+                            ],
+                            {undoManager},
+                        );
                     },
                 },
             ];
@@ -167,17 +185,21 @@ export function getTaskStatusMenuActions({
                     onPress: () => {
                         const time = store.clock.now();
 
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateStatus",
-                                    status: {type: "Open"},
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateTask",
+                                    time,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateStatus",
+                                        status: {type: "Open"},
+                                    },
                                 },
-                            },
-                        ]);
+                            ],
+                            {undoManager},
+                        );
                     },
                 },
                 {
@@ -191,54 +213,58 @@ export function getTaskStatusMenuActions({
 
                         // If we are marking a task as active and there's not currently an assignee,
                         // then set ourselves as the assignee.
-                        store.commitTaskActionTransaction(context, [
-                            {
-                                type: "UpdateTask",
-                                time: time1,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateStatus",
-                                    status: {type: "Open"},
-                                },
-                            },
-                            {
-                                type: "UpdateTask",
-                                time: time1,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateAssignee",
-                                    assignee: currentAssignee
-                                        ? {
-                                              assigneeId: currentAssignee.assignee.accountId,
-                                              assignerId: currentAssignee.assigner.accountId,
-                                              assignedTime: currentAssignee.assignedTime,
-                                          }
-                                        : {
-                                              assigneeId: currentAccount.id,
-                                              assignerId: currentAccount.id,
-                                              assignedTime: new TaskFilterableTime({
-                                                  absoluteTime: time1,
-                                                  setterTimeZone: timeZone,
-                                              }),
-                                          },
-                                },
-                            },
-                            {
-                                type: "UpdateTask",
-                                time: time2,
-                                taskId: task.id,
-                                taskAction: {
-                                    type: "UpdateAssigneeStatus",
-                                    assigneeStatus: {
-                                        type: "Active",
-                                        activatedTime: new TaskFilterableTime({
-                                            absoluteTime: time1,
-                                            setterTimeZone: timeZone,
-                                        }),
+                        store.commitTaskActionTransaction(
+                            context,
+                            [
+                                {
+                                    type: "UpdateTask",
+                                    time: time1,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateStatus",
+                                        status: {type: "Open"},
                                     },
                                 },
-                            },
-                        ]);
+                                {
+                                    type: "UpdateTask",
+                                    time: time1,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateAssignee",
+                                        assignee: currentAssignee
+                                            ? {
+                                                  assigneeId: currentAssignee.assignee.accountId,
+                                                  assignerId: currentAssignee.assigner.accountId,
+                                                  assignedTime: currentAssignee.assignedTime,
+                                              }
+                                            : {
+                                                  assigneeId: currentAccount.id,
+                                                  assignerId: currentAccount.id,
+                                                  assignedTime: new TaskFilterableTime({
+                                                      absoluteTime: time1,
+                                                      setterTimeZone: timeZone,
+                                                  }),
+                                              },
+                                    },
+                                },
+                                {
+                                    type: "UpdateTask",
+                                    time: time2,
+                                    taskId: task.id,
+                                    taskAction: {
+                                        type: "UpdateAssigneeStatus",
+                                        assigneeStatus: {
+                                            type: "Active",
+                                            activatedTime: new TaskFilterableTime({
+                                                absoluteTime: time1,
+                                                setterTimeZone: timeZone,
+                                            }),
+                                        },
+                                    },
+                                },
+                            ],
+                            {undoManager},
+                        );
                     },
                 },
             ];

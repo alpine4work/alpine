@@ -588,7 +588,7 @@ function PostListView(
         const result = tryLoadingMoreData(peekRenderedRange);
 
         if (!result.isLoading) {
-            view.scrollToIndex(scrollToIndex);
+            view.scrollToIndex(scrollToIndex, {withAnchor: true});
 
             setHighlightPostComment({
                 postId,
@@ -601,7 +601,7 @@ function PostListView(
             Promise.race([result.promise, wait(delayLoadingIndicatorLimitMs)]).finally(() => {
                 isJumpingToPostCommentRef.current = false;
 
-                view.scrollToIndex(scrollToIndex);
+                view.scrollToIndex(scrollToIndex, {withAnchor: true});
 
                 setHighlightPostComment({
                     postId,

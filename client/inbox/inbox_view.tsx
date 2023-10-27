@@ -509,7 +509,7 @@ function InboxViewEntries({
         // When a new entry is selected, make sure it is visible in our scroll window. Scroll to
         // it if it is not visible.
         if (selectedEntryKey) {
-            view.scrollToKeyIfExists(`Loaded:${selectedEntryKey}`);
+            view.scrollToKeyIfExists(`Loaded:${selectedEntryKey}`, {withAnchor: true});
         }
     }, [selectedEntryKey]);
 

@@ -5,6 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {Spacer} from "~/client/design/spacer.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -16,13 +17,13 @@ import {
     getTaskCollectionEntryAccess,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
-import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {createTaskQueryCollectionsFilterCollectionResultsStore} from "~/client/tasks/internal/task_query_collections_filter_operation_editor.js";
 import {
     TaskQueryViewCustomizationBar,
     TaskQueryViewCustomizationBarRef,
 } from "~/client/tasks/internal/task_query_view_customization_bar.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
@@ -279,6 +280,7 @@ export function TaskQueryView({
         onRenderedRangeLayoutChange: onGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
+        onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
@@ -407,51 +409,53 @@ export function TaskQueryView({
             })}
         >
             {gridViewModals}
-            <VirtualizedScrollView
-                ref={viewRef}
-                stateKey={gridViewStateKey}
-                bufferedItemHeight={gridViewBufferedItemHeight}
-                itemCount={gridViewItemCount}
-                alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
-                insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
-                renderItem={renderGridViewItem}
-                onRenderedRangeChange={onGridViewRenderedRangeChange}
-                onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
-                extraChildren={
-                    !queryState.activeQuery.isAvailable &&
-                    queryState.activeQuery.isMissingRequiredFilters
-                        ? ({contentHeight, viewHeight, shouldRenderWithRelativePositioning}) =>
-                              !shouldRenderWithRelativePositioning && (
-                                  <Box
-                                      position="absolute"
-                                      left="0"
-                                      right="0"
-                                      paddingX={taskRowViewPaddingX}
-                                      pointerEvents="auto"
-                                      style={{
-                                          top: contentHeight,
-                                          height: Math.min(
-                                              convertRemLengthToPx(spacing["128"], remPx),
-                                              viewHeight - contentHeight,
-                                          ),
-                                      }}
-                                  >
+            <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>
+                <VirtualizedScrollView
+                    ref={viewRef}
+                    stateKey={gridViewStateKey}
+                    bufferedItemHeight={gridViewBufferedItemHeight}
+                    itemCount={gridViewItemCount}
+                    alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
+                    insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
+                    renderItem={renderGridViewItem}
+                    onRenderedRangeChange={onGridViewRenderedRangeChange}
+                    onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
+                    extraChildren={
+                        !queryState.activeQuery.isAvailable &&
+                        queryState.activeQuery.isMissingRequiredFilters
+                            ? ({contentHeight, viewHeight, shouldRenderWithRelativePositioning}) =>
+                                  !shouldRenderWithRelativePositioning && (
                                       <Box
-                                          height="full"
-                                          display="flex"
-                                          justifyContent="center"
-                                          alignItems="center"
+                                          position="absolute"
+                                          left="0"
+                                          right="0"
+                                          paddingX={taskRowViewPaddingX}
+                                          pointerEvents="auto"
+                                          style={{
+                                              top: contentHeight,
+                                              height: Math.min(
+                                                  convertRemLengthToPx(spacing["128"], remPx),
+                                                  viewHeight - contentHeight,
+                                              ),
+                                          }}
                                       >
-                                          <TaskQueryViewInstructionalPlaceholder
-                                              filters={filters}
-                                              onFiltersChange={updateFilters}
-                                          />
+                                          <Box
+                                              height="full"
+                                              display="flex"
+                                              justifyContent="center"
+                                              alignItems="center"
+                                          >
+                                              <TaskQueryViewInstructionalPlaceholder
+                                                  filters={filters}
+                                                  onFiltersChange={updateFilters}
+                                              />
+                                          </Box>
                                       </Box>
-                                  </Box>
-                              )
-                        : undefined
-                }
-            />
+                                  )
+                            : undefined
+                    }
+                />
+            </GlobalKeyDownEvent>
         </Box>
     );
 }

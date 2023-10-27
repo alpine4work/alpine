@@ -37,7 +37,6 @@ import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
-import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {
     TaskRowAssigneeCell,
     TaskRowAssigneeCellRef,
@@ -68,7 +67,9 @@ import {
 } from "~/client/tasks/internal/task_row_view_droppable_indentations.js";
 import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
+import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     taskRowViewFirstColumnExtraPaddingLeft,
@@ -202,6 +203,7 @@ function TaskRowView(
         stateKey,
         query,
         isQueryManuallySorted,
+        undoManager,
         cursor,
         ghostTaskId = null,
         onGhostTaskCreated,
@@ -237,6 +239,7 @@ function TaskRowView(
         stateKey: Key | undefined;
         query: TaskClientQuery;
         isQueryManuallySorted: boolean;
+        undoManager: TaskClientUndoManager;
         cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
@@ -792,11 +795,10 @@ function TaskRowView(
             finally: (callback: () => void) => void;
         } => {
             if (taskId) {
-                return query.store.commitTaskActionTransaction(
-                    context,
-                    getActions(taskId),
-                    options,
-                );
+                return query.store.commitTaskActionTransaction(context, getActions(taskId), {
+                    ...options,
+                    undoManager,
+                });
             }
 
             assert(ghostTaskId);
@@ -830,7 +832,7 @@ function TaskRowView(
                         ...getMoveTaskToQueryActions(ghostTaskId, {type: "End"}),
                         ...getActions(ghostTaskId),
                     ],
-                    options,
+                    {...options, undoManager},
                 );
 
                 // When we create a new task that occupies our ghost `TaskId` then we need to
@@ -885,6 +887,7 @@ function TaskRowView(
                         timeZone,
                         currentAccount,
                         store: query.store,
+                        undoManager,
                         task,
                     }),
                 );
@@ -936,22 +939,26 @@ function TaskRowView(
 
         disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
 
-        query.store.commitTaskActionTransaction(context, [
-            {
-                type: "UpdateTask",
-                time: query.store.clock.now(),
-                taskId: newTaskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: currentAccount.id,
-                    creatorTimeZone: timeZone,
+        query.store.commitTaskActionTransaction(
+            context,
+            [
+                {
+                    type: "UpdateTask",
+                    time: query.store.clock.now(),
+                    taskId: newTaskId,
+                    taskAction: {
+                        type: "Create",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
+                    },
                 },
-            },
-            ...getMoveTaskToQueryActions(
-                newTaskId,
-                taskId ? {type: "Above", taskId} : {type: "End"},
-            ),
-        ]);
+                ...getMoveTaskToQueryActions(
+                    newTaskId,
+                    taskId ? {type: "Above", taskId} : {type: "End"},
+                ),
+            ],
+            {undoManager},
+        );
     };
 
     const createTaskBelowAndFocus = () => {
@@ -997,36 +1004,40 @@ function TaskRowView(
 
                 disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
 
-                query.store.commitTaskActionTransaction(context, [
-                    {
-                        type: "UpdateTask",
-                        time: time1,
-                        taskId: newTaskId,
-                        taskAction: {
-                            type: "Create",
-                            creatorId: currentAccount.id,
-                            creatorTimeZone: timeZone,
+                query.store.commitTaskActionTransaction(
+                    context,
+                    [
+                        {
+                            type: "UpdateTask",
+                            time: time1,
+                            taskId: newTaskId,
+                            taskAction: {
+                                type: "Create",
+                                creatorId: currentAccount.id,
+                                creatorTimeZone: timeZone,
+                            },
                         },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time2,
-                        taskId: newTaskId,
-                        taskAction: {
-                            type: "UpdateParentTaskId",
-                            parentTaskId: taskId,
+                        {
+                            type: "UpdateTask",
+                            time: time2,
+                            taskId: newTaskId,
+                            taskAction: {
+                                type: "UpdateParentTaskId",
+                                parentTaskId: taskId,
+                            },
                         },
-                    },
-                    {
-                        type: "UpdateTask",
-                        time: time3,
-                        taskId: newTaskId,
-                        taskAction: {
-                            type: "UpdateParentPosition",
-                            parentPosition: position,
+                        {
+                            type: "UpdateTask",
+                            time: time3,
+                            taskId: newTaskId,
+                            taskAction: {
+                                type: "UpdateParentPosition",
+                                parentPosition: position,
+                            },
                         },
-                    },
-                ]);
+                    ],
+                    {undoManager},
+                );
 
                 // Store updates are rendered by React immediately. So focus our task before
                 // the next paint.
@@ -1045,22 +1056,26 @@ function TaskRowView(
 
         disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
 
-        query.store.commitTaskActionTransaction(context, [
-            {
-                type: "UpdateTask",
-                time: query.store.clock.now(),
-                taskId: newTaskId,
-                taskAction: {
-                    type: "Create",
-                    creatorId: currentAccount.id,
-                    creatorTimeZone: timeZone,
+        query.store.commitTaskActionTransaction(
+            context,
+            [
+                {
+                    type: "UpdateTask",
+                    time: query.store.clock.now(),
+                    taskId: newTaskId,
+                    taskAction: {
+                        type: "Create",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
+                    },
                 },
-            },
-            ...getMoveTaskToQueryActions(
-                newTaskId,
-                taskId ? {type: "Below", taskId} : {type: "End"},
-            ),
-        ]);
+                ...getMoveTaskToQueryActions(
+                    newTaskId,
+                    taskId ? {type: "Below", taskId} : {type: "End"},
+                ),
+            ],
+            {undoManager},
+        );
 
         // Store updates are rendered by React immediately. So focus our task before
         // the next paint.
@@ -1174,6 +1189,7 @@ function TaskRowView(
                     isQueryManuallySorted &&
                     hasTask ? (
                         <TaskRowViewDragHandle
+                            undoManager={undoManager}
                             task={task}
                             getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
                             isHovered={isHovered}
@@ -1250,6 +1266,7 @@ function TaskRowView(
                             <TaskStatusButton
                                 ref={statusButtonRef}
                                 store={query.store}
+                                undoManager={undoManager}
                                 task={task}
                                 // Disable the ability to tab to this button. Since there are so many tasks and
                                 // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
@@ -1371,6 +1388,7 @@ function TaskRowView(
                         ref={collectionsCellRef}
                         isReadOnly={capabilities.isReadOnly}
                         query={query}
+                        undoManager={undoManager}
                         task={task}
                         onCellKeyDown={handleCellKeyDown}
                         onCellKeyDownCapture={handleCellKeyDownCapture}
@@ -1434,6 +1452,8 @@ function TaskRowView(
                                 ref={denseFieldsRef}
                                 isReadOnly={capabilities.isReadOnly}
                                 store={query.store}
+                                // NOCOMMIT: Make sure this works with ghost tasks
+                                undoManager={undoManager}
                                 task={task}
                                 marginLeft={marginLeft}
                                 focusTitleStart={focusTitleStart}
@@ -1460,10 +1480,12 @@ function TaskRowView(
 const taskRowViewDragHandleWidth = addRemLengths(spacing["4"], spacing["0.5"]);
 
 function TaskRowViewDragHandle({
+    undoManager,
     task,
     getMaybeRemoveTaskFromQueryActions,
     isHovered,
 }: {
+    undoManager: TaskClientUndoManager;
     task: TaskModel | null;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     isHovered: boolean;
@@ -1481,6 +1503,7 @@ function TaskRowViewDragHandle({
         data: task
             ? cast<TaskGridViewDraggableData>({
                   type: "Row",
+                  undoManager,
                   taskId: task.id,
                   displayStatus: task.getDisplayStatus(),
                   assigneeAccountId: task.getAssignee()?.assignee.accountId ?? null,

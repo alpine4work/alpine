@@ -38,6 +38,7 @@ import {
 } from "~/client/tasks/internal/task_collection_combo_box_base.js";
 import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -72,6 +73,7 @@ type TaskDetailCollectionsFieldInputState =
 
 export function TaskCollectionsInput({
     referencesSubscription,
+    undoManager,
     task,
     "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
@@ -86,6 +88,7 @@ export function TaskCollectionsInput({
     commitActionTransaction: _commitActionTransaction,
 }: {
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
+    undoManager: TaskClientUndoManager;
     task: TaskModel | null;
     "aria-label"?: string;
     "aria-labelledby"?: string;
@@ -117,7 +120,10 @@ export function TaskCollectionsInput({
             options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
         ) => {
             if (!task) return;
-            store.commitTaskActionTransaction(context, getActions(task.id), options);
+            store.commitTaskActionTransaction(context, getActions(task.id), {
+                ...options,
+                undoManager,
+            });
         });
 
     // Preload task collections the account has an affinity for in case they open

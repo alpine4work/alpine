@@ -1,5 +1,5 @@
 diff --git a/dist/import.mjs b/dist/import.mjs
-index 8304c96402b2f2b285445c005b5078b34993a100..faca5d5981d7bc78cae871dc24649ac9b4be879d 100644
+index 8304c96402b2f2b285445c005b5078b34993a100..8ac10d2330fdebd9cd5320aee6e8b7bab50f17f9 100644
 --- a/dist/import.mjs
 +++ b/dist/import.mjs
 @@ -885,7 +885,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
@@ -17,20 +17,56 @@ index 8304c96402b2f2b285445c005b5078b34993a100..faca5d5981d7bc78cae871dc24649ac9
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
-@@ -1359,7 +1365,10 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+@@ -1348,25 +1354,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+  * governing permissions and limitations under the License.
+  */ function $93925083ecbb358c$export$48d1ea6320830260(handler) {
+     if (!handler) return;
+-    let shouldStopPropagation = true;
+     return (e)=>{
+         let event = {
+             ...e,
+             preventDefault () {
+                 e.preventDefault();
++
++                // NOTE(calebmer): We don't like the `react-spectrum` convention
++                // of `event.stopPropagation()` by default. With that convention
++                // `<GlobalKeyDownEvent>` doesn't work when focus is in a
++                // `react-spectrum` component! So we remove the default
++                // `event.stopPropagation()`.
++                //
++                // In order to avoid breaking `react-spectrum` components which,
++                // when `event.preventDefault()` is called we also call
++                // `event.stopPropagation()`.
++                //
++                // This is the same as putting
++                // `if (!event.isDefaultPrevented()) event.continuePropagation()`
++                // in every `react-spectrum` component which we'd do if we
++                // didn't have this patch.
++                e.stopPropagation();
+             },
+             isDefaultPrevented () {
                  return e.isDefaultPrevented();
              },
              stopPropagation () {
 -                console.error("stopPropagation is now the default behavior for events in React Spectrum. You can use continuePropagation() to revert this behavior.");
 +                // NOTE(calebmer): Our style guide recommends calling both
-+                // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
-+                // Don't warn when we do this. Treat repeat calls a noop like regular
-+                // DOM events.
++                // `event.preventDefault()` and `event.stopPropagation()` for
++                // `keydown` events. Don't warn when we do this. Treat repeat
++                // calls a noop like regular DOM events.
++                e.stopPropagation();
              },
-             continuePropagation () {
-                 shouldStopPropagation = false;
+-            continuePropagation () {
+-                shouldStopPropagation = false;
+-            }
++            continuePropagation () {}
+         };
+         handler(event);
+-        if (shouldStopPropagation) e.stopPropagation();
+     };
+ }
+ 
 diff --git a/dist/main.js b/dist/main.js
-index dca2b48e87b91891af244269a71d87c3162a7006..625b0fdbb580d9950e88f1139a10298a6fd97d1e 100644
+index dca2b48e87b91891af244269a71d87c3162a7006..7e8fb16c9243d7a071755b965f5c06f201025c93 100644
 --- a/dist/main.js
 +++ b/dist/main.js
 @@ -910,7 +910,13 @@ function $5cb73d0ce355b0dc$export$f8168d8dd8fd66e6(props) {
@@ -48,7 +84,34 @@ index dca2b48e87b91891af244269a71d87c3162a7006..625b0fdbb580d9950e88f1139a10298a
  let $e77252a287ef94ab$var$changeHandlers = new Set();
  let $e77252a287ef94ab$var$hasSetupGlobalListeners = false;
  let $e77252a287ef94ab$var$hasEventBeforeFocus = false;
-@@ -1384,7 +1390,10 @@ function $edcfa848c42f94f4$var$isValidEvent(event, ref) {
+@@ -1373,25 +1379,41 @@ function $edcfa848c42f94f4$var$isValidEvent(event, ref) {
+  * governing permissions and limitations under the License.
+  */ function $951fbcbbca8db6ce$export$48d1ea6320830260(handler) {
+     if (!handler) return;
+-    let shouldStopPropagation = true;
+     return (e)=>{
+         let event = {
+             ...e,
+             preventDefault () {
+                 e.preventDefault();
++
++                // NOTE(calebmer): We don't like the `react-spectrum` convention
++                // of `event.stopPropagation()` by default. With that convention
++                // `<GlobalKeyDownEvent>` doesn't work when focus is in a
++                // `react-spectrum` component! So we remove the default
++                // `event.stopPropagation()`.
++                //
++                // In order to avoid breaking `react-spectrum` components which,
++                // when `event.preventDefault()` is called we also call
++                // `event.stopPropagation()`.
++                //
++                // This is the same as putting
++                // `if (!event.isDefaultPrevented()) event.continuePropagation()`
++                // in every `react-spectrum` component which we'd do if we
++                // didn't have this patch.
++                e.stopPropagation();
+             },
+             isDefaultPrevented () {
                  return e.isDefaultPrevented();
              },
              stopPropagation () {
@@ -57,11 +120,20 @@ index dca2b48e87b91891af244269a71d87c3162a7006..625b0fdbb580d9950e88f1139a10298a
 +                // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
 +                // Don't warn when we do this. Treat repeat calls a noop like regular
 +                // DOM events.
++                e.stopPropagation();
              },
-             continuePropagation () {
-                 shouldStopPropagation = false;
+-            continuePropagation () {
+-                shouldStopPropagation = false;
+-            }
++            continuePropagation () {}
+         };
+         handler(event);
+-        if (shouldStopPropagation) e.stopPropagation();
+     };
+ }
+ 
 diff --git a/dist/module.js b/dist/module.js
-index 8304c96402b2f2b285445c005b5078b34993a100..faca5d5981d7bc78cae871dc24649ac9b4be879d 100644
+index 8304c96402b2f2b285445c005b5078b34993a100..492a2341131b88ac838afe622ed535e22fd60ae4 100644
 --- a/dist/module.js
 +++ b/dist/module.js
 @@ -885,7 +885,13 @@ function $a1ea59d68270f0dd$export$f8168d8dd8fd66e6(props) {
@@ -79,7 +151,34 @@ index 8304c96402b2f2b285445c005b5078b34993a100..faca5d5981d7bc78cae871dc24649ac9
  let $507fabe10e71c6fb$var$changeHandlers = new Set();
  let $507fabe10e71c6fb$var$hasSetupGlobalListeners = false;
  let $507fabe10e71c6fb$var$hasEventBeforeFocus = false;
-@@ -1359,7 +1365,10 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+@@ -1348,25 +1354,41 @@ function $e0b6e0b68ec7f50f$var$isValidEvent(event, ref) {
+  * governing permissions and limitations under the License.
+  */ function $93925083ecbb358c$export$48d1ea6320830260(handler) {
+     if (!handler) return;
+-    let shouldStopPropagation = true;
+     return (e)=>{
+         let event = {
+             ...e,
+             preventDefault () {
+                 e.preventDefault();
++
++                // NOTE(calebmer): We don't like the `react-spectrum` convention
++                // of `event.stopPropagation()` by default. With that convention
++                // `<GlobalKeyDownEvent>` doesn't work when focus is in a
++                // `react-spectrum` component! So we remove the default
++                // `event.stopPropagation()`.
++                //
++                // In order to avoid breaking `react-spectrum` components which,
++                // when `event.preventDefault()` is called we also call
++                // `event.stopPropagation()`.
++                //
++                // This is the same as putting
++                // `if (!event.isDefaultPrevented()) event.continuePropagation()`
++                // in every `react-spectrum` component which we'd do if we
++                // didn't have this patch.
++                e.stopPropagation();
+             },
+             isDefaultPrevented () {
                  return e.isDefaultPrevented();
              },
              stopPropagation () {
@@ -88,14 +187,50 @@ index 8304c96402b2f2b285445c005b5078b34993a100..faca5d5981d7bc78cae871dc24649ac9
 +                // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
 +                // Don't warn when we do this. Treat repeat calls a noop like regular
 +                // DOM events.
++                e.stopPropagation();
              },
-             continuePropagation () {
-                 shouldStopPropagation = false;
+-            continuePropagation () {
+-                shouldStopPropagation = false;
+-            }
++            continuePropagation () {}
+         };
+         handler(event);
+-        if (shouldStopPropagation) e.stopPropagation();
+     };
+ }
+ 
 diff --git a/src/createEventHandler.ts b/src/createEventHandler.ts
-index 5733c7e4221092879a6409ca983e919edff0da87..d748e49c5cda985cc5ae9f07edd7d2c7c7d6c874 100644
+index 5733c7e4221092879a6409ca983e919edff0da87..cb03a60028df9172451768e856dd614baf3a0b05 100644
 --- a/src/createEventHandler.ts
 +++ b/src/createEventHandler.ts
-@@ -32,7 +32,10 @@ export function createEventHandler<T extends SyntheticEvent>(handler: (e: BaseEv
+@@ -21,28 +21,41 @@ export function createEventHandler<T extends SyntheticEvent>(handler: (e: BaseEv
+     return;
+   }
+ 
+-  let shouldStopPropagation = true;
+   return (e: T) => {
+     let event: BaseEvent<T> = {
+       ...e,
+       preventDefault() {
+         e.preventDefault();
++
++        // NOTE(calebmer): We don't like the `react-spectrum` convention
++        // of `event.stopPropagation()` by default. With that convention
++        // `<GlobalKeyDownEvent>` doesn't work when focus is in a
++        // `react-spectrum` component! So we remove the default
++        // `event.stopPropagation()`.
++        //
++        // In order to avoid breaking `react-spectrum` components which,
++        // when `event.preventDefault()` is called we also call
++        // `event.stopPropagation()`.
++        //
++        // This is the same as putting
++        // `if (!event.isDefaultPrevented()) event.continuePropagation()`
++        // in every `react-spectrum` component which we'd do if we
++        // didn't have this patch.
++        e.stopPropagation();
+       },
+       isDefaultPrevented() {
          return e.isDefaultPrevented();
        },
        stopPropagation() {
@@ -104,9 +239,21 @@ index 5733c7e4221092879a6409ca983e919edff0da87..d748e49c5cda985cc5ae9f07edd7d2c7
 +        // `event.preventDefault()` and `event.stopPropagation()` for `keydown` events.
 +        // Don't warn when we do this. Treat repeat calls a noop like regular
 +        // DOM events.
++        e.stopPropagation();
        },
-       continuePropagation() {
-         shouldStopPropagation = false;
+-      continuePropagation() {
+-        shouldStopPropagation = false;
+-      }
++      continuePropagation() {}
+     };
+ 
+     handler(event);
+-
+-    if (shouldStopPropagation) {
+-      e.stopPropagation();
+-    }
+   };
+ }
 diff --git a/src/useFocusVisible.ts b/src/useFocusVisible.ts
 index 60fd6b5a77f5d9f26ffdb6e750e11a0cab6923e4..db1066703ef1c941ab6ee4c422b98931bf93c1f9 100644
 --- a/src/useFocusVisible.ts

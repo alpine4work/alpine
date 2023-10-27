@@ -1,15 +1,16 @@
 import {useDndContext} from "@dnd-kit/core";
 import {useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {TaskNotepadViewActiveSection} from "~/client/tasks/internal/task_notepad_view_active_section.js";
+import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_view_paginator.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     TaskGridViewVirtualizedListViewRef,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
-import {TaskNotepadViewActiveSection} from "~/client/tasks/internal/task_notepad_view_active_section.js";
-import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_view_paginator.js";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {
@@ -220,6 +221,8 @@ export function TaskNotepadView({
             getScrollOffset: () => assertExists(viewRef.current).getScrollOffset(),
             setScrollOffset: scrollOffset =>
                 assertExists(viewRef.current).setScrollOffset(scrollOffset),
+            scrollToIndex: (index, options) =>
+                assertExists(viewRef.current).scrollToIndex(index + 1, options),
             getRenderedRange: () =>
                 shiftRenderedRangeForGridView(assertExists(viewRef.current).getRenderedRange()),
             getKeyByIndexIfExists: index =>
@@ -256,6 +259,7 @@ export function TaskNotepadView({
         onRenderedRangeLayoutChange: onGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderGridViewItemIndexes,
         insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
+        onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(() => {
@@ -401,54 +405,56 @@ export function TaskNotepadView({
             })}
         >
             {gridViewModals}
-            <VirtualizedScrollView
-                ref={viewRef}
-                stateKey={gridViewStateKey}
-                bufferedItemHeight={gridViewBufferedItemHeight}
-                itemCount={1 + gridViewItemCount}
-                alwaysRenderAdditionalItemIndexes={useMemo(
-                    () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
-                    [alwaysRenderGridViewItemIndexes],
-                )}
-                insetScrollbarItemIndex={
-                    insetScrollbarGridViewItemIndex !== undefined
-                        ? insetScrollbarGridViewItemIndex + 1
-                        : undefined
-                }
-                renderItem={useCallback(
-                    index => {
-                        if (index === 0) {
-                            return {
-                                key: "ActiveCards",
-                                minHeight: "10.375rem",
-                                node: (
-                                    <TaskNotepadViewActiveSection
-                                        withMobileLayout={withMobileLayout}
-                                        assigneeActiveQuery={assigneeActiveQuery}
-                                        activeDraggableData={activeDraggableData}
-                                        overDroppableData={overDroppableData}
-                                    />
-                                ),
-                            };
-                        }
+            <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>
+                <VirtualizedScrollView
+                    ref={viewRef}
+                    stateKey={gridViewStateKey}
+                    bufferedItemHeight={gridViewBufferedItemHeight}
+                    itemCount={1 + gridViewItemCount}
+                    alwaysRenderAdditionalItemIndexes={useMemo(
+                        () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
+                        [alwaysRenderGridViewItemIndexes],
+                    )}
+                    insetScrollbarItemIndex={
+                        insetScrollbarGridViewItemIndex !== undefined
+                            ? insetScrollbarGridViewItemIndex + 1
+                            : undefined
+                    }
+                    renderItem={useCallback(
+                        index => {
+                            if (index === 0) {
+                                return {
+                                    key: "ActiveCards",
+                                    minHeight: "10.375rem",
+                                    node: (
+                                        <TaskNotepadViewActiveSection
+                                            withMobileLayout={withMobileLayout}
+                                            assigneeActiveQuery={assigneeActiveQuery}
+                                            activeDraggableData={activeDraggableData}
+                                            overDroppableData={overDroppableData}
+                                        />
+                                    ),
+                                };
+                            }
 
-                        return renderGridViewItem(index - 1);
-                    },
-                    [
-                        activeDraggableData,
-                        assigneeActiveQuery,
-                        overDroppableData,
-                        renderGridViewItem,
-                        withMobileLayout,
-                    ],
-                )}
-                onRenderedRangeChange={range => {
-                    onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));
-                }}
-                onRenderedRangeLayoutChange={range => {
-                    onGridViewRenderedRangeLayoutChange(shiftRenderedRangeForGridView(range));
-                }}
-            />
+                            return renderGridViewItem(index - 1);
+                        },
+                        [
+                            activeDraggableData,
+                            assigneeActiveQuery,
+                            overDroppableData,
+                            renderGridViewItem,
+                            withMobileLayout,
+                        ],
+                    )}
+                    onRenderedRangeChange={range => {
+                        onGridViewRenderedRangeChange(shiftRenderedRangeForGridView(range));
+                    }}
+                    onRenderedRangeLayoutChange={range => {
+                        onGridViewRenderedRangeLayoutChange(shiftRenderedRangeForGridView(range));
+                    }}
+                />
+            </GlobalKeyDownEvent>
         </Box>
     );
 }

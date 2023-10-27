@@ -265,9 +265,6 @@ export class TaskGridViewVirtualizedListState {
      * we maintain the cached value for those subtrees. Running this function on a
      * new tree is O(n) but running this function on an updated tree is O(log(n)).
      */
-    // NOTE(calebmer, 2023-09-06): The referenced `_getPreviousItemCount(iterator)`
-    // function is not currently implemented. See `VirtualizedScrollViewState` for
-    // a reference implementation.
     private _getSubtreeItemCount(
         node: TreeNode<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null> | null,
     ): number {
@@ -299,6 +296,58 @@ export class TaskGridViewVirtualizedListState {
         }
 
         return itemCount;
+    }
+
+    /**
+     * Get the item count of all entries before the node the iterator is
+     * looking at.
+     */
+    private _getPreviousItemCount(
+        iterator: TreeIterator<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>,
+    ): number {
+        if (!iterator.node) return 0;
+        let itemCount = this._getSubtreeItemCount(iterator.node.left);
+        const beforeOrderKey = iterator.node.key;
+
+        for (let i = iterator._stack.length - 2; i >= 0; i--) {
+            const parentNode = iterator._stack[i]!;
+
+            if (parentNode.key < beforeOrderKey) {
+                let valueItemCount: number;
+                if (parentNode.value === null) {
+                    valueItemCount = 1;
+                } else {
+                    valueItemCount =
+                        1 +
+                        (parentNode.value.childrenTree !== null
+                            ? this._getSubtreeItemCount(parentNode.value.childrenTree.tasks.root)
+                            : 0) +
+                        parentNode.value.unloadedChildTaskCount;
+                }
+
+                itemCount += valueItemCount;
+                itemCount += this._getSubtreeItemCount(parentNode.left);
+            }
+        }
+
+        return itemCount;
+    }
+
+    /**
+     * If the provided `TaskQuerySortCursor` exists in our state at the root level
+     * then return the index corresponding to the task. Otherwise return null.
+     */
+    public getIndexByRootCursorIfExists(cursor: TaskQuerySortCursor): number | null {
+        const iterator = this._tree?.tasks.find(cursor);
+        if (!iterator?.valid) return null;
+        return this._getPreviousItemCount(iterator);
+    }
+
+    /**
+     * Return the root query if our state has one.
+     */
+    public getRootQueryIfExists() {
+        return this._tree?.query ?? null;
     }
 
     /**

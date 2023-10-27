@@ -32,7 +32,7 @@ export type TaskCollectionSetAction = CrdtMapAction<TaskCollectionId, OrderKey>;
  *
  * Clients must take care to only render undeleted collections the current
  * account has access to out of this set. Trying to render everything may cause
- * problems. The `getDisplayTaskCollectionsStore()` function can help with this.
+ * problems. The `createDisplayTaskCollectionsStore()` function can help with this.
  *
  * [1]: https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type
  */
@@ -101,6 +101,10 @@ export class TaskCollectionSet {
 
     public has(collectionId: TaskCollectionId): boolean {
         return this._entries.has(collectionId);
+    }
+
+    public getOrderKey(collectionId: TaskCollectionId): OrderKey | undefined {
+        return this._entries.get(collectionId);
     }
 
     public getVersion(collectionId: TaskCollectionId): HybridLogicalTime | undefined {

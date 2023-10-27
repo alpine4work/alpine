@@ -237,7 +237,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
-    store.commitTaskActionTransaction(context, [action1]);
+    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task,
@@ -257,7 +257,7 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
-    store.commitTaskActionTransaction(context, [action2]);
+    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -2231,7 +2231,9 @@ test("references from optimistic task can be removed", async () => {
         new Set([collection1.id, collection2.id]),
     );
 
-    store.commitTaskActionTransaction(context, [action1, action2, action3, action4]);
+    store.commitTaskActionTransaction(context, [action1, action2, action3, action4], {
+        undoManager: null,
+    });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
         task1.id,
@@ -3766,7 +3768,7 @@ test("optimistic update retains task until resolved", async () => {
         task.id,
     ]);
 
-    store.commitTaskActionTransaction(context, [action3]);
+    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
 
     expect(store.getTaskCountForTest()).toEqual(1);
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
@@ -3867,7 +3869,7 @@ test("optimistic update retains task until rejected", async () => {
         task.id,
     ]);
 
-    store.commitTaskActionTransaction(context, [action3]);
+    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
 
     expect(store.getTaskCountForTest()).toEqual(1);
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);

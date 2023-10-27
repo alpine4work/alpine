@@ -1,22 +1,23 @@
 import {IconContext, Trash} from "phosphor-react";
 import {Memo, ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_entry_access_store.js";
+import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {TaskCollectionViewHeader} from "~/client/tasks/internal/task_collection_view_header.js";
+import {TaskQueryViewCustomizationBar} from "~/client/tasks/internal/task_query_view_customization_bar.js";
+import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     isTaskQueryManuallySorted,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
-import {TaskQueryViewCustomizationBar} from "~/client/tasks/internal/task_query_view_customization_bar.js";
-import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
@@ -255,6 +256,7 @@ export function TaskCollectionView({
         onRenderedRangeLayoutChange: onGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
         insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
+        onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
     } = useTaskGridViewVirtualizedList({
         capabilities: useMemo(
@@ -439,17 +441,19 @@ export function TaskCollectionView({
             })}
         >
             {gridViewModals}
-            <VirtualizedScrollView
-                ref={viewRef}
-                stateKey={gridViewStateKey}
-                bufferedItemHeight={gridViewBufferedItemHeight}
-                itemCount={gridViewItemCount}
-                alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
-                insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
-                renderItem={renderGridViewItem}
-                onRenderedRangeChange={onGridViewRenderedRangeChange}
-                onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
-            />
+            <GlobalKeyDownEvent onGlobalKeyDown={onGridViewGlobalKeyDown}>
+                <VirtualizedScrollView
+                    ref={viewRef}
+                    stateKey={gridViewStateKey}
+                    bufferedItemHeight={gridViewBufferedItemHeight}
+                    itemCount={gridViewItemCount}
+                    alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
+                    insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
+                    renderItem={renderGridViewItem}
+                    onRenderedRangeChange={onGridViewRenderedRangeChange}
+                    onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}
+                />
+            </GlobalKeyDownEvent>
         </Box>
     );
 }

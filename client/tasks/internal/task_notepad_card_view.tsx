@@ -198,6 +198,7 @@ function TaskNotepadCardView({
                 timeZone,
                 currentAccount,
                 store,
+                undoManager: null,
                 task,
             }),
         );

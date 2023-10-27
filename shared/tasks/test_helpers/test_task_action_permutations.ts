@@ -1856,7 +1856,7 @@ const taskActionTestCases: Array<{
         name: "add task to notepad page",
         create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
+            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -1914,7 +1914,7 @@ const taskActionTestCases: Array<{
         name: "add then remove task from notepad page",
         create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
+            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -1977,7 +1977,7 @@ const taskActionTestCases: Array<{
         name: "remove then add task from notepad page",
         create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
+            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
@@ -2047,7 +2047,7 @@ const taskActionTestCases: Array<{
         name: "only remove task from notepad page",
         create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
+            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
 
             return {
                 actions: [
@@ -2095,7 +2095,7 @@ const taskActionTestCases: Array<{
         name: "change task position in notepad page",
         create: ({creator, getNextTime}): TaskActionTestArtifacts => {
             const taskId = generateId<TaskId>();
-            const notepadPageId = generateTaskNotepadPageId();
+            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
             const time1 = getNextTime();
             const time2 = getNextTime();
             const time3 = getNextTime();
