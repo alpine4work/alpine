@@ -2,6 +2,7 @@ import {Node} from "prosemirror-model";
 import {yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {
     TaskTitle,
@@ -26,6 +27,12 @@ export function addFallbackToTaskTitle(title: string): string {
     return title.trim().length > 0 ? title : taskFallbackTitle;
 }
 
+export type TaskTitleYDoc = Y.Doc & {
+    getUndoManager(): Y.UndoManager;
+    retain(): void;
+    release(): void;
+};
+
 /**
  * Model object representing a task's title.
  *
@@ -44,7 +51,7 @@ export class TaskTitleModel {
         readonly titleUpdate: TaskTitleUpdate;
     } | null = null;
 
-    private _preparedYDoc: (Y.Doc & {release: () => void}) | null = null;
+    private _preparedYDoc: TaskTitleYDoc | null = null;
     private _prosemirrorNode: Node | null = null;
 
     public static empty = new Lazy(() => TaskTitleModel.new(emptyTaskTitle.get()));
@@ -128,24 +135,66 @@ export class TaskTitleModel {
         return this._previousUpdate;
     }
 
-    private _createYDoc(): Y.Doc & {release: () => void} {
+    private _createAndRetainYDoc(): TaskTitleYDoc {
         const yDoc = new Y.Doc({guid: getYDocGuid()});
         Y.applyUpdateV2(yDoc, this.raw);
 
         let hasUpdated = false;
 
         const handleUpdate = () => {
+            if (this._preparedYDoc === yDoc) this._preparedYDoc = null;
             hasUpdated = true;
             yDoc.off("updateV2", handleUpdate);
         };
 
         yDoc.on("updateV2", handleUpdate);
 
+        let yUndoManager: Y.UndoManager | null = null;
+
+        const destroyYDoc = yDoc.destroy.bind(yDoc);
+        let destroyYUndoManager: (() => void) | null = null;
+
+        yDoc.destroy = () => {
+            // Noop. Can only destroy by calling `release()`.
+        };
+
+        (yDoc as any).getUndoManager = () => {
+            if (yUndoManager === null) {
+                yUndoManager = new Y.UndoManager(yDoc.getXmlFragment("doc"));
+
+                destroyYUndoManager = yUndoManager.destroy.bind(yUndoManager);
+
+                yUndoManager.destroy = () => {
+                    // Noop. Can only destroy by calling `release()`. This prevents an issue with
+                    // `y-prosemirror`'s `yUndoPlugin()` prematurely trying to destroy our undo
+                    // manager which needs to live after the component unmounts.
+                };
+            }
+
+            return yUndoManager;
+        };
+
+        let referenceCount = 1;
+
+        (yDoc as any).retain = () => {
+            assert(referenceCount > 0);
+            referenceCount++;
+        };
+
         (yDoc as any).release = () => {
-            if (!hasUpdated && this._preparedYDoc === null) {
-                this._preparedYDoc = yDoc as any;
-            } else {
-                yDoc.destroy();
+            assert(referenceCount > 0);
+            referenceCount--;
+
+            if (referenceCount === 0) {
+                if (!hasUpdated && this._preparedYDoc === null) {
+                    // If we're saving this for later it receives a new reference.
+                    referenceCount++;
+
+                    this._preparedYDoc = yDoc as any;
+                } else {
+                    destroyYDoc();
+                    destroyYUndoManager?.();
+                }
             }
         };
 
@@ -158,20 +207,20 @@ export class TaskTitleModel {
      *
      * The `Y.Doc` we return has a `release()` function. If no changes were made to
      * the `Y.Doc` then releasing will put it back in our `TaskTitleModel` so the
-     * next person who calls `createYDoc()` gets the already existing object
-     * without needing to create a new one. This is nice in our virtualized list
-     * when scrolling since we can reuse `Y.Doc`s after a task is scrolled
+     * next person who calls `createAndRetainYDoc()` gets the already existing
+     * object without needing to create a new one. This is nice in our virtualized
+     * list when scrolling since we can reuse `Y.Doc`s after a task is scrolled
      * offscreen then back onscreen. You should not use the `Y.Doc` after calling
      * `release()`!
      */
-    public createYDoc(): Y.Doc & {release: () => void} {
+    public createAndRetainYDoc(): TaskTitleYDoc {
         if (this._preparedYDoc !== null) {
             const yDoc = this._preparedYDoc;
             this._preparedYDoc = null;
             return yDoc;
         }
 
-        const yDoc = this._createYDoc();
+        const yDoc = this._createAndRetainYDoc();
 
         // Initialize the ProseMirror node when we create a `Y.Doc` so it's ready
         // for later.
@@ -193,7 +242,7 @@ export class TaskTitleModel {
     public getProsemirrorNode(): Node {
         if (this._prosemirrorNode === null) {
             if (this._preparedYDoc === null) {
-                this._preparedYDoc = this._createYDoc();
+                this._preparedYDoc = this._createAndRetainYDoc();
             }
 
             this._prosemirrorNode = yXmlFragmentToProsemirror(

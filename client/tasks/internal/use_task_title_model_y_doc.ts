@@ -1,20 +1,21 @@
-import {useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import * as Y from "yjs";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
-import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {TaskTitleModel, TaskTitleYDoc} from "~/shared/tasks/model/task_title_model.js";
 import {TaskTitle, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 function createYDocState(title: TaskTitleModel): {
-    doc: Y.Doc & {release: () => void};
+    doc: TaskTitleYDoc;
     matches: {
         rawTitle: TaskTitle;
         titleUpdate: TaskTitleUpdate | null;
     } | null;
 } {
     return {
-        doc: title.createYDoc(),
+        doc: title.createAndRetainYDoc(),
         matches: {
             rawTitle: title.raw,
             titleUpdate: null,
@@ -31,17 +32,36 @@ const titleEffectTransactionOrigin = Symbol("titleEffectTransactionOrigin");
  * returns a `Y.Doc` that you can use with a `y-prosemirror` text editor that
  * we make sure always has the same underlying value as the provided title.
  */
-export function useTaskTitleModelYDoc(
-    title: TaskTitleModel,
-    onTitleUpdate: (titleUpdate: TaskTitleUpdate) => void,
-): Y.Doc {
+export function useTaskTitleModelYDoc({
+    title,
+    onTitleChange,
+    pushUndoStackYDocEntry,
+    pushUndoStackYDocEntryFromRedo,
+    pushRedoStackYDocEntry,
+}: {
+    title: TaskTitleModel;
+    onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
+    pushUndoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
+    pushUndoStackYDocEntryFromRedo: (entry: {
+        yUndoManager: Y.UndoManager;
+        release: () => void;
+    }) => void;
+    pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
+}): TaskTitleYDoc {
     const [yDocState, setYDocState] = useState(() => createYDocState(title));
+    const mountedYDocRef = useRef<Y.Doc | null>(null);
 
     const titleRef = useRef(title);
-    const onTitleUpdateRef = useRef(onTitleUpdate);
+    const events = {
+        onTitleChange,
+        pushUndoStackYDocEntry,
+        pushUndoStackYDocEntryFromRedo,
+        pushRedoStackYDocEntry,
+    };
+    const eventsRef = useRef(events);
     useLayoutEffectWithoutServerSideWarning(() => {
         titleRef.current = title;
-        onTitleUpdateRef.current = onTitleUpdate;
+        eventsRef.current = events;
     });
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -123,7 +143,7 @@ export function useTaskTitleModelYDoc(
             // `scheduleMicrotask()` below will believe `yDoc` is out-of-sync with the
             // `title` prop.
             runWithImmediatePriority(() => {
-                onTitleUpdateRef.current(titleUpdate);
+                eventsRef.current.onTitleChange(titleUpdate);
             });
 
             // Wait for after the next React render. Because of
@@ -142,10 +162,12 @@ export function useTaskTitleModelYDoc(
             });
         };
 
+        mountedYDocRef.current = yDocState.doc;
         yDocState.doc.on("updateV2", handleUpdate);
 
         return () => {
             isUnsubscribed = true;
+            mountedYDocRef.current = null;
             yDocState.doc.off("updateV2", handleUpdate);
 
             // We are done using this doc. Release it back to the `TaskTitleModel` to be
@@ -153,6 +175,99 @@ export function useTaskTitleModelYDoc(
             yDocState.doc.release();
         };
     }, [yDocState]);
+
+    // Y.js supports undo through the `Y.UndoManager` class. This class is designed
+    // to exclusively control the undo stack for one big `Y.Doc`. Instead we have
+    // many small `Y.Doc`s that we need to globally control the undo stack across.
+    //
+    // We create a `Y.UndoManager` for each `Y.Doc`. When we see that
+    // `Y.UndoManager` has added an entry (the `stack-item-added` event), we add an
+    // entry to our global undo stack (with `pushUndoStackYDocEntry()`). When the
+    // user hits cmd-z and a `Y.UndoManager` entry is next in the stack we call
+    // `undoManager.undo()`. The smaller `Y.UndoManager` undo stack aligns with our
+    // global undo stack.
+    //
+    // So how does the data get saved on the server? Well, the `updateV2` event
+    // above is fired which calls `onTitleChange()`. That is, if this hook is
+    // mounted! If the hook is NOT mounted, we have keep an `updateV2` listener in
+    // the effect below while our undo stack entries are retained. If our hook has
+    // unmounted then the effect below is responsible for calling
+    // `onTitleChange()`. We may have since created a new `Y.Doc` for the same
+    // task. This `Y.Doc` will receive the update as if it were an update from the
+    // server.
+    useEffect(() => {
+        const undoManager = yDocState.doc.getUndoManager();
+
+        let referenceCount = 1;
+
+        const handleStackItemAdded = ({type, origin}: {type: "undo" | "redo"; origin: unknown}) => {
+            // Hold on to the `Y.Doc` while we have an undo entry in our stack.
+            yDocState.doc.retain();
+            referenceCount++;
+
+            let hasReleased = false;
+
+            const release = () => {
+                assert(!hasReleased);
+                hasReleased = true;
+
+                yDocState.doc.release();
+
+                referenceCount--;
+
+                if (referenceCount === 0) {
+                    undoManager.off("stack-item-added", handleStackItemAdded);
+                    yDocState.doc.off("updateV2", handleUpdate);
+                }
+            };
+
+            if (type === "undo") {
+                // If this is an undo of a redo we need to call the `FromRedo` variant which
+                // doesn't reset our redo stack.
+                if (origin instanceof Y.UndoManager) {
+                    eventsRef.current.pushUndoStackYDocEntryFromRedo({
+                        yUndoManager: undoManager,
+                        release,
+                    });
+                } else {
+                    eventsRef.current.pushUndoStackYDocEntry({
+                        yUndoManager: undoManager,
+                        release,
+                    });
+                }
+            } else {
+                eventsRef.current.pushRedoStackYDocEntry({
+                    yUndoManager: undoManager,
+                    release,
+                });
+            }
+        };
+
+        const handleUpdate = (titleUpdate: TaskTitleUpdate, transactionOrigin: unknown) => {
+            // Only handle updates when the `Y.Doc` we're tracking history for is
+            // unmounted! If the `Y.Doc` we're tracking history for is mounted then the
+            // effect above will handle updates.
+            if (mountedYDocRef.current === yDocState.doc) return;
+
+            // Only handle updates that come from our undo manager. So `undoManager.undo()`
+            // and `undoManager.redo()` calls.
+            if (transactionOrigin !== undoManager) return;
+
+            eventsRef.current.onTitleChange(titleUpdate);
+        };
+
+        undoManager.on("stack-item-added", handleStackItemAdded);
+        yDocState.doc.on("updateV2", handleUpdate);
+
+        return () => {
+            referenceCount--;
+
+            if (referenceCount === 0) {
+                undoManager.off("stack-item-added", handleStackItemAdded);
+                yDocState.doc.off("updateV2", handleUpdate);
+            }
+        };
+    }, [yDocState.doc]);
 
     return yDocState.doc;
 }

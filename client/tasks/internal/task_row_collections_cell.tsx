@@ -12,6 +12,7 @@ import {
     useState,
 } from "react";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
@@ -22,7 +23,7 @@ import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.j
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
+import {TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
@@ -41,6 +42,7 @@ import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 export type TaskRowCollectionsCellRef = {
     focusCell(): void;
     focusCellInputStart(): void;
+    isFocusWithinCell(): boolean;
 };
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -108,7 +110,7 @@ function TaskRowCollectionsCell(
     }: {
         isReadOnly: boolean;
         query: TaskClientQuery;
-        undoManager: TaskClientUndoManager;
+        undoManager: TaskClientStoreUndoManager;
         task: TaskModel | null;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
@@ -168,6 +170,9 @@ function TaskRowCollectionsCell(
                     withinElement: assertExists(cellRef.current),
                 })?.focus();
             },
+            isFocusWithinCell: () =>
+                !!document.activeElement &&
+                isElementOwnedBy(assertExists(cellRef.current), document.activeElement),
         }),
         [],
     );

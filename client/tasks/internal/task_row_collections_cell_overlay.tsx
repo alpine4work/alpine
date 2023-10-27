@@ -4,7 +4,7 @@ import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_input.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
+import {TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
@@ -29,7 +29,7 @@ export function TaskRowCollectionsCellOverlay({
 }: {
     isReadOnly: boolean;
     query: TaskClientQuery;
-    undoManager: TaskClientUndoManager;
+    undoManager: TaskClientStoreUndoManager;
     task: TaskModel | null;
     focusPreviousCell: () => void;
     cellRef: RefObject<HTMLDivElement>;

@@ -38,7 +38,7 @@ import {
 } from "~/client/tasks/internal/task_collection_combo_box_base.js";
 import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
+import {TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -88,7 +88,7 @@ export function TaskCollectionsInput({
     commitActionTransaction: _commitActionTransaction,
 }: {
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
-    undoManager: TaskClientUndoManager;
+    undoManager: TaskClientStoreUndoManager;
     task: TaskModel | null;
     "aria-label"?: string;
     "aria-labelledby"?: string;

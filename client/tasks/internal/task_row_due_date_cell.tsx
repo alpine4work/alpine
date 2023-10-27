@@ -17,6 +17,7 @@ import {
     getLastFocusableElementIfExists,
     getNextFocusableElementIfExists,
 } from "~/client/design/helpers/get_next_focusable_element.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -41,6 +42,7 @@ export type TaskRowDueDateCellRef = {
     focusCell(): void;
     focusCellInputStart(): void;
     focusCellInputEnd(): void;
+    isFocusWithinCell(): boolean;
 };
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -175,6 +177,9 @@ function TaskRowDueDateCell(
                     withinElement: assertExists(cellRef.current).lastElementChild,
                 })?.focus();
             },
+            isFocusWithinCell: () =>
+                !!document.activeElement &&
+                isElementOwnedBy(assertExists(cellRef.current), document.activeElement),
         }),
         [],
     );

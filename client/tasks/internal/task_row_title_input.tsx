@@ -15,7 +15,8 @@ import {
     useState,
 } from "react";
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
-import {ySyncPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
+import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
+import * as Y from "yjs";
 import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
@@ -197,6 +198,9 @@ function TaskRowTitleInput(
         focusLastVisibleTaskTitleEnd,
         focusNextCell,
         focusPreviousCell,
+        pushUndoStackYDocEntry,
+        pushUndoStackYDocEntryFromRedo,
+        pushRedoStackYDocEntry,
     }: {
         capabilities: TaskGridViewCapabilities;
         stateKey: Key | undefined;
@@ -223,6 +227,12 @@ function TaskRowTitleInput(
         focusLastVisibleTaskTitleEnd: () => void;
         focusNextCell: () => void;
         focusPreviousCell: () => void;
+        pushUndoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
+        pushUndoStackYDocEntryFromRedo: (entry: {
+            yUndoManager: Y.UndoManager;
+            release: () => void;
+        }) => void;
+        pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
     },
     ref: Ref<TaskRowTitleInputRef>,
 ) {
@@ -250,7 +260,13 @@ function TaskRowTitleInput(
     >({isReady: false, callbacks: new Set()});
     const childTasksButtonRef = useRef<TaskRowTitleChildTasksButtonRef>(null);
 
-    const titleYDoc = useTaskTitleModelYDoc(title, onTitleChange);
+    const titleYDoc = useTaskTitleModelYDoc({
+        title,
+        onTitleChange,
+        pushUndoStackYDocEntry,
+        pushUndoStackYDocEntryFromRedo,
+        pushRedoStackYDocEntry,
+    });
 
     const handleKeyDown = (view: EditorView, event: KeyboardEvent) => {
         switch (event.key) {
@@ -523,6 +539,10 @@ function TaskRowTitleInput(
             // Don't render a scrollbar with our row title input.
             viewElement.dataset.scrollbar = "false";
 
+            // Make sure our undo manager sees transactions originating from our
+            // `EditorView`.
+            titleYDoc.getUndoManager().addTrackedOrigin(ySyncPluginKey);
+
             const view = new EditorView(
                 {mount: viewElement},
                 {
@@ -531,7 +551,13 @@ function TaskRowTitleInput(
                         // Make sure we start with the correct initial document. After this the
                         // `ySyncPlugin` manages document state.
                         doc: yXmlFragmentToProsemirror(TaskTitleProsemirrorSchema, yXmlFragment),
-                        plugins: [ySyncPlugin(yXmlFragment)],
+                        plugins: [
+                            ySyncPlugin(yXmlFragment),
+                            // We install the Y.js undo plugin but we don't install the `undo`/`redo`
+                            // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
+                            // registers us with our global undo stack.
+                            yUndoPlugin({undoManager: titleYDoc.getUndoManager()}),
+                        ],
                     }),
 
                     // We add this prop to `prosemirror-view` with a patch. With this prop when the

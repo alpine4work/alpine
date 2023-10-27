@@ -15,12 +15,14 @@ import {
     useState,
 } from "react";
 import {mergeProps} from "react-aria";
+import * as Y from "yjs";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -69,14 +71,16 @@ import {TaskStatusButton} from "~/client/tasks/internal/task_status_button.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStoreUndoManager,
+    TaskClientStoreUpdateTitleActionTransactionBuilder,
+} from "~/client/tasks/task_client_store.js";
 import {TaskGridViewDraggableData} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     taskRowViewFirstColumnExtraPaddingLeft,
     taskRowViewMinHeight,
     taskRowViewPaddingX,
 } from "~/client/tasks/task_row_shared_styles.js";
-import {Context} from "~/shared/context/context.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -85,7 +89,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
-import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
@@ -140,6 +143,7 @@ export type TaskRowViewRef = {
     focusTitleCoord(coord: number, side: "top" | "bottom"): void;
     focusTitleSelection(selection: Selection): void;
     focusCell(column: TaskGridViewColumn): void;
+    isFocusWithinCell(column: TaskGridViewColumn): boolean;
 };
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -233,13 +237,16 @@ function TaskRowView(
         focusFirstVisibleTaskCell,
         focusLastVisibleTaskTitleEnd,
         focusLastVisibleTaskCell,
+        pushUndoStackYDocEntry,
+        pushUndoStackYDocEntryFromRedo,
+        pushRedoStackYDocEntry,
         setRowZIndex,
     }: {
         capabilities: TaskGridViewCapabilities;
         stateKey: Key | undefined;
         query: TaskClientQuery;
         isQueryManuallySorted: boolean;
-        undoManager: TaskClientUndoManager;
+        undoManager: TaskClientStoreUndoManager;
         cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
@@ -281,6 +288,12 @@ function TaskRowView(
         focusFirstVisibleTaskCell: (column: TaskGridViewColumn) => void;
         focusLastVisibleTaskTitleEnd: () => void;
         focusLastVisibleTaskCell: (column: TaskGridViewColumn) => void;
+        pushUndoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
+        pushUndoStackYDocEntryFromRedo: (entry: {
+            yUndoManager: Y.UndoManager;
+            release: () => void;
+        }) => void;
+        pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
         setRowZIndex: Memo<(zIndex: number) => () => void>;
     },
     ref: Ref<TaskRowViewRef>,
@@ -335,12 +348,7 @@ function TaskRowView(
         useStore((task?.getChildTaskCount() ?? 0) > 0 ? areChildTasksExpandedStore : null) ?? false;
 
     const titleCommitStateRef = useRef<{
-        pendingActionTransactionBuilder: {
-            add: (titleUpdate: TaskTitleUpdate) => void;
-            commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
-                finally: (callback: () => void) => void;
-            };
-        } | null;
+        pendingActionTransactionBuilder: TaskClientStoreUpdateTitleActionTransactionBuilder | null;
     } | null>(null);
 
     const onTitleChange = (titleUpdate: TaskTitleUpdate) => {
@@ -377,6 +385,7 @@ function TaskRowView(
                     query.store.getTaskUpdateTitleActionTransactionBuilder(
                         assertExists(taskId ?? ghostTaskId),
                         titleUpdate,
+                        {undoManager},
                     );
             }
             return;
@@ -438,6 +447,7 @@ function TaskRowView(
         focusTitleSelection,
         focusCell,
         focusCellInput,
+        isFocusWithinCell,
         focusNextCell,
         focusPreviousCell,
         handleCellKeyDown,
@@ -545,6 +555,53 @@ function TaskRowView(
                 case "Collections": {
                     assertExists(collectionsCellRef.current).focusCellInputStart();
                     return;
+                }
+                default:
+                    throw exhaustive(column);
+            }
+        },
+
+        isFocusWithinCell: (column: TaskGridViewColumn): boolean => {
+            // If a column isn't rendered, focus definitely isn't within. This allows us to
+            // safely assert that our cell refs exist.
+            if (!columns.includes(column)) return false;
+
+            switch (column) {
+                case "ExpandButton": {
+                    return (
+                        !!document.activeElement &&
+                        isElementOwnedBy(
+                            assertExists(expandButtonRef.current),
+                            document.activeElement,
+                        )
+                    );
+                }
+                case "StatusButton": {
+                    return (
+                        !!document.activeElement &&
+                        isElementOwnedBy(
+                            assertExists(statusButtonRef.current),
+                            document.activeElement,
+                        )
+                    );
+                }
+                case "Title": {
+                    return (
+                        !!document.activeElement &&
+                        isElementOwnedBy(assertExists(titleCellRef.current), document.activeElement)
+                    );
+                }
+                case "Assignee": {
+                    return assertExists(assigneeCellRef.current).isFocusWithinCell();
+                }
+                case "Priority": {
+                    return assertExists(priorityCellRef.current).isFocusWithinCell();
+                }
+                case "DueDate": {
+                    return assertExists(dueDateCellRef.current).isFocusWithinCell();
+                }
+                case "Collections": {
+                    return assertExists(collectionsCellRef.current).isFocusWithinCell();
                 }
                 default:
                     throw exhaustive(column);
@@ -852,6 +909,7 @@ function TaskRowView(
         focusTitleCoord,
         focusTitleSelection,
         focusCell,
+        isFocusWithinCell,
     }));
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -1342,6 +1400,9 @@ function TaskRowView(
                         focusLastVisibleTaskTitleEnd={focusLastVisibleTaskTitleEnd}
                         focusNextCell={() => focusNextCell("Title")}
                         focusPreviousCell={() => focusPreviousCell("Title")}
+                        pushUndoStackYDocEntry={pushUndoStackYDocEntry}
+                        pushUndoStackYDocEntryFromRedo={pushUndoStackYDocEntryFromRedo}
+                        pushRedoStackYDocEntry={pushRedoStackYDocEntry}
                     />
                 </div>
             </FocusRing>
@@ -1485,7 +1546,7 @@ function TaskRowViewDragHandle({
     getMaybeRemoveTaskFromQueryActions,
     isHovered,
 }: {
-    undoManager: TaskClientUndoManager;
+    undoManager: TaskClientStoreUndoManager;
     task: TaskModel | null;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     isHovered: boolean;

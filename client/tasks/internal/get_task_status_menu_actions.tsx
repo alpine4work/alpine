@@ -1,7 +1,7 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
-import {TaskClientStore, TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
@@ -20,7 +20,7 @@ export function getTaskStatusMenuActions({
     timeZone: TimeZone;
     currentAccount: AccountModel;
     store: TaskClientStore;
-    undoManager: TaskClientUndoManager | null;
+    undoManager: TaskClientStoreUndoManager | null;
     task: TaskModel;
 }): ReadonlyArray<MenuAction> {
     const displayStatus = task.getDisplayStatus();

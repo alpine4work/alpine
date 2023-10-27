@@ -362,7 +362,10 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateTitle": {
-                        // NOCOMMIT
+                        // Title undo is not handled by generating inverted actions. We need to use
+                        // `Y.UndoManager`. We use that class instead of trying to generate inverted
+                        // updates since `Y.UndoManager` makes sure selection is properly set after
+                        // an undo among other things.
                         return null;
                     }
                     case "UpdateDueDate": {

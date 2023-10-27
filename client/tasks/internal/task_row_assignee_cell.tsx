@@ -12,6 +12,7 @@ import {
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
@@ -39,6 +40,7 @@ import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 export type TaskRowAssigneeCellRef = {
     focusCell(): void;
     focusCellInput(): void;
+    isFocusWithinCell(): boolean;
 };
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -167,6 +169,9 @@ function TaskRowAssigneeCell(
                     assertExists(inputRef.current).focus();
                 }
             },
+            isFocusWithinCell: () =>
+                !!document.activeElement &&
+                isElementOwnedBy(assertExists(cellRef.current), document.activeElement),
         }),
         [isReadOnly],
     );

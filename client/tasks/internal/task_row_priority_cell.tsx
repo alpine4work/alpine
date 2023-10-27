@@ -10,6 +10,7 @@ import {
     useState,
 } from "react";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {getTaskPriorityName} from "~/client/tasks/internal/get_task_priority_name.js";
@@ -35,6 +36,7 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
 export type TaskRowPriorityCellRef = {
     focusCell(): void;
     focusCellInput(): void;
+    isFocusWithinCell(): boolean;
 };
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -154,6 +156,9 @@ function TaskRowPriorityCell(
                     assertExists(inputRef.current).focus();
                 }
             },
+            isFocusWithinCell: () =>
+                !!document.activeElement &&
+                isElementOwnedBy(assertExists(cellRef.current), document.activeElement),
         }),
         [isReadOnly],
     );

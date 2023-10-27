@@ -10,7 +10,7 @@ import {TaskAssigneeInput} from "~/client/tasks/internal/task_assignee_input.js"
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskPriorityInput} from "~/client/tasks/internal/task_priority_input.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
-import {TaskClientStore, TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {tasksStyles} from "~/shared/styles/styles.js";
@@ -39,7 +39,7 @@ function TaskRowViewDenseFields(
     }: {
         isReadOnly: boolean;
         store: TaskClientStore;
-        undoManager: TaskClientUndoManager;
+        undoManager: TaskClientStoreUndoManager;
         task: TaskModel;
         marginLeft: RemLength;
         focusTitleEnd: () => void;

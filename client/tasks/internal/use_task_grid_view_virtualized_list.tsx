@@ -20,6 +20,7 @@ import {
     useRef,
     useState,
 } from "react";
+import * as Y from "yjs";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
@@ -53,8 +54,12 @@ import {
 } from "~/client/tasks/internal/task_row_view.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskGridViewExpansionState} from "~/client/tasks/internal/use_task_grid_view_expansion_state.js";
+import {
+    TaskUndoStackEntry,
+    useTaskUndoStackState,
+} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientUndoManager} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {useHasTaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     taskRowViewCollectionsColumnWidth,
@@ -92,6 +97,7 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {LinkedList} from "~/shared/helpers/immutable/linked_list.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars, spinAnimationClassName, tasksStyles} from "~/shared/styles/styles.js";
@@ -115,6 +121,8 @@ import {
 // - Undo action that hid task
 // - Undo in virtualized scroll view
 // - Undo across peek and content underneath
+// - Type in task title, scroll it offscreen, scroll it back onscreen,
+//   undo/redo
 // - Write tests for drag-and-drop
 // - Editing task row cells
 // - Editing task detail view fields
@@ -215,6 +223,7 @@ const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, 
  */
 export function useTaskGridViewVirtualizedList({
     capabilities,
+    store,
     query: rootQueryWithInitialState,
     viewRef,
     getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
@@ -225,6 +234,7 @@ export function useTaskGridViewVirtualizedList({
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
+    store: TaskClientStore;
     query: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
@@ -612,83 +622,43 @@ export function useTaskGridViewVirtualizedList({
      *                                 Undo/Redo                                  *
     \* ========================================================================== */
 
-    const [undoState] = useStateWithDependencies(
-        rootQuery => ({
-            undoStackRef: cast<
-                MutableRefObject<
-                    Array<{
-                        rootParentTaskId: TaskId;
-                        undoActions: TaskUndoActions;
-                        release: () => void;
-                    }>
-                >
-            >({current: []}),
-            redoStackRef: cast<
-                MutableRefObject<
-                    Array<{
-                        rootParentTaskId: TaskId;
-                        undoActions: TaskUndoActions;
-                        release: () => void;
-                    }>
-                >
-            >({current: []}),
-        }),
+    const {
+        pushUndoStackEntry,
+        pushUndoStackEntryFromRedo,
+        pushRedoStackEntry,
+        popUndoStackEntry,
+        popRedoStackEntry,
+    } = useTaskUndoStackState({
+        clock: store.clock,
         // Whenever the query changes we reset our undo stack. If the query changes
         // it's unlikely we'll find the tasks the user was previously operating on so
         // we can't scroll to them.
-        [rootQuery],
-    );
-
-    // Clear the undo stack when the component unmounts. Undo stack entries may
-    // retain some data.
-    useEffect(() => {
-        return () => {
-            for (const entry of undoState.undoStackRef.current) entry.release();
-            undoState.undoStackRef.current = [];
-
-            for (const entry of undoState.redoStackRef.current) entry.release();
-            undoState.redoStackRef.current = [];
-        };
-    }, [undoState.redoStackRef, undoState.undoStackRef]);
-
-    const registerUndoActions = (entry: {
-        rootParentTaskId: TaskId;
-        undoActions: TaskUndoActions;
-        release: () => void;
-    }) => {
-        // Any action that's not an undo or redo clears our redo stack.
-        for (const oldEntry of undoState.redoStackRef.current) oldEntry.release();
-        undoState.redoStackRef.current = [];
-
-        undoState.undoStackRef.current.push(entry);
-    };
+        stateKey,
+    });
 
     const applyUndoStackEntry = (
-        undoStackEntry: {
-            rootParentTaskId: TaskId;
-            undoActions: TaskUndoActions;
-        },
+        type: "Undo" | "Redo",
+        entry: DistributiveOmit<TaskUndoStackEntry, "release">,
         {
-            registerUndoActions,
+            pushUndoStackEntry,
         }: {
-            registerUndoActions: (entry: {
-                undoActions: TaskUndoActions;
-                release: () => void;
-            }) => void;
+            pushUndoStackEntry: (entry: {actions: TaskUndoActions; release: () => void}) => void;
         },
     ) => {
         const view = assertExists(viewRef.current);
 
         if (!rootQuery) return false;
 
-        const undoActions = undoStackEntry.undoActions.get(rootQuery.store.clock);
-        const target = getTaskUndoActionsGridViewTargetIfExists(undoActions);
+        const target: {taskId: TaskId; column: TaskGridViewColumn} | null =
+            entry.type === "Actions"
+                ? getTaskUndoActionsGridViewTargetIfExists(entry.actions.getWithOldTimes())
+                : {taskId: entry.taskId, column: "Title"};
         if (!target) return false;
 
         const startIndex = findTaskIndexInGridViewVirtualizedListIfExists({
             state,
             iterateRootExpandedTaskIds,
-            rootParentTaskId: undoStackEntry.rootParentTaskId,
+            rootParentTaskId: entry.rootParentTaskId,
             taskId: target.taskId,
         });
 
@@ -716,16 +686,33 @@ export function useTaskGridViewVirtualizedList({
         // we handle.
         if (startIndex === null) return false;
 
-        rootQuery.store.commitTaskActionTransaction(context, undoActions, {
-            undoManager: {registerUndoActions},
-        });
+        switch (entry.type) {
+            case "Actions": {
+                rootQuery.store.commitTaskActionTransaction(
+                    context,
+                    entry.actions.get(store.clock),
+                    {undoManager: {pushUndoStackEntry}},
+                );
+                break;
+            }
+            case "YDoc": {
+                if (type === "Undo") {
+                    entry.yUndoManager.undo();
+                } else {
+                    entry.yUndoManager.redo();
+                }
+                break;
+            }
+            default:
+                throw exhaustive(entry);
+        }
 
         const endIndex = findTaskIndexInGridViewVirtualizedListIfExists({
             // `stateStore` will have updated after the commit above but `state` will still
             // be the old value.
             state: stateStore.getSnapshot(),
             iterateRootExpandedTaskIds,
-            rootParentTaskId: undoStackEntry.rootParentTaskId,
+            rootParentTaskId: entry.rootParentTaskId,
             taskId: target.taskId,
         });
 
@@ -744,8 +731,11 @@ export function useTaskGridViewVirtualizedList({
 
                 const taskRow = events.getTaskRowByIndexIfExists(index);
                 if (taskRow) {
-                    setInteractionModality("keyboard");
-                    taskRow.focusCell(target.column);
+                    // If focus is already within the cell then don't focus again.
+                    if (!taskRow.isFocusWithinCell(target.column)) {
+                        setInteractionModality("keyboard");
+                        taskRow.focusCell(target.column);
+                    }
                 } else {
                     requestAnimationFrame(attempt);
                 }
@@ -778,29 +768,25 @@ export function useTaskGridViewVirtualizedList({
         return true;
     };
 
-    // NOCOMMIT: Ghost task?
     const undo = () => {
         // Keep trying to undo until we find an entry we can apply.
         while (true) {
-            const undoStackEntry = undoState.undoStackRef.current.pop();
+            const undoStackEntry = popUndoStackEntry();
             if (!undoStackEntry) break;
 
-            try {
-                if (
-                    applyUndoStackEntry(undoStackEntry, {
-                        registerUndoActions: ({undoActions, release}) => {
-                            undoState.redoStackRef.current.push({
-                                rootParentTaskId: undoStackEntry.rootParentTaskId,
-                                undoActions,
-                                release,
-                            });
-                        },
-                    })
-                ) {
-                    break;
-                }
-            } finally {
-                undoStackEntry.release();
+            if (
+                applyUndoStackEntry("Undo", undoStackEntry, {
+                    pushUndoStackEntry: entry => {
+                        pushRedoStackEntry({
+                            type: "Actions",
+                            rootParentTaskId: undoStackEntry.rootParentTaskId,
+                            actions: entry.actions,
+                            release: entry.release,
+                        });
+                    },
+                })
+            ) {
+                break;
             }
         }
     };
@@ -808,25 +794,22 @@ export function useTaskGridViewVirtualizedList({
     const redo = () => {
         // Keep trying to redo until we find an entry we can apply.
         while (true) {
-            const undoStackEntry = undoState.redoStackRef.current.pop();
+            const undoStackEntry = popRedoStackEntry();
             if (!undoStackEntry) break;
 
-            try {
-                if (
-                    applyUndoStackEntry(undoStackEntry, {
-                        registerUndoActions: ({undoActions, release}) => {
-                            undoState.undoStackRef.current.push({
-                                rootParentTaskId: undoStackEntry.rootParentTaskId,
-                                undoActions,
-                                release,
-                            });
-                        },
-                    })
-                ) {
-                    break;
-                }
-            } finally {
-                undoStackEntry.release();
+            if (
+                applyUndoStackEntry("Redo", undoStackEntry, {
+                    pushUndoStackEntry: entry => {
+                        pushUndoStackEntryFromRedo({
+                            type: "Actions",
+                            rootParentTaskId: undoStackEntry.rootParentTaskId,
+                            actions: entry.actions,
+                            release: entry.release,
+                        });
+                    },
+                })
+            ) {
+                break;
             }
         }
     };
@@ -878,7 +861,9 @@ export function useTaskGridViewVirtualizedList({
 
         getState: () => state,
         getItemCountBeforeState: () => itemCountBeforeState,
-        registerUndoActions,
+        pushUndoStackEntry,
+        pushUndoStackEntryFromRedo,
+        pushRedoStackEntry,
 
         onGhostTaskCreated: () => {
             setBottomGhostTaskId(generateId<TaskId>());
@@ -1955,11 +1940,9 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly getMaybeRemoveTaskFromRootQueryActions: (taskId: TaskId) => Array<TaskAction>;
     readonly getState: () => TaskGridViewVirtualizedListState;
     readonly getItemCountBeforeState: () => number;
-    readonly registerUndoActions: (entry: {
-        rootParentTaskId: TaskId;
-        undoActions: TaskUndoActions;
-        release: () => void;
-    }) => void;
+    readonly pushUndoStackEntry: (entry: TaskUndoStackEntry) => void;
+    readonly pushUndoStackEntryFromRedo: (entry: TaskUndoStackEntry) => void;
+    readonly pushRedoStackEntry: (entry: TaskUndoStackEntry) => void;
     readonly onGhostTaskCreated: () => void;
     readonly getTaskRowByIndexIfExists: (index: number) => TaskRowViewRef | null;
     readonly focusStart: () => void;
@@ -2437,13 +2420,6 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     withoutPaddingLeft?: boolean;
     withPaddingBottom?: boolean;
 }) {
-    const rootParentTaskId =
-        parents.length > 0
-            ? getTaskQuerySortCursorTaskId(parents[0]!.cursor)
-            : cursor
-            ? getTaskQuerySortCursorTaskId(cursor)
-            : null;
-
     const taskPath = cursor
         ? [
               ...parents.map(({cursor}) => getTaskQuerySortCursorTaskId(cursor)),
@@ -2451,16 +2427,21 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
           ]
         : null;
 
+    const taskId = taskPath ? taskPath[taskPath.length - 1]! : null;
+    const rootParentTaskId = taskPath ? taskPath[0]! : null;
+
     const isQueryManuallySorted = query !== rootQuery || isRootQueryManuallySorted;
 
-    const undoManager: TaskClientUndoManager = useMemo(
+    const undoManager: TaskClientStoreUndoManager = useMemo(
         () => ({
-            registerUndoActions: ({undoActions, release}) =>
-                events.registerUndoActions({
+            pushUndoStackEntry: ({actions, release}) => {
+                events.pushUndoStackEntry({
+                    type: "Actions",
                     rootParentTaskId: rootParentTaskId ?? assertExists(ghostTaskId),
-                    undoActions,
+                    actions,
                     release,
-                }),
+                });
+            },
         }),
         [events, ghostTaskId, rootParentTaskId],
     );
@@ -2808,6 +2789,48 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         }
     };
 
+    const pushUndoStackYDocEntry = (entry: {yUndoManager: Y.UndoManager; release: () => void}) => {
+        // We don't handle ghost tasks with this code path.
+        if (!rootParentTaskId || !taskId) return;
+
+        events.pushUndoStackEntry({
+            type: "YDoc",
+            rootParentTaskId,
+            taskId,
+            yUndoManager: entry.yUndoManager,
+            release: entry.release,
+        });
+    };
+
+    const pushUndoStackYDocEntryFromRedo = (entry: {
+        yUndoManager: Y.UndoManager;
+        release: () => void;
+    }) => {
+        // We don't handle ghost tasks with this code path.
+        if (!rootParentTaskId || !taskId) return;
+
+        events.pushUndoStackEntryFromRedo({
+            type: "YDoc",
+            rootParentTaskId,
+            taskId,
+            yUndoManager: entry.yUndoManager,
+            release: entry.release,
+        });
+    };
+
+    const pushRedoStackYDocEntry = (entry: {yUndoManager: Y.UndoManager; release: () => void}) => {
+        // We don't handle ghost tasks with this code path.
+        if (!rootParentTaskId || !taskId) return;
+
+        events.pushRedoStackEntry({
+            type: "YDoc",
+            rootParentTaskId,
+            taskId,
+            yUndoManager: entry.yUndoManager,
+            release: entry.release,
+        });
+    };
+
     return (
         <TaskRowView
             ref={taskRow => {
@@ -2864,6 +2887,9 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             focusFirstVisibleTaskCell={events.focusFirstVisibleTaskCell}
             focusLastVisibleTaskTitleEnd={events.focusLastVisibleTaskTitleEnd}
             focusLastVisibleTaskCell={events.focusLastVisibleTaskCell}
+            pushUndoStackYDocEntry={pushUndoStackYDocEntry}
+            pushUndoStackYDocEntryFromRedo={pushUndoStackYDocEntryFromRedo}
+            pushRedoStackYDocEntry={pushRedoStackYDocEntry}
             setRowZIndex={useCallback(
                 zIndex => events.setTaskRowZIndex(taskKey, zIndex),
                 [events, taskKey],

@@ -281,6 +281,7 @@ export function TaskNotepadView({
                 };
             }
         }, [withMobileLayout]),
+        store,
         query: queryState.activeQuery.query,
         viewRef: gridViewRef,
         getMoveTaskToQueryActions: (taskId, position) => {
