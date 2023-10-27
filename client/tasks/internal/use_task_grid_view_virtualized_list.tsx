@@ -860,6 +860,7 @@ export function useTaskGridViewVirtualizedList({
         getMoveTaskToRootQueryActions,
         getMaybeRemoveTaskFromRootQueryActions,
 
+        getItemCount: () => itemCount,
         getState: () => state,
         getItemCountBeforeState: () => itemCountBeforeState,
         pushUndoStackEntry,
@@ -872,7 +873,11 @@ export function useTaskGridViewVirtualizedList({
 
         getTaskRowByIndexIfExists: (index: number): TaskRowViewRef | null => {
             const stateIndex = index - itemCountBeforeState;
-            if (!(0 <= stateIndex && stateIndex < state.getItemCount())) {
+
+            const isIndexWithinState =
+                stateItemCount > 0 && 0 <= stateIndex && stateIndex < stateItemCount;
+
+            if (!isIndexWithinState) {
                 if (
                     stateIndex === state.getItemCount() &&
                     loadedState === "FullyLoaded" &&
@@ -1943,6 +1948,7 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
     ) => Array<TaskAction>;
     readonly getMaybeRemoveTaskFromRootQueryActions: (taskId: TaskId) => Array<TaskAction>;
+    readonly getItemCount: () => number;
     readonly getState: () => TaskGridViewVirtualizedListState;
     readonly getItemCountBeforeState: () => number;
     readonly pushUndoStackEntry: (entry: TaskUndoStackEntry) => void;
@@ -2756,7 +2762,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             // If there is no previous row (we're the first row) then we want to focus the
             // start of the next row instead.
             if (!hasFoundPreviousRow) {
-                for (let index = itemIndex + 1; index < events.getState().getItemCount(); index++) {
+                for (let index = itemIndex + 1; index < events.getItemCount(); index++) {
                     const taskRow = events.getTaskRowByIndexIfExists(index);
                     if (!taskRow) continue;
 
