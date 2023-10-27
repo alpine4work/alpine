@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import {Lock} from "phosphor-react";
+import {Plus} from "phosphor-react";
 import {
     KeyboardEvent,
     Memo,
@@ -81,7 +81,7 @@ const cellClassName = sprinkles({
 const emptyCollectionsClassName = sprinkles({
     display: "flex",
     alignItems: "center",
-    gap: "1",
+    gap: "0.5",
     pointerEvents: "none",
 });
 
@@ -223,7 +223,6 @@ function TaskRowCollectionsCell(
             {!isFocusWithin ? (
                 displayCollections.length === 0 ? (
                     !isReadOnly && (
-                        // NOCOMMIT: Private is a misnomer when you have access to the parent
                         <div
                             className={emptyCollectionsClassName}
                             style={{
@@ -231,8 +230,8 @@ function TaskRowCollectionsCell(
                                 opacity: isHovered ? 1 : 0,
                             }}
                         >
-                            <Lock size={spacing["4"]} />
-                            <div>Private</div>
+                            <Plus size={spacing["3"]} />
+                            <div>Add</div>
                         </div>
                     )
                 ) : (

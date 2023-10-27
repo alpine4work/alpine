@@ -1,5 +1,5 @@
 import {getInteractionModality} from "@react-aria/interactions";
-import {Lock, Plus, SpinnerGap} from "phosphor-react";
+import {Plus, SpinnerGap} from "phosphor-react";
 import {KeyboardEvent, createRef, useMemo, useRef, useState} from "react";
 import {useComboBox} from "react-aria";
 import {ComboBoxStateOptions, useComboBoxState} from "react-stately";
@@ -40,7 +40,7 @@ import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_a
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
-import {spacing} from "~/shared/design/spacing.js";
+import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -404,11 +404,7 @@ export function TaskCollectionsInput({
         comboBoxState,
     );
 
-    const shouldShowPrivatePlaceholder =
-        !createCollectionInputState.isVisible && displayCollections.length === 0;
-
-    // NOCOMMIT: Private is a misnomer when you have access to the parent
-    const inputPlaceholder = shouldShowPrivatePlaceholder ? "Private" : "Add";
+    const inputPlaceholder = "Add";
 
     const collectionsChildren = displayCollections.map((collection, index) => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -715,7 +711,7 @@ export function TaskCollectionsInput({
                                 zIndex="-10"
                                 display="flex"
                                 alignItems="center"
-                                gap={shouldShowPrivatePlaceholder ? "1" : undefined}
+                                gap="0.5"
                                 pointerEvents="none"
                                 // This is accessible through `aria-placeholder` on the `<input>`.
                                 aria-hidden={true}
@@ -724,13 +720,7 @@ export function TaskCollectionsInput({
                                     opacity: inputState.value.length === 0 ? 1 : 0,
                                 }}
                             >
-                                {shouldShowPrivatePlaceholder ? (
-                                    <Lock size={spacing["4"]} />
-                                ) : (
-                                    <Box paddingRight="0.5">
-                                        <Plus size={spacing["3"]} />
-                                    </Box>
-                                )}
+                                <Plus size={spacing["3"]} />
                                 <Box>{inputPlaceholder}</Box>
                             </Box>
                             <Box
@@ -754,12 +744,13 @@ export function TaskCollectionsInput({
                                         inset: "0",
                                         display: "inline-block",
                                         backgroundColor: "transparent",
-                                        paddingLeft:
-                                            inputState.value.length === 0 &&
-                                            shouldShowPrivatePlaceholder
-                                                ? "5"
-                                                : undefined,
                                     })}
+                                    style={{
+                                        paddingLeft:
+                                            inputState.value.length === 0
+                                                ? addRemLengths(spacing["3"], spacing["0.5"])
+                                                : undefined,
+                                    }}
                                     // By default `<input>` elements have a `min-width` determined by the `size`
                                     // property. We want our `<input>`s `min-width` to be determined by our CSS
                                     // so set it to a small value as not to matter.
