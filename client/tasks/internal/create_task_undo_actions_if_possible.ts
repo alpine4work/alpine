@@ -1,3 +1,4 @@
+import * as Y from "yjs";
 import {Store} from "~/client/helpers/store/store.js";
 import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
 import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
@@ -5,12 +6,14 @@ import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {upcastTaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
 import {upcastTaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
+import {TaskTitleUpdate, getYDocGuid} from "~/shared/tasks/task_title.js";
 
 // We use an interface to prevent you from calling methods that mutate the
 // store or accessing `store.clock`.
@@ -362,8 +365,64 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateTitle": {
-                        // NOCOMMIT
-                        return null;
+                        const task = store
+                            .getTaskEntryStoreIfExists(action.taskId)
+                            ?.getSnapshot().task;
+                        if (!task) return null;
+
+                        const oldTitle = task.rawData.title.raw;
+                        const {titleUpdate} = action.taskAction;
+
+                        // Get an inverted title update for this action by constructing `Y.UndoManager`.
+                        // `Y.UndoManager` is intended to be used for actual operation of undo/redo on
+                        // a single doc. However, our Y.js setup has many small disconnected Y docs.
+                        // Also, our title Y docs may be constantly recreated due to list
+                        // virtualization. We need to manage undos ourselves.
+                        //
+                        // Our approach is when the user wants to undo a title update, we construct a
+                        // `Y.UndoManager` to get the Y.js update for the undo, then we apply that to
+                        // the task title. Y.js collaborative update resolution should get our title to
+                        // the right place.
+                        //
+                        // TODO(calebmer): This seems to have bugs. One such bug is detailed in this
+                        // post. This seems good enough for now but I'm hoping to get advice from the
+                        // Y.js folks on the right way to implement this.
+                        // https://discuss.yjs.dev/t/how-to-go-about-building-an-alternative-stateless-undo-implementation/2200
+                        const invertedTitleUpdate = new Lazy(() => {
+                            const yDoc = new Y.Doc({guid: getYDocGuid()});
+                            Y.applyUpdateV2(yDoc, oldTitle);
+
+                            const yUndoManager = new Y.UndoManager(yDoc.getXmlFragment("doc"));
+
+                            Y.applyUpdateV2(yDoc, titleUpdate);
+
+                            const invertedTitleUpdates: Array<TaskTitleUpdate> = [];
+                            yDoc.on("updateV2", (invertedTitleUpdate: TaskTitleUpdate) => {
+                                invertedTitleUpdates.push(invertedTitleUpdate);
+                            });
+
+                            yUndoManager.undo();
+
+                            yDoc.destroy();
+
+                            return Y.mergeUpdatesV2(invertedTitleUpdates) as TaskTitleUpdate;
+                        });
+
+                        // NOCOMMIT: Title selection?
+                        undoActions.push({
+                            type: "UpdateTask",
+                            time: action.time,
+                            taskId: action.taskId,
+                            taskAction: {
+                                type: "UpdateTitle",
+                                // Lazily construct the inverted title update since it can be a bit
+                                // expensive.
+                                get titleUpdate() {
+                                    return invertedTitleUpdate.get();
+                                },
+                            },
+                        });
+                        break;
                     }
                     case "UpdateDueDate": {
                         const task = store

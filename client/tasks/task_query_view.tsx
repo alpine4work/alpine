@@ -294,6 +294,7 @@ export function TaskQueryView({
             [isReadOnly],
         ),
         viewRef,
+        store,
         query: queryState.activeQuery.query,
         // NOTE(calebmer): Currently, all updates which use this are disabled in
         // auto-sorted views:

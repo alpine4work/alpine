@@ -270,6 +270,7 @@ export function TaskCollectionView({
             [isReadOnly],
         ),
         viewRef,
+        store,
         query: queryState.activeQuery.query,
         getMoveTaskToQueryActions: (taskId, position): Array<TaskAction> => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);

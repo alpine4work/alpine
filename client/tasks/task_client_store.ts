@@ -9,6 +9,7 @@ import {
     TaskUndoActions,
     createTaskUndoActionsIfPossible,
 } from "~/client/tasks/internal/create_task_undo_actions_if_possible.js";
+import {YRelativeSelection} from "~/client/tasks/internal/task_row_title_input.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery, TaskClientQueryInternal} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
@@ -201,8 +202,26 @@ export type TaskClientStoreSubscriptions = {
     >;
 };
 
+export type TaskClientStoreUpdateTitleActionTransactionBuilder = {
+    add(
+        titleUpdate: TaskTitleUpdate,
+        options?: {previousTitleYRelativeSelection?: YRelativeSelection | null},
+    ): void;
+    commit(
+        context: Context<{
+            rpc: RpcContextModuleBase;
+        }>,
+    ): {
+        finally(callback: () => void): void;
+    };
+};
+
 export interface TaskClientUndoManager {
-    registerUndoActions(entry: {undoActions: TaskUndoActions; release: () => void}): void;
+    registerUndoActions(entry: {
+        undoActions: TaskUndoActions;
+        previousTitleYRelativeSelection: YRelativeSelection | null;
+        release: () => void;
+    }): void;
 }
 
 /**
@@ -316,6 +335,10 @@ export class TaskClientStore {
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
         initialTitleUpdate: TaskTitleUpdate,
+        options: {
+            undoManager: TaskClientUndoManager | null;
+            previousTitleYRelativeSelection?: YRelativeSelection | null;
+        },
     ): {
         add: (titleUpdate: TaskTitleUpdate) => void;
         commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
@@ -325,6 +348,7 @@ export class TaskClientStore {
         return this._internal.getTaskUpdateTitleActionTransactionBuilder(
             taskId,
             initialTitleUpdate,
+            options,
         );
     }
 
@@ -1497,17 +1521,17 @@ export class TaskClientStoreInternal {
         actions: ReadonlyArray<TaskAction>,
         {
             undoManager,
+            previousTitleYRelativeSelection = null,
             referencedCollections = [],
         }: {
             // This property is required to force callers to make a decision on whether or
             // not to pass in an `undoManager`. Most of the time you want to pass in an
             // `undoManager`. If you pass in null the change can't be undone.
             undoManager: TaskClientUndoManager | null;
+            previousTitleYRelativeSelection?: YRelativeSelection | null;
             referencedCollections?: ReadonlyArray<TaskCollectionModel>;
         },
     ): {finally: (callback: () => void) => void} {
-        console.log(actions);
-
         // We hold onto collections and tasks that become unreferenced after applying
         // optimistic actions until both:
         //
@@ -1521,20 +1545,23 @@ export class TaskClientStoreInternal {
             if (referenceCount === 0) actuallyRelease?.();
         };
 
-        const undoActions = createTaskUndoActionsIfPossible(this, actions);
-        if (undoActions && undoManager) {
-            referenceCount++;
+        if (undoManager) {
+            const undoActions = createTaskUndoActionsIfPossible(this, actions);
+            if (undoActions) {
+                referenceCount++;
 
-            let isUndoEntryReleased = false;
+                let isUndoEntryReleased = false;
 
-            undoManager.registerUndoActions({
-                undoActions,
-                release: () => {
-                    assert(!isUndoEntryReleased);
-                    isUndoEntryReleased = true;
-                    release();
-                },
-            });
+                undoManager.registerUndoActions({
+                    undoActions,
+                    previousTitleYRelativeSelection,
+                    release: () => {
+                        assert(!isUndoEntryReleased);
+                        isUndoEntryReleased = true;
+                        release();
+                    },
+                });
+            }
         }
 
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
@@ -1815,55 +1842,108 @@ export class TaskClientStoreInternal {
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
         initialTitleUpdate: TaskTitleUpdate,
-    ): {
-        add: (titleUpdate: TaskTitleUpdate) => void;
-        commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
-            finally: (callback: () => void) => void;
-        };
-    } {
+        {
+            undoManager,
+            previousTitleYRelativeSelection: initialPreviousTitleYRelativeSelection = null,
+        }: {
+            undoManager: TaskClientUndoManager | null;
+            previousTitleYRelativeSelection?: YRelativeSelection | null;
+        },
+    ): TaskClientStoreUpdateTitleActionTransactionBuilder {
         let isFinished = false;
         let mergedTitleUpdate = initialTitleUpdate;
 
-        const actions: Array<TaskAction> = [
-            {
+        const individualActions: Array<TaskAction> = [];
+
+        // We hold onto collections and tasks that become unreferenced after applying
+        // optimistic actions until both:
+        //
+        // 1. The action is commit (if it's reverted we need the collections/tasks back)
+        // 2. The undo stack corresponding to this action is applied or released
+        let referenceCount = 1;
+        const actualReleases: Array<() => void> = [];
+
+        const release = () => {
+            referenceCount--;
+            if (referenceCount === 0) {
+                for (const actuallyRelease of actualReleases) {
+                    actuallyRelease();
+                }
+            }
+        };
+
+        const addTitleUpdate = (
+            titleUpdate: TaskTitleUpdate,
+            previousTitleYRelativeSelection: YRelativeSelection | null,
+        ) => {
+            const action: TaskAction = {
                 type: "UpdateTask",
                 time: this.clock.now(),
                 taskId,
                 taskAction: {
                     type: "UpdateTitle",
-                    titleUpdate: initialTitleUpdate,
+                    titleUpdate,
                 },
-            },
-        ];
+            };
 
-        const releases: Array<() => void> = [];
+            // We need to create undo actions before we apply the actions to our store so
+            // we can read the old values of things.
+            if (undoManager) {
+                const undoActions = createTaskUndoActionsIfPossible(this, [action]);
+                if (undoActions) {
+                    referenceCount++;
 
-        const {release: initialRelease} = this._applyOptimisticTaskActions(actions);
-        releases.push(initialRelease);
+                    let isUndoEntryReleased = false;
+
+                    undoManager.registerUndoActions({
+                        undoActions,
+                        previousTitleYRelativeSelection,
+                        release: () => {
+                            assert(!isUndoEntryReleased);
+                            isUndoEntryReleased = true;
+                            release();
+                        },
+                    });
+                }
+            }
+
+            individualActions.push(action);
+
+            const {release: actuallyRelease} = this._applyOptimisticTaskActions([action]);
+            actualReleases.push(actuallyRelease);
+        };
+
+        addTitleUpdate(initialTitleUpdate, initialPreviousTitleYRelativeSelection);
 
         return {
-            add: (titleUpdate: TaskTitleUpdate) => {
+            add: (
+                titleUpdate: TaskTitleUpdate,
+                {
+                    previousTitleYRelativeSelection = null,
+                }: {
+                    previousTitleYRelativeSelection?: YRelativeSelection | null;
+                },
+            ) => {
                 assert(!isFinished);
 
                 mergedTitleUpdate = mergeTaskTitleUpdates(mergedTitleUpdate, titleUpdate);
-
-                const action: TaskAction = {
-                    type: "UpdateTask",
-                    time: this.clock.now(),
-                    taskId,
-                    taskAction: {
-                        type: "UpdateTitle",
-                        titleUpdate,
-                    },
-                };
-                actions.push(action);
-
-                const {release} = this._applyOptimisticTaskActions([action]);
-                releases.push(release);
+                addTitleUpdate(titleUpdate, previousTitleYRelativeSelection);
             },
             commit: context => {
                 assert(!isFinished);
                 isFinished = true;
+
+                const finalActions: Array<TaskAction> = [
+                    {
+                        type: "UpdateTask",
+                        time: this.clock.now(),
+                        taskId,
+                        taskAction: {
+                            type: "UpdateTitle",
+                            titleUpdate: mergedTitleUpdate,
+                        },
+                    },
+                ];
 
                 // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
                 // close the page if we haven't finished committing their task action. It will
@@ -1871,17 +1951,7 @@ export class TaskClientStoreInternal {
                 const run = () =>
                     commitTaskActionTransaction(context, {
                         spaceId: this.spaceId,
-                        actions: [
-                            {
-                                type: "UpdateTask",
-                                time: this.clock.now(),
-                                taskId,
-                                taskAction: {
-                                    type: "UpdateTitle",
-                                    titleUpdate: mergedTitleUpdate,
-                                },
-                            },
-                        ],
+                        actions: finalActions,
                         clientId: this._clientId,
                     });
 
@@ -1893,7 +1963,7 @@ export class TaskClientStoreInternal {
                     () => {
                         batchStoreUpdates(() => {
                             this._commitOptimisticTaskActions(
-                                actions.map(action => ({
+                                individualActions.map(action => ({
                                     action,
                                     getActionReferencedSortableAccount: () => {
                                         throw new InternalError(
@@ -1903,9 +1973,7 @@ export class TaskClientStoreInternal {
                                 })),
                             );
 
-                            for (const release of releases) {
-                                release();
-                            }
+                            release();
                         });
                     },
                     error => {
@@ -1917,7 +1985,7 @@ export class TaskClientStoreInternal {
 
                         batchStoreUpdates(() => {
                             this._revertOptimisticTaskActions(
-                                actions.map(action => ({
+                                individualActions.map(action => ({
                                     action,
                                     getActionReferencedSortableAccount: () => {
                                         throw new InternalError(
@@ -1927,9 +1995,7 @@ export class TaskClientStoreInternal {
                                 })),
                             );
 
-                            for (const release of releases) {
-                                release();
-                            }
+                            release();
                         });
                     },
                 );
