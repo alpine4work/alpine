@@ -623,6 +623,8 @@ export function useTaskGridViewVirtualizedList({
      *                                 Undo/Redo                                  *
     \* ========================================================================== */
 
+    // NOCOMMIT: Undo actions that move task out of view
+
     const {
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
