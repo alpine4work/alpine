@@ -32,6 +32,7 @@ import {TaskId} from "~/shared/id/types/id_types.js";
 import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskPriority} from "~/shared/tasks/task_priority.js";
 
 export type TaskRowPriorityCellRef = {
     focusCell(): void;
@@ -163,6 +164,20 @@ function TaskRowPriorityCell(
         [isReadOnly],
     );
 
+    const handlePriorityChange = (priority: TaskPriority | null) => {
+        commitActionTransaction(taskId => [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority,
+                },
+            },
+        ]);
+    };
+
     return (
         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
             <div
@@ -184,7 +199,24 @@ function TaskRowPriorityCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
-                onKeyDown={event => onCellKeyDown("Priority", event)}
+                onKeyDown={event => {
+                    switch (event.key) {
+                        case "Backspace":
+                        case "Delete": {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            if (!isReadOnly) {
+                                handlePriorityChange(null);
+                            }
+                            break;
+                        }
+                        default: {
+                            onCellKeyDown("Priority", event);
+                            break;
+                        }
+                    }
+                }}
                 onKeyDownCapture={event => onCellKeyDownCapture("Priority", event)}
             >
                 {isReadOnly ? (
@@ -218,19 +250,7 @@ function TaskRowPriorityCell(
                         // If a task is closed, suppress the urgent warning.
                         shouldHighlightUrgent={task?.getDisplayStatus() !== "Closed"}
                         priority={priority}
-                        onPriorityChange={priority => {
-                            commitActionTransaction(taskId => [
-                                {
-                                    type: "UpdateTask",
-                                    time: store.clock.now(),
-                                    taskId,
-                                    taskAction: {
-                                        type: "UpdatePriority",
-                                        priority,
-                                    },
-                                },
-                            ]);
-                        }}
+                        onPriorityChange={handlePriorityChange}
                         // Keyboard navigation in grid view is not done with the tab key.
                         isTabbable={false}
                         onArrowLeftLeaveKeyDown={() => focusPreviousCell("Priority")}

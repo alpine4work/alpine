@@ -210,7 +210,38 @@ function TaskRowCollectionsCell(
             onBlur={event => {
                 setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
             }}
-            onKeyDown={event => onCellKeyDown("Collections", event)}
+            onKeyDown={event => {
+                switch (event.key) {
+                    case "Backspace":
+                    case "Delete": {
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        if (!isReadOnly) {
+                            commitActionTransaction(taskId => {
+                                const time = query.store.clock.now();
+
+                                return displayCollections.map(
+                                    (collection): TaskAction => ({
+                                        type: "UpdateTask",
+                                        time,
+                                        taskId,
+                                        taskAction: {
+                                            type: "RemoveCollection",
+                                            collectionId: collection.id,
+                                        },
+                                    }),
+                                );
+                            });
+                        }
+                        break;
+                    }
+                    default: {
+                        onCellKeyDown("Collections", event);
+                        break;
+                    }
+                }
+            }}
             onKeyDownCapture={event => onCellKeyDownCapture("Collections", event)}
             onPointerDown={event => {
                 if (event.target === event.currentTarget) {

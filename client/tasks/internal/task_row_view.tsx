@@ -1359,7 +1359,30 @@ function TaskRowView(
                     ref={titleCellRef}
                     tabIndex={capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined}
                     className={titleCellClassName}
-                    onKeyDown={event => handleCellKeyDown("Title", event)}
+                    onKeyDown={event => {
+                        switch (event.key) {
+                            case "Backspace":
+                            case "Delete": {
+                                event.preventDefault();
+                                event.stopPropagation();
+
+                                if (!capabilities.isReadOnly) {
+                                    const titleInput = assertExists(titleInputRef.current);
+
+                                    if (titleInput.isEmpty()) {
+                                        deleteTaskAndAllChildrenAndFocusPreviousRow();
+                                    } else {
+                                        titleInput.clear();
+                                    }
+                                }
+                                break;
+                            }
+                            default: {
+                                handleCellKeyDown("Title", event);
+                                break;
+                            }
+                        }
+                    }}
                     onKeyDownCapture={event => handleCellKeyDownCapture("Title", event)}
                 >
                     <TaskRowTitleInput

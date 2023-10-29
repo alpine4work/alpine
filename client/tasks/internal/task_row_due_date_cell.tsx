@@ -184,6 +184,20 @@ function TaskRowDueDateCell(
         [],
     );
 
+    const handleDueDateChange = (dueDate: CalendarDate | null) => {
+        commitActionTransaction(taskId => [
+            {
+                type: "UpdateTask",
+                time: store.clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateDueDate",
+                    dueDate,
+                },
+            },
+        ]);
+    };
+
     return (
         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
             <div
@@ -202,7 +216,24 @@ function TaskRowDueDateCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
-                onKeyDown={event => onCellKeyDown("DueDate", event)}
+                onKeyDown={event => {
+                    switch (event.key) {
+                        case "Backspace":
+                        case "Delete": {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            if (!isReadOnly) {
+                                handleDueDateChange(null);
+                            }
+                            break;
+                        }
+                        default: {
+                            onCellKeyDown("DueDate", event);
+                            break;
+                        }
+                    }
+                }}
                 onKeyDownCapture={event => onCellKeyDownCapture("DueDate", event)}
             >
                 {isReadOnly ? (
@@ -225,19 +256,7 @@ function TaskRowDueDateCell(
                         shouldWarnIfAfterDate={shouldWarnIfAfterDate}
                         shouldFormatAroundToday={true}
                         date={dueDate}
-                        onDateChange={dueDate => {
-                            commitActionTransaction(taskId => [
-                                {
-                                    type: "UpdateTask",
-                                    time: store.clock.now(),
-                                    taskId,
-                                    taskAction: {
-                                        type: "UpdateDueDate",
-                                        dueDate,
-                                    },
-                                },
-                            ]);
-                        }}
+                        onDateChange={handleDueDateChange}
                         // Keyboard navigation in grid view is not done with the tab key.
                         isTabbable={false}
                         onArrowLeftLeaveKeyDown={() => focusPreviousCell("DueDate")}

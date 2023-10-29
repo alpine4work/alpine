@@ -30,6 +30,7 @@ import {
     taskRowViewColumnWidth,
     taskRowViewMinHeight,
 } from "~/client/tasks/task_row_shared_styles.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {sprinkles, tasksStyles} from "~/shared/styles/styles.js";
@@ -176,6 +177,33 @@ function TaskRowAssigneeCell(
         [isReadOnly],
     );
 
+    const handleAssigneeAccountChange = (assigneeAccount: AccountModel | null) => {
+        commitActionTransaction(taskId => {
+            const time = store.clock.now();
+
+            return [
+                {
+                    type: "UpdateTask",
+                    time,
+                    taskId,
+                    taskAction: {
+                        type: "UpdateAssignee",
+                        assignee: assigneeAccount
+                            ? {
+                                  assigneeId: assigneeAccount.id,
+                                  assignerId: currentAccount.id,
+                                  assignedTime: new TaskFilterableTime({
+                                      absoluteTime: time,
+                                      setterTimeZone: timeZone,
+                                  }),
+                              }
+                            : null,
+                    },
+                },
+            ];
+        });
+    };
+
     return (
         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
             <div
@@ -195,7 +223,24 @@ function TaskRowAssigneeCell(
                 onBlur={event => {
                     setIsFocusWithin(event.currentTarget.contains(event.relatedTarget));
                 }}
-                onKeyDown={event => onCellKeyDown("Assignee", event)}
+                onKeyDown={event => {
+                    switch (event.key) {
+                        case "Backspace":
+                        case "Delete": {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            if (!isReadOnly) {
+                                handleAssigneeAccountChange(null);
+                            }
+                            break;
+                        }
+                        default: {
+                            onCellKeyDown("Assignee", event);
+                            break;
+                        }
+                    }
+                }}
                 onKeyDownCapture={event => onCellKeyDownCapture("Assignee", event)}
             >
                 {isReadOnly ? (
@@ -228,32 +273,7 @@ function TaskRowAssigneeCell(
                         aria-label="Assignee"
                         shouldDisplayShortName={true}
                         assigneeAccountData={assigneeAccountData}
-                        onAssigneeAccountChange={assigneeAccount => {
-                            commitActionTransaction(taskId => {
-                                const time = store.clock.now();
-
-                                return [
-                                    {
-                                        type: "UpdateTask",
-                                        time,
-                                        taskId,
-                                        taskAction: {
-                                            type: "UpdateAssignee",
-                                            assignee: assigneeAccount
-                                                ? {
-                                                      assigneeId: assigneeAccount.id,
-                                                      assignerId: currentAccount.id,
-                                                      assignedTime: new TaskFilterableTime({
-                                                          absoluteTime: time,
-                                                          setterTimeZone: timeZone,
-                                                      }),
-                                                  }
-                                                : null,
-                                        },
-                                    },
-                                ];
-                            });
-                        }}
+                        onAssigneeAccountChange={handleAssigneeAccountChange}
                         // Keyboard navigation in grid view is not done with the tab key.
                         isTabbable={false}
                         onArrowLeftLeaveKeyDown={() => focusPreviousCell("Assignee")}

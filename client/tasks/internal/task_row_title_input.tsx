@@ -63,6 +63,8 @@ export type TaskRowTitleInputRef = {
     focusAll(): void;
     focusCoord(coord: number, side: "top" | "bottom"): void;
     focusSelection(selection: Selection): void;
+    isEmpty(): boolean;
+    clear(): void;
 };
 
 const taskRowTitleInputAriaLabel = "Title";
@@ -718,108 +720,125 @@ function TaskRowTitleInput(
         });
     }, [placeholder, runWhenViewIsReady]);
 
-    const {getSelection, isFocused, focusStart, focusEnd, focusAll, focusCoord, focusSelection} =
-        useMemo(
-            () => ({
-                getSelection: () => {
-                    if (!viewRef.current.isReady) {
-                        // A selection at the start of an empty task title should be the same as the
-                        // initial selection for our title when the view is ready.
-                        return Selection.atStart(emptyTaskTitleProsemirrorNode);
-                    } else {
-                        return viewRef.current.view.state.selection;
+    const {
+        getSelection,
+        isFocused,
+        focusStart,
+        focusEnd,
+        focusAll,
+        focusCoord,
+        focusSelection,
+        isEmpty,
+        clear,
+    } = useMemo(
+        () => ({
+            getSelection: () => {
+                if (!viewRef.current.isReady) {
+                    // A selection at the start of an empty task title should be the same as the
+                    // initial selection for our title when the view is ready.
+                    return Selection.atStart(emptyTaskTitleProsemirrorNode);
+                } else {
+                    return viewRef.current.view.state.selection;
+                }
+            },
+            isFocused: () => {
+                if (!viewRef.current.isReady) return false;
+                return viewRef.current.view.dom === document.activeElement;
+            },
+            focusStart: () => {
+                runWhenViewIsReady(view => {
+                    const selection = Selection.atStart(view.state.doc);
+
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                });
+            },
+            focusEnd: () => {
+                runWhenViewIsReady(view => {
+                    const selection = Selection.atEnd(view.state.doc);
+
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                });
+            },
+            focusAll: () => {
+                runWhenViewIsReady(view => {
+                    const selection = new AllSelection(view.state.doc);
+
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                });
+            },
+            focusCoord: (coord: number, side: "top" | "bottom") => {
+                runWhenViewIsReady(view => {
+                    const viewRect = view.dom.getBoundingClientRect();
+
+                    const posResult = view.posAtCoords({
+                        left: coord,
+                        top:
+                            side === "top"
+                                ? viewRect.top +
+                                  parseFloat(getComputedStyle(view.dom).paddingTop) +
+                                  1
+                                : viewRect.bottom -
+                                  parseFloat(getComputedStyle(view.dom).paddingBottom) -
+                                  1,
+                    });
+
+                    const selection = posResult
+                        ? new TextSelection(view.state.doc.resolve(posResult.pos))
+                        : coord > viewRect.right
+                        ? Selection.atEnd(view.state.doc)
+                        : Selection.atStart(view.state.doc);
+
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                });
+            },
+            focusSelection: (selection: Selection) => {
+                runWhenViewIsReady(view => {
+                    view.focus();
+
+                    // If the document changed since the selection was created then create a
+                    // bookmark for the selection and resolve it to the new doc.
+                    //
+                    // We added `focusSelection()` so that when indenting/dedenting (which sometimes
+                    // mounts/unmounts the task) we can preserve the selection. For that use case we
+                    // don't expect the underlying document to actually be different but we'll have
+                    // created a new `titleYDoc` that also creates a new ProseMirror node so strict
+                    // equality checks fail.
+                    if (selection.$from.doc !== view.state.doc) {
+                        selection = selection.getBookmark().resolve(view.state.doc);
                     }
-                },
-                isFocused: () => {
-                    if (!viewRef.current.isReady) return false;
-                    return viewRef.current.view.dom === document.activeElement;
-                },
-                focusStart: () => {
-                    runWhenViewIsReady(view => {
-                        const selection = Selection.atStart(view.state.doc);
 
-                        view.focus();
-                        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                    });
-                },
-                focusEnd: () => {
-                    runWhenViewIsReady(view => {
-                        const selection = Selection.atEnd(view.state.doc);
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
 
-                        view.focus();
-                        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                    });
-                },
-                focusAll: () => {
-                    runWhenViewIsReady(view => {
-                        const selection = new AllSelection(view.state.doc);
-
-                        view.focus();
-                        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                    });
-                },
-                focusCoord: (coord: number, side: "top" | "bottom") => {
-                    runWhenViewIsReady(view => {
-                        const viewRect = view.dom.getBoundingClientRect();
-
-                        const posResult = view.posAtCoords({
-                            left: coord,
-                            top:
-                                side === "top"
-                                    ? viewRect.top +
-                                      parseFloat(getComputedStyle(view.dom).paddingTop) +
-                                      1
-                                    : viewRect.bottom -
-                                      parseFloat(getComputedStyle(view.dom).paddingBottom) -
-                                      1,
-                        });
-
-                        const selection = posResult
-                            ? new TextSelection(view.state.doc.resolve(posResult.pos))
-                            : coord > viewRect.right
-                            ? Selection.atEnd(view.state.doc)
-                            : Selection.atStart(view.state.doc);
-
-                        view.focus();
-                        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                    });
-                },
-                focusSelection: (selection: Selection) => {
-                    runWhenViewIsReady(view => {
-                        view.focus();
-
-                        // If the document changed since the selection was created then create a
-                        // bookmark for the selection and resolve it to the new doc.
-                        //
-                        // We added `focusSelection()` so that when indenting/dedenting (which sometimes
-                        // mounts/unmounts the task) we can preserve the selection. For that use case we
-                        // don't expect the underlying document to actually be different but we'll have
-                        // created a new `titleYDoc` that also creates a new ProseMirror node so strict
-                        // equality checks fail.
+                    // NOTE(calebmer): We need to focus the selection again after a turn of the
+                    // event loop for it to stick. Otherwise I've seen the selection jump to the
+                    // end. If I had to bet, I'd bet it has to do with [the Y.js ProseMirror][1]
+                    // re-render timeout.
+                    //
+                    // [1]: https://github.com/yjs/y-prosemirror/blob/e0e5e951614abe1be2295e5ab8987ab5916bcaec/src/plugins/sync-plugin.js#L180-L184
+                    setTimeout(() => {
                         if (selection.$from.doc !== view.state.doc) {
                             selection = selection.getBookmark().resolve(view.state.doc);
                         }
 
                         view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-
-                        // NOTE(calebmer): We need to focus the selection again after a turn of the
-                        // event loop for it to stick. Otherwise I've seen the selection jump to the
-                        // end. If I had to bet, I'd bet it has to do with [the Y.js ProseMirror][1]
-                        // re-render timeout.
-                        //
-                        // [1]: https://github.com/yjs/y-prosemirror/blob/e0e5e951614abe1be2295e5ab8987ab5916bcaec/src/plugins/sync-plugin.js#L180-L184
-                        setTimeout(() => {
-                            if (selection.$from.doc !== view.state.doc) {
-                                selection = selection.getBookmark().resolve(view.state.doc);
-                            }
-
-                            view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
-                        }, 0);
-                    });
-                },
-            }),
-            [runWhenViewIsReady],
-        );
+                    }, 0);
+                });
+            },
+            isEmpty: () => {
+                return titleRef.current.getProsemirrorNode().childCount === 0;
+            },
+            clear: () => {
+                runWhenViewIsReady(view => {
+                    view.dispatch(view.state.tr.delete(0, view.state.doc.content.size));
+                });
+            },
+        }),
+        [runWhenViewIsReady],
+    );
 
     useImperativeHandle(ref, () => ({
         getSelection,
@@ -829,6 +848,8 @@ function TaskRowTitleInput(
         focusAll,
         focusCoord,
         focusSelection,
+        isEmpty,
+        clear,
     }));
 
     const taskNodeForInitialAppRender = isInitialAppRender ? title.getProsemirrorNode() : null;
