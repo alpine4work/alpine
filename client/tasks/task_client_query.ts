@@ -957,6 +957,8 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
             previousTaskById.delete(taskId);
         }
 
+        this.store.onQueryLoadedTaskRemove?.(this, taskId);
+
         // Release our loaded task reference.
         this.store.releaseTaskEntryStore(taskId);
 

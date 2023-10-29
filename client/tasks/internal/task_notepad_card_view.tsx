@@ -198,6 +198,7 @@ function TaskNotepadCardView({
                 timeZone,
                 currentAccount,
                 store,
+                // Can't undo changes from the notepad active section.
                 undoManager: null,
                 task,
             }),

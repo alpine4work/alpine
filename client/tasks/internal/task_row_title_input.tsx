@@ -219,7 +219,7 @@ function TaskRowTitleInput(
         createTaskBelowAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: (selection: Selection) => void;
         unnestTaskIfNestedRow: (selection: Selection) => void;
-        deleteTaskAndAllChildrenAndFocusPreviousRow: (options: {withConfirmation: boolean}) => void;
+        deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         preserveLastTaskTitleArrowNavigationCoord: () => void;
@@ -291,11 +291,7 @@ function TaskRowTitleInput(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    deleteTaskAndAllChildrenAndFocusPreviousRow({
-                        // If the task has some children make sure the user confirms that deleting
-                        // subtasks is ok.
-                        withConfirmation: childTaskCount > 0,
-                    });
+                    deleteTaskAndAllChildrenAndFocusPreviousRow();
                 }
                 break;
             }

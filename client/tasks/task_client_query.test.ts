@@ -4051,7 +4051,7 @@ test("deleting task and all children when subscribed to task and its children", 
 
     const deleteTime = store.clock.now();
 
-    store.deleteTaskAndAllChildren(context, task1.id, {time: deleteTime});
+    void store.deleteTaskAndAllChildren(context, task1.id, {undoManager: null, time: deleteTime});
 
     expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
         task5.id,

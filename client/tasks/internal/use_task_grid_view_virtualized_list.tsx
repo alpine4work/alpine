@@ -35,7 +35,6 @@ import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
-import {TaskUndoActions} from "~/client/tasks/internal/create_task_undo_actions_if_possible.js";
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
@@ -124,6 +123,7 @@ import {
 // - Undo across peek and content underneath
 // - Type in task title, scroll it offscreen, scroll it back onscreen,
 //   undo/redo
+// - Delete by backspace (and undo?)
 // - Write tests for drag-and-drop
 // - Editing task row cells
 // - Editing task detail view fields
@@ -399,6 +399,7 @@ export function useTaskGridViewVirtualizedList({
     \* ========================================================================== */
 
     const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
+        undoManager: TaskClientStoreUndoManager;
         taskId: TaskId;
         onAfterDelete?: () => void;
     } | null>(null);
@@ -645,7 +646,7 @@ export function useTaskGridViewVirtualizedList({
         {
             pushUndoStackEntry,
         }: {
-            pushUndoStackEntry: (entry: {actions: TaskUndoActions; release: () => void}) => void;
+            pushUndoStackEntry: TaskClientStoreUndoManager["pushUndoStackEntry"];
         },
     ) => {
         const view = assertExists(viewRef.current);
@@ -654,7 +655,10 @@ export function useTaskGridViewVirtualizedList({
 
         const target: {taskId: TaskId; column: TaskGridViewColumn} | null =
             entry.type === "Actions"
-                ? getTaskUndoActionsGridViewTargetIfExists(entry.actions.getWithOldTimes())
+                ? getTaskUndoActionsGridViewTargetIfExists(
+                      store,
+                      entry.undoActions.getWithOldTimes(),
+                  )
                 : {taskId: entry.taskId, column: "Title"};
         if (!target) return false;
 
@@ -666,8 +670,10 @@ export function useTaskGridViewVirtualizedList({
         });
 
         // If we can't find the task in the grid view anymore then we won't undo these
-        // actions because the user won't see the result. Try the next set of actions
-        // in the undo stack.
+        // actions because the user won't see the result. Unless the actions we're
+        // undoing removed the task from our query. If that happened we know for sure
+        // we won't find the task in our grid view. Undoing should bring the task back
+        // to our grid view.
         //
         // Reasons why the task might no longer be in the grid view:
         //
@@ -687,13 +693,18 @@ export function useTaskGridViewVirtualizedList({
         //
         // We feel this is a reasonable set of tradeoffs for picking which undo actions
         // we handle.
-        if (startIndex === null) return false;
+        if (
+            !(entry.type === "Actions" && entry.removedFromQueries.has(rootQuery)) &&
+            startIndex === null
+        ) {
+            return false;
+        }
 
         switch (entry.type) {
             case "Actions": {
                 rootQuery.store.commitTaskActionTransaction(
                     context,
-                    entry.actions.get(store.clock),
+                    entry.undoActions.get(store.clock),
                     {undoManager: {pushUndoStackEntry}},
                 );
                 break;
@@ -747,6 +758,19 @@ export function useTaskGridViewVirtualizedList({
             attempt();
         };
 
+        if (startIndex === null) {
+            if (endIndex === null) {
+                // TODO(calebmer): We should probably show a toast or something here to let the
+                // user know something happened even if nothing on screen changed. A simple
+                // modal along the lines of "undo successful" is good.
+            } else {
+                onLayoutEffectCallbacksRef.current.push(() => {
+                    const index = endIndex + itemCountBeforeState;
+                    view.scrollToIndex(index, {withAnchor: false});
+                    focusCell(index);
+                });
+            }
+        }
         // If the task didn't move, scroll to it immediately. Otherwise wait for React
         // to re-render, then scroll. Since we want to the virtualized list won't know
         // our target task is at `endIndex` until after the React re-render.
@@ -756,7 +780,7 @@ export function useTaskGridViewVirtualizedList({
         // to be null outside of extreme edge cases! In order for the action's we're
         // undoing to be applied in the first place the task had to have been in the
         // query's loaded range. A query's loaded range never shrinks, it only grows.
-        if (endIndex === null || startIndex === endIndex) {
+        else if (endIndex === null || startIndex === endIndex) {
             const index = startIndex + itemCountBeforeState;
             view.scrollToIndex(index, {withAnchor: false});
             focusCell(index);
@@ -783,7 +807,8 @@ export function useTaskGridViewVirtualizedList({
                         pushRedoStackEntry({
                             type: "Actions",
                             rootParentTaskId: undoStackEntry.rootParentTaskId,
-                            actions: entry.actions,
+                            undoActions: entry.undoActions,
+                            removedFromQueries: entry.removedFromQueries,
                             release: entry.release,
                         });
                     },
@@ -806,7 +831,8 @@ export function useTaskGridViewVirtualizedList({
                         pushUndoStackEntryFromRedo({
                             type: "Actions",
                             rootParentTaskId: undoStackEntry.rootParentTaskId,
-                            actions: entry.actions,
+                            undoActions: entry.undoActions,
+                            removedFromQueries: entry.removedFromQueries,
                             release: entry.release,
                         });
                     },
@@ -1416,7 +1442,20 @@ export function useTaskGridViewVirtualizedList({
                                 )) ||
                             i >= itemCountBeforeState + stateItemCount;
 
-                        if (!isAfterNewItem) continue;
+                        const isChildOfNewItem =
+                            item?.type === "Task" &&
+                            item.parents.length >= animation.newItem.parents.length + 1 &&
+                            item.parents
+                                .slice(0, animation.newItem.parents.length + 1)
+                                .every((parent, i) =>
+                                    i < animation.newItem.parents.length
+                                        ? parent.query === animation.newItem.parents[i]!.query &&
+                                          parent.cursor === animation.newItem.parents[i]!.cursor
+                                        : item.parents[i]!.query === animation.newItem.query &&
+                                          item.parents[i]!.cursor === animation.newItem.cursor,
+                                );
+
+                        if (!isAfterNewItem || isChildOfNewItem) continue;
 
                         const endTime = animation.startTime + animation.duration;
                         const remainingDuration = endTime - currentTime;
@@ -1933,6 +1972,7 @@ export function useTaskGridViewVirtualizedList({
         modals: taskDeleteConfirmationState && rootQuery && (
             <TaskDeleteConfirmationModalDialog
                 store={rootQuery.store}
+                undoManager={taskDeleteConfirmationState.undoManager}
                 taskId={taskDeleteConfirmationState.taskId}
                 onClose={() => setTaskDeleteConfirmationState(null)}
                 onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
@@ -2425,6 +2465,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     >;
     setTaskDeleteConfirmationState: Dispatch<
         SetStateAction<{
+            undoManager: TaskClientStoreUndoManager;
             taskId: TaskId;
             onAfterDelete?: (() => void) | undefined;
         } | null>
@@ -2447,11 +2488,12 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
     const undoManager: TaskClientStoreUndoManager = useMemo(
         () => ({
-            pushUndoStackEntry: ({actions, release}) => {
+            pushUndoStackEntry: ({undoActions, removedFromQueries, release}) => {
                 events.pushUndoStackEntry({
                     type: "Actions",
                     rootParentTaskId: rootParentTaskId ?? assertExists(ghostTaskId),
-                    actions,
+                    undoActions,
+                    removedFromQueries,
                     release,
                 });
             },
@@ -2722,23 +2764,15 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         });
     };
 
-    const deleteTaskAndAllChildren = ({withConfirmation}: {withConfirmation: boolean}) => {
+    const deleteTaskAndAllChildren = () => {
         if (!cursor) return;
 
         const taskId = getTaskQuerySortCursorTaskId(cursor);
 
-        if (!withConfirmation) {
-            rootQuery.store.deleteTaskAndAllChildren(context, taskId);
-        } else {
-            setTaskDeleteConfirmationState({taskId});
-        }
+        setTaskDeleteConfirmationState({undoManager, taskId});
     };
 
-    const deleteTaskAndAllChildrenAndFocusPreviousRow = ({
-        withConfirmation,
-    }: {
-        withConfirmation: boolean;
-    }) => {
+    const deleteTaskAndAllChildrenAndFocusPreviousRow = () => {
         // If this is a ghost task then hitting delete should focus the task above it.
         if (!cursor) {
             events.focusPreviousTaskTitleEnd(`Task:${taskKey}`);
@@ -2774,23 +2808,37 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             }
         };
 
-        if (!withConfirmation) {
+        // If a task has zero children then we delete it immediately without asking for
+        // confirmation. We use `commitTaskActionTransaction()` since that
+        // optimistically applies the delete action.
+        //
+        // There may be a race condition where the task has a child our client doesn't
+        // know about yet. This child won't be deleted. This race condition is
+        // acceptable.
+        if (rootQuery.getLoadedTaskSnapshot(taskId).getChildTaskCount() === 0) {
             disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
-            rootQuery.store.deleteTaskAndAllChildren(context, taskId);
+            rootQuery.store.commitTaskActionTransaction(
+                context,
+                [
+                    {
+                        type: "UpdateTask",
+                        time: rootQuery.store.clock.now(),
+                        taskId,
+                        taskAction: {type: "Delete"},
+                    },
+                ],
+                {undoManager},
+            );
+
             focusPreviousRow(itemIndex);
         } else {
             setTaskDeleteConfirmationState({
+                undoManager,
                 taskId,
                 onAfterDelete: () => {
                     const view = viewRef.current;
                     if (!view) return;
-
-                    // The item may have moved since we opened the modal (e.g. it shifted down one
-                    // place since a task was added above). Focus the title before the task's new
-                    // position.
-                    const itemIndex = view.getIndexByKeyIfExists(`Task:${taskKey}`);
-                    if (itemIndex === null) return;
 
                     // Once React has closed the modal dialog, focus the previous task. Until the
                     // modal dialog is closed, focus is trapped inside it.
@@ -3020,7 +3068,10 @@ function convertMovementsToKeyframes(movements: LinkedList<Movement>) {
     };
 }
 
-function getTaskUndoActionsGridViewTargetIfExists(actions: ReadonlyArray<TaskUpdateTaskAction>): {
+function getTaskUndoActionsGridViewTargetIfExists(
+    store: TaskClientStore,
+    actions: ReadonlyArray<TaskUpdateTaskAction>,
+): {
     taskId: TaskId;
     column: TaskGridViewColumn;
 } | null {
@@ -3079,11 +3130,26 @@ function getTaskUndoActionsGridViewTargetIfExists(actions: ReadonlyArray<TaskUpd
                 throw exhaustive(action.taskAction);
         }
 
-        return {taskId: action.taskId, column, preference};
+        let depth = 0;
+        let currentTask =
+            store.getTaskEntryStoreIfExists(action.taskId)?.getSnapshot().task ?? null;
+        while (currentTask) {
+            depth++;
+            const parentTaskId = currentTask.getParent()?.taskId;
+            currentTask = parentTaskId
+                ? store.getTaskEntryStoreIfExists(parentTaskId)?.getSnapshot().task ?? null
+                : null;
+        }
+
+        return {taskId: action.taskId, column, depth, preference};
     });
 
-    // Pick the action with the highest preference score.
-    targets.sort((target1, target2) => target2.preference - target1.preference);
+    // Pick the action with the lowest depth (parent task) then highest
+    // preference score.
+    targets.sort(
+        (target1, target2) =>
+            target1.depth - target2.depth || target2.preference - target1.preference,
+    );
 
     return targets[0]!;
 }

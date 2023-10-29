@@ -2,16 +2,18 @@ import {useAppContext} from "~/client/context/app_context.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 
 export function TaskDeleteConfirmationModalDialog({
     store,
+    undoManager,
     taskId,
     onClose,
     onAfterDelete,
 }: {
     store: TaskClientStore;
+    undoManager: TaskClientStoreUndoManager | null;
     taskId: TaskId;
     onClose: () => void;
     onAfterDelete?: () => void;
@@ -38,10 +40,11 @@ export function TaskDeleteConfirmationModalDialog({
                 </>
             }
             primaryButtonLabel="Delete"
-            onPrimaryButtonPress={() => {
+            primaryButtonPressErrorTitle="Couldn’t delete task"
+            onPrimaryButtonPress={async () => {
                 // Task is deleted optimistically. If there's an error we will show a
                 // toast later.
-                store.deleteTaskAndAllChildren(context, taskId);
+                await store.deleteTaskAndAllChildren(context, taskId, {undoManager});
 
                 onAfterDelete?.();
             }}

@@ -276,8 +276,8 @@ function TaskRowView(
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
         nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
         unnestTaskIfNestedRow: (titleSelection: Selection) => void;
-        deleteTaskAndAllChildren: (options: {withConfirmation: boolean}) => void;
-        deleteTaskAndAllChildrenAndFocusPreviousRow: (options: {withConfirmation: boolean}) => void;
+        deleteTaskAndAllChildren: () => void;
+        deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
         focusTaskTitleStart: (taskKey: TaskGridViewTaskKey) => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
@@ -385,7 +385,6 @@ function TaskRowView(
                     query.store.getTaskUpdateTitleActionTransactionBuilder(
                         assertExists(taskId ?? ghostTaskId),
                         titleUpdate,
-                        {undoManager},
                     );
             }
             return;
@@ -978,7 +977,7 @@ function TaskRowView(
                 contextMenuActions.push([
                     {
                         label: "Delete",
-                        onPress: () => deleteTaskAndAllChildren({withConfirmation: true}),
+                        onPress: () => deleteTaskAndAllChildren(),
                     },
                 ]);
             }

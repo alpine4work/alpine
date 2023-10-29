@@ -367,6 +367,8 @@ function TaskNotepadViewActiveSection({
             {taskDeleteConfirmationState && (
                 <TaskDeleteConfirmationModalDialog
                     store={assigneeActiveQuery.store}
+                    // Can't undo changes from the notepad active section.
+                    undoManager={null}
                     taskId={taskDeleteConfirmationState.taskId}
                     onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
                     onClose={() => setTaskDeleteConfirmationState(null)}

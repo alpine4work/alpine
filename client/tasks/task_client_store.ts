@@ -30,7 +30,6 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {EventEmitter} from "~/shared/helpers/control/event_emitter.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {generateId} from "~/shared/id/id.js";
@@ -57,7 +56,6 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
-import {getTaskQuerySortCursorTaskId} from "~/shared/tasks/task_query_sort_cursor.js";
 import {
     TaskAuthorizationStateRegister,
     TaskRealtimeQueryLoadedState,
@@ -202,7 +200,11 @@ export type TaskClientStoreSubscriptions = {
 };
 
 export interface TaskClientStoreUndoManager {
-    pushUndoStackEntry(entry: {actions: TaskUndoActions; release: () => void}): void;
+    pushUndoStackEntry(entry: {
+        undoActions: TaskUndoActions;
+        removedFromQueries: ReadonlySet<TaskClientQuery>;
+        release: () => void;
+    }): void;
 }
 
 export type TaskClientStoreUpdateTitleActionTransactionBuilder = {
@@ -327,9 +329,6 @@ export class TaskClientStore {
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
         initialTitleUpdate: TaskTitleUpdate,
-        options: {
-            undoManager: TaskClientStoreUndoManager | null;
-        },
     ): {
         add: (titleUpdate: TaskTitleUpdate) => void;
         commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
@@ -339,15 +338,14 @@ export class TaskClientStore {
         return this._internal.getTaskUpdateTitleActionTransactionBuilder(
             taskId,
             initialTitleUpdate,
-            options,
         );
     }
 
     public deleteTaskAndAllChildren(
         context: Context<{rpc: RpcContextModuleBase}>,
         taskId: TaskId,
-        options?: {time: HybridLogicalTime},
-    ): {finally: (callback: () => void) => void} {
+        options: {undoManager: TaskClientStoreUndoManager | null; time?: HybridLogicalTime},
+    ): Promise<void> {
         return this._internal.deleteTaskAndAllChildren(context, taskId, options);
     }
 
@@ -532,6 +530,21 @@ export class TaskClientStoreInternal {
      */
     private readonly _commitTaskActionTransactionMutex = new Mutex();
 
+    // Allow releasing of task entry stores to be delayed. For example, while
+    // updating our store if one query releases a task then another query retains
+    // the same task then we want to keep the task around instead of garbage
+    // collecting it.
+    private _delayReleaseTaskEntryStoreIds: Set<TaskId> | null = null;
+    private _delayReleaseCollectionEntryStoreIds: Set<TaskCollectionId> | null = null;
+
+    /**
+     * If this callback is set then when a task is removed from `TaskClientQuery`
+     * it will call this function.
+     */
+    public onQueryLoadedTaskRemove:
+        | ((query: TaskClientQueryInternal, taskId: TaskId) => void)
+        | null = null;
+
     constructor(
         external: TaskClientStore,
         {
@@ -625,13 +638,6 @@ export class TaskClientStoreInternal {
         return assertExists(this._referencedAccountStoreById.get(assignee.assignee.accountId))
             .store;
     }
-
-    // Allow releasing of task entry stores to be delayed. For example, while
-    // updating our store if one query releases a task then another query retains
-    // the same task then we want to keep the task around instead of garbage
-    // collecting it.
-    private _delayReleaseTaskEntryStoreIds: Set<TaskId> | null = null;
-    private _delayReleaseCollectionEntryStoreIds: Set<TaskCollectionId> | null = null;
 
     public retainTaskEntryStore(taskId: TaskId) {
         const taskEntryStore = assertExists(this._taskEntryStoreById.get(taskId));
@@ -1521,35 +1527,92 @@ export class TaskClientStoreInternal {
             referencedCollections?: ReadonlyArray<TaskCollectionModel>;
         },
     ): {finally: (callback: () => void) => void} {
+        // We need to create undo actions before applying our actions to the store so
+        // we can read old task data from the store.
+        const undoActions = undoManager ? createTaskUndoActionsIfPossible(this, actions) : null;
+
+        assert(this.onQueryLoadedTaskRemove === null);
+        const removedFromQueries = new Set<TaskClientQuery>();
+        this.onQueryLoadedTaskRemove = (query: TaskClientQueryInternal) => {
+            removedFromQueries.add(query.external);
+        };
+
+        let allPendingActions: Array<TaskClientStorePendingAction>;
+        let actuallyRelease: () => void;
+        try {
+            ({pendingActions: allPendingActions, release: actuallyRelease} = batchStoreUpdates(
+                () => {
+                    if (referencedCollections.length === 0) {
+                        const optimisticExtraActions = this._getOptimisticExtraActions(actions);
+
+                        return this._applyOptimisticTaskActions(
+                            optimisticExtraActions.length > 0
+                                ? [...actions, ...optimisticExtraActions]
+                                : actions,
+                        );
+                    }
+
+                    // If we have some `referencedCollections` then we want to backfill it in the
+                    // store THEN apply our optimistic actions. We need to apply our optimistic
+                    // actions in the `onBatchUpdate` callback or else the backfilled collections
+                    // will be immediately released.
+                    return this._applyUpdateEvent(
+                        {
+                            type: "Update",
+                            actions: [],
+                            backfillTasks: [],
+                            backfillCollections: referencedCollections.map(collection => ({
+                                type: "Authorized",
+                                collection,
+                            })),
+                            // Any authorization state change from the server should override us.
+                            defaultAuthorizationStateVersion: zeroHybridLogicalTime,
+                            referencedAccounts: [],
+                            // Don't pass `this._clientId` in since we don't want to ignore this event.
+                            originClientId: null,
+                        },
+                        () => {
+                            const optimisticExtraActions = this._getOptimisticExtraActions(actions);
+
+                            return this._applyOptimisticTaskActions(
+                                optimisticExtraActions.length > 0
+                                    ? [...actions, ...optimisticExtraActions]
+                                    : actions,
+                            );
+                        },
+                    );
+                },
+            ));
+        } finally {
+            this.onQueryLoadedTaskRemove = null;
+        }
+
         // We hold onto collections and tasks that become unreferenced after applying
         // optimistic actions until both:
         //
         // 1. The action is commit (if it's reverted we need the collections/tasks back)
         // 2. The undo stack corresponding to this action is applied or released
         let referenceCount = 1;
-        let actuallyRelease: (() => void) | null = null;
 
         const release = () => {
             referenceCount--;
             if (referenceCount === 0) actuallyRelease?.();
         };
 
-        if (undoManager) {
-            const undoActions = createTaskUndoActionsIfPossible(this, actions);
-            if (undoActions) {
-                referenceCount++;
+        if (undoManager && undoActions) {
+            referenceCount++;
 
-                let isUndoEntryReleased = false;
+            let isUndoEntryReleased = false;
 
-                undoManager.pushUndoStackEntry({
-                    actions: undoActions,
-                    release: () => {
-                        assert(!isUndoEntryReleased);
-                        isUndoEntryReleased = true;
-                        release();
-                    },
-                });
-            }
+            undoManager.pushUndoStackEntry({
+                undoActions,
+                removedFromQueries,
+                release: () => {
+                    assert(!isUndoEntryReleased);
+                    isUndoEntryReleased = true;
+                    release();
+                },
+            });
         }
 
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
@@ -1565,51 +1628,6 @@ export class TaskClientStoreInternal {
         const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
             ? run()
             : this._commitTaskActionTransactionMutex.withLock(run);
-
-        const {pendingActions: allPendingActions, release: _actuallyRelease} = batchStoreUpdates(
-            () => {
-                if (referencedCollections.length === 0) {
-                    const optimisticExtraActions = this._getOptimisticExtraActions(actions);
-
-                    return this._applyOptimisticTaskActions(
-                        optimisticExtraActions.length > 0
-                            ? [...actions, ...optimisticExtraActions]
-                            : actions,
-                    );
-                }
-
-                // If we have some `referencedCollections` then we want to backfill it in the
-                // store THEN apply our optimistic actions. We need to apply our optimistic
-                // actions in the `onBatchUpdate` callback or else the backfilled collections
-                // will be immediately released.
-                return this._applyUpdateEvent(
-                    {
-                        type: "Update",
-                        actions: [],
-                        backfillTasks: [],
-                        backfillCollections: referencedCollections.map(collection => ({
-                            type: "Authorized",
-                            collection,
-                        })),
-                        // Any authorization state change from the server should override us.
-                        defaultAuthorizationStateVersion: zeroHybridLogicalTime,
-                        referencedAccounts: [],
-                        // Don't pass `this._clientId` in since we don't want to ignore this event.
-                        originClientId: null,
-                    },
-                    () => {
-                        const optimisticExtraActions = this._getOptimisticExtraActions(actions);
-
-                        return this._applyOptimisticTaskActions(
-                            optimisticExtraActions.length > 0
-                                ? [...actions, ...optimisticExtraActions]
-                                : actions,
-                        );
-                    },
-                );
-            },
-        );
-        actuallyRelease = _actuallyRelease;
 
         const pendingActions = allPendingActions.slice(0, actions.length);
         const optimisticExtraPendingActions = allPendingActions.slice(actions.length);
@@ -1826,11 +1844,14 @@ export class TaskClientStoreInternal {
      * Under the hood this has the same logic as `commitTaskActionTransaction()`
      * but allows you to merge individual actions into a single action for the
      * server.
+     *
+     * Note that this method doesn't take an `undoManager`. That's because title
+     * undo/redo is handled by a Y.js `Y.UndoManager` class in
+     * `useTaskTitleModelYDoc()`.
      */
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
         initialTitleUpdate: TaskTitleUpdate,
-        {undoManager}: {undoManager: TaskClientStoreUndoManager | null},
     ): TaskClientStoreUpdateTitleActionTransactionBuilder {
         let isFinished = false;
         let mergedTitleUpdate = initialTitleUpdate;
@@ -1864,26 +1885,6 @@ export class TaskClientStoreInternal {
                     titleUpdate,
                 },
             };
-
-            // We need to create undo actions before we apply the actions to our store so
-            // we can read the old values of things.
-            if (undoManager) {
-                const undoActions = createTaskUndoActionsIfPossible(this, [action]);
-                if (undoActions) {
-                    referenceCount++;
-
-                    let isUndoEntryReleased = false;
-
-                    undoManager.pushUndoStackEntry({
-                        actions: undoActions,
-                        release: () => {
-                            assert(!isUndoEntryReleased);
-                            isUndoEntryReleased = true;
-                            release();
-                        },
-                    });
-                }
-            }
 
             individualActions.push(action);
 
@@ -1981,17 +1982,23 @@ export class TaskClientStoreInternal {
     }
 
     /**
-     * Deletes a task and all of its children. We will optimistically delete the
-     * task and any children of the task we've loaded. However, the task may have
-     * more children that we haven't loaded. The server will send us the full list
-     * of actions to commit.
+     * Deletes a task and all of its children. Does not optimistically update since
+     * we may not know all of a task's children on the client. The UI should show a
+     * loading spinner for this action. You also need to handle errors from this
+     * action yourself. Unlike `commitTaskActionTransaction()` which displays
+     * errors on its own.
      */
-    // NOCOMMIT: Undo this
     public deleteTaskAndAllChildren(
         context: Context<{rpc: RpcContextModuleBase}>,
         taskId: TaskId,
-        {time: actionTime = this.clock.now()}: {time?: HybridLogicalTime} = {},
-    ): {finally: (callback: () => void) => void} {
+        {
+            undoManager,
+            time: actionTime = this.clock.now(),
+        }: {
+            undoManager: TaskClientStoreUndoManager | null;
+            time?: HybridLogicalTime;
+        },
+    ): Promise<void> {
         // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
         // close the page if we haven't finished committing their task action. It will
         // look committed on their machine but might not be on the server.
@@ -2006,153 +2013,119 @@ export class TaskClientStoreInternal {
             ? run()
             : this._commitTaskActionTransactionMutex.withLock(run);
 
-        const optimisticDeleteActions: Array<TaskUpdateTaskAction> = [];
+        return deletePromise.then(({actions, referencedAccounts}) => {
+            let hasUndoStackEntry = false;
 
-        const addOptimisticDeleteActions = (taskId: TaskId) => {
-            optimisticDeleteActions.push({
-                type: "UpdateTask",
-                time: actionTime,
-                taskId,
-                taskAction: {type: "Delete"},
-            });
+            assert(this.onQueryLoadedTaskRemove === null);
+            const removedFromQueries = new Set<TaskClientQuery>();
+            this.onQueryLoadedTaskRemove = (query: TaskClientQueryInternal) => {
+                removedFromQueries.add(query.external);
+            };
 
-            const childrenQuery = this.getTaskChildrenQueryStore(taskId).getSnapshot();
-            if (!childrenQuery) return;
+            const previousDelayReleaseTaskEntryStoreIds = this._delayReleaseTaskEntryStoreIds;
+            const previousDelayReleaseCollectionEntryStoreIds =
+                this._delayReleaseCollectionEntryStoreIds;
 
-            const childrenQueryIterator = childrenQuery.taskOrderStore.getSnapshot().begin;
-            while (childrenQueryIterator.valid) {
-                const childCursor = childrenQueryIterator.key!;
-                addOptimisticDeleteActions(getTaskQuerySortCursorTaskId(childCursor));
-                childrenQueryIterator.next();
+            const delayReleaseTaskEntryStoreIds = new Set<TaskId>();
+            const delayReleaseCollectionEntryStoreIds = new Set<TaskCollectionId>();
+
+            this._delayReleaseTaskEntryStoreIds = delayReleaseTaskEntryStoreIds;
+            this._delayReleaseCollectionEntryStoreIds = delayReleaseCollectionEntryStoreIds;
+
+            let releaseTaskIds: Array<TaskId>;
+            let releaseCollectionIds: Array<TaskCollectionId>;
+
+            try {
+                // We need to create undo actions before applying our actions to the store so
+                // we can read old task data from the store.
+                const undoActions = undoManager
+                    ? createTaskUndoActionsIfPossible(this, actions)
+                    : null;
+
+                this.applyUpdateEvent({
+                    type: "Update",
+                    actions,
+                    backfillTasks: [],
+                    backfillCollections: [],
+                    // Any authorization state change from the server should override us.
+                    defaultAuthorizationStateVersion: zeroHybridLogicalTime,
+                    referencedAccounts,
+                    // Don't pass `this._clientId` in since we don't want to ignore this event.
+                    originClientId: null,
+                });
+
+                // Push an undo stack entry that retains the deleted tasks so if we undo the
+                // deletion we still have the task data.
+                if (undoManager && undoActions) {
+                    hasUndoStackEntry = true;
+                    let isUndoEntryReleased = false;
+
+                    undoManager.pushUndoStackEntry({
+                        undoActions,
+                        removedFromQueries,
+                        release: () => {
+                            assert(!isUndoEntryReleased);
+                            isUndoEntryReleased = true;
+
+                            for (const taskId of releaseTaskIds) {
+                                this.releaseTaskEntryStore(taskId);
+                            }
+
+                            for (const collectionId of releaseCollectionIds) {
+                                this.releaseCollectionEntryStore(collectionId);
+                            }
+                        },
+                    });
+                }
+            } finally {
+                this.onQueryLoadedTaskRemove = null;
+
+                // Any tasks or collections that were released while updating our store, we
+                // want to retain as long as we have an undo stack entry. Since hitting undo
+                // may reintroduce the tasks to the store.
+
+                releaseTaskIds = Array.from(delayReleaseTaskEntryStoreIds);
+                releaseCollectionIds = Array.from(delayReleaseCollectionEntryStoreIds);
+
+                if (hasUndoStackEntry) {
+                    for (const taskId of releaseTaskIds) {
+                        this.retainTaskEntryStore(taskId);
+                    }
+
+                    for (const collectionId of releaseCollectionIds) {
+                        this.retainCollectionEntryStore(collectionId);
+                    }
+                } else {
+                    for (const taskId of delayReleaseTaskEntryStoreIds) {
+                        const taskEntryStore = assertExists(this._taskEntryStoreById.get(taskId));
+                        assert(taskEntryStore.referenceCount === 0);
+
+                        this._taskEntryStoreById.delete(taskId);
+
+                        this._updateReferencedAccountStores(
+                            taskEntryStore.store.getSnapshot(),
+                            null,
+                        );
+                    }
+
+                    for (const collectionId of delayReleaseCollectionEntryStoreIds) {
+                        const collectionEntryStore = assertExists(
+                            this._collectionEntryStoreById.get(collectionId),
+                        );
+                        assert(collectionEntryStore.referenceCount === 0);
+
+                        this._collectionEntryStoreById.delete(collectionId);
+                    }
+                }
+
+                assert(delayReleaseTaskEntryStoreIds.size === 0);
+                assert(delayReleaseCollectionEntryStoreIds.size === 0);
+
+                this._delayReleaseTaskEntryStoreIds = previousDelayReleaseTaskEntryStoreIds;
+                this._delayReleaseCollectionEntryStoreIds =
+                    previousDelayReleaseCollectionEntryStoreIds;
             }
-        };
-
-        addOptimisticDeleteActions(taskId);
-
-        // Get any extra actions from our delete (e.g. changing child task counts).
-        const optimisticExtraActions = this._getOptimisticExtraActions(optimisticDeleteActions);
-
-        const {pendingActions: optimisticPendingActions, release} =
-            this._applyOptimisticTaskActions([
-                ...optimisticDeleteActions,
-                ...optimisticExtraActions,
-            ]);
-
-        // All of our actions are associated with a task. Make our optimistic actions
-        // easier to search by putting them in a map keyed by `TaskId`.
-        const optimisticPendingActionsByTaskId = new Map<
-            TaskId,
-            Array<TaskClientStorePendingUpdateTaskAction>
-        >();
-        for (const pendingAction of optimisticPendingActions) {
-            assert(pendingAction.action.type === "UpdateTask");
-
-            getOrSetDefaultMapValue(
-                optimisticPendingActionsByTaskId,
-                pendingAction.action.taskId,
-                () => [],
-            ).push({
-                ...pendingAction,
-                action: pendingAction.action,
-            });
-        }
-
-        deletePromise.then(
-            ({actions, referencedAccounts}) => {
-                // Batch committing optimistic actions and apply any other actions we did not
-                // see optimistically.
-                batchStoreUpdates(() => {
-                    const newActions: Array<TaskAction> = [];
-                    const matchedOptimisticPendingActions = new Set<TaskClientStorePendingAction>();
-
-                    // For all the actions we ended up committing, look for an exact match with a
-                    // corresponding optimistic action with `isDeepEqual()`.
-                    //
-                    // - If the action doesn't have an exact match with an optimistic action we'll
-                    //   have to apply it
-                    // - Otherwise if the action does have an exact match with an optimistic task we
-                    //   should mark the optimistic task as committed
-                    // - If we have optimistic tasks without an exact match then those optimistic
-                    //   tasks were incorrect and need to be reverted
-                    for (const action of actions) {
-                        if (action.type !== "UpdateTask") {
-                            newActions.push(action);
-                            continue;
-                        }
-
-                        const optimisticPendingActions = optimisticPendingActionsByTaskId.get(
-                            action.taskId,
-                        );
-                        const matchedOptimisticPendingAction = optimisticPendingActions?.find(
-                            ({action: optimisticAction}) => isDeepEqual(action, optimisticAction),
-                        );
-
-                        if (matchedOptimisticPendingAction) {
-                            matchedOptimisticPendingActions.add(matchedOptimisticPendingAction);
-                        } else {
-                            newActions.push(action);
-                        }
-                    }
-
-                    const unmatchedOptimisticPendingActions: Array<TaskClientStorePendingAction> =
-                        [];
-                    for (const optimisticPendingAction of optimisticPendingActions) {
-                        if (!matchedOptimisticPendingActions.has(optimisticPendingAction)) {
-                            unmatchedOptimisticPendingActions.push(optimisticPendingAction);
-                        }
-                    }
-
-                    if (matchedOptimisticPendingActions.size > 0) {
-                        this._commitOptimisticTaskActions(matchedOptimisticPendingActions);
-                    }
-
-                    if (unmatchedOptimisticPendingActions.length > 0) {
-                        this._revertOptimisticTaskActions(unmatchedOptimisticPendingActions);
-                    }
-
-                    if (newActions.length > 0) {
-                        this.applyUpdateEvent({
-                            type: "Update",
-                            actions,
-                            backfillTasks: [],
-                            backfillCollections: [],
-                            // Any authorization state change from the server should override us.
-                            defaultAuthorizationStateVersion: zeroHybridLogicalTime,
-                            referencedAccounts,
-                            // Don't pass `this._clientId` in since we don't want to ignore this event.
-                            originClientId: null,
-                        });
-                    }
-
-                    // Release any references held when we applied the optimistic action. If tasks
-                    // are fully released by the optimistic action, we retain them until the action
-                    // commits in case we need to revert the action.
-                    release();
-                });
-            },
-            error => {
-                this._onError({
-                    display: true,
-                    title: "Couldn’t delete task",
-                    error,
-                });
-
-                batchStoreUpdates(() => {
-                    this._revertOptimisticTaskActions(optimisticPendingActions);
-
-                    // Release any references held when we applied the optimistic action. If tasks
-                    // are fully released by the optimistic action, we retain them until the action
-                    // commits in case we need to revert the action.
-                    release();
-                });
-            },
-        );
-
-        return {
-            finally: callback => {
-                deletePromise.finally(callback);
-            },
-        };
+        });
     }
 
     private _applyOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
@@ -3627,6 +3600,11 @@ export class TaskClientStoreInternal {
 
                     if (delayReleaseCollectionEntryStoreIds) {
                         for (const collectionId of delayReleaseCollectionEntryStoreIds) {
+                            const collectionEntryStore = assertExists(
+                                this._collectionEntryStoreById.get(collectionId),
+                            );
+                            assert(collectionEntryStore.referenceCount === 0);
+
                             this._collectionEntryStoreById.delete(collectionId);
                         }
                     }

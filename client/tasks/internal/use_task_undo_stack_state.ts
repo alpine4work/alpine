@@ -2,6 +2,7 @@ import {MutableRefObject, useEffect} from "react";
 import * as Y from "yjs";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {TaskUndoActions} from "~/client/tasks/internal/create_task_undo_actions_if_possible.js";
+import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -23,7 +24,8 @@ export type TaskUndoStackEntry =
     | {
           readonly type: "Actions";
           readonly rootParentTaskId: TaskId;
-          readonly actions: TaskUndoActions;
+          readonly undoActions: TaskUndoActions;
+          readonly removedFromQueries: ReadonlySet<TaskClientQuery>;
           readonly release: () => void;
       }
     | {
