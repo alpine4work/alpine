@@ -390,7 +390,7 @@ function TaskRowView(
             return;
         }
 
-        const commitPromise = commitActionTransaction(taskId => [
+        const commitPromise = commitActionTransactionEvenIfGhost(taskId => [
             {
                 type: "UpdateTask",
                 time: query.store.clock.now(),
@@ -451,7 +451,7 @@ function TaskRowView(
         focusPreviousCell,
         handleCellKeyDown,
         handleCellKeyDownCapture,
-        commitActionTransaction,
+        commitActionTransactionEvenIfGhost,
     } = useEvents({
         isFocusWithin: () => assertExists(containerRef.current).contains(document.activeElement),
 
@@ -844,7 +844,7 @@ function TaskRowView(
 
         // Commit an action transaction against our task. If this is a ghost task then
         // we'll create a new task before applying the update.
-        commitActionTransaction: (
+        commitActionTransactionEvenIfGhost: (
             getActions: (taskId: TaskId) => Array<TaskAction>,
             options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
         ): {
@@ -1441,7 +1441,7 @@ function TaskRowView(
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusNextCell={focusNextCell}
                         focusPreviousCell={focusPreviousCell}
-                        commitActionTransaction={commitActionTransaction}
+                        commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                     />
                     <TaskRowPriorityCell
                         ref={priorityCellRef}
@@ -1453,7 +1453,7 @@ function TaskRowView(
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusNextCell={focusNextCell}
                         focusPreviousCell={focusPreviousCell}
-                        commitActionTransaction={commitActionTransaction}
+                        commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                     />
                     <TaskRowDueDateCell
                         ref={dueDateCellRef}
@@ -1465,7 +1465,7 @@ function TaskRowView(
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusNextCell={focusNextCell}
                         focusPreviousCell={focusPreviousCell}
-                        commitActionTransaction={commitActionTransaction}
+                        commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                     />
                     <TaskRowCollectionsCell
                         ref={collectionsCellRef}
@@ -1477,7 +1477,7 @@ function TaskRowView(
                         onCellKeyDownCapture={handleCellKeyDownCapture}
                         focusPreviousCell={focusPreviousCell}
                         setRowZIndex={setRowZIndex}
-                        commitActionTransaction={commitActionTransaction}
+                        commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                     />
                 </>
             )}
@@ -1526,24 +1526,21 @@ function TaskRowView(
                     >
                         {borderCoverNode}
                         {node}
-                        {task && (
+                        <TaskRowViewDenseFields
                             // NOTE(calebmer): This component is not rendered by a fullscreen grid view
                             // which may have many, many tasks. So we haven't spent time optimizing it yet.
                             // However, if tasks with many children are common this component may slow
                             // us down.
-                            <TaskRowViewDenseFields
-                                ref={denseFieldsRef}
-                                isReadOnly={capabilities.isReadOnly}
-                                store={query.store}
-                                // NOCOMMIT: Make sure this works with ghost tasks
-                                undoManager={undoManager}
-                                task={task}
-                                marginLeft={marginLeft}
-                                focusTitleStart={focusTitleStart}
-                                focusTitleEnd={focusTitleEnd}
-                                focusTitleAll={focusTitleAll}
-                            />
-                        )}
+                            ref={denseFieldsRef}
+                            isReadOnly={capabilities.isReadOnly}
+                            store={query.store}
+                            task={task}
+                            marginLeft={marginLeft}
+                            focusTitleStart={focusTitleStart}
+                            focusTitleEnd={focusTitleEnd}
+                            focusTitleAll={focusTitleAll}
+                            commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
+                        />
                         {firstRowDroppableIndentationsNode}
                         {droppableIndentationsNode}
                     </div>

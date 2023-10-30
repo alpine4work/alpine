@@ -25,7 +25,7 @@ export function TaskRowCollectionsCellOverlay({
     task,
     focusPreviousCell,
     cellRef,
-    commitActionTransaction,
+    commitActionTransactionEvenIfGhost,
 }: {
     isReadOnly: boolean;
     query: TaskClientQuery;
@@ -33,7 +33,7 @@ export function TaskRowCollectionsCellOverlay({
     task: TaskModel | null;
     focusPreviousCell: () => void;
     cellRef: RefObject<HTMLDivElement>;
-    commitActionTransaction: Memo<
+    commitActionTransactionEvenIfGhost: Memo<
         (
             getActions: (taskId: TaskId) => Array<TaskAction>,
             options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
@@ -88,7 +88,7 @@ export function TaskRowCollectionsCellOverlay({
                     isTabbable={false}
                     onArrowLeftLeaveKeyDown={focusPreviousCell}
                     onReturnFocus={() => assertExists(cellRef.current).focus()}
-                    commitActionTransaction={commitActionTransaction}
+                    commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                 />
             </Box>
         </Box>

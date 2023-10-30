@@ -107,7 +107,7 @@ function TaskRowDueDateCell(
         onCellKeyDownCapture,
         focusPreviousCell,
         focusNextCell,
-        commitActionTransaction,
+        commitActionTransactionEvenIfGhost,
     }: {
         isReadOnly: boolean;
         store: TaskClientStore;
@@ -117,7 +117,9 @@ function TaskRowDueDateCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
-        commitActionTransaction: Memo<(getActions: (taskId: TaskId) => Array<TaskAction>) => void>;
+        commitActionTransactionEvenIfGhost: Memo<
+            (getActions: (taskId: TaskId) => Array<TaskAction>) => void
+        >;
     },
     ref: Ref<TaskRowDueDateCellRef>,
 ) {
@@ -185,7 +187,7 @@ function TaskRowDueDateCell(
     );
 
     const handleDueDateChange = (dueDate: CalendarDate | null) => {
-        commitActionTransaction(taskId => [
+        commitActionTransactionEvenIfGhost(taskId => [
             {
                 type: "UpdateTask",
                 time: store.clock.now(),

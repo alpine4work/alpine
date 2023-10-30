@@ -106,7 +106,7 @@ function TaskRowCollectionsCell(
         onCellKeyDownCapture,
         focusPreviousCell,
         setRowZIndex,
-        commitActionTransaction,
+        commitActionTransactionEvenIfGhost,
     }: {
         isReadOnly: boolean;
         query: TaskClientQuery;
@@ -116,7 +116,7 @@ function TaskRowCollectionsCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
         setRowZIndex: Memo<(zIndex: number) => () => void>;
-        commitActionTransaction: Memo<
+        commitActionTransactionEvenIfGhost: Memo<
             (
                 getActions: (taskId: TaskId) => Array<TaskAction>,
                 options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
@@ -218,7 +218,7 @@ function TaskRowCollectionsCell(
                         event.stopPropagation();
 
                         if (!isReadOnly) {
-                            commitActionTransaction(taskId => {
+                            commitActionTransactionEvenIfGhost(taskId => {
                                 const time = query.store.clock.now();
 
                                 return displayCollections.map(
@@ -303,7 +303,7 @@ function TaskRowCollectionsCell(
                     task={task}
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}
-                    commitActionTransaction={commitActionTransaction}
+                    commitActionTransactionEvenIfGhost={commitActionTransactionEvenIfGhost}
                 />
             )}
         </div>

@@ -90,7 +90,7 @@ function TaskRowPriorityCell(
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
-        commitActionTransaction,
+        commitActionTransactionEvenIfGhost,
     }: {
         isReadOnly: boolean;
         store: TaskClientStore;
@@ -100,7 +100,9 @@ function TaskRowPriorityCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        commitActionTransaction: Memo<(getActions: (taskId: TaskId) => Array<TaskAction>) => void>;
+        commitActionTransactionEvenIfGhost: Memo<
+            (getActions: (taskId: TaskId) => Array<TaskAction>) => void
+        >;
     },
     ref: Ref<TaskRowPriorityCellRef>,
 ) {
@@ -165,7 +167,7 @@ function TaskRowPriorityCell(
     );
 
     const handlePriorityChange = (priority: TaskPriority | null) => {
-        commitActionTransaction(taskId => [
+        commitActionTransactionEvenIfGhost(taskId => [
             {
                 type: "UpdateTask",
                 time: store.clock.now(),

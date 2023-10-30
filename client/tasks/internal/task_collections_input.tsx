@@ -85,7 +85,7 @@ export function TaskCollectionsInput({
     isTabbable = true,
     onArrowLeftLeaveKeyDown,
     onReturnFocus,
-    commitActionTransaction: _commitActionTransaction,
+    commitActionTransactionEvenIfGhost: _commitActionTransactionEvenIfGhost,
 }: {
     referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
     undoManager: TaskClientStoreUndoManager;
@@ -100,7 +100,7 @@ export function TaskCollectionsInput({
     isTabbable?: boolean;
     onArrowLeftLeaveKeyDown?: () => void;
     onReturnFocus?: () => void;
-    commitActionTransaction?: (
+    commitActionTransactionEvenIfGhost?: (
         getActions: (taskId: TaskId) => Array<TaskAction>,
         options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
     ) => void;
@@ -113,8 +113,8 @@ export function TaskCollectionsInput({
     const {store} = referencesSubscription;
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
 
-    const commitActionTransaction =
-        _commitActionTransaction ??
+    const commitActionTransactionEvenIfGhost =
+        _commitActionTransactionEvenIfGhost ??
         ((
             getActions: (taskId: TaskId) => Array<TaskAction>,
             options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
@@ -221,7 +221,7 @@ export function TaskCollectionsInput({
                     ),
                 );
 
-                commitActionTransaction(
+                commitActionTransactionEvenIfGhost(
                     taskId => [
                         {
                             type: "UpdateTask",
@@ -277,7 +277,7 @@ export function TaskCollectionsInput({
                 } else {
                     const collectionId = generateId<TaskCollectionId>();
 
-                    commitActionTransaction(taskId => [
+                    commitActionTransactionEvenIfGhost(taskId => [
                         {
                             type: "UpdateCollection",
                             time: store.clock.now(),
@@ -364,7 +364,7 @@ export function TaskCollectionsInput({
 
                             const collection = displayCollections[displayCollections.length - 1]!;
 
-                            commitActionTransaction(taskId => [
+                            commitActionTransactionEvenIfGhost(taskId => [
                                 {
                                     type: "UpdateTask",
                                     time: store.clock.now(),
@@ -415,7 +415,7 @@ export function TaskCollectionsInput({
                     event.preventDefault();
                     event.stopPropagation();
 
-                    commitActionTransaction(taskId => [
+                    commitActionTransactionEvenIfGhost(taskId => [
                         {
                             type: "UpdateTask",
                             time: store.clock.now(),
@@ -471,7 +471,7 @@ export function TaskCollectionsInput({
                         event.preventDefault();
                         event.stopPropagation();
 
-                        commitActionTransaction(taskId => [
+                        commitActionTransactionEvenIfGhost(taskId => [
                             {
                                 type: "UpdateTask",
                                 time: store.clock.now(),
@@ -526,7 +526,7 @@ export function TaskCollectionsInput({
                         onRemove={
                             !isReadOnly
                                 ? () => {
-                                      commitActionTransaction(taskId => [
+                                      commitActionTransactionEvenIfGhost(taskId => [
                                           {
                                               type: "UpdateTask",
                                               time: store.clock.now(),
@@ -599,7 +599,7 @@ export function TaskCollectionsInput({
                         onConfirm={inputValue => {
                             const collectionId = generateId<TaskCollectionId>();
 
-                            commitActionTransaction(taskId => [
+                            commitActionTransactionEvenIfGhost(taskId => [
                                 {
                                     type: "UpdateCollection",
                                     time: store.clock.now(),

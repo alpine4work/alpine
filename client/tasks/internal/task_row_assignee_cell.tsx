@@ -98,7 +98,7 @@ function TaskRowAssigneeCell(
         onCellKeyDownCapture,
         focusNextCell,
         focusPreviousCell,
-        commitActionTransaction,
+        commitActionTransactionEvenIfGhost,
     }: {
         isReadOnly: boolean;
         store: TaskClientStore;
@@ -109,7 +109,9 @@ function TaskRowAssigneeCell(
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         focusNextCell: Memo<(column: TaskGridViewColumn) => void>;
         focusPreviousCell: Memo<(column: TaskGridViewColumn) => void>;
-        commitActionTransaction: Memo<(getActions: (taskId: TaskId) => Array<TaskAction>) => void>;
+        commitActionTransactionEvenIfGhost: Memo<
+            (getActions: (taskId: TaskId) => Array<TaskAction>) => void
+        >;
     },
     ref: Ref<TaskRowAssigneeCellRef>,
 ) {
@@ -178,7 +180,7 @@ function TaskRowAssigneeCell(
     );
 
     const handleAssigneeAccountChange = (assigneeAccount: AccountModel | null) => {
-        commitActionTransaction(taskId => {
+        commitActionTransactionEvenIfGhost(taskId => {
             const time = store.clock.now();
 
             return [
