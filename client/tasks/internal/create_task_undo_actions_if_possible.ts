@@ -1,20 +1,26 @@
+import {AccountClientStore} from "~/client/accounts/account_client_store.js";
 import {Store} from "~/client/helpers/store/store.js";
+import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskClientStore, TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
-import {isNonEmptyReadonlyArray} from "~/shared/helpers/array/non_empty_readonly_array.js";
 import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {serializeHybridLogicalTime} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {upcastTaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
+import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {upcastTaskStatusWithSortableAccount} from "~/shared/tasks/task_status.js";
 
 // We use an interface to prevent you from calling methods that mutate the
 // store or accessing `store.clock`.
 interface TaskClientStoreInterface {
+    readonly spaceId: SpaceId;
+    readonly accountStore: AccountClientStore;
     getTaskEntryStoreIfExists(task: TaskId): Store<TaskClientStoreTaskEntry> | null;
 }
 
@@ -105,7 +111,30 @@ export function createTaskUndoActionsIfPossible(
     // This is managed by `TaskUndoActions`.
     const undoActions: Array<TaskUpdateTaskAction> = [];
 
+    const workingTaskEntryById = new Map<
+        TaskId,
+        | {task: TaskModel; actions: null}
+        | {
+              task: null;
+              actions: Array<{
+                  action: TaskUpdateTaskAction;
+                  getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount;
+              }>;
+          }
+    >();
+
     for (const action of actions) {
+        // To generate undo actions we need to know the old task value. Including any
+        // actions made during this transaction. Importantly, if a task was created in
+        // this transaction we still need the `TaskModel` when generating an undo
+        // action.
+        const getTask = (taskId: TaskId): TaskModel | null => {
+            return getOrSetDefaultMapValue(workingTaskEntryById, taskId, () => {
+                const task = store.getTaskEntryStoreIfExists(taskId)?.getSnapshot().task;
+                return task ? {task, actions: null} : {task: null, actions: []};
+            }).task;
+        };
+
         switch (action.type) {
             // These actions are not undo-able.
             case "UpdateCollection":
@@ -139,9 +168,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateParentTaskId": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         undoActions.push({
@@ -157,9 +184,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateParentPosition": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         undoActions.push({
@@ -191,9 +216,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "RemoveCollection": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         // If there is no order key, collection was not added in the first place.
@@ -215,9 +238,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateCollectionPosition": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         // If there is no version, collection was not part of task in the first place.
@@ -246,9 +267,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateNotepadPagePosition": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         // `UpdateNotepadPagePosition` is used to add tasks to a notepad page and
@@ -273,9 +292,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateStatus": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         undoActions.push({
@@ -293,9 +310,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateAssignee": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         undoActions.push({
@@ -313,9 +328,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateAssigneeStatus": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         undoActions.push({
@@ -330,9 +343,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdateAssigneeActivePosition": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         const accountId =
@@ -366,12 +377,35 @@ export function createTaskUndoActionsIfPossible(
                         // `Y.UndoManager`. We use that class instead of trying to generate inverted
                         // updates since `Y.UndoManager` makes sure selection is properly set after
                         // an undo among other things.
+                        //
+                        // NOTE(calebmer, 2023-10-30): One approach I tried (which maybe we should try
+                        // again in the future) is trying to get Y.js to generate an invert action. My
+                        // [naive approach had bugs][1] and it was unclear how to handle selection
+                        // state so I abandoned that approach. I opened a [forum post][1] on the topic.
+                        // If we can figure out a proper implementation of inverting Y.js updates that
+                        // may be a superior implementation to keep things consistent.
+                        //
+                        // [1]: https://discuss.yjs.dev/t/how-to-go-about-building-an-alternative-stateless-undo-implementation/2200
+
+                        // Special case: We still want to generate undo actions when you create a task
+                        // and update the title at the same time (like when you create a ghost task).
+                        // When ghost task titles are updated we don't register an undo stack entry
+                        // with `Y.UndoManager`. This will leave the title in the deleted task so it's
+                        // available when the user undeletes the task.
+                        if (
+                            actions.some(
+                                otherAction =>
+                                    otherAction.type === "UpdateTask" &&
+                                    otherAction.taskAction.type === "Create",
+                            )
+                        ) {
+                            break;
+                        }
+
                         return null;
                     }
                     case "UpdateDueDate": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         undoActions.push({
@@ -386,9 +420,7 @@ export function createTaskUndoActionsIfPossible(
                         break;
                     }
                     case "UpdatePriority": {
-                        const task = store
-                            .getTaskEntryStoreIfExists(action.taskId)
-                            ?.getSnapshot().task;
+                        const task = getTask(action.taskId);
                         if (!task) return null;
 
                         undoActions.push({
@@ -405,6 +437,55 @@ export function createTaskUndoActionsIfPossible(
                     default:
                         throw exhaustive(action.taskAction);
                 }
+
+                const getActionReferencedSortableAccount =
+                    createGetTaskActionReferencedSortableAccount(store.accountStore, action);
+
+                let taskEntry = workingTaskEntryById.get(action.taskId);
+
+                // If we don't have an entry for this task, try to get one from our store.
+                if (!taskEntry) {
+                    const task = store.getTaskEntryStoreIfExists(action.taskId)?.getSnapshot().task;
+                    if (task) {
+                        taskEntry = {task, actions: null};
+                    }
+                }
+
+                // Update the task entry with our action...
+                if (
+                    action.type === "UpdateTask" &&
+                    action.taskAction.type === "Create" &&
+                    !taskEntry?.task
+                ) {
+                    taskEntry = {
+                        task: (taskEntry?.actions ?? []).reduce(
+                            (task, {action, getActionReferencedSortableAccount}) =>
+                                task.applyAction(action, getActionReferencedSortableAccount),
+                            TaskModel.createFromAction(
+                                store.spaceId,
+                                action.taskId,
+                                action.time,
+                                action.taskAction,
+                                getActionReferencedSortableAccount,
+                            ),
+                        ),
+                        actions: null,
+                    };
+                } else if (!taskEntry) {
+                    taskEntry = {
+                        task: null,
+                        actions: [{action, getActionReferencedSortableAccount}],
+                    };
+                } else if (!taskEntry.task) {
+                    taskEntry.actions.push({action, getActionReferencedSortableAccount});
+                } else {
+                    taskEntry.task = taskEntry.task.applyAction(
+                        action,
+                        getActionReferencedSortableAccount,
+                    );
+                }
+
+                workingTaskEntryById.set(action.taskId, taskEntry);
                 break;
             }
             default:
@@ -412,6 +493,8 @@ export function createTaskUndoActionsIfPossible(
         }
     }
 
-    if (!isNonEmptyReadonlyArray(undoActions)) return null;
+    // If we got no undo actions, an undo isn't possible.
+    if (undoActions.length === 0) return null;
+
     return new TaskUndoActions(undoActions);
 }
