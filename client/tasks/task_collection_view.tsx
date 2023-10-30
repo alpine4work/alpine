@@ -342,12 +342,9 @@ export function TaskCollectionView({
             ];
         },
         withColumnHeaderBorderTop: true,
-        // TODO(calebmer): I'd like to kill extra scroll space. Feels wrong. Looks
-        // particularly wrong with `readOnlyReason`.
-        withColumnHeaderExtraScrollSpace: "1.5",
         columnHeaderControls: useMemo(() => {
             return {
-                minHeight: "2.875rem",
+                minHeight: "3rem",
                 node: (
                     <>
                         {readOnlyReason?.message && (
@@ -372,7 +369,7 @@ export function TaskCollectionView({
                             </Box>
                         )}
                         <Box display="flex" paddingX={taskRowViewPaddingX}>
-                            <Box paddingTop="1.5" paddingBottom="3" maxWidth="1/2">
+                            <Box paddingTop="2" paddingBottom="3" maxWidth="1/2">
                                 <TaskCollectionViewHeader
                                     isReadOnly={isReadOnly}
                                     store={store}
@@ -384,7 +381,7 @@ export function TaskCollectionView({
                             <Box
                                 flexGrow="1"
                                 paddingLeft="5"
-                                paddingTop="2"
+                                paddingTop="2.5"
                                 style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
                             >
                                 <Box borderLeft="grey-5" paddingLeft="5">

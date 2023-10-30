@@ -337,11 +337,9 @@ export function TaskQueryView({
         // level (subtasks are fine) and tab/shift-tab to indent.
         getMaybeRemoveTaskFromQueryActions: () => [],
         withColumnHeaderBorderTop: true,
-        // TODO(calebmer): I'd like to kill extra scroll space. Feels wrong.
-        withColumnHeaderExtraScrollSpace: "1.5",
         columnHeaderControls: useMemo(() => {
             return {
-                minHeight: "2.75rem",
+                minHeight: "3rem",
                 node: (
                     <>
                         {readOnlyReason?.message && (
@@ -367,7 +365,7 @@ export function TaskQueryView({
                         )}
                         <Box
                             paddingX={taskRowViewPaddingX}
-                            paddingTop="2"
+                            paddingTop="2.5"
                             style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
                         >
                             <TaskQueryViewCustomizationBar

@@ -320,13 +320,13 @@ export function TaskNotepadView({
         withColumnHeaderBorderTop: !withMobileLayout,
         columnHeaderControls: useMemo(() => {
             return {
-                minHeight: withMobileLayout ? "2.5rem" : "2.875rem",
+                minHeight: withMobileLayout ? "2.75rem" : "3rem",
                 node: (
                     <Box
-                        paddingTop="2"
+                        paddingTop="2.5"
                         style={{
                             paddingBottom: withMobileLayout
-                                ? spacing["2"]
+                                ? spacing["2.5"]
                                 : addRemLengths(spacing["3"], spacing["0.5"]),
                         }}
                     >
