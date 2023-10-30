@@ -214,7 +214,7 @@ function TaskNotepadCardView({
 
     return (
         <ContextMenuActions actions={contextMenuActions}>
-            <FocusRing offset="0">
+            <FocusRing offset="border">
                 <Box
                     {...mergeProps(draggableListeners ?? {}, draggableAttributes, {
                         onPointerDown: (event: PointerEvent) => {

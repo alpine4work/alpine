@@ -29,6 +29,7 @@ import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
@@ -1701,10 +1702,7 @@ export function useTaskGridViewVirtualizedList({
                 const minHeight =
                     withColumnHeaderExtraScrollSpacePx +
                     (columnHeaderControlsWithMinHeightPx?.minHeight ?? 0) +
-                    (capabilities.hasColumns ? convertRemLengthToPx("1.25rem", remPx) : 0) +
-                    // We add one extra pixel of bottom padding so the focus ring on the first row
-                    // is not covered by our header.
-                    1;
+                    (capabilities.hasColumns ? convertRemLengthToPx("1.25rem", remPx) : 0);
 
                 return {
                     key: "ColumnHeader",
@@ -1713,6 +1711,7 @@ export function useTaskGridViewVirtualizedList({
                     render: ({ref, offset, height, shouldRenderWithRelativePositioning}) => (
                         <TaskGridViewColumnHeaderMemo
                             ref={ref}
+                            viewRef={viewRef}
                             withColumnHeaderBorderTop={withColumnHeaderBorderTop}
                             withColumnHeaderExtraScrollSpace={withColumnHeaderExtraScrollSpacePx}
                             hasColumns={capabilities.hasColumns}
@@ -2027,6 +2026,7 @@ const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHeader));
 
 function TaskGridViewColumnHeader(
     {
+        viewRef,
         withColumnHeaderBorderTop,
         withColumnHeaderExtraScrollSpace,
         hasColumns,
@@ -2036,6 +2036,7 @@ function TaskGridViewColumnHeader(
         height,
         shouldRenderWithRelativePositioning,
     }: {
+        viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
         withColumnHeaderBorderTop: boolean;
         withColumnHeaderExtraScrollSpace: number;
         hasColumns: boolean;
@@ -2047,6 +2048,59 @@ function TaskGridViewColumnHeader(
     },
     virtualizedItemRef: Ref<HTMLDivElement>,
 ) {
+    const columnHeaderContainerRef = useRef<HTMLDivElement>(null);
+    const columnHeaderRef = useRef<HTMLDivElement>(null);
+    const columnHeaderBorderBottomRef = useRef<HTMLDivElement>(null);
+
+    // Update the `z-index` on our column header when it's "stuck" so we can raise
+    // the `z-index`.
+    //
+    // See [this StackOverflow question][1].
+    //
+    // [1]: https://stackoverflow.com/questions/25308823/targeting-positionsticky-elements-that-are-currently-in-a-stuck-state
+    //
+    // NOTE(calebmer, 2023-10-30): When I first built these sticky headers, I
+    // wasn't aware of this `IntersectionObserver` technique for updating styles.
+    // That may be a simpler way to implement the border style changes. However, I
+    // don't know if `IntersectionObserver` is frame perfect! It's ok if `z-index`
+    // updates aren't frame perfect but we really want border style changes to be
+    // frame perfect. I know `position: sticky` is frame perfect so leaving that as
+    // our border implementation for now.
+    useEffect(() => {
+        if (shouldRenderWithRelativePositioning) return;
+
+        const viewContentElement = assertExists(viewRef.current).getContentElement();
+        const columnHeaderContainerElement = assertExists(columnHeaderContainerRef.current);
+        const columnHeaderElement = assertExists(columnHeaderRef.current);
+        const columnHeaderBorderBottomElement = assertExists(columnHeaderBorderBottomRef.current);
+
+        const observer = new IntersectionObserver(
+            entries => {
+                for (const entry of entries) {
+                    if (entry.target === columnHeaderElement && entry.intersectionRatio >= 1) {
+                        columnHeaderContainerElement.style.zIndex = "20";
+                        columnHeaderBorderBottomElement.style.zIndex = "10";
+                    } else {
+                        // Render above overlays which are at `zIndex="50"`
+                        columnHeaderContainerElement.style.zIndex = "80";
+                        columnHeaderBorderBottomElement.style.zIndex = "70";
+                    }
+                }
+            },
+            {
+                root: viewContentElement.parentElement,
+                rootMargin: "-1px 0px 0px 0px",
+                threshold: [1],
+            },
+        );
+
+        observer.observe(columnHeaderElement);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [shouldRenderWithRelativePositioning, viewRef]);
+
     return (
         <>
             {shouldRenderWithRelativePositioning ? (
@@ -2131,28 +2185,31 @@ function TaskGridViewColumnHeader(
                         />
                     )}
                     <Box
+                        ref={columnHeaderBorderBottomRef}
                         // `grey-10` bottom border of column header that slides in when the column
                         // header overlays tasks.
                         position="absolute"
                         left="0"
                         right="0"
                         bottom="0"
-                        style={{top: offset + height - 3}}
-                        // Render above overlays which are at `zIndex="50"`
-                        zIndex="70"
+                        style={{top: offset + height - 2}}
                         pointerEvents="none"
+                        // Default to 10. Our `useEffect()` hook above will update the `z-index` when
+                        // the column header is stuck.
+                        zIndex="10"
                     >
                         <Box
                             position="sticky"
                             left="0"
                             right="0"
                             borderBottom="grey-10"
-                            style={{top: height - 2 - withColumnHeaderExtraScrollSpace}}
+                            style={{top: height - 1 - withColumnHeaderExtraScrollSpace}}
                         />
                     </Box>
                 </>
             )}
             <Box
+                ref={columnHeaderContainerRef}
                 style={{
                     minHeight,
                     ...(shouldRenderWithRelativePositioning
@@ -2166,12 +2223,13 @@ function TaskGridViewColumnHeader(
                               marginTop: -withColumnHeaderExtraScrollSpace,
                           }),
                 }}
-                // Render above overlays which are at `zIndex="50"`
-                zIndex={!shouldRenderWithRelativePositioning ? "80" : undefined}
                 pointerEvents="none"
+                // Default to 20. Our `useEffect()` hook above will update the `z-index` when
+                // the column header is stuck.
+                zIndex="20"
             >
                 <Box
-                    ref={virtualizedItemRef}
+                    ref={useMergedRefs(columnHeaderRef, virtualizedItemRef)}
                     // Our header is not sticky when rendered with relative positioning.
                     position={!shouldRenderWithRelativePositioning ? "sticky" : "relative"}
                     pointerEvents="auto"
@@ -2180,9 +2238,6 @@ function TaskGridViewColumnHeader(
                             ? -withColumnHeaderExtraScrollSpace
                             : undefined,
                         paddingTop: withColumnHeaderExtraScrollSpace,
-                        // One pixel of bottom padding so the focus ring on the first row is not covered
-                        // by our header.
-                        paddingBottom: 1,
                     }}
                 >
                     <Box
@@ -2197,7 +2252,7 @@ function TaskGridViewColumnHeader(
                                 withColumnHeaderExtraScrollSpace,
                             // Render background color with an absolute positioned `<div>` so we don't
                             // cover the border rendered by `<TaskRowView>` (or our separate sticky div).
-                            bottom: 2,
+                            bottom: 1,
                         }}
                         backgroundColor="grey-0"
                     />
