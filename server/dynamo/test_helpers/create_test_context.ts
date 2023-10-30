@@ -251,7 +251,8 @@ export function createTestContext({
             opensearchContextModule.initialize(
                 new OpensearchClient({
                     protocol: "http",
-                    host: `localhost:${opensearchLocal.port}`,
+                    hostname: "localhost",
+                    port: opensearchLocal.port,
                 }),
             );
         }

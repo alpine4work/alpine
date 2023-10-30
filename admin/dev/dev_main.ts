@@ -41,6 +41,7 @@ import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_lo
 import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
 import {DeadlineExceededError, InvalidArgumentError} from "~/shared/error/error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -103,6 +104,7 @@ export type ArtifactServer =
           readonly buildId: Id;
           readonly hasBuildFailed: false;
           readonly subprocess: ChildProcess;
+          readonly httpServerStartPromise: PromiseImmediate<void>;
       }
     | {
           readonly buildId: Id;
@@ -240,7 +242,7 @@ const artifactsPromise = createArtifacts().then(artifacts =>
             await runAllPromises([
                 rebuildArtifact(artifact),
                 updateArtifactDependencyBazelPackagePaths(artifact),
-                createDevProxyServer(artifact, {logError}),
+                createDevProxyServer(artifact, {logError, mainPromise: fastMainPromise}),
             ]);
         }),
     ),
@@ -368,66 +370,46 @@ async function rebuildArtifact(artifact: Artifact) {
             artifact.executablePath,
         );
 
-        // TODO(calebmer): Our dev process manager is occasionally completely breaking
-        // with EBADF errors and it's very unclear where these errors are coming from
-        // or how to fix them. So I'm going to start logging extra debug information to
-        // help get to the bottom of this issue. Once this issue is fixed, we should
-        // remove this extra logging.
-        const debugEbadfError = (error: any) => {
-            if (error.code === "EBADF") {
-                // eslint-disable-next-line no-console
-                console.error(`Extra debugging information for EBADF error:`, {
-                    executablePath,
-                    stat: fs.statSync(executablePath),
-                    lstat: fs.lstatSync(executablePath),
-                });
-            }
+        const subprocess = spawnWithCoordinatedStdio(
+            executablePath,
+            [`--port=${artifact.privatePort}`, ...(artifact.args ?? [])],
+            {
+                env: {...process.env, ...artifact.env},
+                stdioPrefix: artifact.stdioPrefix,
+            },
+        );
+
+        const httpServerStartPromise = PromiseImmediate.resolve(
+            waitForHttpServer(artifact.privatePort).catch(error => {
+                // Don't log an error. If a server never starts, the user will see a 504
+                // gateway timeout when they try to access the artifact's URL.
+            }),
+        );
+
+        // Make sure to assign this before our `await` below which may throw if the
+        // process exists.
+        artifactServerRef.current = {
+            buildId,
+            hasBuildFailed,
+            subprocess,
+            httpServerStartPromise,
         };
 
-        try {
-            const subprocess = spawnWithCoordinatedStdio(
-                executablePath,
-                [`--port=${artifact.privatePort}`, ...(artifact.args ?? [])],
-                {
-                    env: {...process.env, ...artifact.env},
-                    stdioPrefix: artifact.stdioPrefix,
-                },
-            );
+        await runAllPromises([
+            waitForProcessSpawn(subprocess).then(() =>
+                Promise.race([
+                    httpServerStartPromise,
 
-            subprocess.on("error", debugEbadfError);
-
-            // Make sure to assign this before our `await` below which may throw if the
-            // process exists.
-            artifactServerRef.current = {
-                buildId,
-                hasBuildFailed,
-                subprocess,
-            };
-
-            await runAllPromises([
-                waitForProcessSpawn(subprocess).then(() =>
-                    Promise.race([
-                        waitForHttpServer(`http://localhost:${artifact.privatePort}`).catch(
-                            error => {
-                                // Don't log an error. If a server never starts, the user will see a 504
-                                // gateway timeout when they try to access the artifact's URL.
-                            },
-                        ),
-
-                        // If the process exits immediately after starting then immediately free the
-                        // mutex instead of continuing to wait for the HTTP server to start.
-                        waitForProcessExit(subprocess).catch(error => {
-                            // Don't log an error. If the process exits, the developer will see when they
-                            // try to access the artifact's  URL.
-                        }),
-                    ]),
-                ),
-                artifact.onServerRestart?.(),
-            ]);
-        } catch (error) {
-            debugEbadfError(error);
-            throw error;
-        }
+                    // If the process exits immediately after starting then immediately free the
+                    // mutex instead of continuing to wait for the HTTP server to start.
+                    waitForProcessExit(subprocess).catch(error => {
+                        // Don't log an error. If the process exits, the developer will see when they
+                        // try to access the artifact's  URL.
+                    }),
+                ]),
+            ),
+            artifact.onServerRestart?.(),
+        ]);
     });
 }
 

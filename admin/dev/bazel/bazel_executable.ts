@@ -23,6 +23,12 @@ const bazeliskRunfilesVendorPath = path.join(runfilesPath, "cyberworlds/admin/ve
 // remove bazelisk from our dev command's runfiles or find out why putting it
 // in runfiles causes errors.
 //
+// NOTE(calebmer, 2023-10-30): I think the EBADF issue may have been due to a
+// [file descriptor leak][1]? I think I've fixed this leak but leaving this
+// as-is for now until I've confirmed the EBADF issue is fixed.
+//
+// [1]: https://stackoverflow.com/questions/77361105/how-to-debug-node-js-child-process-ebadf-errors
+//
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const bazelRunfilesExecutablePath = path.join(
     bazeliskRunfilesVendorPath,

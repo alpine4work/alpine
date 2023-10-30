@@ -65,7 +65,7 @@ export async function startDynamoLocal({
     await waitForProcessSpawn(subprocess);
 
     // Wait for the DynamoDB local server to start.
-    await waitForHttpServer(`http://localhost:${port}`);
+    await waitForHttpServer(port);
 
     return {
         port,

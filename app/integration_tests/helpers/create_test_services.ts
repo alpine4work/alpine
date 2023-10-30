@@ -161,12 +161,12 @@ export function createTestServices(context: TestContext): TestServer {
             waitForProcessSpawn(edgeSubprocess),
         ]);
 
-        await waitForHttpServer(`http://localhost:${appPort}`);
+        await waitForHttpServer(appPort);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
         // `edgePort` will forward the request to `appPort` since the edge service
         // proxies our app service.
-        await waitForHttpServer(`http://localhost:${edgePort}`);
+        await waitForHttpServer(edgePort);
     });
 
     test.afterAll(async () => {

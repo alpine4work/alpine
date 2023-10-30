@@ -1,6 +1,7 @@
 import http from "http";
 import net from "net";
 import {Artifact} from "~/admin/dev/dev_main.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -17,8 +18,16 @@ const maxRetryAttemptCount = 200;
  */
 export async function createDevProxyServer(
     artifact: Artifact,
-    {logError}: {logError: (reason: string, error: unknown) => void},
+    {
+        logError,
+        mainPromise: _mainPromise,
+    }: {
+        logError: (reason: string, error: unknown) => void;
+        mainPromise: Promise<unknown>;
+    },
 ) {
+    const mainPromise = PromiseImmediate.resolve(_mainPromise);
+
     let lastPrivatePort = artifact.privatePort;
 
     let keepAliveAgent = new http.Agent({keepAlive: true});
@@ -37,7 +46,18 @@ export async function createDevProxyServer(
         });
 
         let requestAttemptCount = 0;
-        request();
+
+        // Wait for the HTTP server to start before making our first request.
+        //
+        // TODO(calebmer): I don't think we need request retrying in our proxy anymore
+        // if we're waiting on `httpServerStartPromise`?
+        mainPromise
+            .then(() => {
+                const server = artifact.server.getWithoutLock();
+                if (!server || server.hasBuildFailed) return;
+                return server.httpServerStartPromise;
+            })
+            .then(request, request);
 
         function request() {
             // If the server failed to build then return a 500 and tell the developer to
@@ -152,7 +172,18 @@ export async function createDevProxyServer(
         });
 
         let requestAttemptCount = 0;
-        request();
+
+        // Wait for the HTTP server to start before making our first request.
+        //
+        // TODO(calebmer): I don't think we need request retrying in our proxy anymore
+        // if we're waiting on `httpServerStartPromise`?
+        mainPromise
+            .then(() => {
+                const server = artifact.server.getWithoutLock();
+                if (!server || server.hasBuildFailed) return;
+                return server.httpServerStartPromise;
+            })
+            .then(request, request);
 
         function request() {
             // If the server failed to build then return a 500 and tell the developer to

@@ -295,11 +295,15 @@ type OpensearchError = {
  */
 export class OpensearchClient implements OpensearchClientInterface {
     private readonly _protocol: string;
+    private readonly _hostname: string;
+    private readonly _port: number;
     private readonly _host: string;
 
-    constructor({protocol, host}: {protocol: string; host: string}) {
+    constructor({protocol, hostname, port}: {protocol: string; hostname: string; port: number}) {
         this._protocol = protocol;
-        this._host = host;
+        this._hostname = hostname;
+        this._port = port;
+        this._host = `${hostname}:${port}`;
     }
 
     private readonly _ensureLocalIndexPromiseByIndex = new Map<
@@ -324,7 +328,9 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // We don't wait for OpenSearch to start before executing code in our dev
                 // server and tests. That's because OpenSearch takes ~7s to start. That means
                 // we need to wait for it here before we can use it.
-                await waitForHttpServer(`${this._protocol}://${this._host}`);
+                if (this._hostname === "localhost") {
+                    await waitForHttpServer(this._port);
+                }
 
                 // We need to wait for OpenSearch primary shards to be allocated before we can
                 // check the status of indexes or create new indexes. Otherwise OpenSearch
