@@ -1685,7 +1685,8 @@ export function useTaskGridViewVirtualizedList({
             if (itemIndex < itemCountBeforeState) {
                 const minHeight =
                     (columnHeaderControlsWithMinHeightPx?.minHeight ?? 0) +
-                    (capabilities.hasColumns ? convertRemLengthToPx("1.25rem", remPx) : 0);
+                    (capabilities.hasColumns ? convertRemLengthToPx("1.25rem", remPx) : 0) +
+                    taskGridViewColumnHeaderExtraPaddingBottom;
 
                 return {
                     key: "ColumnHeader",
@@ -2003,6 +2004,12 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly setTaskRowZIndex: (taskKey: TaskGridViewTaskKey, zIndex: number) => () => void;
 }>;
 
+// It takes 2px to render the bottom borders on our column header. 1px for the
+// border itself and 1px below that to avoid covering the first row's bottom
+// border. We don't want to take those 2px from the column header's height so
+// we need to add back some extra padding bottom height.
+const taskGridViewColumnHeaderExtraPaddingBottom = 2;
+
 const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHeader));
 
 function TaskGridViewColumnHeader(
@@ -2227,6 +2234,7 @@ function TaskGridViewColumnHeader(
                     style={{
                         top: !shouldRenderWithRelativePositioning ? 0 : undefined,
                         minHeight,
+                        paddingBottom: taskGridViewColumnHeaderExtraPaddingBottom,
                     }}
                 >
                     <Box
