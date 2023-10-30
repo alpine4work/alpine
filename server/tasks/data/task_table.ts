@@ -2046,7 +2046,6 @@ async function actuallyCommitTaskActionTransaction(
                                     );
                                 }
 
-                                // NOCOMMIT: Tests? Ideally some permutation tests too.
                                 if (
                                     taskAction.assigneeStatus?.type === "Active" &&
                                     !state.isTimeReasonable(

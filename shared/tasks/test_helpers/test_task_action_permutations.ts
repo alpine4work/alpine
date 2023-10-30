@@ -2,7 +2,7 @@ import {CalendarDate} from "@internationalized/date";
 import chalk from "chalk";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
-import {FailedPreconditionError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -20,6 +20,7 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {iterableFirst} from "~/shared/helpers/iterable/iterable_first.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -96,6 +97,7 @@ type TaskTaskActionTestArtifacts =
 let nextAccountNameVersion = 1;
 
 const taskTaskActionTestCases: Array<{
+    only?: boolean;
     name: string;
     create: (scenario: TaskActionTestScenario) => TaskTaskActionTestArtifacts;
 }> = [
@@ -576,6 +578,37 @@ const taskTaskActionTestCases: Array<{
         },
     },
     {
+        name: "update parent and parent position at the same time",
+        create: ({creator, getNextTime}): TaskTaskActionTestArtifacts => {
+            const parentTaskId = generateId<TaskId>();
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        time: time1,
+                        creatorId: creator.accountId,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateParentTaskId",
+                        time: time2,
+                        parentTaskId,
+                        parentPosition: {orderTime: time1, orderKey: assertOrderKey("aZZZ")},
+                    },
+                ],
+                task: {
+                    parent: {
+                        taskId: parentTaskId,
+                        position: {orderTime: time1, orderKey: assertOrderKey("aZZZ")},
+                    },
+                },
+            };
+        },
+    },
+    {
         name: "unset parent then update parent",
         create: ({creator, getNextTime}): TaskTaskActionTestArtifacts => {
             const parentTaskId = generateId<TaskId>();
@@ -806,6 +839,81 @@ const taskTaskActionTestCases: Array<{
         },
     },
     {
+        name: "update status and assignee status at the same time",
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+            const time3 = getNextTime();
+            const time4 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        time: time1,
+                        creatorId: creator.accountId,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        time: time2,
+                        assignee: {
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                    {
+                        type: "UpdateStatus",
+                        time: time3,
+                        status: {
+                            type: "Closed",
+                            closedTime: new TaskFilterableTime({
+                                absoluteTime: time3,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                            closerId: account2.accountId,
+                        },
+                    },
+                    {
+                        type: "UpdateStatus",
+                        time: time4,
+                        status: {type: "Open"},
+                        assigneeStatus: {
+                            type: "Active",
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: time4,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                ],
+                task: {
+                    status: {type: "Open"},
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: time2,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeStatus: {
+                        type: "Active",
+                        activatedTime: new TaskFilterableTime({
+                            absoluteTime: time4,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeActivePosition: {orderTime: time4, orderKey: initialOrderKey},
+                },
+            };
+        },
+    },
+    {
         name: "update assignee",
         create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
             const time1 = getNextTime();
@@ -880,6 +988,61 @@ const taskTaskActionTestCases: Array<{
                 ],
                 task: {
                     assignee: null,
+                },
+            };
+        },
+    },
+    {
+        name: "update assignee and assignee status at the same time",
+        create: ({creator, account2, getNextTime}): TaskTaskActionTestArtifacts => {
+            const time1 = getNextTime();
+            const time2 = getNextTime();
+
+            return {
+                actions: [
+                    {
+                        type: "Create",
+                        time: time1,
+                        creatorId: creator.accountId,
+                        creatorTimeZone: defaultTimeZone,
+                    },
+                    {
+                        type: "UpdateAssignee",
+                        time: time2,
+                        assignee: {
+                            assigneeId: account2.accountId,
+                            assignerId: creator.accountId,
+                            assignedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                        assigneeStatus: {
+                            type: "Active",
+                            activatedTime: new TaskFilterableTime({
+                                absoluteTime: time2,
+                                setterTimeZone: defaultTimeZone,
+                            }),
+                        },
+                    },
+                ],
+                task: {
+                    assignee: {
+                        assignee: account2,
+                        assigner: creator,
+                        assignedTime: new TaskFilterableTime({
+                            absoluteTime: time2,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeStatus: {
+                        type: "Active",
+                        activatedTime: new TaskFilterableTime({
+                            absoluteTime: time2,
+                            setterTimeZone: defaultTimeZone,
+                        }),
+                    },
+                    assigneeActivePosition: {orderTime: time2, orderKey: initialOrderKey},
                 },
             };
         },
@@ -1821,11 +1984,13 @@ type TaskActionTestArtifacts =
       };
 
 const taskActionTestCases: Array<{
+    only?: boolean;
     name: string;
     create: (scenario: TaskActionTestScenario) => TaskActionTestArtifacts;
 }> = [
     ...taskTaskActionTestCases.map(testCase => {
         return {
+            only: testCase.only,
             name: testCase.name,
             create: (scenario: TaskActionTestScenario): TaskActionTestArtifacts => {
                 const testCaseArtifacts = testCase.create(scenario);
@@ -4423,8 +4588,12 @@ export function testTaskActionPermutations({
 
     const stableRandom = new StableRandom("testTaskActionPermutations");
 
-    const allTests: Array<{describeName: string; testName: string; runTest: () => Promise<void>}> =
-        [];
+    const allTests: Array<{
+        only: boolean;
+        describeName: string;
+        testName: string;
+        runTest: () => Promise<void>;
+    }> = [];
 
     for (const testCase of taskActionTestCases) {
         const clock = new HybridLogicalClock(unsynchronizedSystemClock);
@@ -4499,6 +4668,7 @@ export function testTaskActionPermutations({
 
         for (const permutation of permutations) {
             allTests.push({
+                only: testCase.only ?? false,
                 describeName: testCase.name,
                 testName: `[${permutation.join(", ")}]`,
                 runTest: async () => {
@@ -4701,6 +4871,7 @@ export function testTaskActionPermutations({
         .map(([item]) => item);
 
     const groupedPartitionTests: Array<{
+        only: boolean;
         describeName: string;
         tests: Array<{testName: string; runTest: () => Promise<void>}>;
     }> = [];
@@ -4711,7 +4882,11 @@ export function testTaskActionPermutations({
             groupedPartitionTests[groupedPartitionTests.length - 1]!.describeName !==
                 partitionTest.describeName
         ) {
-            groupedPartitionTests.push({describeName: partitionTest.describeName, tests: []});
+            groupedPartitionTests.push({
+                only: partitionTest.only,
+                describeName: partitionTest.describeName,
+                tests: [],
+            });
         }
 
         groupedPartitionTests[groupedPartitionTests.length - 1]!.tests.push(partitionTest);
@@ -4721,6 +4896,14 @@ export function testTaskActionPermutations({
 
     for (const groupedPartitionTest of groupedPartitionTests) {
         describe(`${groupedPartitionTest.describeName}`, () => {
+            if (groupedPartitionTest.only) {
+                afterAll(() => {
+                    throw new InternalError(
+                        quote`Remove \`only: true\` from ${groupedPartitionTest.describeName} before committing`,
+                    );
+                });
+            }
+
             for (const partitionTest of groupedPartitionTest.tests) {
                 function withLogging(
                     action: () => Promise<void>,
@@ -4740,7 +4923,9 @@ export function testTaskActionPermutations({
                     };
                 }
 
-                test(
+                const testFn = groupedPartitionTest.only ? test.only : test;
+
+                testFn(
                     `${partitionTest.testName}`,
                     withLogging(partitionTest.runTest, (result, durationMs) => {
                         const statusMark = result.ok ? chalk.green("✔") : chalk.red("✘");
