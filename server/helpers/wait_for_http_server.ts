@@ -3,7 +3,8 @@ import {join as joinPath} from "path";
 import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {DeadlineExceededError} from "~/shared/error/error.js";
-import {wait} from "~/shared/helpers/async/wait.js";
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
@@ -32,13 +33,24 @@ export async function waitForHttpServer(port: number) {
 
     await waitForProcessSpawn(subprocess);
 
-    const {hasTimedOut} = await Promise.race([
-        waitForProcessExit(subprocess).then(() => ({hasTimedOut: false})),
-        wait(60 * 1000).then(() => ({hasTimedOut: true})),
-    ]);
+    const timeoutPromiseResolver = createPromiseResolver();
+    const timeout = createTimeout(timeoutPromiseResolver.resolve, 60 * 1000);
 
-    if (hasTimedOut) {
-        subprocess.kill();
-        throw new DeadlineExceededError(quote`Timed out waiting for HTTP server on port ${port}`);
+    try {
+        const {hasTimedOut} = await Promise.race([
+            waitForProcessExit(subprocess).then(() => ({hasTimedOut: false})),
+            timeoutPromiseResolver.promise.then(() => ({hasTimedOut: true})),
+        ]);
+
+        if (hasTimedOut) {
+            subprocess.kill();
+            throw new DeadlineExceededError(
+                quote`Timed out waiting for HTTP server on port ${port}`,
+            );
+        }
+    } finally {
+        // If the race ends with the process exiting, clear our timeout so it doesn't
+        // keep the Node.js process alive while we wait.
+        timeout.clear();
     }
 }
