@@ -48,6 +48,7 @@ import {
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
+import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
@@ -64,6 +65,7 @@ import {
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsMounted} from "~/client/helpers/lifecycle/use_is_mounted.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
 import {
@@ -123,6 +125,7 @@ type PeekStackState = {
     readonly unmountingStack: ReadonlyArray<PeekStackEntry>;
     readonly isUnmountingAll: boolean;
     readonly disableEntranceAnimationsDuringNextRender: boolean;
+    readonly wasLastInteractionOutside: boolean;
 };
 
 type PeekStackAction =
@@ -133,7 +136,9 @@ type PeekStackAction =
     | PeekStackFinishUnmountingAction
     | PeekStackResetAction
     | PeekStackRestoreAction
-    | PeekStackReenableEntranceAnimationsAction;
+    | PeekStackReenableEntranceAnimationsAction
+    | PeekStackOutsideInteractionAction
+    | PeekStackInsideInteractionAction;
 
 type PeekStackPushAction = {
     readonly type: "Push";
@@ -171,6 +176,14 @@ type PeekStackReenableEntranceAnimationsAction = {
     readonly type: "ReenableEntranceAnimations";
 };
 
+type PeekStackOutsideInteractionAction = {
+    readonly type: "OutsideInteraction";
+};
+
+type PeekStackInsideInteractionAction = {
+    readonly type: "InsideInteraction";
+};
+
 function reducePeekStackState(state: PeekStackState, action: PeekStackAction): PeekStackState {
     switch (action.type) {
         case "Push": {
@@ -178,6 +191,9 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
                 ...state,
                 stack: [action.entry, ...state.stack],
                 unmountedStartStackIndex: state.unmountedStartStackIndex + 1,
+                // When a new peek entry is pushed, we assume the user is interacting with
+                // the peek.
+                wasLastInteractionOutside: false,
             };
         }
         case "Pop": {
@@ -213,6 +229,7 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
                     unmountedStartStackIndex: 0,
                     unmountingStack: [],
                     isUnmountingAll: false,
+                    wasLastInteractionOutside: true,
                 };
             }
 
@@ -220,6 +237,9 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
                 state = {
                     ...state,
                     unmountingStack: state.unmountingStack.slice(0, action.unmountingStackIndex),
+                    wasLastInteractionOutside:
+                        (state.stack.length === 0 && action.unmountingStackIndex === 0) ||
+                        state.wasLastInteractionOutside,
                 };
             }
 
@@ -235,11 +255,22 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
                 unmountingStack: [],
                 isUnmountingAll: false,
                 disableEntranceAnimationsDuringNextRender: true,
+                // If we're restoring peek state after a navigation, assume the user was last
+                // interacting with the content behind the peek.
+                wasLastInteractionOutside: true,
             };
         }
         case "ReenableEntranceAnimations": {
             if (!state.disableEntranceAnimationsDuringNextRender) return state;
             return {...state, disableEntranceAnimationsDuringNextRender: false};
+        }
+        case "OutsideInteraction": {
+            if (state.wasLastInteractionOutside) return state;
+            return {...state, wasLastInteractionOutside: true};
+        }
+        case "InsideInteraction": {
+            if (!state.wasLastInteractionOutside) return state;
+            return {...state, wasLastInteractionOutside: false};
         }
         default:
             throw exhaustive(action);
@@ -258,6 +289,7 @@ const initialPeekStackState: PeekStackState = {
     unmountingStack: [],
     isUnmountingAll: false,
     disableEntranceAnimationsDuringNextRender: false,
+    wasLastInteractionOutside: true,
 };
 
 export function PeekStackContextProvider({children}: {children?: ReactNode}) {
@@ -461,9 +493,23 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
         <PeekStackContext.Provider value={useMemo(() => ({push}), [push])}>
             <GlobalKeyDownEvent
                 onGlobalKeyDownBeforeChildren={event => {
-                    // Let the peek handle keyboard events before any children when the peek
-                    // is mounted.
-                    peekStackGlobalKeyDownManualContextRef.current?.dispatchEvent(event);
+                    // If the last interaction was inside the peek, then let the peek try to handle
+                    // keydown events (like undo) before any child components.
+                    //
+                    // So if the user was interacting with the peek and they hit undo then it will
+                    // undo their changes within the peek. If they were interacting with content
+                    // below and hit undo then it will undo their changes there.
+                    if (!state.wasLastInteractionOutside) {
+                        peekStackGlobalKeyDownManualContextRef.current?.dispatchEvent(event);
+                    }
+                }}
+                onGlobalKeyDown={event => {
+                    // If the last interaction was outside the peek then the peek will try to handle
+                    // keydown events after all the main content has tried to handle the keydown
+                    // event.
+                    if (state.wasLastInteractionOutside) {
+                        peekStackGlobalKeyDownManualContextRef.current?.dispatchEvent(event);
+                    }
                 }}
             >
                 <NavigationEventContextProvider
@@ -803,7 +849,13 @@ function PeekStackDraggable({
         <>
             <Box
                 data-testid="PeekStack"
-                ref={setDraggableNodeRef}
+                ref={useMergedRefs<HTMLDivElement>(
+                    setDraggableNodeRef,
+                    useOutsideInteraction({
+                        onOutsideInteraction: () => dispatch({type: "OutsideInteraction"}),
+                        onInsideInteraction: () => dispatch({type: "InsideInteraction"}),
+                    }),
+                )}
                 position="absolute"
                 bottom="0"
                 zIndex="60"
@@ -1223,47 +1275,53 @@ function PeekOverlay({
                     }}
                 >
                     {isContentRendered && (
-                        <Box
-                            ref={overlayContentContainerRef}
-                            width="full"
-                            height="full"
-                            overflow="hidden"
-                            // The [`<Offscreen>` component][1] React claims is coming may be a better
-                            // fit here so we don't actually render content in the DOM. `inert` has good
-                            // browser support though!
-                            //
-                            // [1]: https://react.dev/blog/2022/03/29/react-v18
-                            // [2]: https://caniuse.com/?search=inert
-                            //
-                            // TypeScript doesn't know about this property yet. True is the [empty string
-                            // and false is null][3].
-                            //
-                            // [3]: https://github.com/WICG/inert/issues/58#issuecomment-618016847
-                            //
-                            // @ts-expect-error
-                            inert={isContentHidden ? "" : null}
+                        <GlobalKeyDownEvent
+                            // Don't process global `keydown` events when our peek content is hidden. Very
+                            // weird if you hit cmd-z and data in a peek you can't see is updating.
+                            isDisabled={isContentHidden}
                         >
-                            <OverlayScopeContextProvider
-                            // Render overlays here so they get the `greyElevatedClassName` styles.
+                            <Box
+                                ref={overlayContentContainerRef}
+                                width="full"
+                                height="full"
+                                overflow="hidden"
+                                // The [`<Offscreen>` component][1] React claims is coming may be a better
+                                // fit here so we don't actually render content in the DOM. `inert` has good
+                                // browser support though!
+                                //
+                                // [1]: https://react.dev/blog/2022/03/29/react-v18
+                                // [2]: https://caniuse.com/?search=inert
+                                //
+                                // TypeScript doesn't know about this property yet. True is the [empty string
+                                // and false is null][3].
+                                //
+                                // [3]: https://github.com/WICG/inert/issues/58#issuecomment-618016847
+                                //
+                                // @ts-expect-error
+                                inert={isContentHidden ? "" : null}
                             >
-                                <PeekOverlayContent
-                                    ref={overlayContentRef}
-                                    state={state}
-                                    dispatch={dispatch}
-                                    peekRoutes={peekRoutes}
-                                    createPeekRouter={createPeekRouter}
-                                    entry={entry}
-                                    index={index}
-                                    isDragging={isDragging}
-                                    isKeyboardDragging={isKeyboardDragging}
-                                    draggableAttributes={draggableAttributes}
-                                    draggableListeners={draggableListeners}
-                                    expandingIdRef={expandingIdRef}
-                                    isAnimatingOpen={isAnimatingOpen}
-                                    onClosePress={onClosePress}
-                                />
-                            </OverlayScopeContextProvider>
-                        </Box>
+                                <OverlayScopeContextProvider
+                                // Render overlays here so they get the `greyElevatedClassName` styles.
+                                >
+                                    <PeekOverlayContent
+                                        ref={overlayContentRef}
+                                        state={state}
+                                        dispatch={dispatch}
+                                        peekRoutes={peekRoutes}
+                                        createPeekRouter={createPeekRouter}
+                                        entry={entry}
+                                        index={index}
+                                        isDragging={isDragging}
+                                        isKeyboardDragging={isKeyboardDragging}
+                                        draggableAttributes={draggableAttributes}
+                                        draggableListeners={draggableListeners}
+                                        expandingIdRef={expandingIdRef}
+                                        isAnimatingOpen={isAnimatingOpen}
+                                        onClosePress={onClosePress}
+                                    />
+                                </OverlayScopeContextProvider>
+                            </Box>
+                        </GlobalKeyDownEvent>
                     )}
                 </Box>
             </Box>

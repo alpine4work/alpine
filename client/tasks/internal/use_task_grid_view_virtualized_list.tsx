@@ -870,7 +870,6 @@ export function useTaskGridViewVirtualizedList({
         }
     };
 
-    // NOCOMMIT: Prioritize peeks when interacting with peek
     const onGlobalKeyDown = (event: KeyboardEvent) => {
         switch (event.key) {
             case "z": {

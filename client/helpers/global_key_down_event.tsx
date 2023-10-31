@@ -102,10 +102,12 @@ const GlobalKeyDownEventContext = createContext<GlobalKeyDownEventContext | null
  * - Component B (skipped)
  */
 export function GlobalKeyDownEvent({
+    isDisabled = false,
     onGlobalKeyDown,
     onGlobalKeyDownBeforeChildren,
     children,
 }: {
+    isDisabled?: boolean;
     onGlobalKeyDown?: (event: KeyboardEvent) => void;
     onGlobalKeyDownBeforeChildren?: (event: KeyboardEvent) => void;
     children?: ReactNode;
@@ -136,11 +138,15 @@ export function GlobalKeyDownEvent({
     );
 
     useEffect(() => {
+        // Disabling not only prevents our listeners from being called but also all
+        // child listeners of this component.
+        if (isDisabled) return;
+
         parentContext.childListeners.add(listener);
         return () => {
             parentContext.childListeners.delete(listener);
         };
-    }, [listener, parentContext.childListeners]);
+    }, [isDisabled, listener, parentContext.childListeners]);
 
     return (
         <GlobalKeyDownEventContext.Provider value={childContext}>

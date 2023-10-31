@@ -50,8 +50,6 @@ export function buildKeymapPlugin(
         // keyboard shortcuts are disabled. A rendering component will disable keyboard
         // shortcuts when it's managing its own undo stack. These changes are not part
         // of the undo stack.
-        //
-        // NOCOMMIT: Test this works
         keys.set("Mod-z", quickUndoCommand);
     }
 

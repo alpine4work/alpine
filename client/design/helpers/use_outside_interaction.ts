@@ -11,7 +11,12 @@ export function useOutsidePress(onOutsidePress: (event: Event) => void) {
 }
 
 export function useOutsideInteraction(
-    onOutsideInteraction: (event: Event) => void,
+    events:
+        | ((event: Event) => void)
+        | {
+              onOutsideInteraction: (event: Event) => void;
+              onInsideInteraction?: (event: Event) => void;
+          },
     {
         withoutPress = false,
         withoutFocus = false,
@@ -22,9 +27,9 @@ export function useOutsideInteraction(
 ): RefCallback<HTMLElement> {
     const ref = useRef<HTMLElement | null>(null);
 
-    const onOutsideInteractionRef = useRef(onOutsideInteraction);
+    const eventsRef = useRef(events);
     useLayoutEffectWithoutServerSideWarning(() => {
-        onOutsideInteractionRef.current = onOutsideInteraction;
+        eventsRef.current = events;
     });
 
     useEffect(() => {
@@ -34,7 +39,19 @@ export function useOutsideInteraction(
             if (!ref.current) return;
 
             if (event.target instanceof Element && !isElementOwnedBy(ref.current, event.target)) {
-                onOutsideInteractionRef.current(event);
+                const onOutsideInteraction =
+                    typeof eventsRef.current !== "function"
+                        ? eventsRef.current.onOutsideInteraction
+                        : eventsRef.current;
+
+                onOutsideInteraction(event);
+            } else {
+                const onInsideInteraction =
+                    typeof eventsRef.current !== "function"
+                        ? eventsRef.current.onInsideInteraction
+                        : undefined;
+
+                onInsideInteraction?.(event);
             }
         };
 
