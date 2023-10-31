@@ -6,6 +6,7 @@ import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {formatTaskDate} from "~/client/tasks/internal/format_task_date.js";
@@ -233,12 +234,20 @@ export function TaskDateInput({
                         // consider the calendar focused and won't close the overlay.
                         tabIndex={-1}
                         onFocus={event => {
-                            setIsFocusWithinOverlay(event.currentTarget.contains(event.target));
+                            // `<FocusRing>` updates are run with immediate priority. Make sure this update
+                            // is as well so we see both update in the same render.
+                            runWithImmediatePriority(() => {
+                                setIsFocusWithinOverlay(event.currentTarget.contains(event.target));
+                            });
                         }}
                         onBlur={event => {
-                            setIsFocusWithinOverlay(
-                                event.currentTarget.contains(event.relatedTarget),
-                            );
+                            // `<FocusRing>` updates are run with immediate priority. Make sure this update
+                            // is as well so we see both update in the same render.
+                            runWithImmediatePriority(() => {
+                                setIsFocusWithinOverlay(
+                                    event.currentTarget.contains(event.relatedTarget),
+                                );
+                            });
                         }}
                     >
                         <TaskDateInputCalendar date={date} onDateChange={onDateChange} />
@@ -256,10 +265,20 @@ export function TaskDateInput({
                     })}
                     style={{opacity: !isEditing && formattedDate ? 0 : undefined}}
                     onFocus={event => {
-                        setIsFocusWithinInput(event.currentTarget.contains(event.target));
+                        // `<FocusRing>` updates are run with immediate priority. Make sure this update
+                        // is as well so we see both update in the same render.
+                        runWithImmediatePriority(() => {
+                            setIsFocusWithinInput(event.currentTarget.contains(event.target));
+                        });
                     }}
                     onBlur={event => {
-                        setIsFocusWithinInput(event.currentTarget.contains(event.relatedTarget));
+                        // `<FocusRing>` updates are run with immediate priority. Make sure this update
+                        // is as well so we see both update in the same render.
+                        runWithImmediatePriority(() => {
+                            setIsFocusWithinInput(
+                                event.currentTarget.contains(event.relatedTarget),
+                            );
+                        });
                     }}
                 >
                     <TaskDateInputText

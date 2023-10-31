@@ -475,44 +475,62 @@ function TaskRowView(
             assertExists(titleInputRef.current).focusSelection(selection);
         },
 
+        // TODO(calebmer): `focusCell()` is a bit of a misnomer considering this also
+        // focuses dense field inputs if cells aren't available. Currently our
+        // nomenclature doesn't consider dense field inputs as "cells". It's great to
+        // have one `focus(column)` method for undo/redo though. Since if the undo
+        // target is, say, priority we can call `focus("Priority")`.
         focusCell: (column: TaskGridViewColumn) => {
-            // Noop if the column isn't rendered. This means it should be safe for us to
-            // assert that the ref for our column exists since it shouldn't be included in
-            // `columns` unless it's rendered.
-            if (!columns.includes(column)) return;
-
             switch (column) {
                 case "ExpandButton": {
-                    assertExists(expandButtonRef.current).focus();
+                    if (columns.includes(column)) {
+                        assertExists(expandButtonRef.current).focus();
+                    }
                     return;
                 }
                 case "StatusButton": {
-                    assertExists(statusButtonRef.current).focus();
+                    if (columns.includes(column)) {
+                        assertExists(statusButtonRef.current).focus();
+                    }
                     return;
                 }
                 case "Title": {
                     // If we have no columns then directly focus the title input.
                     if (!capabilities.hasColumns) {
-                        assertExists(titleInputRef.current).focusStart();
+                        assertExists(titleInputRef.current).focusAll();
                     } else {
                         assertExists(titleCellRef.current).focus();
                     }
                     return;
                 }
                 case "Assignee": {
-                    assertExists(assigneeCellRef.current).focusCell();
+                    if (capabilities.hasColumns && columns.includes(column)) {
+                        assertExists(assigneeCellRef.current).focusCell();
+                    } else if (capabilities.hasDenseFields) {
+                        assertExists(denseFieldsRef.current).focusAssigneeInput();
+                    }
                     return;
                 }
                 case "Priority": {
-                    assertExists(priorityCellRef.current).focusCell();
+                    if (capabilities.hasColumns && columns.includes(column)) {
+                        assertExists(priorityCellRef.current).focusCell();
+                    } else if (capabilities.hasDenseFields) {
+                        assertExists(denseFieldsRef.current).focusPriorityInput();
+                    }
                     return;
                 }
                 case "DueDate": {
-                    assertExists(dueDateCellRef.current).focusCell();
+                    if (capabilities.hasColumns && columns.includes(column)) {
+                        assertExists(dueDateCellRef.current).focusCell();
+                    } else if (capabilities.hasDenseFields) {
+                        assertExists(denseFieldsRef.current).focusDueDateInput();
+                    }
                     return;
                 }
                 case "Collections": {
-                    assertExists(collectionsCellRef.current).focusCell();
+                    if (capabilities.hasColumns && columns.includes(column)) {
+                        assertExists(collectionsCellRef.current).focusCell();
+                    }
                     return;
                 }
                 default:
@@ -772,12 +790,14 @@ function TaskRowView(
                 // (We don't implement Ctrl+Home since we haven't implemented jumping to the
                 // end of the grid and scrolling up.)
                 case "Home": {
-                    event.preventDefault();
-                    event.stopPropagation();
+                    if (capabilities.hasColumns) {
+                        event.preventDefault();
+                        event.stopPropagation();
 
-                    // Even though title isn't technically the first column, it's the first
-                    // editable column so we put the user there.
-                    focusCell("Title");
+                        // Even though title isn't technically the first column, it's the first
+                        // editable column so we put the user there.
+                        focusCell("Title");
+                    }
                     break;
                 }
 
@@ -787,10 +807,12 @@ function TaskRowView(
                 // (We don't implement Ctrl+Home since we haven't implemented jumping to the
                 // end of the grid and scrolling up.)
                 case "End": {
-                    event.preventDefault();
-                    event.stopPropagation();
+                    if (capabilities.hasColumns) {
+                        event.preventDefault();
+                        event.stopPropagation();
 
-                    focusCell(columns[columns.length - 1]!);
+                        focusCell(columns[columns.length - 1]!);
+                    }
                     break;
                 }
 
