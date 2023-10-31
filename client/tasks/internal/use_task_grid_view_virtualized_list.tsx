@@ -117,6 +117,7 @@ import {
 // - Undo across peek and content underneath
 // - Type in task title, scroll it offscreen, scroll it back onscreen,
 //   undo/redo
+// - Undo in detail view fields
 // - Delete by backspace (and undo?)
 // - Write tests for drag-and-drop
 // - Editing task row cells
@@ -128,6 +129,7 @@ import {
 // - Ghost task dense field editing
 // - Read-only deleted task detail
 // - Read-only deleted task collection
+// - Private/public collections and private parent tasks (update in realtime)
 
 const undefinedConstStore = new ConstStore(undefined);
 
@@ -225,6 +227,7 @@ export function useTaskGridViewVirtualizedList({
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
     withColumnHeaderBorderTop = false,
     columnHeaderControls,
+    onApplyUndoStackEntry,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     viewRef: RefObject<TaskGridViewVirtualizedListViewRef | null>;
@@ -241,6 +244,12 @@ export function useTaskGridViewVirtualizedList({
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     withColumnHeaderBorderTop?: boolean;
     columnHeaderControls?: Memo<{minHeight: RemLength | number; node: ReactNode}>;
+    onApplyUndoStackEntry?: (options: {
+        type: "Undo" | "Redo";
+        entry: DistributiveOmit<TaskUndoStackEntry, "release">;
+        target: {taskId: TaskId; column: TaskGridViewColumn};
+        undoManager: TaskClientStoreUndoManager;
+    }) => boolean;
 }): {
     /**
      * Key that resets our virtualized scroll view's internal state. Should be
@@ -312,6 +321,21 @@ export function useTaskGridViewVirtualizedList({
      * (Optional.) Focuses the end of the grid view.
      */
     focusEnd: Memo<() => void>;
+
+    /**
+     * (Optional.) Add an entry to the grid view's undo stack.
+     */
+    pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
+
+    /**
+     * (Optional.) Add an entry to the grid view's undo stack.
+     */
+    pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
+
+    /**
+     * (Optional.) Add an entry to the grid view's redo stack.
+     */
+    pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
 } {
     const context = useAppContext();
     const remPx = useRemPx();
@@ -654,6 +678,13 @@ export function useTaskGridViewVirtualizedList({
                 : {taskId: entry.taskId, column: "Title"};
         if (!target) return false;
 
+        const undoManager: TaskClientStoreUndoManager = {pushUndoStackEntry};
+
+        // If this function returns true then the undo stack entry was handled.
+        if (onApplyUndoStackEntry?.({type, entry, target, undoManager})) {
+            return true;
+        }
+
         const startIndex = findTaskIndexInGridViewVirtualizedListIfExists({
             state,
             iterateRootExpandedTaskIds,
@@ -697,7 +728,7 @@ export function useTaskGridViewVirtualizedList({
                 rootQuery.store.commitTaskActionTransaction(
                     context,
                     entry.undoActions.get(store.clock),
-                    {undoManager: {pushUndoStackEntry}},
+                    {undoManager},
                 );
                 break;
             }
@@ -1962,6 +1993,9 @@ export function useTaskGridViewVirtualizedList({
         onGlobalKeyDown,
         focusStart: events.focusStart,
         focusEnd: events.focusEnd,
+        pushUndoStackEntry: events.pushUndoStackEntry,
+        pushUndoStackEntryFromRedo: events.pushUndoStackEntryFromRedo,
+        pushRedoStackEntry: events.pushRedoStackEntry,
     };
 }
 

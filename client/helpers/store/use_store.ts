@@ -1,4 +1,4 @@
-import {useSyncExternalStore} from "react";
+import {Memo, useSyncExternalStore} from "react";
 import {Store} from "~/client/helpers/store/store.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 
@@ -8,14 +8,14 @@ import {noop} from "~/shared/helpers/control/noop.js";
  *
  * [1]: https://react.dev/reference/react/useSyncExternalStore
  */
-export function useStore<Value>(store: Store<Value>): Value;
-export function useStore<Value>(store: Store<Value> | null): Value | null;
-export function useStore<Value>(store: Store<Value> | null): Value | null {
+export function useStore<Value>(store: Store<Value>): Memo<Value>;
+export function useStore<Value>(store: Store<Value> | null): Memo<Value> | null;
+export function useStore<Value>(store: Store<Value> | null): Memo<Value> | null {
     return useSyncExternalStore(
         store?.subscribe ?? subscribeToNull,
         store?.getSnapshot ?? getNullSnapshot,
         store?.getSnapshot ?? getNullSnapshot,
-    );
+    ) as Memo<Value> | null;
 }
 
 function subscribeToNull() {

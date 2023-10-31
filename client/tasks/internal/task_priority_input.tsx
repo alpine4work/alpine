@@ -32,6 +32,7 @@ type TaskPriorityInputState =
       }
     | {
           readonly type: "Typing";
+          readonly initialPriority: TaskPriority | null;
           readonly value: string;
           readonly hasChanged: boolean;
           readonly shouldSelect: boolean;
@@ -144,6 +145,7 @@ function TaskPriorityInput(
 
                 return {
                     type: "Typing",
+                    initialPriority: inputState.initialPriority,
                     value: inputValue,
                     hasChanged: true,
                     shouldSelect: false,
@@ -169,6 +171,7 @@ function TaskPriorityInput(
                 if (inputState.type === "Typing") return inputState;
                 return {
                     type: "Typing",
+                    initialPriority: priority,
                     value: inputValue,
                     hasChanged: false,
                     shouldSelect: false,
@@ -244,6 +247,7 @@ function TaskPriorityInput(
                     if (inputState.type !== "Typing") return inputState;
                     return {
                         type: "Typing",
+                        initialPriority: key === "Null" ? null : key,
                         value: key === "Null" ? "" : getTaskPriorityName(key),
                         hasChanged: false,
                         shouldSelect: true,
@@ -273,6 +277,22 @@ function TaskPriorityInput(
     };
 
     const comboBoxState = useComboBoxState(comboBoxProps);
+
+    // If the priority changed while the user was focused and typing, reset the
+    // input to the new selection.
+    //
+    // This commonly happens when the user makes a selection then hits cmd-z.
+    if (inputState.type === "Typing" && inputState.initialPriority !== priority) {
+        setInputState({
+            type: "Typing",
+            initialPriority: priority,
+            value: priority ? getTaskPriorityName(priority) : "",
+            hasChanged: false,
+            shouldSelect: true,
+        });
+
+        comboBoxState.close();
+    }
 
     const inputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);

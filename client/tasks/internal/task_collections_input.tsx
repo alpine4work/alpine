@@ -1,17 +1,28 @@
 import {getInteractionModality} from "@react-aria/interactions";
 import {Plus, SpinnerGap} from "phosphor-react";
-import {KeyboardEvent, createRef, useMemo, useRef, useState} from "react";
+import {
+    KeyboardEvent,
+    Ref,
+    createRef,
+    forwardRef,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {useComboBox} from "react-aria";
 import {ComboBoxStateOptions, useComboBoxState} from "react-stately";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
@@ -71,46 +82,74 @@ type TaskDetailCollectionsFieldInputState =
           readonly value: string;
       };
 
-export function TaskCollectionsInput({
-    referencesSubscription,
-    undoManager,
-    task,
-    "aria-label": ariaLabel,
-    "aria-labelledby": ariaLabelledBy,
-    isReadOnly = false,
-    shouldNotRenderInput = false,
-    areMarginsClickable = false,
-    paddingX,
-    paddingY,
-    isTabbable = true,
-    onArrowLeftLeaveKeyDown,
-    onReturnFocus,
-    commitActionTransactionEvenIfGhost: _commitActionTransactionEvenIfGhost,
-}: {
-    referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
-    undoManager: TaskClientStoreUndoManager;
-    task: TaskModel | null;
-    "aria-label"?: string;
-    "aria-labelledby"?: string;
-    isReadOnly?: boolean;
-    shouldNotRenderInput?: boolean;
-    areMarginsClickable?: boolean;
-    paddingX?: "2.5";
-    paddingY?: "2.5";
-    isTabbable?: boolean;
-    onArrowLeftLeaveKeyDown?: () => void;
-    onReturnFocus?: () => void;
-    commitActionTransactionEvenIfGhost?: (
-        getActions: (taskId: TaskId) => Array<TaskAction>,
-        options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
-    ) => void;
-}) {
+export type TaskCollectionsInputRef = {
+    isFocusWithin(): boolean;
+    focusStart(): void;
+};
+
+const TaskCollectionsInputForwardRef = forwardRef(TaskCollectionsInput);
+export {TaskCollectionsInputForwardRef as TaskCollectionsInput};
+
+function TaskCollectionsInput(
+    {
+        referencesSubscription,
+        undoManager,
+        task,
+        "aria-label": ariaLabel,
+        "aria-labelledby": ariaLabelledBy,
+        isReadOnly = false,
+        shouldNotRenderInput = false,
+        areMarginsClickable = false,
+        paddingX,
+        paddingY,
+        isTabbable = true,
+        onArrowLeftLeaveKeyDown,
+        onReturnFocus,
+        commitActionTransactionEvenIfGhost: _commitActionTransactionEvenIfGhost,
+    }: {
+        referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
+        undoManager: TaskClientStoreUndoManager;
+        task: TaskModel | null;
+        "aria-label"?: string;
+        "aria-labelledby"?: string;
+        isReadOnly?: boolean;
+        shouldNotRenderInput?: boolean;
+        areMarginsClickable?: boolean;
+        paddingX?: "2.5";
+        paddingY?: "2.5";
+        isTabbable?: boolean;
+        onArrowLeftLeaveKeyDown?: () => void;
+        onReturnFocus?: () => void;
+        commitActionTransactionEvenIfGhost?: (
+            getActions: (taskId: TaskId) => Array<TaskAction>,
+            options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
+        ) => void;
+    },
+    ref: Ref<TaskCollectionsInputRef>,
+) {
     const context = useAppContext();
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
     const {space, currentAccount} = useSpaceContext();
-
     const {store} = referencesSubscription;
+
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            isFocusWithin: () =>
+                !!document.activeElement &&
+                isElementOwnedBy(assertExists(containerRef.current), document.activeElement),
+            focusStart: () => {
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(containerRef.current),
+                })?.focus();
+            },
+        }),
+        [],
+    );
+
     const collections = task?.getCollections() ?? TaskCollectionSet.empty;
 
     const commitActionTransactionEvenIfGhost =
@@ -467,7 +506,13 @@ export function TaskCollectionsInput({
                     // If the user presses a letter then interpret that as the user trying to
                     // replace the focused account. So delete the selected account and add the text
                     // to our search input.
-                    if (/^[0-9a-zA-Z]$/.test(event.key)) {
+                    if (
+                        /^[0-9a-zA-Z]$/.test(event.key) &&
+                        // cmd-z and cmd-shift-z shouldn't remove collection. But shift-z should.
+                        !event.metaKey &&
+                        !event.altKey &&
+                        !event.ctrlKey
+                    ) {
                         event.preventDefault();
                         event.stopPropagation();
 
@@ -548,6 +593,7 @@ export function TaskCollectionsInput({
 
     return (
         <Box
+            ref={containerRef}
             display="flex"
             alignItems="center"
             flexWrap="wrap"

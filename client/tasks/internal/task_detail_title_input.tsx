@@ -1,7 +1,8 @@
-import {EditorState} from "prosemirror-state";
+import {AllSelection, EditorState} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
-import {useCallback, useInsertionEffect, useRef} from "react";
-import {ySyncPlugin} from "y-prosemirror";
+import {Ref, forwardRef, useCallback, useImperativeHandle, useInsertionEffect, useRef} from "react";
+import {ySyncPlugin, ySyncPluginKey, yUndoPlugin} from "y-prosemirror";
+import * as Y from "yjs";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -13,6 +14,11 @@ import {fontSizes, sprinkles, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskTitleProsemirrorSchema, TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
+export type TaskDetailTitleInputRef = {
+    isFocused(): boolean;
+    focusAll(): void;
+};
+
 const taskDetailTitleInputAriaLabel = "Title";
 
 const taskDetailTitleInputClassName = `ProseMirror ${sprinkles({
@@ -21,17 +27,32 @@ const taskDetailTitleInputClassName = `ProseMirror ${sprinkles({
     userSelect: "text",
 })} ${tasksStyles.detailTitleInputPlaceholderClassName}`;
 
-export function TaskDetailTitleInput({
-    title,
-    onTitleChange,
-    placeholder,
-    isReadOnly,
-}: {
-    title: TaskTitleModel;
-    onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
-    placeholder: string;
-    isReadOnly: boolean;
-}) {
+const TaskDetailTitleInputForwardRef = forwardRef(TaskDetailTitleInput);
+export {TaskDetailTitleInputForwardRef as TaskDetailTitleInput};
+
+function TaskDetailTitleInput(
+    {
+        title,
+        onTitleChange,
+        placeholder,
+        isReadOnly,
+        pushUndoStackYDocEntry,
+        pushUndoStackYDocEntryFromRedo,
+        pushRedoStackYDocEntry,
+    }: {
+        title: TaskTitleModel;
+        onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
+        placeholder: string;
+        isReadOnly: boolean;
+        pushUndoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
+        pushUndoStackYDocEntryFromRedo: (entry: {
+            yUndoManager: Y.UndoManager;
+            release: () => void;
+        }) => void;
+        pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
+    },
+    ref: Ref<TaskDetailTitleInputRef>,
+) {
     const isInitialAppRender = useIsInitialAppRender();
 
     const viewRef = useRef<
@@ -39,7 +60,13 @@ export function TaskDetailTitleInput({
         | {isReady: true; view: EditorView}
     >({isReady: false, callbacks: []});
 
-    const titleYDoc = useTaskTitleModelYDoc(title, onTitleChange);
+    const titleYDoc = useTaskTitleModelYDoc({
+        title,
+        onTitleChange,
+        pushUndoStackYDocEntry,
+        pushUndoStackYDocEntryFromRedo,
+        pushRedoStackYDocEntry,
+    });
 
     const titleRef = useRef(title);
     const isReadOnlyRef = useRef(isReadOnly);
@@ -67,13 +94,23 @@ export function TaskDetailTitleInput({
             const containerElement = assertExists(rootElement?.firstElementChild);
             assert(containerElement.childElementCount === 0);
 
+            // Make sure our undo manager sees transactions originating from our
+            // `EditorView`.
+            titleYDoc.getUndoManager().addTrackedOrigin(ySyncPluginKey);
+
             const view = new EditorView(containerElement, {
                 state: EditorState.create({
                     schema: TaskTitleProsemirrorSchema,
                     // Make sure we start with the correct initial document. After this the
                     // `ySyncPlugin` manages document state.
                     doc: titleRef.current.getProsemirrorNode(),
-                    plugins: [ySyncPlugin(titleYDoc.getXmlFragment("doc"))],
+                    plugins: [
+                        ySyncPlugin(titleYDoc.getXmlFragment("doc")),
+                        // We install the Y.js undo plugin but we don't install the `undo`/`redo`
+                        // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
+                        // registers us with our global undo stack.
+                        yUndoPlugin({undoManager: titleYDoc.getUndoManager()}),
+                    ],
                 }),
 
                 // Disable editing when the `isReadOnly` prop is set.
@@ -172,6 +209,25 @@ export function TaskDetailTitleInput({
             }
         });
     }, [placeholder, runWhenViewIsReady]);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            isFocused: () => {
+                if (!viewRef.current.isReady) return false;
+                return viewRef.current.view.dom === document.activeElement;
+            },
+            focusAll: () => {
+                runWhenViewIsReady(view => {
+                    const selection = new AllSelection(view.state.doc);
+
+                    view.focus();
+                    view.dispatch(view.state.tr.setSelection(selection).scrollIntoView());
+                });
+            },
+        }),
+        [runWhenViewIsReady],
+    );
 
     return (
         <div>

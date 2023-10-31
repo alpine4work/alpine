@@ -56,6 +56,7 @@ type TaskAssigneeInputState =
       }
     | {
           readonly type: "Typing";
+          readonly initialAssigneeAccountId: AccountId | null;
           readonly value: string;
           readonly hasChanged: boolean;
           readonly shouldSelect: boolean;
@@ -225,6 +226,7 @@ function TaskAssigneeInput(
 
                 return {
                     type: "Typing",
+                    initialAssigneeAccountId: inputState.initialAssigneeAccountId,
                     value: inputValue,
                     hasChanged: true,
                     shouldSelect: false,
@@ -250,6 +252,7 @@ function TaskAssigneeInput(
                 if (inputState.type === "Typing") return inputState;
                 return {
                     type: "Typing",
+                    initialAssigneeAccountId: assigneeAccountData?.id ?? null,
                     value: inputValue,
                     hasChanged: false,
                     shouldSelect: false,
@@ -349,6 +352,7 @@ function TaskAssigneeInput(
                     if (inputState.type !== "Typing") return inputState;
                     return {
                         type: "Typing",
+                        initialAssigneeAccountId: newAssigneeAccount?.id ?? null,
                         value: getSelectionInputValue(
                             newAssigneeAccount
                                 ? accountStore.getAccountStore(newAssigneeAccount).getSnapshot()
@@ -382,6 +386,25 @@ function TaskAssigneeInput(
     };
 
     const comboBoxState = useComboBoxState(comboBoxProps);
+
+    // If the assignee changed while the user was focused and typing, reset the
+    // input to the new selection.
+    //
+    // This commonly happens when the user makes a selection then hits cmd-z.
+    if (
+        inputState.type === "Typing" &&
+        inputState.initialAssigneeAccountId !== (assigneeAccountData?.id ?? null)
+    ) {
+        setInputState({
+            type: "Typing",
+            initialAssigneeAccountId: assigneeAccountData?.id ?? null,
+            value: getSelectionInputValue(assigneeAccountData),
+            hasChanged: false,
+            shouldSelect: true,
+        });
+
+        comboBoxState.close();
+    }
 
     const inputRef = useRef<HTMLInputElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
