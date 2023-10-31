@@ -36,6 +36,7 @@ import {generateId} from "~/shared/id/id.js";
 import {
     AccountId,
     SpaceId,
+    TaskActionTransactionLeaseId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
@@ -203,6 +204,7 @@ export interface TaskClientStoreUndoManager {
     pushUndoStackEntry(entry: {
         undoActions: TaskUndoActions;
         removedFromQueries: ReadonlySet<TaskClientQuery>;
+        leaseId: TaskActionTransactionLeaseId | null;
         release: () => void;
     }): void;
 }
@@ -321,6 +323,7 @@ export class TaskClientStore {
         options: {
             undoManager: TaskClientStoreUndoManager | null;
             referencedCollections?: ReadonlyArray<TaskCollectionModel>;
+            leaseId?: TaskActionTransactionLeaseId | null;
         },
     ): {finally: (callback: () => void) => void} {
         return this._internal.commitTaskActionTransaction(context, actions, options);
@@ -1519,12 +1522,14 @@ export class TaskClientStoreInternal {
         {
             undoManager,
             referencedCollections = [],
+            leaseId = null,
         }: {
             // This property is required to force callers to make a decision on whether or
             // not to pass in `undoManager`. Most of the time you want to pass in
             // `undoManager`. If you pass in null the change can't be undone.
             undoManager: TaskClientStoreUndoManager | null;
             referencedCollections?: ReadonlyArray<TaskCollectionModel>;
+            leaseId?: TaskActionTransactionLeaseId | null;
         },
     ): {finally: (callback: () => void) => void} {
         // We need to create undo actions before applying our actions to the store so
@@ -1599,6 +1604,13 @@ export class TaskClientStoreInternal {
             if (referenceCount === 0) actuallyRelease?.();
         };
 
+        // Leases allow us to temporarily add a task back to our query with undo
+        // actions even if we've lost access.
+        const createLeaseIfLostAccessId =
+            removedFromQueries.size > 0 && undoManager && undoActions
+                ? generateId<TaskActionTransactionLeaseId>()
+                : null;
+
         if (undoManager && undoActions) {
             referenceCount++;
 
@@ -1607,6 +1619,7 @@ export class TaskClientStoreInternal {
             undoManager.pushUndoStackEntry({
                 undoActions,
                 removedFromQueries,
+                leaseId: createLeaseIfLostAccessId,
                 release: () => {
                     assert(!isUndoEntryReleased);
                     isUndoEntryReleased = true;
@@ -1623,6 +1636,13 @@ export class TaskClientStoreInternal {
                 spaceId: this.spaceId,
                 actions,
                 clientId: this._clientId,
+                leaseId: leaseId ?? undefined,
+                createLeaseIfLostAccess: createLeaseIfLostAccessId
+                    ? {
+                          id: createLeaseIfLostAccessId,
+                          actions: assertExists(undoActions).getWithOldTimes(),
+                      }
+                    : undefined,
             });
 
         const commitPromise = shouldDisableCommitTaskActionTransactionMutexForTest
@@ -2063,6 +2083,7 @@ export class TaskClientStoreInternal {
                     undoManager.pushUndoStackEntry({
                         undoActions,
                         removedFromQueries,
+                        leaseId: null,
                         release: () => {
                             assert(!isUndoEntryReleased);
                             isUndoEntryReleased = true;

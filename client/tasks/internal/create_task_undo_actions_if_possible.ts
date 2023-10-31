@@ -67,16 +67,6 @@ export class TaskUndoActions {
             time: assertExists(newTimeByOldTime.get(serializeHybridLogicalTime(action.time))),
         }));
 
-        // Reverse our actions from the undo. Actions are ordered to not trip any
-        // authorization errors when committed on the server. So for instance a move
-        // action transaction will have `UpdateParentTaskId` before `RemoveCollection`.
-        // If we applied `RemoveCollection` first then we'd get an authorization error
-        // when we try to apply `UpdateParentTaskId`.
-        //
-        // For undo actions we apply in reverse. We want to apply `AddCollection`
-        // before `UpdateParentTaskId` to null.
-        newActions.reverse();
-
         return newActions;
     }
 
@@ -495,6 +485,17 @@ export function createTaskUndoActionsIfPossible(
 
     // If we got no undo actions, an undo isn't possible.
     if (undoActions.length === 0) return null;
+
+    // Reverse our actions from the undo. Actions are ordered to not trip any
+    // authorization errors when committed on the server. So for instance a move
+    // action transaction from a parent task to a collection query will have
+    // `UpdateParentTaskId` before `RemoveCollection`. If we applied
+    // `RemoveCollection` first then we'd get an authorization error when we try to
+    // apply `UpdateParentTaskId`.
+    //
+    // For undo actions we apply in reverse. We want to apply `AddCollection`
+    // before setting `UpdateParentTaskId` to null.
+    undoActions.reverse();
 
     return new TaskUndoActions(undoActions);
 }

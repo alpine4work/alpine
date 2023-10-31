@@ -5,6 +5,7 @@ import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {
     BrowserId,
     SpaceId,
+    TaskActionTransactionLeaseId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
@@ -12,7 +13,7 @@ import {
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
+import {TaskActionSchema, TaskUpdateTaskActionSchema} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModelSearchResultSchema} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
@@ -28,6 +29,11 @@ export const commitTaskActionTransaction = defineRpc({
         clientId: Schema.id<TaskRealtimeClientId>().nullable(),
         spaceId: Schema.id<SpaceId>(),
         actions: Schema.array(TaskActionSchema),
+        leaseId: Schema.id<TaskActionTransactionLeaseId>().optional(),
+        createLeaseIfLostAccess: Schema.object({
+            id: Schema.id<TaskActionTransactionLeaseId>(),
+            actions: Schema.array(TaskUpdateTaskActionSchema),
+        }).optional(),
     },
     output: {
         extraActions: Schema.array(TaskActionSchema),

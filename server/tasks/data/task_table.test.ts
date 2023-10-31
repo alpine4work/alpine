@@ -19,6 +19,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {
     addTaskCollectionAffinityPoints,
+    authorizeTaskAccess,
     authorizeTaskQueryAccess,
     backfillTaskActionTransactionHistory,
     commitTaskActionTransaction,
@@ -52,7 +53,12 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {assertOrderKey, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {
+    SpaceId,
+    TaskActionTransactionLeaseId,
+    TaskCollectionId,
+    TaskId,
+} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
 import {TaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
@@ -16939,4 +16945,1308 @@ test("can get affinitive collections for an account", async () => {
             await getAffinitiveTaskCollections(session1.action(), {spaceId: space.id, limit: 100})
         ).map(({collection}) => collection.id),
     ).toEqual([collection6.id, collection2.id, collection3.id, collection1.id]);
+});
+
+test("account can remove access from itself", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: testClock.nowLogical(),
+            taskId: task1.id,
+            taskAction: {
+                type: "RemoveCollection",
+                collectionId: collection1.id,
+            },
+        },
+    ]);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("account can remove access from itself then grant it back with lease", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ],
+        {leaseId},
+    );
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+});
+
+test("account can remove access from itself but can't grant it back with an invalid lease", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection1.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ],
+            {leaseId: generateId<TaskActionTransactionLeaseId>()},
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Lease not found (could have expired)"));
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("account can remove access from itself but can't use another account's lease", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session3),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection1.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Lease not found (could have expired)"));
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("account can remove access from itself but can't grant itself access back with an incompatible action", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1, collection2] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+        TestTaskCollection.createPrivate(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection2.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "When using a lease, actions must exactly match the previously leased actions (excluding time)",
+        ),
+    );
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdatePriority",
+                        priority: "High",
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "When using a lease, actions must exactly match the previously leased actions (excluding time)",
+        ),
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("account can remove access from itself but can't grant itself access back with an expired lease", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    const originalDateNow = Date.now;
+    Date.now = () => addDays(new Date(originalDateNow()), 1).getTime();
+    try {
+        await expect(
+            commitTaskActionTransaction(
+                TestTask.action(session1),
+                space.id,
+                [
+                    {
+                        type: "UpdateTask",
+                        time: [Date.now(), 0],
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+                {leaseId},
+            ),
+        ).rejects.toThrow(new PermissionDeniedError("Lease expired"));
+
+        await expect(
+            authorizeTaskAccess(session1.action(), task1.id, "Edit", null),
+        ).rejects.toThrow(PermissionDeniedError);
+    } finally {
+        Date.now = originalDateNow;
+    }
+});
+
+test("won't create lease if committed action doesn't remove access", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdatePriority",
+                    priority: "High",
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(TestTask.action(session1), space.id, [
+        {
+            type: "UpdateTask",
+            time: testClock.nowLogical(),
+            taskId: task1.id,
+            taskAction: {
+                type: "RemoveCollection",
+                collectionId: collection1.id,
+            },
+        },
+    ]);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection1.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Lease not found (could have expired)"));
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("can't create lease with actions you aren't allowed to commit", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, task2, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task2.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "RemoveCollection",
+                        collectionId: collection1.id,
+                    },
+                },
+            ],
+            {
+                createLeaseIfLostAccess: {
+                    id: leaseId,
+                    actions: [
+                        {
+                            type: "UpdateTask",
+                            time: testClock.nowLogical(),
+                            taskId: task2.id,
+                            taskAction: {
+                                type: "AddCollection",
+                                collectionId: collection1.id,
+                                orderKey: initialOrderKey,
+                            },
+                        },
+                    ],
+                },
+            },
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            'Couldn\'t apply lease actions: Actor does not have "Edit" access level to task',
+            {cause: new PermissionDeniedError('Actor does not have "Edit" access level to task')},
+        ),
+    );
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+});
+
+test("account can't remove access from itself then grant it back with lease that has actions in different order", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    const initialOrderTime = testClock.nowLogical();
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId: collection1.id,
+                    position: {orderTime: initialOrderTime, orderKey: assertOrderKey("aZZZ")},
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "UpdateCollectionPosition",
+                            collectionId: collection1.id,
+                            position: {
+                                orderTime: initialOrderTime,
+                                orderKey: initialOrderKey,
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId: collection1.id,
+                    position: {
+                        orderTime: initialOrderTime,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection1.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "When using a lease, actions must exactly match the previously leased actions (excluding time)",
+        ),
+    );
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdateCollectionPosition",
+                        collectionId: collection1.id,
+                        position: {
+                            orderTime: initialOrderTime,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "When using a lease, actions must exactly match the previously leased actions (excluding time)",
+        ),
+    );
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "UpdateCollectionPosition",
+                        collectionId: collection1.id,
+                        position: {
+                            orderTime: initialOrderTime,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                },
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection1.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(
+        new PermissionDeniedError(
+            "When using a lease, actions must exactly match the previously leased actions (excluding time)",
+        ),
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "UpdateCollectionPosition",
+                    collectionId: collection1.id,
+                    position: {
+                        orderTime: initialOrderTime,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            },
+        ],
+        {leaseId},
+    );
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+});
+
+test("account can remove access from itself but can't grant it back if another user has updated the task", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await task1.updatePriority(session2, "High");
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection1.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("account can remove access from itself but can't grant it back if another user has deleted the task", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await deleteTaskAndAllChildren(TestTask.action(session2), task1.id, testClock.nowLogical());
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection1.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(new PermissionDeniedError("Task was deleted"));
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+});
+
+test("account can remove access from itself but can't grant it back if another user has updated notes", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const [task1, collection1] = await runAllPromises([
+        TestTask.create(session2),
+        TestTaskCollection.createPublic(session2),
+    ]);
+
+    const leaseId = generateId<TaskActionTransactionLeaseId>();
+
+    await task1.addCollection(session2, collection1);
+
+    await authorizeTaskAccess(session1.action(), task1.id, "Edit", null);
+
+    await commitTaskActionTransaction(
+        TestTask.action(session1),
+        space.id,
+        [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "RemoveCollection",
+                    collectionId: collection1.id,
+                },
+            },
+        ],
+        {
+            createLeaseIfLostAccess: {
+                id: leaseId,
+                actions: [
+                    {
+                        type: "UpdateTask",
+                        time: testClock.nowLogical(),
+                        taskId: task1.id,
+                        taskAction: {
+                            type: "AddCollection",
+                            collectionId: collection1.id,
+                            orderKey: initialOrderKey,
+                        },
+                    },
+                ],
+            },
+        },
+    );
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await expect(
+        commitTaskActionTransaction(TestTask.action(session1), space.id, [
+            {
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: task1.id,
+                taskAction: {
+                    type: "AddCollection",
+                    collectionId: collection1.id,
+                    orderKey: initialOrderKey,
+                },
+            },
+        ]),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    await updateTaskNotesContent(session2.action(), {
+        taskId: task1.id,
+        version: 0,
+        steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
+    });
+
+    await expect(
+        commitTaskActionTransaction(
+            TestTask.action(session1),
+            space.id,
+            [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: task1.id,
+                    taskAction: {
+                        type: "AddCollection",
+                        collectionId: collection1.id,
+                        orderKey: initialOrderKey,
+                    },
+                },
+            ],
+            {leaseId},
+        ),
+    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
+
+    await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
+        PermissionDeniedError,
+    );
 });

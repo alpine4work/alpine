@@ -1,5 +1,5 @@
 import {CalendarDate} from "@internationalized/date";
-import {addMonths, differenceInMonths} from "date-fns";
+import {addHours, addMonths, differenceInMonths} from "date-fns";
 import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
@@ -55,6 +55,7 @@ import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {generateId, getMinId} from "~/shared/id/id.js";
@@ -63,6 +64,7 @@ import {
     BrowserId,
     SpaceId,
     TaskActionTransactionId,
+    TaskActionTransactionLeaseId,
     TaskCollectionId,
     TaskId,
     TaskRealtimeClientId,
@@ -73,6 +75,7 @@ import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {
     TaskAction,
     TaskActionSchema,
+    TaskUpdateTaskAction,
     getTaskActionLabel,
 } from "~/shared/tasks/actions/task_action.js";
 import {TaskParentTaskIdRegister} from "~/shared/tasks/actions/task_task_action.js";
@@ -264,6 +267,75 @@ const TaskTable = DynamoTableSchema.new({
                         lastUpdatedTime: Schema.integer,
                     }),
                 },
+
+                /**
+                 * When an account performs an action that causes them to lose access to some
+                 * task, we grant them temporary permission to execute some actions that will
+                 * undo that change in case they made a mistake. The account's permission to do
+                 * so is represented by a "lease". Given the ability to take action on a task
+                 * you no longer have access to is powerful in the hands of an attacker, leases
+                 * have the following restrictions:
+                 *
+                 * 1. You must be allowed to commit the actions at the time the lease is created
+                 * 2. Leases live for a short time (<1 day)
+                 * 3. If another account updates a task you have a lease for, your lease is
+                 *    invalidated
+                 *
+                 * ## Creating a lease
+                 *
+                 * You create a lease alongside some other action transaction you're trying to
+                 * commit. For efficiency, we only create the lease if the action transaction
+                 * you're committing causes the action transaction you're leasing to not be
+                 * allowed. If you don't _need_ a lease, we don't bother creating one.
+                 *
+                 * The client only asks to create a lease if the task it's updating leaves its
+                 * view. Then it tries to create a lease with the action transaction that
+                 * caused the task to leave.
+                 *
+                 * We don't check that the actions you're leasing are an inversion of the
+                 * actions you're committing (even though that's what we expect from the
+                 * client). If an attack provides an unrelated set of actions that's ok. Leases
+                 * extend how long you can commit actions that were valid at the time of lease
+                 * creation. So actions must be safe when leased in the first place.
+                 *
+                 * ## Why restriction 3?
+                 *
+                 * Updating a task in any way invalidates any lease currently held on
+                 * the task. Example attack this protects against:
+                 *
+                 * 1. Manager assigns a task to their report asking them to fill out their
+                 *    performance self review
+                 * 2. Report fills out the self review section and assigns it back to the
+                 *    manager (creating a lease to add them back as the assignee)
+                 * 3. After the manager fills out their notes, the report executes the lease.
+                 *    Bringing the task back to them so they can see the private notes.
+                 *
+                 * By invalidating a lease after an update sophisticated users can't do this
+                 * attack.
+                 *
+                 * In principle, a user could be allowed to permanently view a task at the
+                 * moment they lost access. Since a user could trivially copy the task down to
+                 * their computer while they have access. However a user is not allowed to see
+                 * new updates after they lose access. (In practice, a user can see updates
+                 * until `WebSocketServer` reauthorizes their WebSocket connection which may
+                 * take a couple minutes.) Invalidating leases prevents the user from seeing
+                 * new updates after they lose access.
+                 *
+                 * (In the example attack we propose, a regular user could still add the task
+                 * to a private collection of theirs to retain access, this is expected. This
+                 * case shouldn't weaken our security posture elsewhere. We may need protection
+                 * against retaining access with a private collection someday.)
+                 */
+                {
+                    name: "TaskActionTransactionLease",
+                    sortKeyAttributes: {
+                        leaseId: DynamoKeyAttributeSchema.id<TaskActionTransactionLeaseId>(),
+                    },
+                    withExpirationTime: "Required",
+                    attributes: Schema.object({
+                        actions: Schema.array(TaskActionSchema),
+                    }),
+                },
             ],
         },
         {
@@ -438,6 +510,15 @@ const TaskTable = DynamoTableSchema.new({
                          * The account which was assigned this task.
                          */
                         assigneeId: TaskAssigneeAccountIdRegister.schema,
+
+                        /**
+                         * Leases are valid as long as the task is unmodified. This is how we keep
+                         * track of that. When we create a lease it's set here. When the task is
+                         * modified this is set to null.
+                         */
+                        validLeaseId: Schema.id<TaskActionTransactionLeaseId>()
+                            .nullable()
+                            .default(null),
                     }),
                 },
 
@@ -532,10 +613,21 @@ type TaskActionTransactionItem = DynamoTableItemType<
 
 type TaskAccountNotepadItem = DynamoTableItemType<typeof TaskTable, "Account", "Notepad">;
 
+type TaskAccountActionTransactionLeaseItem = DynamoTableItemType<
+    typeof TaskTable,
+    "Account",
+    "TaskActionTransactionLease"
+>;
+
 export type TaskEssentialAttributesItem = DynamoTableItemType<
     typeof TaskTable,
     "Task",
     "EssentialAttributes"
+>;
+
+type TaskEssentialAttributesItemBase = Omit<
+    TaskEssentialAttributesItem,
+    "childTaskIds" | "validLeaseId"
 >;
 
 export type TaskCollectionEssentialAttributesItem = DynamoTableItemType<
@@ -543,6 +635,13 @@ export type TaskCollectionEssentialAttributesItem = DynamoTableItemType<
     "TaskCollection",
     "EssentialAttributes"
 >;
+
+type TaskCollectionEssentialAttributesItemBase = Omit<
+    TaskCollectionEssentialAttributesItem,
+    "taskCount" | "openTaskCount" | "lastTaskAddedTime"
+>;
+
+type TaskNotesItem = DynamoTableItemType<typeof TaskTable, "Task", "Notes">;
 
 /**
  * Get the item representing a task in unit tests.
@@ -630,8 +729,17 @@ export function commitTaskActionTransaction(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
     actions: ReadonlyArray<TaskAction>,
-    options: {clientId?: TaskRealtimeClientId | null} = {},
-): Promise<{extraActions: ReadonlyArray<TaskAction>}> {
+    options: {
+        clientId?: TaskRealtimeClientId | null;
+        leaseId?: TaskActionTransactionLeaseId;
+        createLeaseIfLostAccess?: {
+            id: TaskActionTransactionLeaseId;
+            actions: ReadonlyArray<TaskUpdateTaskAction>;
+        };
+    } = {},
+): Promise<{
+    extraActions: ReadonlyArray<TaskAction>;
+}> {
     return context.tracer.withSpan("Commit task action transaction", async (context, span) => {
         span.addData({
             tasks: {
@@ -767,7 +875,8 @@ const taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression =
 class TaskActionTransactionCommitState {
     private readonly _context: ServerSessionActionContext;
     private readonly _spaceId: SpaceId;
-    private readonly _startTime = Date.now();
+    private readonly _leaseId: TaskActionTransactionLeaseId | null;
+    private _startTime = Date.now();
 
     // We may only have one DynamoDB transaction entry for each item. So we need to
     // merge all updates we want to make on an item into a single transaction entry.
@@ -796,6 +905,9 @@ class TaskActionTransactionCommitState {
 
     private _actorNotepadItemTransactionEntry: TaskAccountNotepadItem | null = null;
 
+    private readonly _actionTransactionLeaseTransactionEntries: Array<TaskAccountActionTransactionLeaseItem> =
+        [];
+
     private readonly _taskItemById = new Map<TaskId, Promise<TaskEssentialAttributesItem | null>>();
     private readonly _collectionItemById = new Map<
         TaskCollectionId,
@@ -803,16 +915,31 @@ class TaskActionTransactionCommitState {
     >();
     private _actorNotepadItemPromise: Promise<TaskAccountNotepadItem> | null = null;
 
-    private constructor(context: ServerSessionActionContext, spaceId: SpaceId) {
+    private constructor(
+        context: ServerSessionActionContext,
+        {spaceId, leaseId}: {spaceId: SpaceId; leaseId: TaskActionTransactionLeaseId | null},
+    ) {
         this._context = context;
         this._spaceId = spaceId;
+        this._leaseId = leaseId;
     }
 
     public static commit(
         context: ServerSessionActionContext,
         spaceId: SpaceId,
         actions: ReadonlyArray<TaskAction>,
-        {clientId = null}: {clientId?: TaskRealtimeClientId | null} = {},
+        {
+            clientId = null,
+            leaseId = null,
+            createLeaseIfLostAccess,
+        }: {
+            clientId?: TaskRealtimeClientId | null;
+            leaseId?: TaskActionTransactionLeaseId | null;
+            createLeaseIfLostAccess?: {
+                id: TaskActionTransactionLeaseId;
+                actions: ReadonlyArray<TaskUpdateTaskAction>;
+            };
+        },
     ): Promise<{
         actionTransactionItem: TaskActionTransactionItem;
         extraActions: ReadonlyArray<TaskAction>;
@@ -824,167 +951,298 @@ class TaskActionTransactionCommitState {
                 throw new InvalidArgumentError("Must commit at least one action");
             }
 
-            let maxActionTime = actions[0].time;
-            for (let i = 1; i < actions.length; i++) {
-                maxActionTime = maxHybridLogicalTime(maxActionTime, actions[i]!.time);
-            }
+            // If the actor is trying to use a lease to authorize their action transaction,
+            // make sure the lease is valid before continuing.
+            if (leaseId !== null) {
+                const leaseItem = await TaskTable.getItemIfExists(context, {
+                    partitionType: "Account",
+                    sortRangeType: "TaskActionTransactionLease",
+                    spaceId,
+                    accountId: context.actor.getAccountId(),
+                    leaseId,
+                });
 
-            const state = new TaskActionTransactionCommitState(context, spaceId);
-
-            await actuallyCommitTaskActionTransaction(state, spaceId, actions);
-
-            const transactionEntries: Array<DynamoTransactionEntry> = [];
-            const extraActions: Array<TaskAction> = [];
-
-            for (const transactionEntry of state._transactionEntryByTaskId.values()) {
-                switch (transactionEntry.action) {
-                    case "CreateItem": {
-                        transactionEntries.push(
-                            TaskTable.transactionCreateItem(transactionEntry.taskItem),
-                        );
-                        break;
-                    }
-                    case "DirectlyUpdateItem": {
-                        transactionEntries.push(
-                            TaskTable.transactionDirectlyUpdateItem(transactionEntry.taskItem),
-                        );
-                        break;
-                    }
-                    case "DirectlyUpdateItemLockVersion": {
-                        transactionEntries.push(
-                            TaskTable.transactionDirectlyUpdateItemLockVersion(
-                                transactionEntry.taskItem,
-                                transactionEntry.taskItem.updateLockVersion,
-                            ),
-                        );
-                        break;
-                    }
-                    default:
-                        throw exhaustive(transactionEntry.action);
+                if (!leaseItem) {
+                    throw new PermissionDeniedError("Lease not found (could have expired)");
                 }
 
-                // If children counts were updated then we want to commit an extra action with
-                // the authoritative child counts so all other clients have the correct
-                // children count.
-                if (transactionEntry.shouldCommitExtraUpdateChildrenCountAction) {
-                    extraActions.push({
-                        type: "UpdateTask",
-                        // For our extra action's time, add a tick to the max action time.
-                        time: [maxActionTime[0], maxActionTime[1] + 1],
-                        taskId: transactionEntry.taskItem.taskId,
-                        taskAction: {
-                            type: "UpdateChildrenCounts",
-                            addedChildTaskCount: transactionEntry.taskItem.addedChildTaskCount,
-                            removedChildTaskCount: transactionEntry.taskItem.removedChildTaskCount,
-                            addedClosedChildTaskCount:
-                                transactionEntry.taskItem.addedClosedChildTaskCount,
-                            removedClosedChildTaskCount:
-                                transactionEntry.taskItem.removedClosedChildTaskCount,
-                        },
+                if (leaseItem.expirationTime.getTime() < Date.now()) {
+                    throw new PermissionDeniedError("Lease expired");
+                }
+
+                if (
+                    !isDeepEqual(
+                        actions.map(action =>
+                            omitObject(TaskActionSchema.serialize(action), ["time"]),
+                        ),
+                        leaseItem.actions.map(action =>
+                            omitObject(TaskActionSchema.serialize(action), ["time"]),
+                        ),
+                    )
+                ) {
+                    throw new PermissionDeniedError(
+                        "When using a lease, actions must exactly match the previously leased actions (excluding time)",
+                    );
+                }
+            }
+
+            const state = new TaskActionTransactionCommitState(context, {spaceId, leaseId});
+            await state._prepareCommit(actions);
+
+            if (createLeaseIfLostAccess) {
+                // The client tries to create a lease when a task leaves its view. If the
+                // actions that cause the task to leave would cause the undo actions to fail
+                // then we create a lease.
+                //
+                // This is an optimization. All the data needed to execute this should be
+                // cached. Allows us to avoid creating leases when they're unnecessary.
+                let hasLostAccess = false;
+                try {
+                    const forkedState = state._fork();
+                    await forkedState._prepareCommit(createLeaseIfLostAccess.actions);
+                } catch (error) {
+                    if (error instanceof PermissionDeniedError) {
+                        hasLostAccess = true;
+                    } else {
+                        throw error;
+                    }
+                }
+
+                if (hasLostAccess) {
+                    // Create a new state object and make sure we're allowed to commit the actions
+                    // we want a lease for BEFORE the actions that cause us to lose access.
+                    const testState = new TaskActionTransactionCommitState(context, {
+                        spaceId,
+                        leaseId: null,
+                    });
+                    try {
+                        await testState._prepareCommit(createLeaseIfLostAccess.actions);
+                    } catch (error) {
+                        if (error instanceof PermissionDeniedError) {
+                            throw PermissionDeniedError.from(error, "Couldn't apply lease actions");
+                        } else {
+                            throw error;
+                        }
+                    }
+
+                    // Mark our lease as valid for all tasks in the transaction...
+                    await runAllPromises(
+                        createLeaseIfLostAccess.actions.map(async leaseAction => {
+                            const task = await state.getTaskItem(leaseAction.taskId);
+
+                            state.updateTaskItem({
+                                ...task,
+                                validLeaseId: createLeaseIfLostAccess.id,
+                            });
+                        }),
+                    );
+
+                    state._actionTransactionLeaseTransactionEntries.push({
+                        partitionType: "Account",
+                        sortRangeType: "TaskActionTransactionLease",
+                        spaceId,
+                        accountId: context.actor.getAccountId(),
+                        leaseId: createLeaseIfLostAccess.id,
+                        actions: createLeaseIfLostAccess.actions,
+                        // Leases have a short expiration time. You may not use a lease after
+                        // two hours.
+                        expirationTime: addHours(new Date(state._startTime), 2),
                     });
                 }
             }
 
-            for (const [collectionId, transactionEntry] of state._transactionEntryByCollectionId) {
-                switch (transactionEntry.action) {
-                    case "CreateItem": {
-                        transactionEntries.push(
-                            TaskTable.transactionCreateItem(transactionEntry.collectionItem),
-                        );
-                        break;
-                    }
-                    case "DirectlyUpdateItem": {
-                        transactionEntries.push(
-                            TaskTable.transactionDirectlyUpdateItem(
-                                transactionEntry.collectionItem,
-                            ),
-                        );
-                        break;
-                    }
-                    case "AtomicallyUpdateItemAttributes": {
-                        const updateExpression =
-                            taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression +
-                            (transactionEntry.lastTaskAddedTime
-                                ? ", lastTaskAddedTime = :lastTaskAddedTime"
-                                : "");
+            return state._applyCommit(actions, {clientId});
+        });
+    }
 
-                        const expressionAttributeValues: {[key: string]: SchemaSerializedValue} = {
-                            ":zero": 0,
-                            ":one": 1,
-                            ":taskCountDelta": transactionEntry.taskCountDelta,
-                            ":openTaskCountDelta": transactionEntry.openTaskCountDelta,
-                        };
+    private async _prepareCommit(actions: ReadonlyArray<TaskAction>): Promise<void> {
+        await actuallyCommitTaskActionTransaction(this, this._spaceId, actions);
+    }
 
-                        if (transactionEntry.lastTaskAddedTime) {
-                            expressionAttributeValues[":lastTaskAddedTime"] =
-                                HybridLogicalTimeSchema.serialize(
-                                    transactionEntry.lastTaskAddedTime,
-                                );
-                        }
+    private async _applyCommit(
+        actions: ReadonlyArray<TaskAction>,
+        {clientId}: {clientId: TaskRealtimeClientId | null},
+    ) {
+        let maxActionTime = actions[0]!.time;
+        for (let i = 1; i < actions.length; i++) {
+            maxActionTime = maxHybridLogicalTime(maxActionTime, actions[i]!.time);
+        }
 
-                        transactionEntries.push(
-                            // We use a custom atomic update expression to update our collection without:
-                            //
-                            // 1. Needing to read the current collection item (costing additional RCUs)
-                            // 2. Creating condition expression conflicts with other updates on the task
-                            //    collection
-                            TaskTable.dangerousTransactionUpdateItemWithCustomUpdateExpression(
-                                {
-                                    partitionType: "TaskCollection",
-                                    sortRangeType: "EssentialAttributes",
-                                    collectionId,
-                                },
-                                {
-                                    updateExpression,
-                                    expressionAttributeValues,
-                                },
-                            ),
-                        );
-                        break;
-                    }
-                    default:
-                        throw exhaustive(transactionEntry);
+        const transactionEntries: Array<DynamoTransactionEntry> = [];
+        const extraActions: Array<TaskAction> = [];
+
+        for (const transactionEntry of this._transactionEntryByTaskId.values()) {
+            switch (transactionEntry.action) {
+                case "CreateItem": {
+                    transactionEntries.push(
+                        TaskTable.transactionCreateItem(transactionEntry.taskItem),
+                    );
+                    break;
                 }
+                case "DirectlyUpdateItem": {
+                    transactionEntries.push(
+                        TaskTable.transactionDirectlyUpdateItem(transactionEntry.taskItem),
+                    );
+                    break;
+                }
+                case "DirectlyUpdateItemLockVersion": {
+                    transactionEntries.push(
+                        TaskTable.transactionDirectlyUpdateItemLockVersion(
+                            transactionEntry.taskItem,
+                            transactionEntry.taskItem.updateLockVersion,
+                        ),
+                    );
+                    break;
+                }
+                default:
+                    throw exhaustive(transactionEntry.action);
             }
 
-            if (state._actorNotepadItemTransactionEntry) {
-                transactionEntries.push(
-                    TaskTable.transactionDirectlyUpdateItem(
-                        state._actorNotepadItemTransactionEntry,
-                    ),
-                );
+            // If children counts were updated then we want to commit an extra action with
+            // the authoritative child counts so all other clients have the correct
+            // children count.
+            if (transactionEntry.shouldCommitExtraUpdateChildrenCountAction) {
+                extraActions.push({
+                    type: "UpdateTask",
+                    // For our extra action's time, add a tick to the max action time.
+                    time: [maxActionTime[0], maxActionTime[1] + 1],
+                    taskId: transactionEntry.taskItem.taskId,
+                    taskAction: {
+                        type: "UpdateChildrenCounts",
+                        addedChildTaskCount: transactionEntry.taskItem.addedChildTaskCount,
+                        removedChildTaskCount: transactionEntry.taskItem.removedChildTaskCount,
+                        addedClosedChildTaskCount:
+                            transactionEntry.taskItem.addedClosedChildTaskCount,
+                        removedClosedChildTaskCount:
+                            transactionEntry.taskItem.removedClosedChildTaskCount,
+                    },
+                });
             }
+        }
 
-            await commitTaskActionTransactionBeforeExecuteTestCheckpoint.waitForTest(
-                context.actor.getAccountId(),
+        for (const [collectionId, transactionEntry] of this._transactionEntryByCollectionId) {
+            switch (transactionEntry.action) {
+                case "CreateItem": {
+                    transactionEntries.push(
+                        TaskTable.transactionCreateItem(transactionEntry.collectionItem),
+                    );
+                    break;
+                }
+                case "DirectlyUpdateItem": {
+                    transactionEntries.push(
+                        TaskTable.transactionDirectlyUpdateItem(transactionEntry.collectionItem),
+                    );
+                    break;
+                }
+                case "AtomicallyUpdateItemAttributes": {
+                    const updateExpression =
+                        taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression +
+                        (transactionEntry.lastTaskAddedTime
+                            ? ", lastTaskAddedTime = :lastTaskAddedTime"
+                            : "");
+
+                    const expressionAttributeValues: {[key: string]: SchemaSerializedValue} = {
+                        ":zero": 0,
+                        ":one": 1,
+                        ":taskCountDelta": transactionEntry.taskCountDelta,
+                        ":openTaskCountDelta": transactionEntry.openTaskCountDelta,
+                    };
+
+                    if (transactionEntry.lastTaskAddedTime) {
+                        expressionAttributeValues[":lastTaskAddedTime"] =
+                            HybridLogicalTimeSchema.serialize(transactionEntry.lastTaskAddedTime);
+                    }
+
+                    transactionEntries.push(
+                        // We use a custom atomic update expression to update our collection without:
+                        //
+                        // 1. Needing to read the current collection item (costing additional RCUs)
+                        // 2. Creating condition expression conflicts with other updates on the task
+                        //    collection
+                        TaskTable.dangerousTransactionUpdateItemWithCustomUpdateExpression(
+                            {
+                                partitionType: "TaskCollection",
+                                sortRangeType: "EssentialAttributes",
+                                collectionId,
+                            },
+                            {
+                                updateExpression,
+                                expressionAttributeValues,
+                            },
+                        ),
+                    );
+                    break;
+                }
+                default:
+                    throw exhaustive(transactionEntry);
+            }
+        }
+
+        if (this._actorNotepadItemTransactionEntry) {
+            transactionEntries.push(
+                TaskTable.transactionDirectlyUpdateItem(this._actorNotepadItemTransactionEntry),
+            );
+        }
+
+        for (const transactionEntry of this._actionTransactionLeaseTransactionEntries) {
+            transactionEntries.push(TaskTable.transactionCreateItem(transactionEntry));
+        }
+
+        await commitTaskActionTransactionBeforeExecuteTestCheckpoint.waitForTest(
+            this._context.actor.getAccountId(),
+        );
+
+        const actionTransactionItem: TaskActionTransactionItem = {
+            partitionType: "TaskActions",
+            sortRangeType: "ActionTransaction",
+            spaceId: this._spaceId,
+            committedTime: new Date(),
+            actionTransactionId: generateId<TaskActionTransactionId>(),
+            actions: [...actions, ...extraActions],
+            wasProcessed: false,
+            clientId,
+        };
+
+        if (transactionEntries.length > 0) {
+            transactionEntries.push(
+                TaskActionTable.transactionCreateOrReplaceItem(actionTransactionItem),
             );
 
-            const actionTransactionItem: TaskActionTransactionItem = {
-                partitionType: "TaskActions",
-                sortRangeType: "ActionTransaction",
-                spaceId,
-                committedTime: new Date(),
-                actionTransactionId: generateId<TaskActionTransactionId>(),
-                actions: [...actions, ...extraActions],
-                wasProcessed: false,
-                clientId,
-            };
+            await DynamoTableSchema.executeTransaction(this._context, transactionEntries);
+        } else {
+            await TaskActionTable.createOrReplaceItem(this._context, actionTransactionItem);
+        }
 
-            if (transactionEntries.length > 0) {
-                transactionEntries.push(
-                    TaskActionTable.transactionCreateOrReplaceItem(actionTransactionItem),
-                );
+        return {
+            actionTransactionItem,
+            extraActions,
+        };
+    }
 
-                await DynamoTableSchema.executeTransaction(context, transactionEntries);
-            } else {
-                await TaskActionTable.createOrReplaceItem(context, actionTransactionItem);
-            }
-
-            return {
-                actionTransactionItem,
-                extraActions,
-            };
+    /**
+     * Fork this commit state object so you can attempt to prepare more actions
+     * based on the updates we've already made to the state without affecting the
+     * original state's committed data.
+     */
+    private _fork() {
+        const newState = new TaskActionTransactionCommitState(this._context, {
+            spaceId: this._spaceId,
+            // The forked state does not inherit the lease. It must authorize on its own.
+            leaseId: null,
         });
+        newState._startTime = this._startTime;
+
+        for (const [taskId, taskItem] of this._taskItemById) {
+            newState._taskItemById.set(taskId, taskItem);
+        }
+
+        for (const [collectionId, collectionItem] of this._collectionItemById) {
+            newState._collectionItemById.set(collectionId, collectionItem);
+        }
+
+        newState._actorNotepadItemPromise = this._actorNotepadItemPromise;
+
+        return newState;
     }
 
     public getActorAccountId(): AccountId {
@@ -1445,6 +1703,10 @@ class TaskActionTransactionCommitState {
         taskItem: TaskEssentialAttributesItem,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ) {
+        // If we are using a lease and the lease is valid for this task, skip
+        // authorization. The lease allows us to take otherwise disallowed actions.
+        if (this._leaseId !== null && this._leaseId === taskItem.validLeaseId) return;
+
         const hasAccess = await isTaskItemAccessAuthorized(
             this._context,
             this._context.actor.getAccountId(),
@@ -1470,6 +1732,10 @@ class TaskActionTransactionCommitState {
         taskItem: TaskEssentialAttributesItem,
         expectedAccessLevel: TaskCollectionAccessLevel,
     ) {
+        // If we are using a lease and the lease is valid for this task, skip
+        // authorization. The lease allows us to take otherwise disallowed actions.
+        if (this._leaseId !== null && this._leaseId === taskItem.validLeaseId) return;
+
         const hasAccess = await isTaskItemAccessAuthorizedAllowingDeletedTasks(
             this._context,
             this._context.actor.getAccountId(),
@@ -1539,6 +1805,7 @@ async function actuallyCommitTaskActionTransaction(
                             childTaskIds: new Set(),
                             collections: TaskCollectionSet.empty,
                             assigneeId: new TaskAssigneeAccountIdRegister(null, action.time),
+                            validLeaseId: null,
                         });
                         break;
                     }
@@ -1594,6 +1861,8 @@ async function actuallyCommitTaskActionTransaction(
                         state.updateTaskItem({
                             ...taskItem,
                             deletedTime: null,
+                            // Invalidate any leases on this task now that another user has updated it.
+                            validLeaseId: null,
                         });
 
                         if (taskItem.parentTaskId.value !== null) {
@@ -1624,12 +1893,22 @@ async function actuallyCommitTaskActionTransaction(
                         break;
                     }
                     default: {
-                        const taskItem = await state.getTaskItemIfExists(taskId);
-                        if (!taskItem) throw new NotFoundError("Task not found");
+                        const initialTaskItem = await state.getTaskItemIfExists(taskId);
+                        if (!initialTaskItem) throw new NotFoundError("Task not found");
+                        let taskItem = initialTaskItem;
                         if (taskItem.deletedTime)
                             throw new FailedPreconditionError("Task was deleted");
 
                         await state.authorizeTaskItemAccess(taskItem, "Edit");
+
+                        if (taskItem.validLeaseId !== null) {
+                            taskItem = {
+                                ...taskItem,
+                                // Invalidate any leases on this task now that another user has updated it.
+                                validLeaseId: null,
+                            };
+                            state.updateTaskItem(taskItem);
+                        }
 
                         switch (taskAction.type) {
                             case "Delete": {
@@ -2490,9 +2769,6 @@ export function deleteTaskAndAllChildren(
         while (rootParentTaskItem.parentTaskId.value) {
             const parentTaskId = rootParentTaskItem.parentTaskId.value;
 
-            // Use `getTaskItemForAuthorization` since it will cache tasks seen during
-            // our `authorizeTaskItemAccess` call. If we are retrying then we need to load
-            // the latest version.
             rootParentTaskItem = isInitialAttempt
                 ? await TaskItemAuthorizationCache.get(context, parentTaskId, () =>
                       TaskTable.getItem(context, {
@@ -2559,6 +2835,8 @@ export function deleteTaskAndAllChildren(
                     removedChildTaskCount: taskItem.removedChildTaskCount + childTaskCount,
                     removedClosedChildTaskCount:
                         taskItem.removedClosedChildTaskCount + closedChildTaskCount,
+                    // Invalidate any leases on this task now that another user has updated it.
+                    validLeaseId: null,
                 },
             });
 
@@ -2867,7 +3145,7 @@ async function getTaskItemForAuthorization(
     context: ServerSessionActionContext,
     taskId: TaskId,
     loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | null,
-): Promise<Omit<TaskEssentialAttributesItem, "childTaskIds">> {
+): Promise<TaskEssentialAttributesItemBase> {
     const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
     if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
 
@@ -2908,9 +3186,7 @@ async function getTaskCollectionItemForAuthorization(
             taskId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-): Promise<
-    Omit<TaskCollectionEssentialAttributesItem, "taskCount" | "openTaskCount" | "lastTaskAddedTime">
-> {
+): Promise<TaskCollectionEssentialAttributesItemBase> {
     const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
     if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
 
@@ -2968,10 +3244,7 @@ async function isTaskCollectionItemAccessAuthorized(
         dynamo: DynamoContextModule;
     }>,
     accountId: AccountId,
-    collectionItem: Omit<
-        TaskCollectionEssentialAttributesItem,
-        "taskCount" | "openTaskCount" | "lastTaskAddedTime"
-    >,
+    collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
     const isAuthorized = await isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
@@ -2998,10 +3271,7 @@ async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
         dynamo: DynamoContextModule;
     }>,
     accountId: AccountId,
-    collectionItem: Omit<
-        TaskCollectionEssentialAttributesItem,
-        "taskCount" | "openTaskCount" | "lastTaskAddedTime"
-    >,
+    collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
     // Check that the account has access to the space the collection is in.
@@ -3117,18 +3387,13 @@ async function isTaskItemAccessAuthorized(
         dynamo: DynamoContextModule;
     }>,
     accountId: AccountId,
-    taskItem: Omit<TaskEssentialAttributesItem, "childTaskIds">,
+    taskItem: TaskEssentialAttributesItemBase,
     expectedAccessLevel: TaskCollectionAccessLevel,
     loaders: {
-        getTaskItem: (taskId: TaskId) => Promise<Omit<TaskEssentialAttributesItem, "childTaskIds">>;
+        getTaskItem: (taskId: TaskId) => Promise<TaskEssentialAttributesItemBase>;
         getCollectionItem: (
             taskId: TaskCollectionId,
-        ) => Promise<
-            Omit<
-                TaskCollectionEssentialAttributesItem,
-                "taskCount" | "openTaskCount" | "lastTaskAddedTime"
-            >
-        >;
+        ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
 ) {
     const isAuthorized = await isTaskItemAccessAuthorizedAllowingDeletedTasks(
@@ -3155,18 +3420,13 @@ async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
         dynamo: DynamoContextModule;
     }>,
     accountId: AccountId,
-    taskItem: Omit<TaskEssentialAttributesItem, "childTaskIds">,
+    taskItem: TaskEssentialAttributesItemBase,
     expectedAccessLevel: TaskCollectionAccessLevel,
     loaders: {
-        getTaskItem: (taskId: TaskId) => Promise<Omit<TaskEssentialAttributesItem, "childTaskIds">>;
+        getTaskItem: (taskId: TaskId) => Promise<TaskEssentialAttributesItemBase>;
         getCollectionItem: (
             taskId: TaskCollectionId,
-        ) => Promise<
-            Omit<
-                TaskCollectionEssentialAttributesItem,
-                "taskCount" | "openTaskCount" | "lastTaskAddedTime"
-            >
-        >;
+        ) => Promise<TaskCollectionEssentialAttributesItemBase>;
     },
 ): Promise<boolean> {
     // Check that the account has access to the space the task is in.
@@ -3363,7 +3623,7 @@ async function authorizeTaskItemAccess(
 }
 
 function getTaskItemPermissionDeniedErrorDisplayMessage(
-    taskItem: Omit<TaskEssentialAttributesItem, "childTaskIds">,
+    taskItem: TaskEssentialAttributesItemBase,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
     // If the user can't view a deleted task it's because they don't have view
@@ -3379,10 +3639,7 @@ function getTaskItemPermissionDeniedErrorDisplayMessage(
 }
 
 function getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
-    collectionItem: Omit<
-        TaskCollectionEssentialAttributesItem,
-        "taskCount" | "openTaskCount" | "lastTaskAddedTime"
-    >,
+    collectionItem: TaskCollectionEssentialAttributesItemBase,
     expectedAccessLevel: TaskCollectionAccessLevel,
 ) {
     // If the user can't view a deleted collection it's because they don't have
@@ -3656,9 +3913,7 @@ export async function authorizeTaskQueryAccess(
  * `TaskRealtimeService` then you have up-to-date `TaskIndexDoc`s in
  * `TaskRealtimeStore` so those are ok to use with this function.
  */
-function convertTaskIndexDocToItem(
-    task: TaskIndexDoc,
-): Omit<TaskEssentialAttributesItem, "childTaskIds"> {
+function convertTaskIndexDocToItem(task: TaskIndexDoc): TaskEssentialAttributesItemBase {
     return {
         partitionType: "Task",
         sortRangeType: "EssentialAttributes",
@@ -3691,10 +3946,7 @@ function convertTaskIndexDocToItem(
  */
 function convertTaskCollectionIndexDocToItem(
     collection: TaskCollectionIndexDoc,
-): Omit<
-    TaskCollectionEssentialAttributesItem,
-    "taskCount" | "openTaskCount" | "lastTaskAddedTime"
-> {
+): TaskCollectionEssentialAttributesItemBase {
     return {
         partitionType: "TaskCollection",
         sortRangeType: "EssentialAttributes",
@@ -3816,14 +4068,50 @@ export function updateTaskNotesContent(
     {taskId, version, steps}: {taskId: TaskId; version: number; steps: ReadonlyArray<Step>},
 ) {
     return context.dynamo.retryTransaction(async context => {
-        const [{spaceId}, notesItem] = await runAllPromises([
-            authorizeTaskAccess(context, taskId, "Edit", null),
+        const [taskItem, notesItem] = await runAllPromises([
+            (async () => {
+                const taskItem = await TaskTable.getItem(context, {
+                    partitionType: "Task",
+                    sortRangeType: "EssentialAttributes",
+                    taskId,
+                });
+
+                const expectedAccessLevel = "Edit";
+
+                const hasAccess = await isTaskItemAccessAuthorized(
+                    context,
+                    context.actor.getAccountId(),
+                    taskItem,
+                    expectedAccessLevel,
+                    {
+                        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
+                        getCollectionItem: collectionId =>
+                            getTaskCollectionItemForAuthorization(context, collectionId, null),
+                    },
+                );
+
+                if (!hasAccess) {
+                    throw new PermissionDeniedError(
+                        quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                        {
+                            displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
+                                taskItem,
+                                expectedAccessLevel,
+                            ),
+                        },
+                    );
+                }
+
+                return taskItem;
+            })(),
             TaskTable.getItemIfExists(context, {
                 partitionType: "Task",
                 sortRangeType: "Notes",
                 taskId,
             }),
         ]);
+
+        let newNotesItem: TaskNotesItem;
 
         // If the notes item doesn't exist yet then create it.
         if (!notesItem) {
@@ -3840,35 +4128,57 @@ export function updateTaskNotesContent(
                 content = stepResult.doc;
             }
 
-            await TaskTable.createItem(context, {
+            newNotesItem = {
                 partitionType: "Task",
                 sortRangeType: "Notes",
-                spaceId,
+                spaceId: taskItem.spaceId,
                 taskId,
                 version: steps.length,
                 content,
-            });
-            return;
+            };
+        } else {
+            if (version !== notesItem.version)
+                throw new FailedPreconditionError("Incorrect version");
+
+            let content = notesItem.content;
+
+            for (const step of steps) {
+                const stepResult = step.apply(content);
+                if (!stepResult.doc)
+                    throw new FailedPreconditionError("Couldn't apply step to content");
+
+                assert(isTaskNotesContent(stepResult.doc));
+                content = stepResult.doc;
+            }
+
+            newNotesItem = {
+                ...notesItem,
+                version: notesItem.version + steps.length,
+                content,
+            };
         }
 
-        if (version !== notesItem.version) throw new FailedPreconditionError("Incorrect version");
-
-        let content = notesItem.content;
-
-        for (const step of steps) {
-            const stepResult = step.apply(content);
-            if (!stepResult.doc)
-                throw new FailedPreconditionError("Couldn't apply step to content");
-
-            assert(isTaskNotesContent(stepResult.doc));
-            content = stepResult.doc;
+        // If a task's notes changed and there's a lease, invalidate the lease so the
+        // account who owns the lease can't see changes to a task they shouldn't have
+        // access to.
+        if (taskItem.validLeaseId === null) {
+            if (notesItem === null) {
+                await TaskTable.createItem(context, newNotesItem);
+            } else {
+                await TaskTable.directlyUpdateItem(context, newNotesItem);
+            }
+        } else {
+            await DynamoTableSchema.executeTransaction(context, [
+                TaskTable.transactionDirectlyUpdateItem({
+                    ...taskItem,
+                    // Invalidate any leases on this task now that another user has updated it.
+                    validLeaseId: null,
+                }),
+                notesItem === null
+                    ? TaskTable.transactionCreateItem(newNotesItem)
+                    : TaskTable.transactionDirectlyUpdateItem(newNotesItem),
+            ]);
         }
-
-        await TaskTable.directlyUpdateItem(context, {
-            ...notesItem,
-            version: notesItem.version + steps.length,
-            content,
-        });
     });
 }
 

@@ -9,7 +9,7 @@ import {HybridLogicalClock} from "~/shared/helpers/clock/hybrid_logical_clock.js
 import {cast} from "~/shared/helpers/control/cast.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Id} from "~/shared/id/id.js";
-import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskActionTransactionLeaseId, TaskId} from "~/shared/id/types/id_types.js";
 
 /**
  * An entry in our undo stack. Entries need to identify the task we're
@@ -27,6 +27,7 @@ export type TaskUndoStackEntry =
           readonly rootParentTaskId: TaskId;
           readonly undoActions: TaskUndoActions;
           readonly removedFromQueries: ReadonlySet<TaskClientQuery>;
+          readonly leaseId: TaskActionTransactionLeaseId | null;
           readonly release: () => void;
       }
     | {

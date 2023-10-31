@@ -26,7 +26,11 @@ implementRpc(
             context.actor.authorizeSession(),
             input.spaceId,
             input.actions,
-            {clientId: input.clientId},
+            {
+                clientId: input.clientId,
+                leaseId: input.leaseId,
+                createLeaseIfLostAccess: input.createLeaseIfLostAccess,
+            },
         );
 
         const accountIds = new Set<AccountId>();

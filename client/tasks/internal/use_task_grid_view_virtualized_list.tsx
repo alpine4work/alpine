@@ -728,7 +728,10 @@ export function useTaskGridViewVirtualizedList({
                 rootQuery.store.commitTaskActionTransaction(
                     context,
                     entry.undoActions.get(store.clock),
-                    {undoManager},
+                    {
+                        undoManager,
+                        leaseId: entry.leaseId,
+                    },
                 );
                 break;
             }
@@ -836,6 +839,7 @@ export function useTaskGridViewVirtualizedList({
                             rootParentTaskId: undoStackEntry.rootParentTaskId,
                             undoActions: entry.undoActions,
                             removedFromQueries: entry.removedFromQueries,
+                            leaseId: entry.leaseId,
                             release: entry.release,
                         });
                     },
@@ -860,6 +864,7 @@ export function useTaskGridViewVirtualizedList({
                             rootParentTaskId: undoStackEntry.rootParentTaskId,
                             undoActions: entry.undoActions,
                             removedFromQueries: entry.removedFromQueries,
+                            leaseId: entry.leaseId,
                             release: entry.release,
                         });
                     },
@@ -2575,12 +2580,13 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
     const undoManager: TaskClientStoreUndoManager = useMemo(
         () => ({
-            pushUndoStackEntry: ({undoActions, removedFromQueries, release}) => {
+            pushUndoStackEntry: ({undoActions, removedFromQueries, leaseId, release}) => {
                 events.pushUndoStackEntry({
                     type: "Actions",
                     rootParentTaskId: rootParentTaskId ?? assertExists(ghostTaskId),
                     undoActions,
                     removedFromQueries,
+                    leaseId,
                     release,
                 });
             },

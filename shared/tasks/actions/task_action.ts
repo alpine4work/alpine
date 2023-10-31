@@ -65,7 +65,7 @@ export type TaskAction = SchemaType<typeof TaskActionSchema>;
  */
 export type TaskUpdateTaskAction = SchemaType<typeof TaskUpdateTaskActionSchema>;
 
-const TaskUpdateTaskActionSchema = Schema.object({
+export const TaskUpdateTaskActionSchema = Schema.object({
     type: Schema.value("UpdateTask"),
     time: HybridLogicalTimeSchema,
     taskId: Schema.id<TaskId>(),

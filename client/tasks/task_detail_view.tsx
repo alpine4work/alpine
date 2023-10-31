@@ -308,6 +308,7 @@ export function TaskDetailView({
                 case "Actions": {
                     store.commitTaskActionTransaction(context, entry.undoActions.get(store.clock), {
                         undoManager,
+                        leaseId: entry.leaseId,
                     });
                     break;
                 }
@@ -522,12 +523,13 @@ function TaskDetailViewMain(
 
     const undoManager: TaskClientStoreUndoManager = useMemo(
         () => ({
-            pushUndoStackEntry: ({undoActions, removedFromQueries, release}) => {
+            pushUndoStackEntry: ({undoActions, removedFromQueries, leaseId, release}) => {
                 pushUndoStackEntry({
                     type: "Actions",
                     rootParentTaskId: taskId,
                     undoActions,
                     removedFromQueries,
+                    leaseId,
                     release,
                 });
             },
