@@ -105,6 +105,10 @@ export async function traceServerResponse(
 
             request = new Request(request, {
                 body: newRequestBody,
+                // Node.js appears not to be copying `headers` from the original request after
+                // v20.9.0. This is a bug.
+                // https://github.com/nodejs/node/issues/50490
+                headers: request.headers,
                 // @ts-expect-error: Expected by the WhatWG fetch API when `body` is a
                 // `ReadableStream` but it's not supported in the types yet.
                 // https://github.com/nodejs/node/issues/46221
