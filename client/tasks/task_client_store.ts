@@ -3821,8 +3821,11 @@ export class TaskClientStoreInternal {
                 );
                 if (!task) continue;
 
-                const oldParentTaskId = task.getParent()?.taskId ?? null;
-                const newParentTaskId = action.taskAction.parentTaskId;
+                const oldParentTaskId = task.rawData.parent.taskId.value;
+                const newParentTaskId = task.rawData.parent.taskId.apply({
+                    value: action.taskAction.parentTaskId,
+                    version: action.time,
+                }).value;
                 if (oldParentTaskId === newParentTaskId) continue;
 
                 if (oldParentTaskId) {
