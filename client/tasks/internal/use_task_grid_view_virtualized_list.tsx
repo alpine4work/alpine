@@ -211,6 +211,7 @@ export function indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowser
 }
 
 const virtualizedScrollViewStateKeyByActiveQuery = new WeakMap<TaskClientQuery, Id>();
+const zIndexesByTaskRowItemElement = new WeakMap<HTMLElement, Array<number>>();
 
 /**
  * Encapsulates the ability to render a virtualized list of tasks. You are
@@ -1336,21 +1337,34 @@ export function useTaskGridViewVirtualizedList({
             const itemElement = viewRef.current?.getItemElementByKeyIfExists(`Task:${taskKey}`);
             if (!itemElement) return noop;
 
-            const setZIndex = (zIndex: number | null) => {
-                if (zIndex === null) {
+            const zIndexes = getOrSetDefaultMapValue(
+                zIndexesByTaskRowItemElement,
+                itemElement,
+                () => [],
+            );
+
+            zIndexes.push(newZIndex);
+
+            // If there are multiple `setTaskRowZIndex()` calls on this element at once,
+            // the lowest `z-index` wins.
+            const setZIndex = () => {
+                const actualZIndex = zIndexes.length !== 0 ? Math.min(...zIndexes) : null;
+
+                if (actualZIndex === null) {
                     itemElement.style.removeProperty("z-index");
                 } else {
-                    itemElement.style.zIndex = String(zIndex);
+                    itemElement.style.zIndex = String(actualZIndex);
                 }
             };
 
-            const oldZIndexString = itemElement.style.zIndex;
-            const oldZIndex = oldZIndexString ? parseInt(oldZIndexString, 10) : null;
-
-            setZIndex(newZIndex);
+            setZIndex();
 
             return () => {
-                setZIndex(oldZIndex);
+                const index = zIndexes.indexOf(newZIndex);
+                assert(index !== -1);
+                zIndexes.splice(index, 1);
+
+                setZIndex();
             };
         },
     });
