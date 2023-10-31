@@ -1,9 +1,11 @@
 import classNames from "classnames";
+import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node, Slice} from "prosemirror-model";
 import {
     AllSelection,
     Command,
     EditorState,
+    PluginKey,
     Selection,
     TextSelection,
     Transaction,
@@ -58,6 +60,7 @@ import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.
 import {UnimplementedError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {generateId} from "~/shared/id/id.js";
@@ -103,6 +106,11 @@ function unwrap(
     // @ts-expect-error it's ok to wrap/unwrap editor state in this file.
     return state._state;
 }
+
+const historyPluginKey = new Lazy((): PluginKey => {
+    const plugin = history();
+    return (plugin as any).key;
+});
 
 // TODO(calebmer): Make content editor SSR safe by rendering it as read-only on
 // the server and mounting as editable on the client after hydration.
@@ -246,6 +254,28 @@ export type ContentEditorProps<Content extends ContentWithReferences> = {
         commentThreadId: DocumentCommentThreadId,
         isHovered: boolean,
     ) => void;
+
+    /**
+     * Called when an undo stack entry is added. If you're managing undo/redo
+     * keyboard shortcuts you'll need to push to our own stack when this is called.
+     */
+    onUndoStackEntryPushed?: () => void;
+
+    /**
+     * Called when an undo stack entry is added during a redo command. This needs
+     * to behave a bit differently than `onUndoStackEntryPushed()` since it
+     * shouldn't reset the redo stack.
+     *
+     * If you're managing undo/redo keyboard shortcuts you'll need to push to our
+     * own stack when this is called.
+     */
+    onUndoStackEntryPushedFromRedo?: () => void;
+
+    /**
+     * Called when a redo stack entry is added. If you're managing undo/redo
+     * keyboard shortcuts you'll need to push to our own stack when this is called.
+     */
+    onRedoStackEntryPushed?: () => void;
 } & (
     | {
           /**
@@ -450,6 +480,41 @@ function ContentEditor<Content extends ContentWithReferences>(
         lastOptimisticTransactionTime: null,
         lastSelectionChangeTransactionTime: null,
     });
+
+    const onStateChange = (
+        oldState: EditorState,
+        newState: EditorState,
+        transaction: Transaction | null,
+    ) => {
+        // Report any added undo/redo stack entries...
+        if (propsRef.current.onUndoStackEntryPushed || propsRef.current.onRedoStackEntryPushed) {
+            // Deriving this logic from here:
+            // https://github.com/ProseMirror/prosemirror-history/blob/40d274a74d0fc0787aeca03634a64d0c78f18a50/src/history.ts#L270-L276
+            const isRedo = transaction?.getMeta(historyPluginKey.get())?.redo;
+
+            const oldUndoDepth = undoDepth(oldState);
+            const newUndoDepth = undoDepth(newState);
+
+            const oldRedoDepth = redoDepth(oldState);
+            const newRedoDepth = redoDepth(newState);
+
+            if (oldUndoDepth < newUndoDepth) {
+                for (let i = oldUndoDepth; i < newUndoDepth; i++) {
+                    if (isRedo) {
+                        propsRef.current.onUndoStackEntryPushedFromRedo?.();
+                    } else {
+                        propsRef.current.onUndoStackEntryPushed?.();
+                    }
+                }
+            }
+
+            if (oldRedoDepth < newRedoDepth) {
+                for (let i = oldRedoDepth; i < newRedoDepth; i++) {
+                    propsRef.current.onRedoStackEntryPushed?.();
+                }
+            }
+        }
+    };
 
     // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the
     // docs say only CSS-in-JS libraries should use it.
@@ -677,6 +742,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 // [1]: https://prosemirror.net/docs/guide/#view
                 view.updateState(newState);
                 updateEditorEmptyClass(newState);
+                onStateChange(oldState, newState, transaction);
 
                 setTransactionTimes(transactionTimes => ({
                     lastOptimisticTransactionTime: transaction.time,
@@ -717,14 +783,16 @@ function ContentEditor<Content extends ContentWithReferences>(
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         lastOptimisticTransactionTime;
 
-        const actualState = unwrap(state);
+        const newState = unwrap(state);
 
         assert(viewRef.current);
-        if (viewRef.current.state !== actualState) {
-            viewRef.current.updateState(actualState);
+        const oldState = viewRef.current.state;
+        if (oldState !== newState) {
+            viewRef.current.updateState(newState);
+            onStateChange(oldState, newState, null);
         }
 
-        updateEditorEmptyClass(actualState);
+        updateEditorEmptyClass(newState);
     }, [lastOptimisticTransactionTime, state]);
 
     const [decorationCallbacks, setDecorationCallbacks] = useState<

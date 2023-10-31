@@ -1,5 +1,6 @@
-import {MutableRefObject, useEffect} from "react";
+import {MutableRefObject, RefObject, useEffect} from "react";
 import * as Y from "yjs";
+import {ContentEditorRef} from "~/client/content/content_editor.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {TaskUndoActions} from "~/client/tasks/internal/create_task_undo_actions_if_possible.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -33,6 +34,13 @@ export type TaskUndoStackEntry =
           readonly rootParentTaskId: TaskId;
           readonly taskId: TaskId;
           readonly yUndoManager: Y.UndoManager;
+          readonly release: () => void;
+      }
+    | {
+          readonly type: "Notes";
+          readonly rootParentTaskId: TaskId;
+          readonly taskId: TaskId;
+          readonly contentEditorRef: RefObject<ContentEditorRef | null>;
           readonly release: () => void;
       };
 

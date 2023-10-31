@@ -87,6 +87,7 @@ export function getInitialCollaborativeContentEditorState<
     initialContent,
     reduceReferences,
     extra,
+    disableUndoKeyboardShortcuts,
 }: {
     initialVersion: number;
     initialContent: Content;
@@ -95,11 +96,13 @@ export function getInitialCollaborativeContentEditorState<
         action: ContentEditorReferencesAction<Content["references"]>,
     ) => Content["references"];
     extra: ExtraState;
+    disableUndoKeyboardShortcuts?: boolean;
 }): CollaborativeContentEditorState<Content, ExtraState> {
     const editorState = ContentEditorState.createCollaborative({
         version: initialVersion,
         content: initialContent,
         reduceReferences,
+        disableUndoKeyboardShortcuts,
     });
 
     return {

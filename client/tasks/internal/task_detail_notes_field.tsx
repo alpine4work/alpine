@@ -1,4 +1,14 @@
-import {useCallback, useEffect, useId, useReducer, useRef} from "react";
+import {
+    Memo,
+    Ref,
+    forwardRef,
+    useCallback,
+    useEffect,
+    useId,
+    useImperativeHandle,
+    useReducer,
+    useRef,
+} from "react";
 import {
     CollaborativeContentEditorAction,
     CollaborativeContentEditorState,
@@ -14,12 +24,15 @@ import {useShowToast} from "~/client/design/toast.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
 import {UnavailableError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {sprinkles} from "~/shared/styles/styles.js";
@@ -58,23 +71,52 @@ const reduceCollaborativeContentEditorState = createCollaborativeContentEditorSt
     return state;
 });
 
-export function TaskDetailNotesField({
-    taskId,
-    initialNotesVersion,
-    initialNotesContent,
-    isReadOnly,
-    padding,
-}: {
-    taskId: TaskId;
-    initialNotesVersion: number;
-    initialNotesContent: TaskNotesContentWithReferences;
-    isReadOnly: boolean;
-    padding: Spacing;
-}) {
+export type TaskDetailNotesFieldRef = {
+    isFocused(): boolean;
+    focus(): void;
+};
+
+const TaskDetailNotesFieldForwardRef = forwardRef(TaskDetailNotesField);
+export {TaskDetailNotesFieldForwardRef as TaskDetailNotesField};
+
+function TaskDetailNotesField(
+    {
+        taskId,
+        initialNotesVersion,
+        initialNotesContent,
+        isReadOnly,
+        padding,
+        pushUndoStackEntry,
+        pushUndoStackEntryFromRedo,
+        pushRedoStackEntry,
+    }: {
+        taskId: TaskId;
+        initialNotesVersion: number;
+        initialNotesContent: TaskNotesContentWithReferences;
+        isReadOnly: boolean;
+        padding: Spacing;
+        pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
+        pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
+        pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
+    },
+    ref: Ref<TaskDetailNotesFieldRef>,
+) {
     const showToast = useShowToast();
 
     const labelId = useId();
     const editorRef = useRef<ContentEditorRef>(null);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            isFocused: () => !isReadOnly && assertExists(editorRef.current).isFocused(),
+            focus: () => {
+                if (isReadOnly) return;
+                assertExists(editorRef.current).focus();
+            },
+        }),
+        [isReadOnly],
+    );
 
     const [state, _dispatch] = useReducer(
         reduceCollaborativeContentEditorState,
@@ -83,6 +125,8 @@ export function TaskDetailNotesField({
             initialContent: initialNotesContent,
             reduceReferences: reduceContentReferences,
             extra: {taskId},
+            // We incorporate notes undo/redo into the task system's undo/redo stack.
+            disableUndoKeyboardShortcuts: true,
         },
         getInitialCollaborativeContentEditorState,
     );
@@ -317,6 +361,33 @@ export function TaskDetailNotesField({
                                 height: "full",
                                 minHeight,
                             })}
+                            onUndoStackEntryPushed={() => {
+                                pushUndoStackEntry({
+                                    type: "Notes",
+                                    rootParentTaskId: taskId,
+                                    taskId,
+                                    contentEditorRef: editorRef,
+                                    release: noop,
+                                });
+                            }}
+                            onUndoStackEntryPushedFromRedo={() => {
+                                pushUndoStackEntryFromRedo({
+                                    type: "Notes",
+                                    rootParentTaskId: taskId,
+                                    taskId,
+                                    contentEditorRef: editorRef,
+                                    release: noop,
+                                });
+                            }}
+                            onRedoStackEntryPushed={() => {
+                                pushRedoStackEntry({
+                                    type: "Notes",
+                                    rootParentTaskId: taskId,
+                                    taskId,
+                                    contentEditorRef: editorRef,
+                                    release: noop,
+                                });
+                            }}
                         />
                     </Box>
                 )}

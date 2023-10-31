@@ -740,6 +740,10 @@ export function useTaskGridViewVirtualizedList({
                 }
                 break;
             }
+            // Note undo/redo is only applicable to `<TaskDetailView>`.
+            case "Notes": {
+                return false;
+            }
             default:
                 throw exhaustive(entry);
         }

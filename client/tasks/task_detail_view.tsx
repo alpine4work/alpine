@@ -1,5 +1,6 @@
 import {setInteractionModality} from "@react-aria/interactions";
 import {CaretRight, DotsThree, IconContext, Lock, Trash} from "phosphor-react";
+import {redo, undo} from "prosemirror-history";
 import {
     Memo,
     ReactNode,
@@ -50,7 +51,10 @@ import {
 } from "~/client/tasks/internal/task_collections_input.js";
 import {TaskDateInput} from "~/client/tasks/internal/task_date_input.js";
 import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_delete_confirmation_modal_dialog.js";
-import {TaskDetailNotesField} from "~/client/tasks/internal/task_detail_notes_field.js";
+import {
+    TaskDetailNotesField,
+    TaskDetailNotesFieldRef,
+} from "~/client/tasks/internal/task_detail_notes_field.js";
 import {
     TaskDetailTitleInput,
     TaskDetailTitleInputRef,
@@ -315,6 +319,19 @@ export function TaskDetailView({
                     }
                     break;
                 }
+                case "Notes": {
+                    const contentEditor = entry.contentEditorRef.current;
+
+                    // If the content editor has unmounted, we can't handle this entry.
+                    if (!contentEditor) return false;
+
+                    if (type === "Undo") {
+                        contentEditor.dispatchCommand(undo);
+                    } else {
+                        contentEditor.dispatchCommand(redo);
+                    }
+                    break;
+                }
                 default:
                     throw exhaustive(entry);
             }
@@ -324,37 +341,41 @@ export function TaskDetailView({
             // Make sure we render focus rings!
             setInteractionModality("keyboard");
 
-            switch (target.column) {
-                // No such thing in detail view. Isn't really picked as an undo target anyway.
-                case "ExpandButton":
-                    break;
+            if (entry.type === "Notes") {
+                assertExists(mainRef.current).focusNotesInput();
+            } else {
+                switch (target.column) {
+                    // No such thing in detail view. Isn't really picked as an undo target anyway.
+                    case "ExpandButton":
+                        break;
 
-                case "StatusButton": {
-                    assertExists(mainRef.current).focusStatusButton();
-                    break;
+                    case "StatusButton": {
+                        assertExists(mainRef.current).focusStatusButton();
+                        break;
+                    }
+                    case "Title": {
+                        assertExists(mainRef.current).focusTitleInput();
+                        break;
+                    }
+                    case "Assignee": {
+                        assertExists(mainRef.current).focusAssigneeInput();
+                        break;
+                    }
+                    case "Priority": {
+                        assertExists(mainRef.current).focusPriorityInput();
+                        break;
+                    }
+                    case "DueDate": {
+                        assertExists(mainRef.current).focusDueDateInput();
+                        break;
+                    }
+                    case "Collections": {
+                        assertExists(mainRef.current).focusCollectionsInput();
+                        break;
+                    }
+                    default:
+                        throw exhaustive(target.column);
                 }
-                case "Title": {
-                    assertExists(mainRef.current).focusTitleInput();
-                    break;
-                }
-                case "Assignee": {
-                    assertExists(mainRef.current).focusAssigneeInput();
-                    break;
-                }
-                case "Priority": {
-                    assertExists(mainRef.current).focusPriorityInput();
-                    break;
-                }
-                case "DueDate": {
-                    assertExists(mainRef.current).focusDueDateInput();
-                    break;
-                }
-                case "Collections": {
-                    assertExists(mainRef.current).focusCollectionsInput();
-                    break;
-                }
-                default:
-                    throw exhaustive(target.column);
             }
 
             return true;
@@ -455,6 +476,7 @@ type TaskDetailViewMainRef = {
     focusCollectionsInput(): void;
     focusPriorityInput(): void;
     focusDueDateInput(): void;
+    focusNotesInput(): void;
 };
 
 const TaskDetailViewMainMemo = memo(forwardRef(TaskDetailViewMain));
@@ -583,12 +605,15 @@ function TaskDetailViewMain(
 
     const padding: Spacing = isMobile ? "3" : "5";
 
+    // Naming nit: An "input" is some editable component without a label. A "field"
+    // is the combination of both a label and an input.
     const statusButtonRef = useRef<HTMLElement>(null);
     const titleInputRef = useRef<TaskDetailTitleInputRef>(null);
     const assigneeInputRef = useRef<TaskAssigneeInputRef>(null);
     const collectionsInputRef = useRef<TaskCollectionsInputRef>(null);
     const priorityInputRef = useRef<HTMLDivElement>(null);
     const dueDateInputRef = useRef<HTMLDivElement>(null);
+    const notesFieldRef = useRef<TaskDetailNotesFieldRef>(null);
 
     const [priorityInputState, setPriorityInputState] = useState<
         {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
@@ -714,6 +739,12 @@ function TaskDetailViewMain(
             },
             focusPriorityInput,
             focusDueDateInput,
+            focusNotesInput: () => {
+                const notesField = assertExists(notesFieldRef.current);
+                if (!notesField.isFocused()) {
+                    notesField.focus();
+                }
+            },
         }),
         [focusDueDateInput, focusPriorityInput],
     );
@@ -1076,11 +1107,15 @@ function TaskDetailViewMain(
                 </Box>
                 <Spacer space="8" />
                 <TaskDetailNotesField
+                    ref={notesFieldRef}
                     taskId={taskId}
                     initialNotesVersion={initialNotesVersion}
                     initialNotesContent={initialNotesContent}
                     isReadOnly={isReadOnly}
                     padding={padding}
+                    pushUndoStackEntry={pushUndoStackEntry}
+                    pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
+                    pushRedoStackEntry={pushRedoStackEntry}
                 />
                 {hasSubtasks && (
                     <>
