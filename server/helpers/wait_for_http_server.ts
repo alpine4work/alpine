@@ -24,7 +24,16 @@ export async function waitForHttpServer(port: number) {
     // to not leak file descriptors. (Though that may only be because the
     // subprocess closing also closes the file descriptors.)
     //
+    // NOTE(calebmer, 2023-10-31): Looks like the [file descriptor leak][2] doesn't
+    // happen in newer versions of Node.js. We could revert this back to a
+    // JavaScript implementation. Leaving for now since I want to see if this
+    // implementation actually fixes another issue in my development environment.
+    // Before going back to a JavaScript implementation, you should run
+    // `lsof -p $PID` on the dev process manager after some service rebuilds to
+    // make sure it doesn't accumulate file handles over time.
+    //
     // [1]: https://github.com/nodejs/node/issues/50479
+    // [2]: https://github.com/nodejs/node/issues/50479#issuecomment-1787152893
     const subprocess = spawn(
         joinPath(runfilesPath, "cyberworlds/server/helpers/wait_for_http_server.sh"),
         [String(port)],
