@@ -790,16 +790,30 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     oldTaskEntry.task,
                 );
 
-                this._onLoadedTaskUpdate(taskId, oldTaskEntry, newTaskEntry);
+                if (
+                    loadedState?.type === "Full" ||
+                    (loadedState?.endCursor &&
+                        compareTaskQuerySortCursors(this.sorts, newCursor, loadedState.endCursor) <=
+                            0)
+                ) {
+                    this._onLoadedTaskUpdate(taskId, oldTaskEntry, newTaskEntry);
 
-                const haveSortValuesChanged =
-                    compareTaskQuerySortCursors(this.sorts, oldCursor, newCursor) !== 0;
+                    const haveSortValuesChanged =
+                        compareTaskQuerySortCursors(this.sorts, oldCursor, newCursor) !== 0;
 
-                // The task is visible in the query but the change does not affect its position
-                // in the query.
-                if (!haveSortValuesChanged) continue;
+                    // The task is visible in the query but the change does not affect its position
+                    // in the query.
+                    if (!haveSortValuesChanged) continue;
 
-                taskOrder = taskOrder.remove(oldCursor).insert(newCursor, null);
+                    taskOrder = taskOrder.remove(oldCursor).insert(newCursor, null);
+                }
+                // If the task moved outside of our loaded range then we need to remove it from
+                // the query. The server no longer considers it subscribed anymore.
+                else {
+                    this._onLoadedTaskRemove(taskId, oldTaskEntry);
+
+                    taskOrder = taskOrder.remove(oldCursor);
+                }
             }
         } finally {
             this._onBeforeReferencedTaskAddOrRemove = null;
