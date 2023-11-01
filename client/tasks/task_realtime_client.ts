@@ -128,8 +128,62 @@ export class TaskRealtimeClient {
             collectionSubscriptionIdPromise: Promise<TaskRealtimeCollectionSubscriptionId>;
         }>();
 
+        const clearSubscriptions = (
+            errorResult: {hasError: false} | {hasError: true; error: unknown},
+        ) => {
+            return batchStoreUpdates(() => {
+                let hasCaughtError = false;
+
+                for (const subscribedQuery of subscribedQueries) {
+                    subscribedQuery.unsubscribeFromLoadMoreTaskCount();
+
+                    if (errorResult.hasError) {
+                        hasCaughtError = true;
+                        subscribedQuery.query.setError(errorResult.error);
+                    }
+                }
+
+                if (errorResult.hasError) {
+                    for (const subscribedTask of subscribedTasks) {
+                        hasCaughtError = true;
+                        subscribedTask.taskSubscription.setError(errorResult.error);
+                    }
+
+                    for (const subscribedCollection of subscribedCollections) {
+                        hasCaughtError = true;
+                        subscribedCollection.collectionSubscription.setError(errorResult.error);
+                    }
+                }
+
+                subscribedQueries.clear();
+                subscribedTasks.clear();
+                subscribedCollections.clear();
+
+                return {hasCaughtError};
+            });
+        };
+
         const unsubscribeFromState = this._client.state.subscribe(() => {
             const clientState = this._client.state.getSnapshot();
+
+            // If our connection closed with an error (e.g. from an authorization failure)
+            // all our subscriptions are now unsubscribed. Add the error to them so any UI
+            // using the subscription can present the error to the user.
+            if (clientState.hasError) {
+                const {hasCaughtError} = clearSubscriptions({
+                    hasError: true,
+                    error: clientState.error,
+                });
+
+                if (!hasCaughtError) {
+                    this._getContext()
+                        .tracer.getRoot()
+                        .logUncaughtException(
+                            "Task realtime connection closed with error",
+                            clientState.error,
+                        );
+                }
+            }
 
             if (clientState.isConnected && connectionId === null) {
                 connectionId = generateId();
@@ -139,11 +193,6 @@ export class TaskRealtimeClient {
             if (!clientState.isConnected && connectionId !== null) {
                 connectionId = null;
                 updateSubscribedQueries();
-            }
-
-            if (clientState.hasError) {
-                // NOCOMMIT: Present error to user
-                console.error(clientState.error);
             }
         });
 
@@ -155,12 +204,7 @@ export class TaskRealtimeClient {
             // If our WebSocket client disconnects then none of our queries are subscribed
             // anymore. We'll resubscribe if the client reconnects.
             if (!connectionId) {
-                for (const subscribedQuery of subscribedQueries) {
-                    subscribedQuery.unsubscribeFromLoadMoreTaskCount();
-                }
-                subscribedQueries.clear();
-                subscribedTasks.clear();
-                subscribedCollections.clear();
+                clearSubscriptions({hasError: false});
                 return;
             }
 
@@ -453,9 +497,52 @@ export class TaskRealtimeClient {
                     });
                 }
 
+                // If our subscribe failed, set the error on all subscriptions that were
+                // waiting on a response (and the client is still subscribed to). This will
+                // show the error where we're expecting data.
                 subscribePromise.catch(error => {
-                    // NOCOMMIT: How do we present errors??
-                    console.error(error);
+                    batchStoreUpdates(() => {
+                        let hasCaughtError = false;
+
+                        for (const newQuery of newQueriesArray) {
+                            if (subscriptionsStore.getSnapshot().queries.has(newQuery)) {
+                                hasCaughtError = true;
+                                newQuery.setError(error);
+                            }
+                        }
+
+                        for (const newTaskSubscription of newTaskSubscriptionsArray) {
+                            if (
+                                subscriptionsStore
+                                    .getSnapshot()
+                                    .taskSubscriptionsById.get(newTaskSubscription.taskId)
+                                    ?.has(newTaskSubscription)
+                            ) {
+                                hasCaughtError = true;
+                                newTaskSubscription.setError(error);
+                            }
+                        }
+
+                        for (const newCollectionSubscription of newCollectionSubscriptionsArray) {
+                            if (
+                                subscriptionsStore
+                                    .getSnapshot()
+                                    .collectionSubscriptionsById.get(
+                                        newCollectionSubscription.collectionId,
+                                    )
+                                    ?.has(newCollectionSubscription)
+                            ) {
+                                hasCaughtError = true;
+                                newCollectionSubscription.setError(error);
+                            }
+                        }
+
+                        if (!hasCaughtError) {
+                            this._getContext()
+                                .tracer.getRoot()
+                                .logUncaughtException("Task realtime subscribe call failed", error);
+                        }
+                    });
                 });
             }
 
@@ -576,8 +663,11 @@ export class TaskRealtimeClient {
                         }
                     })
                     .catch(error => {
-                        // NOCOMMIT: How do we present errors??
-                        console.error(error);
+                        // All of the subscriptions the client has unsubscribed. So we only log an
+                        // uncaught exception that's not presented to the user.
+                        this._getContext()
+                            .tracer.getRoot()
+                            .logUncaughtException("Task realtime unsubscribe call failed", error);
                     });
             }
         };
@@ -658,16 +748,13 @@ export class TaskRealtimeClient {
                         this._getContext()
                             .tracer.getRoot()
                             .logUncaughtException(
-                                "Loading more tasks for query failed after query was unsubscribed",
+                                "Task realtime load more tasks call failed",
                                 error,
                             );
                         return;
                     }
 
-                    this._onDisplayError({
-                        title: "Couldn’t get more tasks",
-                        error,
-                    });
+                    query.setError(error);
                 });
             };
 
