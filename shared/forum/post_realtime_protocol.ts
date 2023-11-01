@@ -1,7 +1,3 @@
-import {
-    WebSocketProtocolEventType,
-    defineWebSocketProtocol,
-} from "~/shared/web_socket/web_socket_protocol.js";
 import {PostCommentModel} from "~/shared/forum/post_model.js";
 import {WebSocketConnectionId} from "~/shared/id/types/id_types.js";
 import {MessageChangeSchema} from "~/shared/messaging/message_change_schema.js";
@@ -11,6 +7,10 @@ import {
     createMessagingRealtimeEventSchemas,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {
+    WebSocketProtocolEventType,
+    defineWebSocketProtocol,
+} from "~/shared/web_socket/web_socket_protocol.js";
 
 export type PostRealtimeEvent = WebSocketProtocolEventType<typeof PostRealtimeProtocol>;
 

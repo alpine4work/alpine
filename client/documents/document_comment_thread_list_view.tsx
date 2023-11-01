@@ -34,12 +34,12 @@ import {renderMessageListItem} from "~/client/messaging/messaging_view.js";
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {VirtualizedTree} from "~/client/virtualized/helpers/virtualized_tree.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
     VirtualizedScrollViewRenderItem,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {VirtualizedTree} from "~/client/virtualized/helpers/virtualized_tree.js";
 import {Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {UncheckedDocumentContentSchema} from "~/shared/documents/document_content_schema.js";

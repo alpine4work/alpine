@@ -1,5 +1,5 @@
-import {TestSessionActorContextModule} from "~/server/dynamo/test_helpers/test_actor_context_module.js";
 import {SessionActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {TestSessionActorContextModule} from "~/server/helpers/test/test_actor_context_module.js";
 import {Response} from "~/server/node/install_response_with_web_socket_support.js";
 import {
     WebSocketConnectionProcedures,
@@ -700,7 +700,7 @@ test("authorization error will close the connection", async () => {
     expect(authorizationFinishCount).toEqual(1);
 
     import.meta.jest.advanceTimersByTime(100);
-    await expect(ProcessContextModule.waitForTestTasks()).rejects.toThrow(authorizationError);
+    await ProcessContextModule.waitForTestTasks();
     await waitMacrotask();
 
     expect(authorizationStartCount).toEqual(2);

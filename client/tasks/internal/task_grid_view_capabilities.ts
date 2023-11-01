@@ -17,8 +17,8 @@
  */
 export type TaskGridViewCapabilities = {
     isReadOnly: boolean;
-} & // Can't set both `hasParentTaskTitle` and `hasMultilineTitle` to true.
-(| {
+} & ( // Can't set both `hasParentTaskTitle` and `hasMultilineTitle` to true.
+    | {
           hasParentTaskTitle: false;
           hasMultilineTitle: false;
       }

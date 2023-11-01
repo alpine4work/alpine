@@ -7,7 +7,7 @@ ts_project(
         "//:node_modules/@opensearch-project/opensearch",
         "//:node_modules/@types/json-bigint",
         "//:node_modules/json-bigint",
-        "//server/helpers",
+        "//server/helpers/node",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

@@ -4054,10 +4054,15 @@ test("deleting task and all children when subscribed to task and its children", 
     void store.deleteTaskAndAllChildren(context, task1.id, {undoManager: null, time: deleteTime});
 
     expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task1.id,
         task5.id,
     ]);
 
-    expect(query2.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
+    expect(query2.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
+        task2.id,
+        task3.id,
+        task4.id,
+    ]);
 
     await TestRpcContextModule.resolveLastExecution(deleteTaskAndAllChildren, {
         actions: [

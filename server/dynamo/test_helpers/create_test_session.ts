@@ -32,7 +32,7 @@ export function createTestSession(
     space: TestSpaceItem,
     {
         name = `Test Account ${accountNameCounter++}`,
-        hasInternalAccess,
+        hasInternalAccess = false,
     }: {
         name?: string;
         hasInternalAccess?: boolean;
@@ -59,6 +59,7 @@ export function createTestSession(
             id: accountId,
             name: account.initialData.name,
             hasInternalAccess,
+            createdTime,
         });
 
         const [{createdTime: _sessionCreatedTime}] = await runAllPromises([

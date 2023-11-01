@@ -9779,7 +9779,7 @@ test("will reauthorize an unauthorized referenced task to authorized", async () 
             defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
             backfillTasks: [expectAuthorizedTask(parentTask1.id)],
-            backfillCollections: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session2.get()],
         },
     ]);

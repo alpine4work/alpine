@@ -13,7 +13,7 @@ import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {TaskQueryEvaluationContext} from "~/shared/tasks/task_query_evaluation_context.js";
 import {TaskQueryFilter} from "~/shared/tasks/task_query_filter.js";
 import {
@@ -96,6 +96,34 @@ async function testLoadTaskRealtimeQueries(
     };
 }
 
+function expectAuthorizedTask(taskId: TaskId) {
+    return expect.objectContaining({
+        type: "Authorized",
+        task: expect.objectContaining({id: taskId}),
+    });
+}
+
+function expectUnauthorizedTask(taskId: TaskId) {
+    return expect.objectContaining({
+        type: "Unauthorized",
+        taskId,
+    });
+}
+
+function expectAuthorizedCollection(collectionId: TaskCollectionId) {
+    return expect.objectContaining({
+        type: "Authorized",
+        collection: expect.objectContaining({id: collectionId}),
+    });
+}
+
+function expectUnauthorizedCollection(collectionId: TaskCollectionId) {
+    return expect.objectContaining({
+        type: "Unauthorized",
+        collectionId,
+    });
+}
+
 test("loads no queries", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -119,12 +147,11 @@ test("loads no queries", async () => {
         loadedStates: [],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     });
@@ -165,16 +192,15 @@ test("loads a query", async () => {
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     });
@@ -228,19 +254,18 @@ test("loads multiple queries", async () => {
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session1.get()],
         },
     });
@@ -267,18 +292,14 @@ test("loads multiple queries", async () => {
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [expectAuthorizedTask(task2.id), expectAuthorizedTask(task3.id)],
+            backfillCollections: [
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection1.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection2.id}),
-                expect.objectContaining({id: collection1.id}),
-            ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session2.get(), await session1.get()],
         },
     });
@@ -316,20 +337,19 @@ test("loads multiple queries", async () => {
         loadedStates: [{type: "Full"}, {type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection2.id}),
-                expect.objectContaining({id: collection1.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection1.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session2.get(), await session1.get()],
         },
     });
@@ -469,16 +489,15 @@ test("queries may have different pagination states", async () => {
         loadedStates: [{type: "Partial", endCursor: expect.any(Array)}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     });
@@ -506,12 +525,11 @@ test("queries may have different pagination states", async () => {
         loadedStates: [{type: "Partial", endCursor: null}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillTasks: [],
+            backfillCollections: [],
             referencedAccounts: [],
         },
     });
@@ -538,19 +556,18 @@ test("queries may have different pagination states", async () => {
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: task6.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task6.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     });
@@ -578,18 +595,17 @@ test("queries may have different pagination states", async () => {
         loadedStates: [{type: "Partial", endCursor: expect.any(Array)}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     });
@@ -628,19 +644,18 @@ test("queries may have different pagination states", async () => {
         loadedStates: [{type: "Partial", endCursor: expect.any(Array)}, {type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: task4.id}),
-                expect.objectContaining({id: task5.id}),
-                expect.objectContaining({id: task6.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(task4.id),
+                expectAuthorizedTask(task5.id),
+                expectAuthorizedTask(task6.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     });
@@ -694,19 +709,18 @@ test("loads referenced parent tasks", async () => {
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
-                expect.objectContaining({id: parentTask3.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectAuthorizedTask(parentTask3.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [],
             referencedAccounts: [await session.get()],
         },
     });
@@ -764,22 +778,21 @@ test("loads referenced collections", async () => {
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask1.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask1.id),
+                expectAuthorizedTask(parentTask2.id),
             ],
-            backfillUnauthorizedTaskIds: [],
-            backfillAuthorizedCollections: [
-                expect.objectContaining({id: collection1.id}),
-                expect.objectContaining({id: collection2.id}),
-                expect.objectContaining({id: collection3.id}),
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectAuthorizedCollection(collection2.id),
+                expectAuthorizedCollection(collection3.id),
             ],
-            backfillUnauthorizedCollectionIds: [],
             referencedAccounts: [await session.get()],
         },
     });
@@ -840,17 +853,19 @@ test("loads unauthorized parent tasks", async () => {
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectUnauthorizedTask(parentTask1.id),
+                expectUnauthorizedTask(parentTask4.id),
+                expectUnauthorizedTask(parentTask3.id),
             ],
-            backfillUnauthorizedTaskIds: [parentTask1.id, parentTask4.id, parentTask3.id],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection.id})],
-            backfillUnauthorizedCollectionIds: [],
+            backfillCollections: [expectAuthorizedCollection(collection.id)],
             referencedAccounts: [await session1.get()],
         },
     });
@@ -931,21 +946,24 @@ test("loads unauthorized collections", async () => {
         loadedStates: [{type: "Full"}],
         updateEvent: {
             type: "Update",
-            number: expect.any(Number),
+            originClientId: null,
+            defaultAuthorizationStateVersion: expect.any(Array),
             actions: [],
-            backfillAuthorizedTasks: [
-                expect.objectContaining({id: task1.id}),
-                expect.objectContaining({id: task2.id}),
-                expect.objectContaining({id: task3.id}),
-                expect.objectContaining({id: parentTask2.id}),
+            backfillTasks: [
+                expectAuthorizedTask(task1.id),
+                expectAuthorizedTask(task2.id),
+                expectAuthorizedTask(task3.id),
+                expectAuthorizedTask(parentTask2.id),
+                expectUnauthorizedTask(parentTask1.id),
+                expectUnauthorizedTask(parentTask4.id),
+                expectUnauthorizedTask(parentTask3.id),
             ],
-            backfillUnauthorizedTaskIds: [parentTask1.id, parentTask4.id, parentTask3.id],
-            backfillAuthorizedCollections: [expect.objectContaining({id: collection1.id})],
-            backfillUnauthorizedCollectionIds: [
-                collection2.id,
-                collection3.id,
-                collection4.id,
-                collection5.id,
+            backfillCollections: [
+                expectAuthorizedCollection(collection1.id),
+                expectUnauthorizedCollection(collection2.id),
+                expectUnauthorizedCollection(collection3.id),
+                expectUnauthorizedCollection(collection4.id),
+                expectUnauthorizedCollection(collection5.id),
             ],
             referencedAccounts: [await session1.get()],
         },

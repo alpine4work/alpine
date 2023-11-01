@@ -31,14 +31,14 @@ import {
     ensureDevServiceKeys,
 } from "~/admin/helpers/dev_service_keys.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
+import {workspacePath} from "~/admin/helpers/workspace_path.js";
+import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
+import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {
     waitForProcessExit,
     waitForProcessExitWithAnyCode,
-} from "~/admin/helpers/wait_for_process_exit.js";
-import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
-import {workspacePath} from "~/admin/helpers/workspace_path.js";
-import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
-import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
+} from "~/server/helpers/node/wait_for_process_exit.js";
+import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
 import {DeadlineExceededError, InvalidArgumentError} from "~/shared/error/error.js";
 import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";

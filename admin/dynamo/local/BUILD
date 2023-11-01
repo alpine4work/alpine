@@ -17,7 +17,7 @@ ts_project(
         "//:node_modules/fs-extra",
         "//:node_modules/is-port-reachable",
         "//admin/helpers",
-        "//server/helpers",
+        "//server/helpers/node",
         "//shared/error",
         "//shared/helpers",
     ],

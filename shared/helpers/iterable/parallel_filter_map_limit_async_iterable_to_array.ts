@@ -55,7 +55,6 @@ export async function parallelFilterMapLimitAsyncIterableToArray<Value, NewValue
             promises.add(newValuePromise);
 
             newValuePromise.then(
-                // eslint-disable-next-line no-loop-func
                 newValue => {
                     promises.delete(newValuePromise);
 
@@ -75,7 +74,6 @@ export async function parallelFilterMapLimitAsyncIterableToArray<Value, NewValue
                         }
                     }
                 },
-                // eslint-disable-next-line no-loop-func
                 error => {
                     promises.delete(newValuePromise);
 

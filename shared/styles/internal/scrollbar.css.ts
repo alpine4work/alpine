@@ -1,7 +1,6 @@
 import {createVar, globalStyle, keyframes, style} from "@vanilla-extract/css";
 import {colors} from "~/shared/design/colors.js";
 import {
-    colorSchemeVars,
     darkColorSchemeSelector,
     invertedColors,
 } from "~/shared/styles/internal/color_scheme.css.js";

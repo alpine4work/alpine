@@ -41,7 +41,6 @@ export async function parallelMapAsyncIterableToArray<Value, NewValue>(
                     promises.delete(promise);
                     array[index] = newValue;
                 },
-                // eslint-disable-next-line no-loop-func
                 error => {
                     promises.delete(promise);
 

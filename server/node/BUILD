@@ -1,5 +1,12 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+# The difference between `//server/helpers/node` and `//server/node` is
+# `//server/helpers/node` contains Node.js helpers that can be used anywhere
+# in our project. `//server/node` is for building full Node.js services.
+#
+# `//server/node` takes dependencies on many modules including
+# `//server/dynamo/core` and `//:node_modules/@aws-sdk` whereas
+# `//server/helpers/node` has a light dependency set which makes it portable.
 ts_project(
     name = "node",
     visibility = [

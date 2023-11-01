@@ -3383,6 +3383,8 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
     comments: Array<DocumentCommentModel>;
     otherReferencedComments: Array<DocumentCommentModel>;
 }> {
+    if (limit === 0) return {comments: [], otherReferencedComments: []};
+
     const commentItems = await arrayFromAsyncIterable(
         DocumentsTable.query(context, {
             partitionKey: {
@@ -3560,6 +3562,8 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
     comments: Array<DocumentCommentModel>;
     otherReferencedComments: Array<DocumentCommentModel>;
 }> {
+    if (limit === 0) return {comments: [], otherReferencedComments: []};
+
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
             ? DocumentsTable.query(context, {

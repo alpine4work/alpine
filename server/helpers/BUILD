@@ -2,7 +2,6 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "helpers",
-    data = [":wait_for_http_server"],
     visibility = [
         "//admin:__subpackages__",
         "//app:__subpackages__",
@@ -19,9 +18,4 @@ ts_project(
         "//shared/helpers",
         "//shared/schema",
     ],
-)
-
-sh_binary(
-    name = "wait_for_http_server",
-    srcs = ["wait_for_http_server.sh"],
 )

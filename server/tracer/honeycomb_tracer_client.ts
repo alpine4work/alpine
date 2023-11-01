@@ -1,4 +1,4 @@
-import {DataLossError, InternalError} from "~/shared/error/error.js";
+import {DataLossError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {TracerEvent} from "~/shared/tracer/tracer_event.js";

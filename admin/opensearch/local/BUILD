@@ -16,7 +16,7 @@ ts_project(
         "//:node_modules/get-port",
         "//:node_modules/murmurhash",
         "//admin/helpers",
-        "//server/helpers",
+        "//server/helpers/node",
         "//shared/error",
         "//shared/helpers",
     ],

@@ -231,15 +231,15 @@ export async function createAccountForTest(
         id = generateId<AccountId>(),
         name,
         hasInternalAccess = false,
+        createdTime = new Date(),
     }: {
         id?: AccountId;
         name: string;
         hasInternalAccess?: boolean;
+        createdTime?: Date;
     },
 ) {
     assert(process.env.NODE_ENV === "test");
-
-    const createdTime = new Date();
 
     await AccountsTable.createItem(context, {
         partitionType: "Account",

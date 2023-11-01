@@ -1,10 +1,10 @@
 import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {useEffect} from "react";
-import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {
     createDocument,
     getDocument,

@@ -130,6 +130,8 @@ import {
 // - Read-only deleted task detail
 // - Read-only deleted task collection
 // - Private/public collections and private parent tasks (update in realtime)
+// - Grid view expansion state persistence (page reload)
+// - Grid view expansion state persistence (query change)
 
 const undefinedConstStore = new ConstStore(undefined);
 

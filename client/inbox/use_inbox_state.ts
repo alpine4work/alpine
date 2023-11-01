@@ -237,7 +237,6 @@ export function useInboxState({
 
         for (const {promise} of optimisticUpdates) {
             promise.then(
-                // eslint-disable-next-line no-loop-func
                 () => {
                     if (isCancelled) return;
 
@@ -246,7 +245,6 @@ export function useInboxState({
                         promise,
                     });
                 },
-                // eslint-disable-next-line no-loop-func
                 () => {
                     if (isCancelled) return;
 

@@ -29,6 +29,8 @@ test("weak immediate listeners are garbage collected", async () => {
         cast,
     );
 
+    store5.getSnapshot();
+
     expect(store1._getWeakImmediateListenerCountForTest()).toEqual(1);
 
     flatMapTreeStoreValues(
@@ -39,12 +41,12 @@ test("weak immediate listeners are garbage collected", async () => {
             ),
         ),
         cast,
-    );
+    ).getSnapshot();
 
     expect(store1._getWeakImmediateListenerCountForTest()).toEqual(2);
 
     await waitMacrotask();
-    globalThis.gc!();
+    (globalThis as any).gc!();
 
     expect(store1._getWeakImmediateListenerCountForTest()).toEqual(1);
 

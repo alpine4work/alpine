@@ -8,6 +8,7 @@ ts_project(
         "//server/accounts",
         "//server/dynamo/test_helpers",
         "//server/spaces",
+        "//server/spaces/test_helpers",
         "//shared/accounts",
         "//shared/dynamo",
         "//shared/helpers",

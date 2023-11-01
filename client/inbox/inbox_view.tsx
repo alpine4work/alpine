@@ -12,7 +12,6 @@ import {FocusRing} from "~/client/design/focus_ring.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";

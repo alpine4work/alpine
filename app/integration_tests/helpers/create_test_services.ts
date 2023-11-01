@@ -14,11 +14,11 @@ import {
     ensureDevServiceKeys,
 } from "~/admin/helpers/dev_service_keys.js";
 import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
-import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
-import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSessionItem} from "~/server/dynamo/test_helpers/create_test_session.js";
-import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
+import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
+import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
+import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
 import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {InternalError} from "~/shared/error/error.js";

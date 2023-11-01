@@ -3,7 +3,7 @@ import {ChildProcess, ChildProcessByStdio, SpawnOptionsWithoutStdio, spawn} from
 import {Readable} from "stream";
 import stripAnsi from "strip-ansi";
 import {WriteStream} from "tty";
-import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
+import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 
 const blockingStdioSubprocesses: Array<() => Promise<void>> = [];

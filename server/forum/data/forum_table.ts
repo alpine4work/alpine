@@ -1382,6 +1382,8 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
     comments: Array<PostCommentModel>;
     otherReferencedComments: Array<PostCommentModel>;
 }> {
+    if (limit === 0) return {comments: [], otherReferencedComments: []};
+
     const commentItems = await arrayFromAsyncIterable(
         ForumTable.query(context, {
             partitionKey: {
@@ -1558,6 +1560,8 @@ async function getPostCommentsFromEndAssumingAuthorizedPost(
     comments: Array<PostCommentModel>;
     otherReferencedComments: Array<PostCommentModel>;
 }> {
+    if (limit === 0) return {comments: [], otherReferencedComments: []};
+
     const commentItems = await arrayFromAsyncIterable(
         typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
             ? ForumTable.query(context, {

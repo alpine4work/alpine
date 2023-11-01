@@ -26,6 +26,7 @@ ts_playwright_tests(
         "//:node_modules/ws",
         "//admin/helpers",
         "//server/dynamo/test_helpers",
+        "//server/helpers/node",
         "//server/remix",
         "//server/tokens",
     ],

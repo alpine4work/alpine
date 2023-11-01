@@ -703,12 +703,14 @@ export class Schema<Value> implements SchemaWithOnlySerialization<Value> {
                 if (!Array.isArray(value))
                     throw new SchemaDeserializationError("Expected an array");
 
-                if (value.length < elementSchemas.length)
+                if (value.length !== elementSchemas.length)
                     throw new SchemaDeserializationError(
-                        `Expected array to have a length equal to ${length}`,
+                        `Expected array to have a length equal to ${elementSchemas.length}`,
                     );
 
-                return value.map((element, i) => elementSchemas[i]!.deserialize(element)) as {
+                return elementSchemas.map((elementSchema, i) => {
+                    return elementSchema.deserialize(value[i]);
+                }) as {
                     readonly [Key in keyof Schemas]: SchemaType<Schemas[Key]>;
                 };
             },

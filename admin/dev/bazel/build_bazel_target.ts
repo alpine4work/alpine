@@ -1,8 +1,8 @@
 import chalk from "chalk";
 import {bazelExecutableMutex, bazelExecutablePath} from "~/admin/dev/bazel/bazel_executable.js";
 import {spawnWithBlockingStdio, writeWithStdioPrefix} from "~/admin/dev/stdio_coordinator.js";
-import {waitForProcessExitWithAnyCode} from "~/admin/helpers/wait_for_process_exit.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
+import {waitForProcessExitWithAnyCode} from "~/server/helpers/node/wait_for_process_exit.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";

@@ -1,7 +1,7 @@
 import {spawn} from "child_process";
 import {join as joinPath} from "path";
-import {waitForProcessExit} from "~/admin/helpers/wait_for_process_exit.js";
-import {waitForProcessSpawn} from "~/admin/helpers/wait_for_process_spawn.js";
+import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
+import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
 import {DeadlineExceededError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -35,7 +35,7 @@ export async function waitForHttpServer(port: number) {
     // [1]: https://github.com/nodejs/node/issues/50479
     // [2]: https://github.com/nodejs/node/issues/50479#issuecomment-1787152893
     const subprocess = spawn(
-        joinPath(runfilesPath, "cyberworlds/server/helpers/wait_for_http_server.sh"),
+        joinPath(runfilesPath, "cyberworlds/server/helpers/node/wait_for_http_server.sh"),
         [String(port)],
         {stdio: ["ignore", "ignore", "ignore"]},
     );

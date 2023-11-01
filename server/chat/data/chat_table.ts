@@ -1367,6 +1367,8 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
     messages: Array<ChatMessageModel>;
     otherReferencedMessages: Array<ChatMessageModel>;
 }> {
+    if (limit === 0) return {messages: [], otherReferencedMessages: []};
+
     const messageItems = await arrayFromAsyncIterable(
         ChatTable.query(context, {
             partitionKey: {
@@ -1524,6 +1526,8 @@ async function getChatMessagesFromEndAssumingAuthorizedChat(
     messages: Array<ChatMessageModel>;
     otherReferencedMessages: Array<ChatMessageModel>;
 }> {
+    if (limit === 0) return {messages: [], otherReferencedMessages: []};
+
     const messageItems = await arrayFromAsyncIterable(
         typeof beforeMessageIndex !== "number" || beforeMessageIndex > 0
             ? ChatTable.query(context, {

@@ -1,5 +1,5 @@
 import createJsonBigInt from "json-bigint";
-import {waitForHttpServer} from "~/server/helpers/wait_for_http_server.js";
+import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {
     OpensearchIndex,
     OpensearchIndexConfig,

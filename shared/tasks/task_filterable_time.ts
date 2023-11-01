@@ -77,6 +77,14 @@ export class TaskFilterableTime {
     }) {
         this.absoluteTime = absoluteTime;
         this.setterTimeZone = setterTimeZone;
+
+        // In Jest eagerly call `getSetterDate()` which caches some data so
+        // `expect().toEqual()` never shows uncached data as the reason why two objects
+        // don't match. Seeing the cached data can also help determine the difference
+        // in a diff.
+        if (import.meta.jest) {
+            this.getSetterDate();
+        }
     }
 
     public static readonly schema = Schema.object({

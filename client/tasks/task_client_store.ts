@@ -2116,6 +2116,9 @@ export class TaskClientStoreInternal {
                     for (const collectionId of releaseCollectionIds) {
                         this.retainCollectionEntryStore(collectionId);
                     }
+
+                    assert(delayReleaseTaskEntryStoreIds.size === 0);
+                    assert(delayReleaseCollectionEntryStoreIds.size === 0);
                 } else {
                     for (const taskId of delayReleaseTaskEntryStoreIds) {
                         const taskEntryStore = assertExists(this._taskEntryStoreById.get(taskId));
@@ -2138,9 +2141,6 @@ export class TaskClientStoreInternal {
                         this._collectionEntryStoreById.delete(collectionId);
                     }
                 }
-
-                assert(delayReleaseTaskEntryStoreIds.size === 0);
-                assert(delayReleaseCollectionEntryStoreIds.size === 0);
 
                 this._delayReleaseTaskEntryStoreIds = previousDelayReleaseTaskEntryStoreIds;
                 this._delayReleaseCollectionEntryStoreIds =

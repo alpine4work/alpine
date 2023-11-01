@@ -17,7 +17,6 @@ import {
     isRouteErrorResponse,
     useRouteError,
 } from "react-router";
-import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {AccountClientStoreContextProvider} from "~/client/accounts/account_client_store_context_provider.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -40,6 +39,7 @@ import {
     RootNavigationContextProvider,
     WaitForNavigationContextProvider,
 } from "~/client/remix/use_navigate.js";
+import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/spacing.js";
