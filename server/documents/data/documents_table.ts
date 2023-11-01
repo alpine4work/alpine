@@ -58,12 +58,11 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
-import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {assertId, generateId, getMaxId, getMinId} from "~/shared/id/id.js";
@@ -3384,81 +3383,93 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
     comments: Array<DocumentCommentModel>;
     otherReferencedComments: Array<DocumentCommentModel>;
 }> {
-    if (limit === 0) {
-        return {
-            comments: [],
-            otherReferencedComments: [],
-        };
-    }
-
-    const commentIndexes = new Set<number>();
-    const parentCommentIndexes = new Set<number>();
-
-    // Don't wait for `getSpaceId` to start our comment query.
-    let spaceIdPromise: Promise<SpaceId> | null = null;
-    let spaceId: SpaceId | null = null;
-
-    const commentPromises = await arrayFromAsyncIterable(
-        mapAsyncIterableIterator(
-            DocumentsTable.query(context, {
-                partitionKey: {
-                    partitionType: "DocumentCommentThread",
-                    documentId,
-                    commentThreadId,
-                },
-                startSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                },
-                endSortKey: {
-                    sortRangeType: "Comments",
-                    commentIndex:
-                        typeof beforeCommentIndex === "number"
-                            ? beforeCommentIndex - 1
-                            : Number.MAX_SAFE_INTEGER,
-                },
-                limit,
-            }),
-            async item => {
-                commentIndexes.add(item.commentIndex);
-
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
-                    parentCommentIndexes.add(item.payload.parentMessageIndex);
-
-                if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
-                if (spaceId === null) spaceId = await spaceIdPromise;
-                return createDocumentCommentModelFromItem(context, spaceId, item);
+    const commentItems = await arrayFromAsyncIterable(
+        DocumentsTable.query(context, {
+            partitionKey: {
+                partitionType: "DocumentCommentThread",
+                documentId,
+                commentThreadId,
             },
-        ),
+            startSortKey: {
+                sortRangeType: "Comments",
+                commentIndex: typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+            },
+            endSortKey: {
+                sortRangeType: "Comments",
+                commentIndex:
+                    typeof beforeCommentIndex === "number"
+                        ? beforeCommentIndex - 1
+                        : Number.MAX_SAFE_INTEGER,
+            },
+            limit,
+        }),
     );
 
-    const [comments, otherReferencedComments] = await runAllPromises([
-        runAllPromises(commentPromises),
-        runAllPromises(
-            filterMapIterable(parentCommentIndexes, parentCommentIndex => {
-                if (commentIndexes.has(parentCommentIndex)) return null;
+    if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-                return (async () => {
-                    const commentItem = await DocumentsTable.getItemIfExists(context, {
-                        partitionType: "DocumentCommentThread",
-                        sortRangeType: "Comments",
-                        documentId,
-                        commentThreadId,
-                        commentIndex: parentCommentIndex,
-                    });
-                    if (!commentItem) throw new InternalError("Parent comment not found");
+    const startCommentIndex = commentItems[0]!.commentIndex;
+    const endCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
 
-                    if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
-                    if (spaceId === null) spaceId = await spaceIdPromise;
-                    return createDocumentCommentModelFromItem(context, spaceId, commentItem);
-                })();
-            }),
-        ),
-    ]);
+    const spaceId = await getSpaceId();
+
+    let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
+    const otherReferencedComments: Array<DocumentCommentModel> = [];
+
+    const loadOtherReferencedComment = (commentIndex: number) => {
+        // If this message is already in our loaded messages range then we don't need
+        // to load it again.
+        if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
+
+        const promise = getOrSetDefaultMapValue(
+            otherReferencedCommentPromiseByIndex,
+            commentIndex,
+            async () => {
+                const item = await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Comments",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                });
+                if (!item) throw new InternalError("Parent comment not found");
+
+                // Recursively load any referenced parent messages...
+                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                }
+
+                otherReferencedComments.push(
+                    await createDocumentCommentModelFromItem(context, spaceId, item),
+                );
+            },
+        );
+
+        // We await this promise later.
+        void promise;
+    };
+
+    const comments = await runAllPromises(
+        commentItems.map(item => {
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            }
+            return createDocumentCommentModelFromItem(context, spaceId, item);
+        }),
+    );
+
+    // Keep loading other referenced comments until we have all of them. A
+    // referenced comment may itself reference more comments.
+    while (otherReferencedCommentPromiseByIndex.size > 0) {
+        const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
+        otherReferencedCommentPromiseByIndex = new Map();
+        await runAllPromises(promises);
+    }
 
     return {
         comments,
-        otherReferencedComments,
+        otherReferencedComments: otherReferencedComments.sort(
+            (comment1, comment2) => comment1.index - comment2.index,
+        ),
     };
 }
 
@@ -3549,91 +3560,102 @@ async function getDocumentCommentsFromEndAssumingAuthorizedCommentThread(
     comments: Array<DocumentCommentModel>;
     otherReferencedComments: Array<DocumentCommentModel>;
 }> {
-    if (limit === 0) {
-        return {
-            comments: [],
-            otherReferencedComments: [],
-        };
-    }
-
-    const commentIndexes = new Set<number>();
-    const parentCommentIndexes = new Set<number>();
-
-    // Don't wait for `getSpaceId` to start our comment query.
-    let spaceIdPromise: Promise<SpaceId> | null = null;
-    let spaceId: SpaceId | null = null;
-
-    const commentPromises = await arrayFromAsyncIterable(
-        mapAsyncIterableIterator(
-            typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
-                ? DocumentsTable.query(context, {
-                      partitionKey: {
-                          partitionType: "DocumentCommentThread",
-                          documentId,
-                          commentThreadId,
-                      },
-                      startSortKey: {
-                          sortRangeType: "Comments",
-                          commentIndex:
-                              typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
-                      },
-                      endSortKey: {
-                          sortRangeType: "Comments",
-                          commentIndex:
-                              typeof beforeCommentIndex === "number"
-                                  ? beforeCommentIndex - 1
-                                  : Number.MAX_SAFE_INTEGER,
-                      },
-                      limit,
-                      // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
-                      // at the end instead of start.
-                      descending: true,
-                  })
-                : (async function* () {})(),
-            async item => {
-                commentIndexes.add(item.commentIndex);
-
-                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null)
-                    parentCommentIndexes.add(item.payload.parentMessageIndex);
-
-                if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
-                if (spaceId === null) spaceId = await spaceIdPromise;
-                return createDocumentCommentModelFromItem(context, spaceId, item);
-            },
-        ),
+    const commentItems = await arrayFromAsyncIterable(
+        typeof beforeCommentIndex !== "number" || beforeCommentIndex > 0
+            ? DocumentsTable.query(context, {
+                  partitionKey: {
+                      partitionType: "DocumentCommentThread",
+                      documentId,
+                      commentThreadId,
+                  },
+                  startSortKey: {
+                      sortRangeType: "Comments",
+                      commentIndex:
+                          typeof afterCommentIndex === "number" ? afterCommentIndex + 1 : 0,
+                  },
+                  endSortKey: {
+                      sortRangeType: "Comments",
+                      commentIndex:
+                          typeof beforeCommentIndex === "number"
+                              ? beforeCommentIndex - 1
+                              : Number.MAX_SAFE_INTEGER,
+                  },
+                  limit,
+                  // Scan backwards from `endSortKey` to `startSortKey` so we can get comments
+                  // at the end instead of start.
+                  descending: true,
+              })
+            : (async function* () {})(),
     );
 
-    const [comments, otherReferencedComments] = await runAllPromises([
-        runAllPromises(commentPromises),
-        runAllPromises(
-            filterMapIterable(parentCommentIndexes, parentCommentIndex => {
-                if (commentIndexes.has(parentCommentIndex)) return null;
+    if (commentItems.length === 0) return {comments: [], otherReferencedComments: []};
 
-                return (async () => {
-                    const commentItem = await DocumentsTable.getItemIfExists(context, {
-                        partitionType: "DocumentCommentThread",
-                        sortRangeType: "Comments",
-                        documentId,
-                        commentThreadId,
-                        commentIndex: parentCommentIndex,
-                    });
-                    if (!commentItem) throw new InternalError("Parent comment not found");
+    const endCommentIndex = commentItems[0]!.commentIndex;
+    const startCommentIndex = commentItems[commentItems.length - 1]!.commentIndex;
 
-                    if (spaceIdPromise === null) spaceIdPromise = getSpaceId();
-                    if (spaceId === null) spaceId = await spaceIdPromise;
-                    return createDocumentCommentModelFromItem(context, spaceId, commentItem);
-                })();
-            }),
-        ),
-    ]);
+    const spaceId = await getSpaceId();
+
+    let otherReferencedCommentPromiseByIndex = new Map<number, Promise<void>>();
+    const otherReferencedComments: Array<DocumentCommentModel> = [];
+
+    const loadOtherReferencedComment = (commentIndex: number) => {
+        // If this message is already in our loaded messages range then we don't need
+        // to load it again.
+        if (startCommentIndex <= commentIndex && commentIndex <= endCommentIndex) return;
+
+        const promise = getOrSetDefaultMapValue(
+            otherReferencedCommentPromiseByIndex,
+            commentIndex,
+            async () => {
+                const item = await DocumentsTable.getItemIfExists(context, {
+                    partitionType: "DocumentCommentThread",
+                    sortRangeType: "Comments",
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                });
+                if (!item) throw new InternalError("Parent comment not found");
+
+                // Recursively load any referenced parent messages...
+                if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                    loadOtherReferencedComment(item.payload.parentMessageIndex);
+                }
+
+                otherReferencedComments.push(
+                    await createDocumentCommentModelFromItem(context, spaceId, item),
+                );
+            },
+        );
+
+        // We await this promise later.
+        void promise;
+    };
+
+    const comments = await runAllPromises(
+        commentItems.map(item => {
+            if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
+                loadOtherReferencedComment(item.payload.parentMessageIndex);
+            }
+            return createDocumentCommentModelFromItem(context, spaceId, item);
+        }),
+    );
+
+    // Keep loading other referenced comments until we have all of them. A
+    // referenced comment may itself reference more comments.
+    while (otherReferencedCommentPromiseByIndex.size > 0) {
+        const promises = Array.from(otherReferencedCommentPromiseByIndex.values());
+        otherReferencedCommentPromiseByIndex = new Map();
+        await runAllPromises(promises);
+    }
 
     // We queried in descending order so put comments back in the right order.
     comments.reverse();
-    otherReferencedComments.reverse();
 
     return {
         comments,
-        otherReferencedComments,
+        otherReferencedComments: otherReferencedComments.sort(
+            (comment1, comment2) => comment1.index - comment2.index,
+        ),
     };
 }
 
