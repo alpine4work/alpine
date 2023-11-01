@@ -227,19 +227,19 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
     DocumentContentWithReferences,
     DocumentContentEditorExtraState,
     DocumentContentEditorExtraAction
->((oldState, action) => {
+>((state, action, oldState) => {
     if (action.type === "Edit") {
         // Don't update our `presenceState` when there are steps we are sending to the
         // server. Other clients would not know how to interpret our state until they
         // see our steps.
-        if (oldState.pendingSendableSteps) {
-            return oldState;
+        if (state.pendingSendableSteps) {
+            return state;
         }
 
         return {
-            ...oldState,
+            ...state,
             extra: {
-                ...oldState.extra,
+                ...state.extra,
                 ourPresenceState: {
                     version: action.editorState.getVersion(),
                     selection: action.editorState.getSelection(),
@@ -251,7 +251,7 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
     if (action.type === "ReceiveSteps") {
         // While the base reducer may receive `ReceiveSteps` actions out-of-order, it
         // should call our custom reducer with `ReceiveSteps` actions in-order.
-        assert(action.newVersion === oldState.editorState.getVersion());
+        assert(action.newVersion === state.editorState.getVersion());
 
         // Whenever we receive steps, we add them to our `rememberedSteps` array.
         // We discard steps when we don't need them to rebase presence states.
@@ -274,18 +274,18 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
             };
         });
 
-        const rememberedSteps = [...oldState.extra.rememberedSteps, ...newRememberedSteps];
+        const rememberedSteps = [...state.extra.rememberedSteps, ...newRememberedSteps];
 
         return {
-            ...oldState,
+            ...state,
             extra: {
-                ...oldState.extra,
+                ...state.extra,
                 rememberedSteps,
             },
         };
     }
 
-    if (action.type === "Error") return oldState;
+    if (action.type === "Error") return state;
 
     switch (action.extra.type) {
         // If we are missing some remembered steps for fast-forwarding presence states
@@ -293,22 +293,22 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
         // action integrates the old steps into our state.
         case "AugmentRememberedSteps": {
             assert(
-                action.extra.expectedVersion === oldState.editorState?.getVersion(),
+                action.extra.expectedVersion === state.editorState?.getVersion(),
                 "Failed to augment remembered steps because editor version does not match expected version",
             );
 
             // Drop steps we're trying to remember that we already have.
             const rememberInvertedSteps = action.extra.invertedSteps.slice(
                 0,
-                oldState.editorState.getVersion() -
-                    oldState.extra.rememberedSteps.length -
+                state.editorState.getVersion() -
+                    state.extra.rememberedSteps.length -
                     action.extra.startVersion,
             );
-            if (rememberInvertedSteps.length === 0) return oldState;
+            if (rememberInvertedSteps.length === 0) return state;
 
-            const oldEditorState = oldState.editorState;
+            const oldEditorState = state.editorState;
             let content =
-                oldState.extra.rememberedSteps[oldState.extra.rememberedSteps.length - 1]
+                state.extra.rememberedSteps[state.extra.rememberedSteps.length - 1]
                     ?.contentBeforeStep ??
                 new Lazy(() => oldEditorState.getDocWithoutSendableSteps());
 
@@ -332,33 +332,33 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
             newRememberedSteps.reverse();
 
             return {
-                ...oldState,
+                ...state,
                 extra: {
-                    ...oldState.extra,
-                    rememberedSteps: [...newRememberedSteps, ...oldState.extra.rememberedSteps],
+                    ...state.extra,
+                    rememberedSteps: [...newRememberedSteps, ...state.extra.rememberedSteps],
                 },
             };
         }
         case "SetAllOtherPresenceStates": {
             return {
-                ...oldState,
+                ...state,
                 extra: {
-                    ...oldState.extra,
+                    ...state.extra,
                     otherPresenceStateByConnectionId: action.extra.stateByConnectionId,
                 },
             };
         }
         case "UpdateOtherPresenceState": {
             return {
-                ...oldState,
+                ...state,
                 extra: {
-                    ...oldState.extra,
+                    ...state.extra,
                     otherPresenceStateByConnectionId: action.extra.state
-                        ? oldState.extra.otherPresenceStateByConnectionId.set(
+                        ? state.extra.otherPresenceStateByConnectionId.set(
                               action.extra.connectionId,
                               action.extra.state,
                           )
-                        : oldState.extra.otherPresenceStateByConnectionId.delete(
+                        : state.extra.otherPresenceStateByConnectionId.delete(
                               action.extra.connectionId,
                           ),
                 },
@@ -366,8 +366,8 @@ const baseReduceDocumentContentEditorState = createCollaborativeContentEditorSta
         }
         case "UpdateCommentThread": {
             return {
-                ...oldState,
-                editorState: oldState.editorState.updateReferences({
+                ...state,
+                editorState: state.editorState.updateReferences({
                     type: "UpdateDocumentCommentThread",
                     commentThreadId: action.extra.commentThreadId,
                     commentCount: action.extra.commentCount,

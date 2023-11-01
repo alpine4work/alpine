@@ -10,7 +10,7 @@ import {
     createSimpleDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 
-const context = createTestContext();
+const context = createTestContext({shouldStartOpensearch: true});
 const services = createTestServices(context);
 const space = createTestSpace(context);
 const session = createTestSession(context, space);

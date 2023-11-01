@@ -162,6 +162,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
         version,
         content,
         reduceReferences,
+        clientId = generateId<ContentEditorClientId>(),
         disableUndoKeyboardShortcuts = false,
     }: {
         /**
@@ -187,6 +188,12 @@ export class ContentEditorState<Content extends ContentWithReferences> {
             references: Content["references"],
             action: ContentEditorReferencesAction<Content["references"]>,
         ) => Content["references"];
+
+        /**
+         * Identifier for this content editor. Each client should have its own unique
+         * ID to figure out which edits were made by us vs others.
+         */
+        clientId?: ContentEditorClientId;
 
         /**
          * Should the undo/redo keyboard shortcuts be disabled on this editor? When
@@ -215,7 +222,7 @@ export class ContentEditorState<Content extends ContentWithReferences> {
                 // generated vs. receiving steps from another client. We generate an ID for
                 // every content state instance because if you have two content editors on the
                 // page they need separate IDs so they don't conflict.
-                clientID: generateId(),
+                clientID: clientId,
                 version,
             }),
         ];

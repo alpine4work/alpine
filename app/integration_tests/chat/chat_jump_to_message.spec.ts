@@ -6,7 +6,7 @@ import {createTestSession} from "~/server/dynamo/test_helpers/create_test_sessio
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
-const context = createTestContext();
+const context = createTestContext({shouldStartOpensearch: true});
 const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);

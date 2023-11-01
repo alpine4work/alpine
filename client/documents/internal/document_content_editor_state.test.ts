@@ -1,17 +1,28 @@
 import {Fragment, Slice} from "prosemirror-model";
-import {ReplaceStep} from "prosemirror-transform";
+import {Selection, TextSelection, Transaction} from "prosemirror-state";
+import {ReplaceStep, Step} from "prosemirror-transform";
+import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {
+    DocumentContentEditorAction,
+    DocumentContentEditorState,
     getInitialDocumentContentEditorState,
     reduceDocumentContentEditorState,
+    reduceDocumentContentReferences,
 } from "~/client/documents/internal/document_content_editor_state.js";
-import {emptyDocumentContentReferences} from "~/shared/documents/document_content_references.js";
 import {
+    DocumentContentWithReferences,
+    emptyDocumentContentReferences,
+} from "~/shared/documents/document_content_references.js";
+import {
+    DocumentContentProsemirrorSchema,
     assertDocumentContent,
     DocumentContentProsemirrorSchema as schema,
 } from "~/shared/documents/document_content_schema.js";
 import {DocumentModel} from "~/shared/documents/document_model.js";
+import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {generateId} from "~/shared/id/id.js";
 import {ContentEditorClientId} from "~/shared/id/types/id_types.js";
+import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
 
 function textSlice(text: string) {
     if (text.length === 0) return Slice.empty;
@@ -890,4 +901,342 @@ test("reproduce receive steps assertion failure", () => {
             ])
             .toJSON(),
     );
+});
+
+// Bug found by our `document_collaboration.spec.ts` test.
+test("collaborative update scenario", () => {
+    const client1Id = generateId<ContentEditorClientId>();
+    const client2Id = generateId<ContentEditorClientId>();
+
+    const actions: Array<DocumentContentEditorAction> = [
+        {
+            type: "ReceiveSteps",
+            newVersion: 14,
+            steps: [
+                {
+                    clientId: client1Id,
+                    step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                        stepType: "replace",
+                        from: 14,
+                        to: 14,
+                        slice: {content: [{type: "text", text: "6"}]},
+                    }),
+                },
+                {
+                    clientId: client1Id,
+                    step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                        stepType: "replace",
+                        from: 15,
+                        to: 15,
+                        slice: {content: [{type: "text", text: "1"}]},
+                    }),
+                },
+                {
+                    clientId: client1Id,
+                    step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                        stepType: "replace",
+                        from: 16,
+                        to: 16,
+                        slice: {content: [{type: "text", text: "2"}]},
+                    }),
+                },
+            ],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+    ];
+
+    const doc = assertDocumentContent(
+        DocumentContentProsemirrorSchema.nodeFromJSON({
+            type: "doc",
+            content: [
+                {type: "title"},
+                {type: "paragraph", content: [{type: "text", text: "1a23bc45def61234"}]},
+            ],
+        }),
+    );
+
+    const collabPluginVersion = 11;
+
+    const editorState = ContentEditorState.createCollaborative<DocumentContentWithReferences>({
+        version: collabPluginVersion,
+        content: {doc, references: emptyDocumentContentReferences},
+        reduceReferences: reduceDocumentContentReferences,
+        clientId: client1Id,
+    });
+
+    const createTransaction = (): Transaction => (editorState as any)._state.tr;
+
+    const collabPluginUnconfirmed = [
+        {
+            step: {
+                stepType: "replace",
+                from: 14,
+                to: 14,
+                slice: {content: [{type: "text", text: "6"}]},
+            },
+            inverted: {
+                stepType: "replace",
+                from: 14,
+                to: 14,
+                slice: {content: [{type: "text", text: "6"}]},
+            },
+        },
+        {
+            step: {
+                stepType: "replace",
+                from: 15,
+                to: 15,
+                slice: {content: [{type: "text", text: "1"}]},
+            },
+            inverted: {
+                stepType: "replace",
+                from: 15,
+                to: 15,
+                slice: {content: [{type: "text", text: "1"}]},
+            },
+        },
+        {
+            step: {
+                stepType: "replace",
+                from: 16,
+                to: 16,
+                slice: {content: [{type: "text", text: "2"}]},
+            },
+            inverted: {
+                stepType: "replace",
+                from: 16,
+                to: 16,
+                slice: {content: [{type: "text", text: "2"}]},
+            },
+        },
+        {
+            step: {
+                stepType: "replace",
+                from: 17,
+                to: 17,
+                slice: {content: [{type: "text", text: "3"}]},
+            },
+            inverted: {
+                stepType: "replace",
+                from: 17,
+                to: 17,
+                slice: {content: [{type: "text", text: "3"}]},
+            },
+        },
+        {
+            step: {
+                stepType: "replace",
+                from: 18,
+                to: 18,
+                slice: {content: [{type: "text", text: "4"}]},
+            },
+            inverted: {
+                stepType: "replace",
+                from: 18,
+                to: 18,
+                slice: {content: [{type: "text", text: "4"}]},
+            },
+        },
+    ].map(({step, inverted}) => ({
+        origin: createTransaction(),
+        step: Step.fromJSON(DocumentContentProsemirrorSchema, step),
+        inverted: Step.fromJSON(DocumentContentProsemirrorSchema, inverted),
+    }));
+
+    {
+        const sendableSteps = editorState.sendableSteps();
+        expect(sendableSteps?.version).toEqual(undefined);
+        expect(sendableSteps?.steps.length).toEqual(undefined);
+    }
+
+    // Manually update our collab plugin's `unconfirmed` state since there's no
+    // easy way to initialize it with the `prosemirror-collab` API.
+    // https://github.com/ProseMirror/prosemirror-collab/blob/c019e4cd1e05504d403d98e6bfec67fe1a80c895/src/collab.ts#L43
+    (editorState as any)._state.collab$.unconfirmed = collabPluginUnconfirmed;
+
+    {
+        const sendableSteps = editorState.sendableSteps();
+        expect(sendableSteps?.version).toEqual(collabPluginVersion);
+        expect(sendableSteps?.steps.length).toEqual(collabPluginUnconfirmed.length);
+    }
+
+    const oldState: DocumentContentEditorState = {
+        pendingActions: [
+            {
+                type: "ReceiveSteps",
+                newVersion: 16,
+                steps: [
+                    {
+                        clientId: client2Id,
+                        step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                            stepType: "replace",
+                            from: 17,
+                            to: 17,
+                            slice: {content: [{type: "text", text: "a"}]},
+                        }),
+                    },
+                    {
+                        clientId: client2Id,
+                        step: Step.fromJSON(DocumentContentProsemirrorSchema, {
+                            stepType: "replace",
+                            from: 18,
+                            to: 18,
+                            slice: {content: [{type: "text", text: "b"}]},
+                        }),
+                    },
+                ],
+                stepsContentReferences: emptyDocumentContentReferences,
+            },
+        ],
+        editorState,
+        pendingSendableSteps: {
+            version: 8,
+            clientId: client1Id,
+            origins: [createTransaction(), createTransaction(), createTransaction()],
+            steps: [
+                Step.fromJSON(DocumentContentProsemirrorSchema, {
+                    stepType: "replace",
+                    from: 11,
+                    to: 11,
+                    slice: {content: [{type: "text", text: "6"}]},
+                }),
+                Step.fromJSON(DocumentContentProsemirrorSchema, {
+                    stepType: "replace",
+                    from: 12,
+                    to: 12,
+                    slice: {content: [{type: "text", text: "1"}]},
+                }),
+                Step.fromJSON(DocumentContentProsemirrorSchema, {
+                    stepType: "replace",
+                    from: 13,
+                    to: 13,
+                    slice: {content: [{type: "text", text: "2"}]},
+                }),
+            ],
+        },
+        errorState: {hasError: false},
+        extra: {
+            pendingCreateCommentThreads: [],
+            rememberedSteps: [],
+            ourPresenceState: {
+                version: 8,
+                selection: Selection.fromJSON(doc, {type: "text", anchor: 14, head: 14}),
+            },
+            otherPresenceStateByConnectionId: ImmutableMap.empty(),
+        },
+    };
+
+    const newState = reduceDocumentContentEditorState(oldState, actions);
+
+    expect(newState.pendingSendableSteps?.version).toEqual(16);
+    expect(newState.extra.ourPresenceState?.version).toEqual(16);
+});
+
+test("generates correct remembered steps", () => {
+    const otherClientId = generateId<ContentEditorClientId>();
+
+    const doc = assertDocumentContent(
+        schema.node("doc", {}, [
+            schema.node("title", {}, []),
+            schema.node("paragraph", {}, [schema.text("abc")]),
+        ]),
+    );
+
+    let state = getInitialDocumentContentEditorState(
+        new DocumentModel({
+            id: generateId(),
+            createdTime: new Date(),
+            spaceId: generateId(),
+            version: 10,
+            content: {
+                doc,
+                references: emptyDocumentContentReferences,
+            },
+        }),
+    );
+
+    state = {
+        ...state,
+        extra: {
+            ...state.extra,
+            otherPresenceStateByConnectionId: ImmutableMap.from([
+                [
+                    generateId(),
+                    {
+                        version: 10,
+                        selection: ProsemirrorSelectionWrapper.new(
+                            new TextSelection(doc.resolve(4), doc.resolve(4)),
+                        ),
+                    },
+                ],
+            ]),
+        },
+    };
+
+    expect(state.extra.rememberedSteps.length).toEqual(0);
+    expectRememberedSteps();
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 11,
+            steps: [{step: new ReplaceStep(6, 6, textSlice("d")), clientId: otherClientId}],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+    ]);
+
+    expect(state.extra.rememberedSteps.length).toEqual(1);
+    expectRememberedSteps();
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 12,
+            steps: [{step: new ReplaceStep(7, 7, textSlice("e")), clientId: otherClientId}],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+    ]);
+
+    expect(state.extra.rememberedSteps.length).toEqual(2);
+    expectRememberedSteps();
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 13,
+            steps: [{step: new ReplaceStep(8, 8, textSlice("f")), clientId: otherClientId}],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+    ]);
+
+    expect(state.extra.rememberedSteps.length).toEqual(3);
+    expectRememberedSteps();
+
+    state = reduceDocumentContentEditorState(state, [
+        {
+            type: "ReceiveSteps",
+            newVersion: 14,
+            steps: [{step: new ReplaceStep(9, 9, textSlice("g")), clientId: otherClientId}],
+            stepsContentReferences: emptyDocumentContentReferences,
+        },
+    ]);
+
+    expect(state.extra.rememberedSteps.length).toEqual(4);
+    expectRememberedSteps();
+
+    function expectRememberedSteps() {
+        for (let i = 0; i < state.extra.rememberedSteps.length; i++) {
+            if (i !== 0) {
+                expect(state.extra.rememberedSteps[i]!.contentBeforeStep.get().toJSON()).toEqual(
+                    state.extra.rememberedSteps[i - 1]!.contentAfterStep.get().toJSON(),
+                );
+            }
+
+            if (i !== state.extra.rememberedSteps.length - 1) {
+                expect(state.extra.rememberedSteps[i]!.contentAfterStep.get().toJSON()).toEqual(
+                    state.extra.rememberedSteps[i + 1]!.contentBeforeStep.get().toJSON(),
+                );
+            }
+        }
+    }
 });

@@ -120,15 +120,23 @@ def playwright_test(
         name = "{}_bin".format(name),
         data = [
             "{}_src".format(name),
+            "//:node_modules/chalk",
             "//admin/jest:jest_config_files",
             "//admin/playwright:playwright_setup_file",
         ] + deps + data,
         node_options = node_options + [
-            # Use the same Jest setup script to setup our environment for Playwright tests.
+            # Use the same Jest setup scripts to setup our environment for Playwright tests.
+            "--require=./admin/jest/jest_setup_shared.cjs",
             "--require=./admin/jest/jest_setup_server.cjs",
             "--import=./admin/playwright/playwright_setup.mjs",
         ],
         testonly = True,
+        # On by default to workaround a bug with `.mjs` entrypoints. We observe this
+        # causes an issue where two copies of `@playwright/test` are imported. We don't
+        # want to preserve symlinks, since Playwright uses a CommonJS entrypoint we can
+        # safely disable.
+        # https://docs-legacy.aspect.build/aspect-build/rules_js/v1.0.0/docs/js_binary-docgen.html#js_binary-preserve_symlinks_main
+        preserve_symlinks_main = False,
     )
 
     # Alias that defaults to running our Chromium test for the file.
@@ -230,4 +238,5 @@ def _playwright_project_test(
             "TEST_PACKAGE_NAME": native.package_name(),
             "TEST_TARGET_NAME": "{}_{}_test".format(name, project),
         },
+        testonly = True,
     )

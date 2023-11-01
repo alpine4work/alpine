@@ -132,6 +132,7 @@ export function createCollaborativeContentEditorStateReducer<
     reduce: (
         state: CollaborativeContentEditorState<Content, ExtraState>,
         action: CollaborativeContentEditorAction<Content, ExtraAction>,
+        oldState: CollaborativeContentEditorState<Content, ExtraState>,
     ) => CollaborativeContentEditorState<Content, ExtraState>,
 ) {
     return (
@@ -144,6 +145,30 @@ export function createCollaborativeContentEditorStateReducer<
             state,
         );
         const newVersion = state.editorState.getVersion();
+
+        // If the version changed then we want to retry our pending actions since they
+        // may be ok to run now.
+        if (oldVersion !== newVersion) {
+            // We may receive actions out of order, but make sure we run them in order
+            // now.
+            const pendingActions = [...state.pendingActions].sort(
+                (pendingAction1, pendingAction2) => {
+                    const baseVersion1 = pendingAction1.newVersion - pendingAction1.steps.length;
+                    const baseVersion2 = pendingAction2.newVersion - pendingAction2.steps.length;
+                    return baseVersion1 - baseVersion2;
+                },
+            );
+
+            // We are going to try and run all pending actions. If actions are still
+            // pending they will be put back into this array.
+            state = {...state, pendingActions: []};
+
+            state = pendingActions.reduce(
+                (state, action) =>
+                    actuallyReduceCollaborativeContentEditorState(reduce, state, action),
+                state,
+            );
+        }
 
         // If we are not currently sending steps to the server but we have some
         // sendable steps, then populate the `pendingSendableSteps` action.
@@ -166,26 +191,7 @@ export function createCollaborativeContentEditorStateReducer<
             }
         }
 
-        // If the version changed then we want to retry our pending actions since they
-        // may be ok to run now.
-        if (oldVersion === newVersion) return state;
-
-        // We may receive actions out of order, but make sure we run them in order
-        // now.
-        const pendingActions = [...state.pendingActions].sort((pendingAction1, pendingAction2) => {
-            const baseVersion1 = pendingAction1.newVersion - pendingAction1.steps.length;
-            const baseVersion2 = pendingAction2.newVersion - pendingAction2.steps.length;
-            return baseVersion1 - baseVersion2;
-        });
-
-        // We are going to try and run all pending actions. If actions are still
-        // pending they will be put back into this array.
-        state = {...state, pendingActions: []};
-
-        return pendingActions.reduce(
-            (state, action) => actuallyReduceCollaborativeContentEditorState(reduce, state, action),
-            state,
-        );
+        return state;
     };
 }
 
@@ -197,6 +203,7 @@ function actuallyReduceCollaborativeContentEditorState<
     reduce: (
         state: CollaborativeContentEditorState<Content, ExtraState>,
         action: CollaborativeContentEditorAction<Content, ExtraAction>,
+        oldState: CollaborativeContentEditorState<Content, ExtraState>,
     ) => CollaborativeContentEditorState<Content, ExtraState>,
     oldState: CollaborativeContentEditorState<Content, ExtraState>,
     action: CollaborativeContentEditorAction<Content, ExtraAction>,
@@ -220,6 +227,7 @@ function actuallyReduceCollaborativeContentEditorState<
                     editorState: action.editorState,
                 },
                 action,
+                oldState,
             );
         }
         case "ReceiveSteps": {
@@ -271,6 +279,7 @@ function actuallyReduceCollaborativeContentEditorState<
                     steps,
                     stepsContentReferences: action.stepsContentReferences,
                 },
+                oldState,
             );
         }
         case "Error": {
@@ -280,10 +289,11 @@ function actuallyReduceCollaborativeContentEditorState<
                     errorState: {hasError: true, error: action.error},
                 },
                 action,
+                oldState,
             );
         }
         case "Extra": {
-            return reduce(oldState, action);
+            return reduce(oldState, action, oldState);
         }
         default:
             throw exhaustive(action);

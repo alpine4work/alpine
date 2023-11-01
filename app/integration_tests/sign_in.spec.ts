@@ -13,7 +13,7 @@ import {seedTestSpaces} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 
-const context = createTestContext();
+const context = createTestContext({shouldStartOpensearch: true});
 const services = createTestServices(context);
 const space = createTestSpace(context);
 const adminSession = createTestSession(context, space, {hasInternalAccess: true});

@@ -11,7 +11,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 
-const context = createTestContext();
+const context = createTestContext({shouldStartOpensearch: true});
 const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);

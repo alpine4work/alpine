@@ -51,19 +51,19 @@ export type TestServer = {
  * Runs a test server for Playwright tests using the test context's DynamoDB. Also sets that server as the base URL for future tests.
  */
 export function createTestServices(context: TestContext): TestServer {
-    const edgePortPromise = getPort();
-    let edgePort: number | null = null;
-    void edgePortPromise.then(port => (edgePort = port));
+    const edgeServicePortPromise = getPort();
+    let edgeServicePort: number | null = null;
+    void edgeServicePortPromise.then(port => (edgeServicePort = port));
 
     test.use({
         baseURL: async ({}, use) => {
-            const edgePort = await edgePortPromise;
-            await use(`http://localhost:${edgePort}`);
+            const edgeServicePort = await edgeServicePortPromise;
+            await use(`http://localhost:${edgeServicePort}`);
         },
     });
 
-    let appSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
-    let edgeSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
+    let appServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
+    let edgeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
 
     const appServiceTokenAgentPromise = (async () => {
         const [
@@ -94,21 +94,25 @@ export function createTestServices(context: TestContext): TestServer {
     });
 
     test.beforeAll(async () => {
-        const [edgePort, appPort] = await runAllPromises([
-            edgePortPromise,
+        const [edgeServicePort, taskRealtimeServicePort, appServicePort] = await runAllPromises([
+            edgeServicePortPromise,
+            getPort(),
             getPort(),
             ensureDevServiceKeys(),
         ]);
 
-        appSubprocess = spawn(
+        appServiceSubprocess = spawn(
             joinPath(runfilesPath, "cyberworlds/app/app.sh"),
             [
-                `--port=${appPort}`,
-                `--edgeServiceUrl=http://localhost:${edgePort}`,
+                `--port=${appServicePort}`,
+                `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
+                `--taskRealtimeServiceLocalPort=${taskRealtimeServicePort}`,
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
                 `--appServicePrivateKey=${devAppServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
+                `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
             ],
             {
                 env: process.env,
@@ -118,7 +122,7 @@ export function createTestServices(context: TestContext): TestServer {
 
         // For whatever reason, `inherit` doesn't seem to work in Playwright? Manually
         // write data to stdout/stderr.
-        appSubprocess.stdout.on("data", chunk => {
+        appServiceSubprocess.stdout.on("data", chunk => {
             const chunkString = chunk.toString();
 
             const oneTimePasswordMatch = chunkString.match(
@@ -134,15 +138,16 @@ export function createTestServices(context: TestContext): TestServer {
             process.stdout.write(chunkString);
         });
 
-        appSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
+        appServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
-        edgeSubprocess = spawn(
+        edgeServiceSubprocess = spawn(
             joinPath(runfilesPath, "cyberworlds/server/edge/edge.sh"),
             [
-                `--port=${edgePort}`,
-                `--appServiceUrl=http://localhost:${appPort}`,
+                `--port=${edgeServicePort}`,
+                `--appServiceUrl=http://localhost:${appServicePort}`,
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
             ],
             {
@@ -153,29 +158,29 @@ export function createTestServices(context: TestContext): TestServer {
 
         // For whatever reason, `inherit` doesn't seem to work in Playwright? Manually
         // write data to stdout/stderr.
-        edgeSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
-        edgeSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
+        edgeServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
+        edgeServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
         await runAllPromises([
-            waitForProcessSpawn(appSubprocess),
-            waitForProcessSpawn(edgeSubprocess),
+            waitForProcessSpawn(appServiceSubprocess),
+            waitForProcessSpawn(edgeServiceSubprocess),
         ]);
 
-        await waitForHttpServer(appPort);
+        await waitForHttpServer(appServicePort);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
         // `edgePort` will forward the request to `appPort` since the edge service
         // proxies our app service.
-        await waitForHttpServer(edgePort);
+        await waitForHttpServer(edgeServicePort);
     });
 
     test.afterAll(async () => {
-        appSubprocess?.kill("SIGINT");
-        edgeSubprocess?.kill("SIGINT");
+        appServiceSubprocess?.kill("SIGINT");
+        edgeServiceSubprocess?.kill("SIGINT");
 
         await runAllPromises([
-            appSubprocess && waitForProcessExit(appSubprocess),
-            edgeSubprocess && waitForProcessExit(edgeSubprocess),
+            appServiceSubprocess && waitForProcessExit(appServiceSubprocess),
+            edgeServiceSubprocess && waitForProcessExit(edgeServiceSubprocess),
         ]);
     });
 
@@ -211,8 +216,9 @@ export function createTestServices(context: TestContext): TestServer {
 
     return {
         getBaseUrl: () => {
-            if (edgePort === null) throw new InternalError("Test server has not yet initialized");
-            return `http://localhost:${edgePort}`;
+            if (edgeServicePort === null)
+                throw new InternalError("Test server has not yet initialized");
+            return `http://localhost:${edgeServicePort}`;
         },
         signIn,
         getOneTimePasswords: () => oneTimePasswords.slice(),

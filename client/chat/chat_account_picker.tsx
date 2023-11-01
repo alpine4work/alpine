@@ -237,12 +237,18 @@ export function ChatAccountPicker({
         onOpenChange: setShouldLoadAccounts,
 
         label: "To",
-        menuTrigger: "input",
+        menuTrigger: "manual",
         // Don't close when there are no items.
         allowsEmptyCollection: true,
 
         inputValue: searchQuery,
-        onInputChange: searchQuery => setSearchQuery({searchQuery, shouldCloseComboBox: false}),
+        onInputChange: searchQuery => {
+            setSearchQuery({searchQuery, shouldCloseComboBox: false});
+
+            if (!comboBoxState.isOpen) {
+                comboBoxState.open();
+            }
+        },
 
         items: searchedItems,
         children: item => (
@@ -255,7 +261,9 @@ export function ChatAccountPicker({
         // direct user interaction. e.g. Clicking outside of the text box. Tabbing out
         // of the text box we consider an indirect interaction since the animation can
         // highlight to the user that their state is going away.
-        onBlur: () => setShouldOverlayAnimate(true),
+        onBlur: () => {
+            setShouldOverlayAnimate(true);
+        },
 
         // No key is ever selected by the combobox. Instead when a selection occurs we
         // add it to a list of selected values.

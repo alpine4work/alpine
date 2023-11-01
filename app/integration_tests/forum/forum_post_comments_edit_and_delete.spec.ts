@@ -7,7 +7,7 @@ import {createChannel, createPost, createPostComment} from "~/server/forum/data/
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
-const context = createTestContext();
+const context = createTestContext({shouldStartOpensearch: true});
 const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});

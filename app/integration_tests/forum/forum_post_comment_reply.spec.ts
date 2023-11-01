@@ -7,7 +7,7 @@ import {createChannel, createPost, createPostComment} from "~/server/forum/data/
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
-const context = createTestContext();
+const context = createTestContext({shouldStartOpensearch: true});
 const services = createTestServices(context);
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space);
@@ -199,27 +199,12 @@ test("clicking a reply bubble will scroll to the comment", async ({
     await services.signIn(browserContext, session1);
     await page.goto(`/s/${space.id}/posts/${post.id}`);
 
-    // Make sure our scroll view is focused so pressing `End` will scroll the
-    // nested scroll view.
-    await page.getByText("Test post content 1").click();
-
-    // We may need to scroll a couple times because layout shifts while the
-    // virtualized view measured items.
-    //
-    // The message we are looking for may not be mounted until we scroll to the
-    // end of the view.
-    let remainingScrollAttempts = 10;
-    while (remainingScrollAttempts > 0) {
-        remainingScrollAttempts--;
-        await page.keyboard.down("End");
-        // Small timeout to wait for React to render.
-        // eslint-disable-next-line playwright/no-wait-for-timeout
-        await page.waitForTimeout(150);
-        if (await page.getByTestId(`MessageView:${post.id}:100`).isVisible()) break;
+    // Scroll through all messages...
+    for (let i = 0; i < 101; i++) {
+        await page.getByTestId(`MessageView:${post.id}:${i}`).scrollIntoViewIfNeeded();
     }
 
-    await page.getByTestId(`MessageView:${post.id}:100`).scrollIntoViewIfNeeded();
-
+    await expect(page.getByTestId(`MessageView:${post.id}:100`)).toBeInViewport();
     await expect(page.getByTestId(`MessageView:${post.id}:49`)).not.toBeInViewport();
 
     await page

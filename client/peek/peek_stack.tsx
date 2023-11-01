@@ -1299,6 +1299,10 @@ function PeekOverlay({
                                 //
                                 // @ts-expect-error
                                 inert={isContentHidden ? "" : null}
+                                // Our element should already be at opacity 0 but we also apply
+                                // `visibility: hidden` so Playwright considers the element as not visible.
+                                // https://playwright.dev/docs/actionability#visible
+                                style={{visibility: isContentHidden ? "hidden" : undefined}}
                             >
                                 <OverlayScopeContextProvider
                                 // Render overlays here so they get the `greyElevatedClassName` styles.

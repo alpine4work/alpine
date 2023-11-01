@@ -110,7 +110,6 @@ export function useDocumentContentEditorPhantomSelections({
 
         // Other clients do not know about our local, unconfirmed, steps in
         // `sendableSteps()`. So we need to apply those steps to every single presence
-        //
         const sendableSteps = editorState.sendableSteps();
         if (sendableSteps) {
             const doc = editorState.getDoc();
