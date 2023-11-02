@@ -33,7 +33,8 @@ import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
@@ -90,13 +91,14 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {noop} from "~/shared/helpers/control/noop.js";
 import {LinkedList} from "~/shared/helpers/immutable/linked_list.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
-import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
+import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {colorSchemeVars, spinAnimationClassName, tasksStyles} from "~/shared/styles/styles.js";
 import {TaskAction, TaskUpdateTaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
+import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {
     TaskQuerySortCursor,
@@ -2582,6 +2584,9 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     withoutPaddingLeft?: boolean;
     withPaddingBottom?: boolean;
 }) {
+    const {timeZone} = useClientInfo();
+    const {currentAccount} = useSpaceContext();
+
     const taskPath = cursor
         ? [
               ...parents.map(({cursor}) => getTaskQuerySortCursorTaskId(cursor)),
@@ -2593,6 +2598,10 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     const rootParentTaskId = taskPath ? taskPath[0]! : null;
 
     const isQueryManuallySorted = query !== rootQuery || isRootQueryManuallySorted;
+
+    const areChildTasksExpandedStore = taskPath
+        ? getAreChildTasksExpandedStore(taskPath)
+        : undefinedConstStore;
 
     const undoManager: TaskClientStoreUndoManager = useMemo(
         () => ({
@@ -2665,6 +2674,165 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                       },
                   },
               ];
+
+    const createTaskAbove = () => {
+        // Hitting enter to create a task near the current row only makes sense in a
+        // manually sorted query. We don't have control of task order in an
+        // auto-sorted query.
+        if (!isQueryManuallySorted) return;
+
+        const newTaskId = generateId<TaskId>();
+
+        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
+        query.store.commitTaskActionTransaction(
+            context,
+            [
+                {
+                    type: "UpdateTask",
+                    time: query.store.clock.now(),
+                    taskId: newTaskId,
+                    taskAction: {
+                        type: "Create",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
+                    },
+                },
+                ...getMoveTaskToQueryActions(
+                    newTaskId,
+                    taskId ? {type: "Above", taskId} : {type: "End"},
+                ),
+            ],
+            {undoManager},
+        );
+    };
+
+    const createTaskBelowAndFocus = () => {
+        // Hitting enter to create a task near the current row only makes sense in a
+        // manually sorted query. We don't have control of task order in an
+        // auto-sorted query.
+        if (!isQueryManuallySorted) return;
+
+        // This method doesn't support ghost tasks. You can't create a task below a
+        // ghost task. Ghost tasks should be using `createTaskAbove()`.
+        if (!taskId) return;
+        const task = query.getLoadedTaskSnapshot(taskId);
+
+        const newTaskId = generateId<TaskId>();
+
+        // If we have a task with children, the children are expanded, and the children
+        // are loaded then to create a task below this task we need to create it as the
+        // first child of this task.
+        //
+        // Otherwise we fall down to the branch below and create a task below ours in
+        // our query.
+        if (task.getChildTaskCount() > 0 && areChildTasksExpandedStore.getSnapshot()) {
+            const childrenQuery = query.store.getTaskChildrenQueryStore(task.id).getSnapshot();
+            if (childrenQuery && childrenQuery.loadedStateStore.getSnapshot() !== "Unloaded") {
+                const time1 = query.store.clock.now();
+                const time2 = query.store.clock.now();
+                const time3 = query.store.clock.now();
+
+                let position: TaskPosition = {
+                    orderTime: time3,
+                    orderKey: initialOrderKey,
+                };
+
+                const firstChildCursor = childrenQuery.taskOrderStore.getSnapshot().begin.key;
+
+                const firstChildPosition = firstChildCursor
+                    ? childrenQuery
+                          .getLoadedTaskSnapshot(getTaskQuerySortCursorTaskId(firstChildCursor))
+                          .getParent()?.position
+                    : null;
+
+                if (firstChildPosition) {
+                    position = {
+                        orderTime: firstChildPosition.orderTime,
+                        orderKey: generateOrderKeyBetween(null, firstChildPosition.orderKey),
+                    };
+                }
+
+                disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
+                query.store.commitTaskActionTransaction(
+                    context,
+                    [
+                        {
+                            type: "UpdateTask",
+                            time: time1,
+                            taskId: newTaskId,
+                            taskAction: {
+                                type: "Create",
+                                creatorId: currentAccount.id,
+                                creatorTimeZone: timeZone,
+                            },
+                        },
+                        {
+                            type: "UpdateTask",
+                            time: time2,
+                            taskId: newTaskId,
+                            taskAction: {
+                                type: "UpdateParentTaskId",
+                                parentTaskId: taskId,
+                            },
+                        },
+                        {
+                            type: "UpdateTask",
+                            time: time3,
+                            taskId: newTaskId,
+                            taskAction: {
+                                type: "UpdateParentPosition",
+                                parentPosition: position,
+                            },
+                        },
+                    ],
+                    {undoManager},
+                );
+
+                onLayoutEffectCallbacksRef.current.push(() => {
+                    if (parents.length === 0) {
+                        events.focusTaskTitleStart(`${task.id}-${newTaskId}`);
+                    } else {
+                        events.focusTaskTitleStart(
+                            `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
+                        );
+                    }
+                });
+                return;
+            }
+        }
+
+        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
+
+        query.store.commitTaskActionTransaction(
+            context,
+            [
+                {
+                    type: "UpdateTask",
+                    time: query.store.clock.now(),
+                    taskId: newTaskId,
+                    taskAction: {
+                        type: "Create",
+                        creatorId: currentAccount.id,
+                        creatorTimeZone: timeZone,
+                    },
+                },
+                ...getMoveTaskToQueryActions(newTaskId, {type: "Below", taskId}),
+            ],
+            {undoManager},
+        );
+
+        onLayoutEffectCallbacksRef.current.push(() => {
+            if (parents.length === 0) {
+                events.focusTaskTitleStart(newTaskId);
+            } else {
+                events.focusTaskTitleStart(
+                    `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
+                );
+            }
+        });
+    };
 
     const nestWithPreviousTaskRowIfExistsAndExpand = (titleSelection: Selection) => {
         // Hitting tab to indent only makes sense if the query is manually sorted.
@@ -3025,9 +3193,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             titlePlaceholder={titlePlaceholder}
             isFirstRow={isFirstRow}
             nextIndentation={nextIndentation}
-            areChildTasksExpandedStore={
-                taskPath ? getAreChildTasksExpandedStore(taskPath) : undefinedConstStore
-            }
+            areChildTasksExpandedStore={areChildTasksExpandedStore}
             onAreChildTasksExpandedToggle={() => {
                 if (!taskPath) return;
                 toggleAreChildTasksExpanded(taskPath);
@@ -3037,13 +3203,14 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             getMoveTaskToRootQueryActions={events.getMoveTaskToRootQueryActions}
             getMoveTaskToQueryActions={getMoveTaskToQueryActions}
             getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
+            createTaskAbove={createTaskAbove}
+            createTaskBelowAndFocus={createTaskBelowAndFocus}
             nestWithPreviousTaskRowIfExistsAndExpand={nestWithPreviousTaskRowIfExistsAndExpand}
             unnestTaskIfNestedRow={unnestTaskIfNestedRow}
             deleteTaskAndAllChildren={deleteTaskAndAllChildren}
             deleteTaskAndAllChildrenAndFocusPreviousRow={
                 deleteTaskAndAllChildrenAndFocusPreviousRow
             }
-            focusTaskTitleStart={events.focusTaskTitleStart}
             focusNextTaskTitleCoord={coord => events.focusNextTaskTitleCoord(taskKey, coord)}
             focusPreviousTaskTitleCoord={coord =>
                 events.focusPreviousTaskTitleCoord(taskKey, coord)

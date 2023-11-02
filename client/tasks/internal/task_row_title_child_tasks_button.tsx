@@ -110,7 +110,7 @@ function TaskRowTitleChildTasksButton(
                         isPressed={isPressed}
                     />
                     <div style={{color: colorSchemeVars["grey-70"]}}>
-                        {closedChildTaskCount}/{childTaskCount}
+                        {`${closedChildTaskCount}/${childTaskCount}`}
                     </div>
                     <CaretUp
                         // When our grid view resets (we find out through a `stateKey` change) we don't

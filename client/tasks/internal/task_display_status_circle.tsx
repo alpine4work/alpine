@@ -1,6 +1,7 @@
 import {Check} from "phosphor-react";
 import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
@@ -115,8 +116,25 @@ export function TaskDisplayStatusCircle({
               1.48
             : 1;
 
+    let ariaLabel;
+    switch (displayStatus) {
+        case "OpenInactive":
+            ariaLabel = "Open";
+            break;
+        case "OpenActive":
+            ariaLabel = "Open (active)";
+            break;
+        case "Closed":
+            ariaLabel = "Closed";
+            break;
+        default:
+            throw exhaustive(displayStatus);
+    }
+
     return (
         <div
+            role="img"
+            aria-label={ariaLabel}
             className={
                 isPressed
                     ? pressedCircleClassNameByDisplayStatus.getOrSetDefault(displayStatus)

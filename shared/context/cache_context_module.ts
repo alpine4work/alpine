@@ -94,6 +94,17 @@ export class ContextCache<Key, Value> {
     }
 
     /**
+     * Get a value from our cache if one exists and return null otherwise.
+     */
+    public getIfExists(
+        context: Context<{cache: CacheContextModule}>,
+        key: Key,
+    ): Promise<Value> | null {
+        const cacheMap = context.cache._getCacheMap(this);
+        return cacheMap.get(key) ?? null;
+    }
+
+    /**
      * Unconditionally sets a value in the cache. If a value already exists in the
      * cache then this function will overwrite it.
      */

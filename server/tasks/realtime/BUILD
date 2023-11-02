@@ -49,4 +49,5 @@ js_binary(
     name = "realtime",
     data = [":realtime_lib"],
     entry_point = "task_realtime_service.js",
+    visibility = ["//app/integration_tests:__pkg__"],
 )

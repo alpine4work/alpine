@@ -54,7 +54,7 @@ export function retryWithExponentialBackoff<Value>(
 
             const delayMs = 2 ** attemptNumber;
 
-            if (delayMs > 1000 * 10) {
+            if (delayMs > 1000 * 20) {
                 throw new DeadlineExceededError(
                     `Retry with exponential backoff failed after ${attemptNumber} attempts`,
                     {cause: (error as Error).cause},

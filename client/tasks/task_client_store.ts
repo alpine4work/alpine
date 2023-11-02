@@ -352,6 +352,10 @@ export class TaskClientStore {
         return this._internal.deleteTaskAndAllChildren(context, taskId, options);
     }
 
+    public waitForCommitTaskActionTransactions() {
+        return this._internal.waitForCommitTaskActionTransactions();
+    }
+
     public createAndRetainQuery(options: {
         filters: TaskQueryNormalizedFilters;
         sorts: ReadonlyArray<TaskQueryNormalizedSort>;
@@ -1640,7 +1644,7 @@ export class TaskClientStoreInternal {
                 createLeaseIfLostAccess: createLeaseIfLostAccessId
                     ? {
                           id: createLeaseIfLostAccessId,
-                          actions: assertExists(undoActions).getWithOldTimes(),
+                          actions: assertExists(undoActions).get(this.clock),
                       }
                     : undefined,
             });
@@ -2147,6 +2151,15 @@ export class TaskClientStoreInternal {
                     previousDelayReleaseCollectionEntryStoreIds;
             }
         });
+    }
+
+    /**
+     * If we have any pending `commitTaskActionTransaction()` calls (or another
+     * update like `deleteTaskAndAllChildren()`) then calling this function waits
+     * for this pending calls to resolve before returning.
+     */
+    public waitForCommitTaskActionTransactions() {
+        return this._commitTaskActionTransactionMutex.waitForUnlock();
     }
 
     private _applyOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {

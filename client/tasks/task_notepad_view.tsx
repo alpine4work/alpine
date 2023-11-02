@@ -387,6 +387,7 @@ export function TaskNotepadView({
 
     return (
         <Box
+            data-testid="TaskNotepadView"
             flexGrow="1"
             width="full"
             overflow="hidden"

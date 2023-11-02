@@ -2769,19 +2769,14 @@ export function deleteTaskAndAllChildren(
         while (rootParentTaskItem.parentTaskId.value) {
             const parentTaskId = rootParentTaskItem.parentTaskId.value;
 
-            rootParentTaskItem = isInitialAttempt
-                ? await TaskItemAuthorizationCache.get(context, parentTaskId, () =>
-                      TaskTable.getItem(context, {
-                          partitionType: "Task",
-                          sortRangeType: "EssentialAttributes",
-                          taskId: parentTaskId,
-                      }),
-                  )
-                : await TaskTable.getItem(context, {
-                      partitionType: "Task",
-                      sortRangeType: "EssentialAttributes",
-                      taskId: parentTaskId,
-                  });
+            rootParentTaskItem = await ((isInitialAttempt
+                ? TaskItemAuthorizationCache.getIfExists(context, parentTaskId)
+                : null) ??
+                TaskTable.getItem(context, {
+                    partitionType: "Task",
+                    sortRangeType: "EssentialAttributes",
+                    taskId: parentTaskId,
+                }));
 
             // We want to keep track of both the root parent task and the first
             // parent task.
@@ -3149,13 +3144,24 @@ async function getTaskItemForAuthorization(
     const taskIndexDoc = loaders?.getTaskIndexDocIfExists(taskId);
     if (taskIndexDoc) return convertTaskIndexDocToItem(taskIndexDoc);
 
-    return TaskItemAuthorizationCache.get(context, taskId, () =>
-        TaskTable.getItem(context, {
+    return TaskItemAuthorizationCache.get(context, taskId, async () => {
+        const taskItem = await TaskTable.getItemIfExists(context, {
             partitionType: "Task",
             sortRangeType: "EssentialAttributes",
             taskId,
-        }),
-    );
+        });
+
+        if (taskItem) return taskItem;
+
+        // If we couldn't find the task, maybe it was just created. Try reading again
+        // with strong read consistency. Don't want to throw an error if the task
+        // actually exists.
+        return TaskTable.getItem(context.dynamo.setDefaultReadConsistency("Strong"), {
+            partitionType: "Task",
+            sortRangeType: "EssentialAttributes",
+            taskId,
+        });
+    });
 }
 
 const TaskCollectionItemAuthorizationCache = new ContextCache<
@@ -3183,20 +3189,31 @@ async function getTaskCollectionItemForAuthorization(
     collectionId: TaskCollectionId,
     loaders: {
         getCollectionIndexDocIfExists: (
-            taskId: TaskCollectionId,
+            collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
 ): Promise<TaskCollectionEssentialAttributesItemBase> {
     const collectionIndexDoc = loaders?.getCollectionIndexDocIfExists(collectionId);
     if (collectionIndexDoc) return convertTaskCollectionIndexDocToItem(collectionIndexDoc);
 
-    return TaskCollectionItemAuthorizationCache.get(context, collectionId, () =>
-        TaskTable.getItem(context, {
+    return TaskCollectionItemAuthorizationCache.get(context, collectionId, async () => {
+        const collectionItem = await TaskTable.getItemIfExists(context, {
             partitionType: "TaskCollection",
             sortRangeType: "EssentialAttributes",
             collectionId,
-        }),
-    );
+        });
+
+        if (collectionItem) return collectionItem;
+
+        // If we couldn't find the collection, maybe it was just created. Try reading
+        // again with strong read consistency. Don't want to throw an error if the
+        // collection actually exists.
+        return TaskTable.getItem(context.dynamo.setDefaultReadConsistency("Strong"), {
+            partitionType: "TaskCollection",
+            sortRangeType: "EssentialAttributes",
+            collectionId,
+        });
+    });
 }
 
 /**
@@ -3966,38 +3983,36 @@ function convertTaskCollectionIndexDocToItem(
  * least one notepad page. If the user hasn't create a notepad page yet then
  * we'll create their first page.
  */
-export function getTaskNotepadPageIds(
+export async function getTaskNotepadPageIds(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     spaceId: SpaceId,
 ): Promise<TaskNotepadPageIdCompressedSet> {
-    return context.dynamo.retryTransaction(async context => {
-        const notepadItem = await TaskTable.getItemIfExists(context, {
-            partitionType: "Account",
-            sortRangeType: "Notepad",
-            accountId: context.actor.getAccountId(),
-            spaceId,
-        });
-
-        let notepadPageIds = notepadItem?.pageIds;
-
-        if (!notepadPageIds || notepadPageIds.isEmpty()) {
-            const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
-
-            await commitTaskActionTransaction(context, spaceId, [
-                {
-                    type: "UpdateNotepadPage",
-                    time: [unsynchronizedSystemClock.now(), 0],
-                    accountId: context.actor.getAccountId(),
-                    notepadPageId,
-                    notepadPageAction: {type: "Create"},
-                },
-            ]);
-
-            notepadPageIds = TaskNotepadPageIdCompressedSet.fromIds(new Set([notepadPageId]));
-        }
-
-        return notepadPageIds;
+    const notepadItem = await TaskTable.getItemIfExists(context, {
+        partitionType: "Account",
+        sortRangeType: "Notepad",
+        accountId: context.actor.getAccountId(),
+        spaceId,
     });
+
+    let notepadPageIds = notepadItem?.pageIds;
+
+    if (!notepadPageIds || notepadPageIds.isEmpty()) {
+        const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
+
+        await commitTaskActionTransaction(context, spaceId, [
+            {
+                type: "UpdateNotepadPage",
+                time: [unsynchronizedSystemClock.now(), 0],
+                accountId: context.actor.getAccountId(),
+                notepadPageId,
+                notepadPageAction: {type: "Create"},
+            },
+        ]);
+
+        notepadPageIds = TaskNotepadPageIdCompressedSet.fromIds(new Set([notepadPageId]));
+    }
+
+    return notepadPageIds;
 }
 
 /**

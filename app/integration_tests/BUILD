@@ -5,6 +5,7 @@ ts_playwright_tests(
     data = [
         "//app",
         "//server/edge",
+        "//server/tasks/realtime",
     ],
     skip_projects_by_src = {
         # Peeks only work on desktop.
@@ -28,6 +29,8 @@ ts_playwright_tests(
         "//server/dynamo/test_helpers",
         "//server/helpers/node",
         "//server/remix",
+        "//server/spaces/test_helpers",
+        "//server/tasks/test_helpers",
         "//server/tokens",
     ],
 )

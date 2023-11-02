@@ -297,25 +297,31 @@ export class TaskRealtimeClient {
                 // for now. Maybe there's cool research around CRDT state vectors we can use
                 // for syncing? A dumb optimization like a `lastModified` timestamp that noops
                 // if the query was not modified since then could also work.
-                const subscribePromise = this._client.procedures
-                    .subscribe({
-                        clientTime: this.store.clock.now(),
-                        queries: newQueriesArray.map((query, i) => ({
-                            limit: newQueryLimits[i]!,
-                            filters: query.filters,
-                            sorts: query.sorts,
-                            shouldLoadGridViewExpandedChildTasksForBrowserId:
-                                this._shouldLoadGridViewExpansionStateForQuery.delete(query)
-                                    ? this._browserId
-                                    : undefined,
-                        })),
-                        taskIds: newTaskSubscriptionsArray.map(
-                            taskSubscription => taskSubscription.taskId,
-                        ),
-                        collectionIds: newCollectionSubscriptionsArray.map(
-                            collectionSubscription => collectionSubscription.collectionId,
-                        ),
-                    })
+                const subscribePromise = this.store
+                    // Wait for any pending commits to resolve before subscribing. If we just
+                    // created a task, we need to wait for the server to create the task before we
+                    // can subscribe to its children.
+                    .waitForCommitTaskActionTransactions()
+                    .then(() =>
+                        this._client.procedures.subscribe({
+                            clientTime: this.store.clock.now(),
+                            queries: newQueriesArray.map((query, i) => ({
+                                limit: newQueryLimits[i]!,
+                                filters: query.filters,
+                                sorts: query.sorts,
+                                shouldLoadGridViewExpandedChildTasksForBrowserId:
+                                    this._shouldLoadGridViewExpansionStateForQuery.delete(query)
+                                        ? this._browserId
+                                        : undefined,
+                            })),
+                            taskIds: newTaskSubscriptionsArray.map(
+                                taskSubscription => taskSubscription.taskId,
+                            ),
+                            collectionIds: newCollectionSubscriptionsArray.map(
+                                collectionSubscription => collectionSubscription.collectionId,
+                            ),
+                        }),
+                    )
                     .then(output => {
                         const extraQueriesToRelease: Array<TaskClientQuery> = [];
 

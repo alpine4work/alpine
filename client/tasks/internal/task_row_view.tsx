@@ -38,7 +38,6 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
-import {TaskGridViewTaskKey} from "~/client/tasks/internal/task_grid_view_task_key.js";
 import {
     TaskRowAssigneeCell,
     TaskRowAssigneeCellRef,
@@ -86,8 +85,6 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateOrderKeyBetween, initialOrderKey} from "~/shared/helpers/sort/order_key.js";
-import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     colorSchemeVars,
@@ -99,7 +96,6 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {emptyTaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
-import {TaskPosition} from "~/shared/tasks/task_position.js";
 import {
     TaskQuerySortCursor,
     getTaskQuerySortCursorTaskId,
@@ -224,10 +220,11 @@ function TaskRowView(
         getMoveTaskToRootQueryActions,
         getMaybeRemoveTaskFromQueryActions,
         nestWithPreviousTaskRowIfExistsAndExpand,
+        createTaskAbove,
+        createTaskBelowAndFocus,
         unnestTaskIfNestedRow,
         deleteTaskAndAllChildren,
         deleteTaskAndAllChildrenAndFocusPreviousRow,
-        focusTaskTitleStart,
         focusNextTaskTitleCoord,
         focusPreviousTaskTitleCoord,
         focusNextTaskCell,
@@ -274,11 +271,12 @@ function TaskRowView(
                 | {type: "Below"; taskId: TaskId},
         ) => Array<TaskAction>;
         getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
+        createTaskAbove: () => void;
+        createTaskBelowAndFocus: () => void;
         nestWithPreviousTaskRowIfExistsAndExpand: (titleSelection: Selection) => void;
         unnestTaskIfNestedRow: (titleSelection: Selection) => void;
         deleteTaskAndAllChildren: () => void;
         deleteTaskAndAllChildrenAndFocusPreviousRow: () => void;
-        focusTaskTitleStart: (taskKey: TaskGridViewTaskKey) => void;
         focusNextTaskTitleCoord: (coord: number) => void;
         focusPreviousTaskTitleCoord: (coord: number) => void;
         focusNextTaskCell: (column: TaskGridViewColumn) => void;
@@ -328,6 +326,7 @@ function TaskRowView(
     const taskId = cursor !== null ? getTaskQuerySortCursorTaskId(cursor) : null;
     const taskEntry = useStore(taskId !== null ? query.getLoadedTaskEntryStore(taskId) : null);
     const task = taskEntry?.task ?? null;
+    const effectiveTaskId = assertExists(taskId ?? ghostTaskId);
 
     const parentTaskId = task?.getParent()?.taskId ?? null;
     const parentTaskEntryStore =
@@ -383,7 +382,7 @@ function TaskRowView(
             } else {
                 titleCommitStateRef.current.pendingActionTransactionBuilder =
                     query.store.getTaskUpdateTitleActionTransactionBuilder(
-                        assertExists(taskId ?? ghostTaskId),
+                        effectiveTaskId,
                         titleUpdate,
                     );
             }
@@ -1008,167 +1007,6 @@ function TaskRowView(
         return contextMenuActions;
     })();
 
-    const createTaskAbove = () => {
-        // Hitting enter to create a task near the current row only makes sense in a
-        // manually sorted query. We don't have control of task order in an
-        // auto-sorted query.
-        if (!isQueryManuallySorted) return;
-
-        const newTaskId = generateId<TaskId>();
-
-        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
-
-        query.store.commitTaskActionTransaction(
-            context,
-            [
-                {
-                    type: "UpdateTask",
-                    time: query.store.clock.now(),
-                    taskId: newTaskId,
-                    taskAction: {
-                        type: "Create",
-                        creatorId: currentAccount.id,
-                        creatorTimeZone: timeZone,
-                    },
-                },
-                ...getMoveTaskToQueryActions(
-                    newTaskId,
-                    taskId ? {type: "Above", taskId} : {type: "End"},
-                ),
-            ],
-            {undoManager},
-        );
-    };
-
-    const createTaskBelowAndFocus = () => {
-        // Hitting enter to create a task near the current row only makes sense in a
-        // manually sorted query. We don't have control of task order in an
-        // auto-sorted query.
-        if (!isQueryManuallySorted) return;
-
-        const newTaskId = generateId<TaskId>();
-
-        // If we have a task with children, the children are expanded, and the children
-        // are loaded then to create a task below this task we need to create it as the
-        // first child of this task.
-        //
-        // Otherwise we fall down to the branch below and create a task below ours in
-        // our query.
-        if (task && task.getChildTaskCount() > 0 && areChildTasksExpanded) {
-            const childrenQuery = query.store.getTaskChildrenQueryStore(task.id).getSnapshot();
-            if (childrenQuery && childrenQuery.loadedStateStore.getSnapshot() !== "Unloaded") {
-                const time1 = query.store.clock.now();
-                const time2 = query.store.clock.now();
-                const time3 = query.store.clock.now();
-
-                let position: TaskPosition = {
-                    orderTime: time3,
-                    orderKey: initialOrderKey,
-                };
-
-                const firstChildCursor = childrenQuery.taskOrderStore.getSnapshot().begin.key;
-
-                const firstChildPosition = firstChildCursor
-                    ? childrenQuery
-                          .getLoadedTaskSnapshot(getTaskQuerySortCursorTaskId(firstChildCursor))
-                          .getParent()?.position
-                    : null;
-
-                if (firstChildPosition) {
-                    position = {
-                        orderTime: firstChildPosition.orderTime,
-                        orderKey: generateOrderKeyBetween(null, firstChildPosition.orderKey),
-                    };
-                }
-
-                disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
-
-                query.store.commitTaskActionTransaction(
-                    context,
-                    [
-                        {
-                            type: "UpdateTask",
-                            time: time1,
-                            taskId: newTaskId,
-                            taskAction: {
-                                type: "Create",
-                                creatorId: currentAccount.id,
-                                creatorTimeZone: timeZone,
-                            },
-                        },
-                        {
-                            type: "UpdateTask",
-                            time: time2,
-                            taskId: newTaskId,
-                            taskAction: {
-                                type: "UpdateParentTaskId",
-                                parentTaskId: taskId,
-                            },
-                        },
-                        {
-                            type: "UpdateTask",
-                            time: time3,
-                            taskId: newTaskId,
-                            taskAction: {
-                                type: "UpdateParentPosition",
-                                parentPosition: position,
-                            },
-                        },
-                    ],
-                    {undoManager},
-                );
-
-                // Store updates are rendered by React immediately. So focus our task before
-                // the next paint.
-                requestAnimationFrame(() => {
-                    if (parents.length === 0) {
-                        focusTaskTitleStart(`${task.id}-${newTaskId}`);
-                    } else {
-                        focusTaskTitleStart(
-                            `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
-                        );
-                    }
-                });
-                return;
-            }
-        }
-
-        disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(newTaskId);
-
-        query.store.commitTaskActionTransaction(
-            context,
-            [
-                {
-                    type: "UpdateTask",
-                    time: query.store.clock.now(),
-                    taskId: newTaskId,
-                    taskAction: {
-                        type: "Create",
-                        creatorId: currentAccount.id,
-                        creatorTimeZone: timeZone,
-                    },
-                },
-                ...getMoveTaskToQueryActions(
-                    newTaskId,
-                    taskId ? {type: "Below", taskId} : {type: "End"},
-                ),
-            ],
-            {undoManager},
-        );
-
-        // Store updates are rendered by React immediately. So focus our task before
-        // the next paint.
-        requestAnimationFrame(() => {
-            if (parents.length === 0) {
-                focusTaskTitleStart(newTaskId);
-            } else {
-                focusTaskTitleStart(
-                    `${getTaskQuerySortCursorTaskId(parents[0]!.cursor)}-${newTaskId}`,
-                );
-            }
-        });
-    };
-
     const marginLeft: RemLength = `${
         parseRemLengthNumber(spacing["5"]) +
         (!withoutPaddingLeft
@@ -1233,6 +1071,10 @@ function TaskRowView(
     const node = (
         <div
             ref={!capabilities.hasDenseFields ? mergedContainerRef : undefined}
+            data-testid={
+                !capabilities.hasDenseFields ? `TaskRowView:${effectiveTaskId}` : undefined
+            }
+            data-indentation={!capabilities.hasDenseFields ? parents.length : undefined}
             style={{
                 minHeight: spacing[taskRowViewMinHeight],
                 position: "relative",
@@ -1539,6 +1381,8 @@ function TaskRowView(
                 ) : (
                     <div
                         ref={mergedContainerRef}
+                        data-testid={`TaskRowView:${effectiveTaskId}`}
+                        data-indentation={parents.length}
                         style={{
                             minHeight: spacing[taskRowViewMinHeight],
                             position: "relative",

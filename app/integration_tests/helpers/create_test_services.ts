@@ -10,12 +10,12 @@ import {
     devAppServicePublicKeyPath,
     devEdgeServiceFamilyPrivateKeyPath,
     devEdgeServiceFamilyPublicKeyPath,
+    devTaskRealtimeServicePrivateKeyPath,
     devTaskRealtimeServicePublicKeyPath,
     ensureDevServiceKeys,
 } from "~/admin/helpers/dev_service_keys.js";
 import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {TestSessionItem} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
@@ -24,6 +24,7 @@ import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
 // This file can only run in tests.
 assert(process.env.NODE_ENV === "test");
@@ -38,7 +39,12 @@ export type TestServer = {
      * Sign a session in to the test browser context by setting the
      * appropriate cookies.
      */
-    signIn(browserContext: BrowserContext, session: TestSessionItem): Promise<void>;
+    signIn(
+        browserContext: BrowserContext,
+        session:
+            | {sessionId: SessionId; accountId: AccountId}
+            | {id: SessionId; account: {id: AccountId}},
+    ): Promise<void>;
 
     /**
      * Get the one time passwords generated during the current test. The array
@@ -64,6 +70,7 @@ export function createTestServices(context: TestContext): TestServer {
 
     let appServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
     let edgeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
+    let taskRealtimeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
 
     const appServiceTokenAgentPromise = (async () => {
         const [
@@ -161,12 +168,39 @@ export function createTestServices(context: TestContext): TestServer {
         edgeServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
         edgeServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
+        taskRealtimeServiceSubprocess = spawn(
+            joinPath(runfilesPath, "cyberworlds/server/tasks/realtime/realtime.sh"),
+            [
+                `--port=${taskRealtimeServicePort}`,
+                `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
+                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
+                `--taskRealtimeServicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
+                `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
+                `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
+            ],
+            {
+                env: process.env,
+                stdio: ["ignore", "pipe", "pipe"],
+            },
+        );
+
+        // For whatever reason, `inherit` doesn't seem to work in Playwright? Manually
+        // write data to stdout/stderr.
+        taskRealtimeServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
+        taskRealtimeServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
+
         await runAllPromises([
             waitForProcessSpawn(appServiceSubprocess),
             waitForProcessSpawn(edgeServiceSubprocess),
+            waitForProcessSpawn(taskRealtimeServiceSubprocess),
         ]);
 
-        await waitForHttpServer(appServicePort);
+        await runAllPromises([
+            waitForHttpServer(appServicePort),
+            waitForHttpServer(taskRealtimeServicePort),
+        ]);
 
         // Wait for `appPort` to be ready before testing `edgePort`. Since testing
         // `edgePort` will forward the request to `appPort` since the edge service
@@ -177,20 +211,27 @@ export function createTestServices(context: TestContext): TestServer {
     test.afterAll(async () => {
         appServiceSubprocess?.kill("SIGINT");
         edgeServiceSubprocess?.kill("SIGINT");
+        taskRealtimeServiceSubprocess?.kill("SIGINT");
 
         await runAllPromises([
             appServiceSubprocess && waitForProcessExit(appServiceSubprocess),
             edgeServiceSubprocess && waitForProcessExit(edgeServiceSubprocess),
+            taskRealtimeServiceSubprocess && waitForProcessExit(taskRealtimeServiceSubprocess),
         ]);
     });
 
-    const signIn = async (browserContext: BrowserContext, session: TestSessionItem) => {
+    const signIn = async (
+        browserContext: BrowserContext,
+        session:
+            | {sessionId: SessionId; accountId: AccountId}
+            | {id: SessionId; account: {id: AccountId}},
+    ) => {
         const tokenAgent = await appServiceTokenAgentPromise;
 
         const sessionCookieHeader = await getSessionCookieSetCookieHeaderForTest(tokenAgent, {
             type: "Session",
-            sessionId: session.sessionId,
-            accountId: session.accountId,
+            sessionId: "id" in session ? session.id : session.sessionId,
+            accountId: "account" in session ? session.account.id : session.accountId,
         });
 
         await browserContext.addCookies(
