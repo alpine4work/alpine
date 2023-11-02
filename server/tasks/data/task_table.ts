@@ -962,27 +962,29 @@ class TaskActionTransactionCommitState {
                     leaseId,
                 });
 
-                if (!leaseItem) {
-                    throw new PermissionDeniedError("Lease not found (could have expired)");
-                }
-
-                if (leaseItem.expirationTime.getTime() < Date.now()) {
-                    throw new PermissionDeniedError("Lease expired");
-                }
-
-                if (
-                    !isDeepEqual(
-                        actions.map(action =>
-                            omitObject(TaskActionSchema.serialize(action), ["time"]),
-                        ),
-                        leaseItem.actions.map(action =>
-                            omitObject(TaskActionSchema.serialize(action), ["time"]),
-                        ),
-                    )
-                ) {
-                    throw new PermissionDeniedError(
-                        "When using a lease, actions must exactly match the previously leased actions (excluding time)",
-                    );
+                // If we can't find the lease we attempt to commit without it.
+                //
+                // - The lease may have expired. In that case the user should get an
+                //   authorization failure.
+                // - The client may have asked us to create a lease but we detected they don't
+                //   need one so we didn't create a lease.
+                if (!leaseItem || leaseItem.expirationTime.getTime() < Date.now()) {
+                    leaseId = null;
+                } else {
+                    if (
+                        !isDeepEqual(
+                            actions.map(action =>
+                                omitObject(TaskActionSchema.serialize(action), ["time"]),
+                            ),
+                            leaseItem.actions.map(action =>
+                                omitObject(TaskActionSchema.serialize(action), ["time"]),
+                            ),
+                        )
+                    ) {
+                        throw new PermissionDeniedError(
+                            "When using a lease, actions must exactly match the previously leased actions (excluding time)",
+                        );
+                    }
                 }
             }
 

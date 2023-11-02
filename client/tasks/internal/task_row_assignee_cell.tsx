@@ -210,6 +210,7 @@ function TaskRowAssigneeCell(
         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
+                data-testid="TaskRowAssigneeCell"
                 tabIndex={-1}
                 className={classNames(
                     !isActuallyReadOnly && tasksStyles.textCursorNotInheritedClassName,

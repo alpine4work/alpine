@@ -204,6 +204,7 @@ function TaskRowDueDateCell(
         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
+                data-testid="TaskRowDueDateCell"
                 tabIndex={-1}
                 className={
                     isReadOnly

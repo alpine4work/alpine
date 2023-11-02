@@ -184,6 +184,7 @@ function TaskRowPriorityCell(
         <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
             <div
                 ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
+                data-testid="TaskRowPriorityCell"
                 tabIndex={-1}
                 className={classNames(
                     !isActuallyReadOnly && tasksStyles.textCursorNotInheritedClassName,

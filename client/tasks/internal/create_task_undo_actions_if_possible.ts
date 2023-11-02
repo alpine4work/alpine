@@ -127,10 +127,32 @@ export function createTaskUndoActionsIfPossible(
 
         switch (action.type) {
             // These actions are not undo-able.
-            case "UpdateCollection":
             case "UpdateNotepadPage":
             case "UpdateAccountName":
                 return null;
+
+            // Collection updates are not undo-able but if the user creates a collection in
+            // the same action in which they add the collection to a task we want to
+            // generate an undo transaction that removes the collection but does not delete
+            // the collection.
+            //
+            // TODO(calebmer): Deleting the collection too is probably a good idea but
+            // right now undo actions must be of the `TaskUpdateTaskAction` type.
+            case "UpdateCollection": {
+                if (
+                    action.collectionAction.type === "Create" &&
+                    actions.some(
+                        otherAction =>
+                            otherAction.type === "UpdateTask" &&
+                            otherAction.taskAction.type === "AddCollection" &&
+                            otherAction.taskAction.collectionId === action.collectionId,
+                    )
+                ) {
+                    break;
+                }
+
+                return null;
+            }
 
             case "UpdateTask": {
                 switch (action.taskAction.type) {

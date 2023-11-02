@@ -594,6 +594,7 @@ function TaskCollectionsInput(
     return (
         <Box
             ref={containerRef}
+            data-testid="TaskCollectionsInput"
             display="flex"
             alignItems="center"
             flexWrap="wrap"

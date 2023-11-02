@@ -517,8 +517,16 @@ function TaskRowTitleInput(
 
             const yXmlFragment = titleYDoc.getXmlFragment("doc");
 
+            // Make sure our undo manager sees transactions originating from our
+            // `EditorView`.
+            titleYDoc.getUndoManager().addTrackedOrigin(ySyncPluginKey);
+
             const viewElement = document.createElement("div");
             containerElement.appendChild(viewElement);
+
+            // Set the role for assistive technologies. For documentation see:
+            // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/textbox_role
+            viewElement.role = "textbox";
 
             // Update the view element before `EditorView`'s `MutationObserver` starts
             // listening for changes. When `MutationObserver` detects a change it will
@@ -536,10 +544,6 @@ function TaskRowTitleInput(
 
             // Don't render a scrollbar with our row title input.
             viewElement.dataset.scrollbar = "false";
-
-            // Make sure our undo manager sees transactions originating from our
-            // `EditorView`.
-            titleYDoc.getUndoManager().addTrackedOrigin(ySyncPluginKey);
 
             const view = new EditorView(
                 {mount: viewElement},

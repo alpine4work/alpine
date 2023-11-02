@@ -1,3 +1,5 @@
+import {prosemirrorToYXmlFragment} from "y-prosemirror";
+import * as Y from "yjs";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
@@ -20,9 +22,11 @@ import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
+import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
+import {TaskTitle, TaskTitleProsemirrorSchema, getYDocGuid} from "~/shared/tasks/task_title.js";
 
 export class TestTask {
     public readonly context: TestContext;
@@ -37,11 +41,17 @@ export class TestTask {
 
     public static async create(
         session: TestSpaceSession,
-        {time = testClock.nowLogical()}: {time?: HybridLogicalTime} = {},
+        {
+            time = testClock.nowLogical(),
+            title: titleText = "",
+        }: {
+            time?: HybridLogicalTime;
+            title?: string;
+        } = {},
     ) {
         const id = generateId<TaskId>();
 
-        await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+        const actions: Array<TaskAction> = [
             {
                 type: "UpdateTask",
                 time,
@@ -52,7 +62,30 @@ export class TestTask {
                     creatorTimeZone: defaultTimeZone,
                 },
             },
-        ]);
+        ];
+
+        if (titleText.length > 0) {
+            const titleProsemirrorNode = TaskTitleProsemirrorSchema.nodes.doc.create(null, [
+                TaskTitleProsemirrorSchema.text(titleText),
+            ]);
+
+            const yDoc = new Y.Doc({guid: getYDocGuid()});
+            prosemirrorToYXmlFragment(titleProsemirrorNode, yDoc.getXmlFragment("doc"));
+            const title = Y.encodeStateAsUpdateV2(yDoc) as TaskTitle;
+            yDoc.destroy();
+
+            actions.push({
+                type: "UpdateTask",
+                time: testClock.nowLogical(),
+                taskId: id,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: title,
+                },
+            });
+        }
+
+        await commitTaskActionTransaction(TestTask.action(session), session.space.id, actions);
 
         return new TestTask(session.context, session.space, id);
     }

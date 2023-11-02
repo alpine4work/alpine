@@ -107,11 +107,8 @@ import {
 
 // TODO(calebmer): I need to write integration tests! Some tests to write:
 //
-// - Write a test for every `commitTaskActionTransaction()` call (make these
-//   changes as a non-creator user)
 // - Write a test for all navigation keyboard shortcuts
 //   (including `PageUp`/`PageDown`)
-// - Write a test for undoing every `commitTaskActionTransaction()` call
 // - Write a test for undoing a task move to make sure it scrolls
 // - Write a test undoing ghost task row changes
 // - Undo action that hid task
@@ -119,11 +116,6 @@ import {
 // - Undo across peek and content underneath
 // - Type in task title, scroll it offscreen, scroll it back onscreen,
 //   undo/redo
-// - Undo in detail view fields
-// - Delete by backspace (and undo?)
-// - Write tests for drag-and-drop
-// - Editing task row cells
-// - Editing task detail view fields
 // - Editing task detail view dense fields
 // - Notepad page navigation (maintains on reload)
 // - Task filters/sorts navigation (maintains on reload)
@@ -644,8 +636,6 @@ export function useTaskGridViewVirtualizedList({
     /* ========================================================================== *\
      *                                 Undo/Redo                                  *
     \* ========================================================================== */
-
-    // NOCOMMIT: Undo actions that move task out of view
 
     const {
         pushUndoStackEntry,

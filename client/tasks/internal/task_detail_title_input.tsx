@@ -98,49 +98,59 @@ function TaskDetailTitleInput(
             // `EditorView`.
             titleYDoc.getUndoManager().addTrackedOrigin(ySyncPluginKey);
 
-            const view = new EditorView(containerElement, {
-                state: EditorState.create({
-                    schema: TaskTitleProsemirrorSchema,
-                    // Make sure we start with the correct initial document. After this the
-                    // `ySyncPlugin` manages document state.
-                    doc: titleRef.current.getProsemirrorNode(),
-                    plugins: [
-                        ySyncPlugin(titleYDoc.getXmlFragment("doc")),
-                        // We install the Y.js undo plugin but we don't install the `undo`/`redo`
-                        // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
-                        // registers us with our global undo stack.
-                        yUndoPlugin({undoManager: titleYDoc.getUndoManager()}),
-                    ],
-                }),
+            const viewElement = document.createElement("div");
+            containerElement.appendChild(viewElement);
 
-                // Disable editing when the `isReadOnly` prop is set.
-                editable: () => !isReadOnlyRef.current,
+            // Set the role for assistive technologies. For documentation see:
+            // https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/textbox_role
+            viewElement.role = "textbox";
 
-                attributes: {
-                    // Native spellcheck is often more distracting then it's worth. It puts a red
-                    // squiggly under names, nouns, industry terms, and oddly sometimes
-                    // contractions (like "they're", maybe has to do with curly quotes?).
-                    //
-                    // It's also inconsistent with `<input>`s which don't have spellcheck on by
-                    // default.
-                    //
-                    // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
-                    // spellchecker.
-                    spellcheck: "false",
+            viewElement.ariaLabel = taskDetailTitleInputAriaLabel;
+            viewElement.className = taskDetailTitleInputClassName;
+
+            const view = new EditorView(
+                {mount: viewElement},
+                {
+                    state: EditorState.create({
+                        schema: TaskTitleProsemirrorSchema,
+                        // Make sure we start with the correct initial document. After this the
+                        // `ySyncPlugin` manages document state.
+                        doc: titleRef.current.getProsemirrorNode(),
+                        plugins: [
+                            ySyncPlugin(titleYDoc.getXmlFragment("doc")),
+                            // We install the Y.js undo plugin but we don't install the `undo`/`redo`
+                            // commands from `y-prosemirror` in a keymap. Instead `useTaskTitleModelYDoc()`
+                            // registers us with our global undo stack.
+                            yUndoPlugin({undoManager: titleYDoc.getUndoManager()}),
+                        ],
+                    }),
+
+                    // Disable editing when the `isReadOnly` prop is set.
+                    editable: () => !isReadOnlyRef.current,
+
+                    attributes: {
+                        // Native spellcheck is often more distracting then it's worth. It puts a red
+                        // squiggly under names, nouns, industry terms, and oddly sometimes
+                        // contractions (like "they're", maybe has to do with curly quotes?).
+                        //
+                        // It's also inconsistent with `<input>`s which don't have spellcheck on by
+                        // default.
+                        //
+                        // NOTE(calebmer, 2022-12-29): Someday in the future we should build our own
+                        // spellchecker.
+                        spellcheck: "false",
+                    },
+
+                    dispatchTransaction: transaction => {
+                        const oldTitleState = view.state;
+                        const newTitleState = oldTitleState.apply(transaction);
+
+                        updateEditorEmptyClass(newTitleState);
+
+                        view.updateState(newTitleState);
+                    },
                 },
-
-                dispatchTransaction: transaction => {
-                    const oldTitleState = view.state;
-                    const newTitleState = oldTitleState.apply(transaction);
-
-                    updateEditorEmptyClass(newTitleState);
-
-                    view.updateState(newTitleState);
-                },
-            });
-
-            view.dom.ariaLabel = taskDetailTitleInputAriaLabel;
-            view.dom.className = taskDetailTitleInputClassName;
+            );
 
             // Update `viewRef` and call any callbacks that were waiting for the view to
             // be ready.

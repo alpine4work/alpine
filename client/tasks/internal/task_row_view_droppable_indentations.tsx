@@ -305,7 +305,7 @@ export function TaskRowViewDroppable({
         let unsetRowZIndex: (() => void) | null = null;
         scheduleMicrotask(() => {
             if (isCancelled) return;
-            unsetRowZIndex = setRowZIndex(10);
+            unsetRowZIndex = setRowZIndex(40);
         });
 
         return () => {

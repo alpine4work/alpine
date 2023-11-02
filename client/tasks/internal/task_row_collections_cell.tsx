@@ -195,12 +195,13 @@ function TaskRowCollectionsCell(
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!isFocusWithin) return;
 
-        return setRowZIndex(10);
+        return setRowZIndex(40);
     }, [isFocusWithin, setRowZIndex]);
 
     return (
         <div
             ref={useMergedRefs<HTMLDivElement>(cellRef, hoverRef)}
+            data-testid="TaskRowCollectionsCell"
             tabIndex={-1}
             className={classNames(
                 !isReadOnly && tasksStyles.textCursorNotInheritedClassName,

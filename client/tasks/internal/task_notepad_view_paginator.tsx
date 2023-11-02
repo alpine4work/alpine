@@ -141,7 +141,7 @@ export function TaskNotepadViewPaginator({
                                 await onNotepadPageIdSelect(notepadPage.id);
                             },
                         }),
-                    );
+                    ).reverse();
                 }, [
                     allNotepadPageIds,
                     formatDateWithTimeWithSeconds,

@@ -841,6 +841,7 @@ function TaskDetailViewMain(
                 </Box>
             )}
             <Box
+                data-testid="TaskDetailViewMain"
                 width="full"
                 overflow="hidden"
                 maxWidth={taskDetailViewMaxWidth}

@@ -17,8 +17,6 @@ let isShuttingDown = false;
 // easier to see errors. With this setup we just need some kind of global
 // tracer.
 function handleShutdown(signal: "SIGINT" | "SIGTERM") {
-    console.log("HANDLING SHUTDOWN", process.title);
-
     isShuttingDown = true;
 
     if (ingressTrafficShutdownListeners.size === 0 && shutdownListeners.size === 0) {
@@ -73,7 +71,6 @@ function handleShutdown(signal: "SIGINT" | "SIGTERM") {
 
         fullShutdownPromise.then(
             () => {
-                console.log("SHUTDOWN HANDLED", process.title);
                 process.exit(0);
             },
             error => {

@@ -1221,6 +1221,7 @@ function TaskRowView(
             <FocusRing isVisibleFromAnyFocus={true} offset="0" insetBottom="border">
                 <div
                     ref={titleCellRef}
+                    data-testid="TaskRowTitleCell"
                     tabIndex={capabilities.hasColumns ? (isFirstRow ? 0 : -1) : undefined}
                     className={titleCellClassName}
                     onKeyDown={event => {
