@@ -1469,6 +1469,10 @@ export class VirtualizedScrollViewState {
         // whether we add/remove items from the beginning or end of the virtualized
         // list? Does it make meaningful difference?
         if (itemCountDifference > 0) {
+            const isRenderedRangeAtEnd =
+                !!state._renderedRange &&
+                state._renderedRange.endOrderKey === state._entryByOrderKey.end.node?.key;
+
             const orderKey = generateOrderKeyBetween(
                 state._entryByOrderKey.end.node?.key ?? null,
                 null,
@@ -1482,6 +1486,153 @@ export class VirtualizedScrollViewState {
                 },
                 getItem,
             );
+
+            // If we are adding items to the list and our rendered range is at the end of
+            // our currently visible items then we want to expand our rendered range down.
+            // This way we don't unmount any items that are still visible. This may
+            // temporarily cause our rendered items to exceed the height of our
+            // virtualization window. That's ok, we'd rather over-render in `render()` then
+            // under-render since an under-render causes a quick unmount/remount as
+            // `updateRenderedRange()` determines the item should actually be visible.
+            //
+            // We allow our rendered range to expand by `viewHeight`. This way any item
+            // that was previously onscreen may continue to be onscreen.
+            if (isRenderedRangeAtEnd) {
+                assert(state._renderedRange);
+
+                let expandHeight = state._viewHeight;
+
+                const oldRenderedRangeStartOrderKey = state._renderedRange.startOrderKey;
+                const oldRenderedRangeEndOrderKey = state._renderedRange.endOrderKey;
+                const iterator = state._entryByOrderKey.find(oldRenderedRangeEndOrderKey);
+                assert(iterator.node, "Could not find rendered range end order key");
+                const oldRenderedRangeEndIndex = state._getPreviousItemCount(iterator);
+
+                let newRenderedRangeEndOrderKey = oldRenderedRangeEndOrderKey;
+                let newRenderedRangeEndIndex = oldRenderedRangeEndIndex;
+
+                iterator.next();
+
+                while (iterator.node && expandHeight > 0) {
+                    const node = iterator.node;
+                    iterator.next();
+
+                    newRenderedRangeEndIndex += 1;
+                    const item = getItem(newRenderedRangeEndIndex);
+
+                    // If the next item in the list is the same one we're expecting then great! No
+                    // updates to the list necessary.
+                    if (node.value.type === "Item" && node.value.key === item.key) {
+                        expandHeight -= node.value.height;
+                        newRenderedRangeEndOrderKey = node.key;
+                    }
+                    // If the next item in the list is a different one then we want to replace that
+                    // item with our new one. If the new item existed somewhere else in the list it
+                    // will be replaced with a buffer.
+                    else if (node.value.type === "Item") {
+                        const itemHeight =
+                            originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
+                        state = VirtualizedScrollViewState._setEntry(
+                            state,
+                            node.key,
+                            {
+                                type: "Item",
+                                key: item.key,
+                                height: itemHeight,
+                            },
+                            getItem,
+                        );
+                        expandHeight -= itemHeight;
+                        newRenderedRangeEndOrderKey = node.key;
+                    }
+                    // If the next item in the list is a buffer then we replace as many buffer items
+                    // as we can with actual rendered items.
+                    else {
+                        let newBufferItemCount = node.value.itemCount;
+
+                        newBufferItemCount -= 1;
+
+                        const newEntryOrderKey = generateOrderKeyBetween(
+                            newRenderedRangeEndOrderKey,
+                            node.key,
+                        );
+
+                        const itemHeight =
+                            originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
+                        state = VirtualizedScrollViewState._setEntry(
+                            state,
+                            newEntryOrderKey,
+                            {
+                                type: "Item",
+                                key: item.key,
+                                height: itemHeight,
+                            },
+                            getItem,
+                        );
+                        expandHeight -= itemHeight;
+                        newRenderedRangeEndOrderKey = newEntryOrderKey;
+
+                        while (newBufferItemCount > 0 && expandHeight > 0) {
+                            newRenderedRangeEndIndex += 1;
+                            const item = getItem(newRenderedRangeEndIndex);
+
+                            newBufferItemCount -= 1;
+
+                            const newEntryOrderKey = generateOrderKeyBetween(
+                                newRenderedRangeEndOrderKey,
+                                node.key,
+                            );
+
+                            const itemHeight =
+                                originalState._getItemHeightIfExists(item.key) ?? item.minHeight;
+
+                            state = VirtualizedScrollViewState._setEntry(
+                                state,
+                                newEntryOrderKey,
+                                {
+                                    type: "Item",
+                                    key: item.key,
+                                    height: itemHeight,
+                                },
+                                getItem,
+                            );
+                            expandHeight -= itemHeight;
+                            newRenderedRangeEndOrderKey = newEntryOrderKey;
+                        }
+
+                        if (newBufferItemCount > 0) {
+                            state = VirtualizedScrollViewState._setEntry(
+                                state,
+                                node.key,
+                                {
+                                    type: "Buffer",
+                                    itemCount: newBufferItemCount,
+                                },
+                                getItem,
+                            );
+                        } else {
+                            state = VirtualizedScrollViewState._deleteEntry(state, node.key);
+                        }
+                    }
+                }
+
+                if (newRenderedRangeEndOrderKey !== oldRenderedRangeEndOrderKey) {
+                    state = new VirtualizedScrollViewState({
+                        viewHeight: state._viewHeight,
+                        bufferedItemHeight: state._bufferedItemHeight,
+                        entryByOrderKey: state._entryByOrderKey,
+                        orderKeyByItemKey: state._orderKeyByItemKey,
+                        renderedRange: {
+                            startOrderKey: oldRenderedRangeStartOrderKey,
+                            endOrderKey: newRenderedRangeEndOrderKey,
+                        },
+                        itemCountSubtreeCache: state._itemCountSubtreeCache,
+                        contentHeightSubtreeCache: state._contentHeightSubtreeCache,
+                    });
+                }
+            }
         } else if (itemCountDifference < 0) {
             let removeItemCount = itemCountDifference * -1;
             let newRenderedRange = state._renderedRange;
