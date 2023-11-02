@@ -210,10 +210,22 @@ def _playwright_project_test(
             # whatever reason when we include the extension Playwright can't find the file?
             "PLAYWRIGHT_TEST_PATH": "{}/{}.spec".format(native.package_name(), name),
             "PLAYWRIGHT_PROJECT": project,
+            # We transform all our code through Bazel. Disable Playwright code
+            # transformations. Since Playwright code transformations slow us down and mess
+            # with source maps.
+            #
+            # We add support for `PLAYWRIGHT_DISABLE_TRANSFORMS` in a patch.
+            "PLAYWRIGHT_DISABLE_TRANSFORMS": "true",
             # Bazel will strip colors when necessary.
             "FORCE_COLOR": "true",
         },
-        tags = tags + ["playwright"] +
+        tags = tags + [
+                   "playwright",
+                   # Playwright tests are chunky, increase CPU requirements to reduce parallelism
+                   # while one is running. We'd like at least one CPU for our browser and app
+                   # service at least.
+                   "cpu:3",
+               ] +
                # Firefox creates sandboxes for web content and you can't nest sandboxes. So
                # disable the Bazel sandbox. Ideally we would disable Firefox's sandboxing at
                # runtime and have the entire Firefox process run in the Bazel sandbox but it's

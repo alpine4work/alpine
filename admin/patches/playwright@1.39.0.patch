@@ -1,5 +1,20 @@
+diff --git a/lib/cli.js b/lib/cli.js
+index cf0fb4450ac88c73e699efefe136aaa5ad580666..e8d0efb19b304f74c3b341ffc65a2f9ec78abbaf 100755
+--- a/lib/cli.js
++++ b/lib/cli.js
+@@ -244,6 +244,10 @@ function restartWithExperimentalTsEsm(configFile) {
+   // New experimental loader is only supported on Node 16+.
+   if (nodeVersion < 16) return false;
+   if (!configFile) return false;
++  // NOTE(calebmer): We transform our own code through Bazel. Add an option to
++  // disable all Playwright code transformation. Since Playwright code
++  // transformation slows things down and messes with source maps.
++  if (process.env.PLAYWRIGHT_DISABLE_TRANSFORMS) return false;
+   if (process.env.PW_DISABLE_TS_ESM) return false;
+   if (process.env.PW_TS_ESM_ON) {
+     // clear execArgv after restart, so that childProcess.fork in user code does not inherit our loader.
 diff --git a/lib/reporters/base.js b/lib/reporters/base.js
-index 4104d6839525e537d9d1e12a7e5a5292ab9fb651..1354cbf37d826b925934881db42d7a3d6b1cc771 100644
+index 4104d6839525e537d9d1e12a7e5a5292ab9fb651..2ea0f4e5b267aef9fef1b2d60eb5135bef5ddd55 100644
 --- a/lib/reporters/base.js
 +++ b/lib/reporters/base.js
 @@ -273,13 +273,24 @@ function formatFailure(config, test, options = {}) {
@@ -26,7 +41,47 @@ index 4104d6839525e537d9d1e12a7e5a5292ab9fb651..1354cbf37d826b925934881db42d7a3d
 +              resultLines.push(_utilsBundle.colors.cyan(`        npx playwright show-trace ${relativePath}`));
 +            } else {
 +              resultLines.push(_utilsBundle.colors.cyan(`        bazel run //${bazelTestlogsMatch[1]}:${bazelTestlogsMatch[2]}_show_trace -- ${bazelTestlogsMatch[3]}`));
-+            }              
++            }
              resultLines.push('');
            }
          } else {
+diff --git a/lib/transform/transform.js b/lib/transform/transform.js
+index 972ccec13b430ec041db0d0c421cedbe8b8d4359..d4bd5f940d84643971486d0bd2f36f70a94adfbe 100644
+--- a/lib/transform/transform.js
++++ b/lib/transform/transform.js
+@@ -79,6 +79,11 @@ function loadAndValidateTsconfigForFile(file) {
+ const pathSeparator = process.platform === 'win32' ? ';' : ':';
+ const builtins = new Set(_module.default.builtinModules);
+ function resolveHook(filename, specifier) {
++  // NOTE(calebmer): We transform our own code through Bazel. Add an option to
++  // disable all Playwright code transformation. Since Playwright code
++  // transformation slows things down and messes with source maps.
++  if (process.env.PLAYWRIGHT_DISABLE_TRANSFORMS) return;
++
+   if (specifier.startsWith('node:') || builtins.has(specifier)) return;
+   if (!shouldTransform(filename)) return;
+   if (isRelativeSpecifier(specifier)) return (0, _util.resolveImportSpecifierExtension)(_path.default.resolve(_path.default.dirname(filename), specifier));
+@@ -135,6 +140,11 @@ function shouldTransform(filename) {
+   return !(0, _compilationCache.belongsToNodeModules)(filename);
+ }
+ function transformHook(originalCode, filename, moduleUrl) {
++  // NOTE(calebmer): We transform our own code through Bazel. Add an option to
++  // disable all Playwright code transformation. Since Playwright code
++  // transformation slows things down and messes with source maps.
++  if (process.env.PLAYWRIGHT_DISABLE_TRANSFORMS) return originalCode;
++
+   const isTypeScript = filename.endsWith('.ts') || filename.endsWith('.tsx') || filename.endsWith('.mts') || filename.endsWith('.cts');
+   const hasPreprocessor = process.env.PW_TEST_SOURCE_TRANSFORM && process.env.PW_TEST_SOURCE_TRANSFORM_SCOPE && process.env.PW_TEST_SOURCE_TRANSFORM_SCOPE.split(pathSeparator).some(f => filename.startsWith(f));
+   const pluginsPrologue = _transformConfig.babelPlugins;
+@@ -181,6 +191,11 @@ async function requireOrImport(file) {
+   }
+ }
+ function installTransform() {
++  // NOTE(calebmer): We transform our own code through Bazel. Add an option to
++  // disable all Playwright code transformation. Since Playwright code
++  // transformation slows things down and messes with source maps.
++  if (process.env.PLAYWRIGHT_DISABLE_TRANSFORMS) return () => {};
++
+   (0, _compilationCache.installSourceMapSupportIfNeeded)();
+   let reverted = false;
+   const originalResolveFilename = _module.default._resolveFilename;

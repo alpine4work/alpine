@@ -1,4 +1,4 @@
-lockfileVersion: '6.1'
+lockfileVersion: '6.0'
 
 settings:
   autoInstallPeers: true
@@ -92,7 +92,7 @@ patchedDependencies:
     hash: rehavg4vjut6avpq34cx6ugszq
     path: admin/patches/phosphor-react@1.4.1.patch
   playwright@1.39.0:
-    hash: zntbnm2tybf73er4q2t63n6diq
+    hash: 2cilo76hjm2rkc2l4kmysee6ya
     path: admin/patches/playwright@1.39.0.patch
   prosemirror-view@1.27.2:
     hash: ep5td2fcl7fty7i23lgflvirku
@@ -3894,7 +3894,7 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
     dependencies:
-      playwright: 1.39.0(patch_hash=zntbnm2tybf73er4q2t63n6diq)
+      playwright: 1.39.0(patch_hash=2cilo76hjm2rkc2l4kmysee6ya)
     dev: false
 
   /@popperjs/core@2.11.6(patch_hash=tltraktq5mjexvnyazyo6z5vd4):
@@ -12846,7 +12846,7 @@ packages:
     hasBin: true
     dev: false
 
-  /playwright@1.39.0(patch_hash=zntbnm2tybf73er4q2t63n6diq):
+  /playwright@1.39.0(patch_hash=2cilo76hjm2rkc2l4kmysee6ya):
     resolution: {integrity: sha512-naE5QT11uC/Oiq0BwZ50gDmy8c8WLPRTEWuSSFVG2egBka/1qMoSqYQcROMT9zLwJ86oPofcTH2jBY/5wWOgIw==}
     engines: {node: '>=16'}
     hasBin: true
