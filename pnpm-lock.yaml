@@ -22,9 +22,6 @@ patchedDependencies:
   '@dnd-kit/utilities@3.2.1':
     hash: di55vvis5paiupfudkzzxlvcfm
     path: admin/patches/@dnd-kit__utilities@3.2.1.patch
-  '@playwright/test@1.31.1':
-    hash: 645z6zzf2yttz7gk24haek5rhi
-    path: admin/patches/@playwright__test@1.31.1.patch
   '@popperjs/core@2.11.6':
     hash: tltraktq5mjexvnyazyo6z5vd4
     path: admin/patches/@popperjs__core@2.11.6.patch
@@ -94,6 +91,9 @@ patchedDependencies:
   phosphor-react@1.4.1:
     hash: rehavg4vjut6avpq34cx6ugszq
     path: admin/patches/phosphor-react@1.4.1.patch
+  playwright@1.39.0:
+    hash: zntbnm2tybf73er4q2t63n6diq
+    path: admin/patches/playwright@1.39.0.patch
   prosemirror-view@1.27.2:
     hash: ep5td2fcl7fty7i23lgflvirku
     path: admin/patches/prosemirror-view@1.27.2.patch
@@ -154,8 +154,8 @@ dependencies:
     specifier: ^2.3.1
     version: 2.3.1
   '@playwright/test':
-    specifier: ^1.31.1
-    version: 1.31.1(patch_hash=645z6zzf2yttz7gk24haek5rhi)
+    specifier: 1.39.0
+    version: 1.39.0
   '@popperjs/core':
     specifier: 2.11.6
     version: 2.11.6(patch_hash=tltraktq5mjexvnyazyo6z5vd4)
@@ -3889,17 +3889,13 @@ packages:
       tslib: 2.5.0
     dev: false
 
-  /@playwright/test@1.31.1(patch_hash=645z6zzf2yttz7gk24haek5rhi):
-    resolution: {integrity: sha512-IsytVZ+0QLDh1Hj83XatGp/GsI1CDJWbyDaBGbainsh0p2zC7F4toUocqowmjS6sQff2NGT3D9WbDj/3K2CJiA==}
-    engines: {node: '>=14'}
+  /@playwright/test@1.39.0:
+    resolution: {integrity: sha512-3u1iFqgzl7zr004bGPYiN/5EZpRUSFddQBra8Rqll5N0/vfpqlP9I9EXqAoGacuAbX6c9Ulg/Cjqglp5VkK6UQ==}
+    engines: {node: '>=16'}
     hasBin: true
     dependencies:
-      '@types/node': 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
-      playwright-core: 1.31.1
-    optionalDependencies:
-      fsevents: 2.3.2
+      playwright: 1.39.0(patch_hash=zntbnm2tybf73er4q2t63n6diq)
     dev: false
-    patched: true
 
   /@popperjs/core@2.11.6(patch_hash=tltraktq5mjexvnyazyo6z5vd4):
     resolution: {integrity: sha512-50/17A98tWUfQ176raKiOGXuYpLyyVMkxxG6oylzL3BPOlA6ADGdK7EYunSa4I064xerltq9TGXs8HmOk5E+vw==}
@@ -12843,6 +12839,23 @@ packages:
     engines: {node: '>=14'}
     hasBin: true
     dev: false
+
+  /playwright-core@1.39.0:
+    resolution: {integrity: sha512-+k4pdZgs1qiM+OUkSjx96YiKsXsmb59evFoqv8SKO067qBA+Z2s/dCzJij/ZhdQcs2zlTAgRKfeiiLm8PQ2qvw==}
+    engines: {node: '>=16'}
+    hasBin: true
+    dev: false
+
+  /playwright@1.39.0(patch_hash=zntbnm2tybf73er4q2t63n6diq):
+    resolution: {integrity: sha512-naE5QT11uC/Oiq0BwZ50gDmy8c8WLPRTEWuSSFVG2egBka/1qMoSqYQcROMT9zLwJ86oPofcTH2jBY/5wWOgIw==}
+    engines: {node: '>=16'}
+    hasBin: true
+    dependencies:
+      playwright-core: 1.39.0
+    optionalDependencies:
+      fsevents: 2.3.2
+    dev: false
+    patched: true
 
   /postcss-discard-duplicates@5.1.0(postcss@8.4.29):
     resolution: {integrity: sha512-zmX3IoSI2aoenxHV6C7plngHWWhUOV3sP1T8y2ifzxzbtnuhk1EdPwm0S1bIUNaJ2eNbWeGLEwzw8huPD67aQw==}

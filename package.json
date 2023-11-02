@@ -22,7 +22,7 @@
         "@internationalized/date": "^3.5.0",
         "@juggle/resize-observer": "^3.4.0",
         "@opensearch-project/opensearch": "^2.3.1",
-        "@playwright/test": "^1.31.1",
+        "@playwright/test": "1.39.0",
         "@popperjs/core": "2.11.6",
         "@react-aria/datepicker": "3.8.0",
         "@react-aria/i18n": "3.8.3",
@@ -202,7 +202,6 @@
             "@vanilla-extract/integration@5.0.1": "admin/patches/@vanilla-extract__integration@5.0.1.patch",
             "@vanilla-extract/sprinkles@1.5.0": "admin/patches/@vanilla-extract__sprinkles@1.5.0.patch",
             "@types/functional-red-black-tree@1.0.1": "admin/patches/@types__functional-red-black-tree@1.0.1.patch",
-            "@playwright/test@1.31.1": "admin/patches/@playwright__test@1.31.1.patch",
             "swr@2.1.0": "admin/patches/swr@2.1.0.patch",
             "phosphor-react@1.4.1": "admin/patches/phosphor-react@1.4.1.patch",
             "aws4fetch@1.0.17": "admin/patches/aws4fetch@1.0.17.patch",
@@ -227,7 +226,8 @@
             "@react-aria/utils@3.21.0": "admin/patches/@react-aria__utils@3.21.0.patch",
             "@react-aria/label@3.7.1": "admin/patches/@react-aria__label@3.7.1.patch",
             "react-dom@18.2.0": "admin/patches/react-dom@18.2.0.patch",
-            "@dnd-kit/core@6.0.8": "admin/patches/@dnd-kit__core@6.0.8.patch"
+            "@dnd-kit/core@6.0.8": "admin/patches/@dnd-kit__core@6.0.8.patch",
+            "playwright@1.39.0": "admin/patches/playwright@1.39.0.patch"
         },
         "allowedDeprecatedVersions": {
             "@types/keyv": "4.2.0",

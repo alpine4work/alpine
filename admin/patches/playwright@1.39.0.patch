@@ -1,8 +1,8 @@
 diff --git a/lib/reporters/base.js b/lib/reporters/base.js
-index 970dab521dfae506bdb1ae45ae9cf82c1293dac6..c34930044735ac8afe1b33e518206d05aaa11ec5 100644
+index 4104d6839525e537d9d1e12a7e5a5292ab9fb651..1354cbf37d826b925934881db42d7a3d6b1cc771 100644
 --- a/lib/reporters/base.js
 +++ b/lib/reporters/base.js
-@@ -247,12 +247,24 @@ function formatFailure(config, test, options = {}) {
+@@ -273,13 +273,24 @@ function formatFailure(config, test, options = {}) {
          resultLines.push(_utilsBundle.colors.cyan(separator(`    attachment #${i + 1}: ${attachment.name} (${attachment.contentType})`)));
          if (attachment.path) {
            const relativePath = _path.default.relative(process.cwd(), attachment.path);
@@ -18,14 +18,15 @@ index 970dab521dfae506bdb1ae45ae9cf82c1293dac6..c34930044735ac8afe1b33e518206d05
 +          }
            // Make this extensible
            if (attachment.name === 'trace') {
+-            const packageManagerCommand = (0, _utils.getPackageManagerExecCommand)();
              resultLines.push(_utilsBundle.colors.cyan(`    Usage:`));
              resultLines.push('');
--            resultLines.push(_utilsBundle.colors.cyan(`        npx playwright show-trace ${relativePath}`));
+-            resultLines.push(_utilsBundle.colors.cyan(`        ${packageManagerCommand} playwright show-trace ${relativePath}`));
 +            if (!bazelTestlogsMatch) {
 +              resultLines.push(_utilsBundle.colors.cyan(`        npx playwright show-trace ${relativePath}`));
 +            } else {
 +              resultLines.push(_utilsBundle.colors.cyan(`        bazel run //${bazelTestlogsMatch[1]}:${bazelTestlogsMatch[2]}_show_trace -- ${bazelTestlogsMatch[3]}`));
-+            }
++            }              
              resultLines.push('');
            }
          } else {

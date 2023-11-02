@@ -59,7 +59,9 @@ test("chat message stays when changing chat selection", async ({page, context: b
     );
     await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
 
-    await page.getByRole("combobox", {name: "To"}).press("Backspace");
+    await page.getByRole("combobox", {name: "To"}).click();
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Escape");
 
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeVisible();
@@ -69,7 +71,9 @@ test("chat message stays when changing chat selection", async ({page, context: b
     );
     await expect(page.getByRole("button", {name: "Send message"})).toBeEnabled();
 
-    await page.getByRole("combobox", {name: "To"}).press("Backspace");
+    await page.getByRole("combobox", {name: "To"}).click();
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Escape");
 
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Siobahn Roy")).toBeHidden();
     await expect(page.getByTestId("ChatAccountPickerInput").getByText("Kendall Roy")).toBeHidden();
