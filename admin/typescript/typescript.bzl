@@ -65,7 +65,7 @@ def ts_project(
         # re-enable this once `rules_ts` is fixed. It's fine to not use workers for
         # type checking since it's out of the critical dev path.
         # https://github.com/aspect-build/rules_ts/issues/361
-        supports_workers = False,
+        supports_workers = 0,
         tags = ["typescript"] + tags,
         **kwargs
     )
