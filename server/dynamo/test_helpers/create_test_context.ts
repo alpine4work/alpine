@@ -19,6 +19,7 @@ import {
     ServerSystemActionContext,
     ServerSystemActionContextModules,
     ServerUnknownActionContext,
+    ServerUnknownActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {
     ServerProcessContext,
@@ -71,7 +72,12 @@ export type TestContext = ServerProcessContext & {
         session:
             | {id: SessionId; account: {id: AccountId}; createdTime: Date}
             | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
-    ): Context<ServerSessionActionContextModules & {fork: ForkActionContextModule}>;
+    ): Context<
+        ServerSessionActionContextModules & {
+            fork: ForkActionContextModule;
+            notifications: NotificationsContextModuleBase;
+        }
+    >;
 
     /**
      * An authenticated system action.
@@ -85,9 +91,16 @@ export type TestContext = ServerProcessContext & {
         context: Context<{
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
+            cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<Value>,
+        action: (
+            context: Context<
+                ServerSystemActionContextModules & {
+                    notifications: NotificationsContextModuleBase;
+                }
+            >,
+        ) => Promise<Value>,
     ) => Promise<Value>;
 };
 
@@ -138,20 +151,29 @@ export function createTestContext({
         context: Context<{
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
+            cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<Value>,
+        action: (
+            context: Context<
+                ServerSystemActionContextModules & {
+                    notifications: NotificationsContextModuleBase;
+                }
+            >,
+        ) => Promise<Value>,
     ): Promise<Value> => {
         return processContext.with<
             Omit<
                 ServerSystemActionContextModules,
                 Exclude<keyof ServerProcessContextModules, "tracer">
-            >,
+            > & {
+                notifications: NotificationsContextModuleBase;
+            },
             Value
         >(
             {
                 tracer: new TracerContextModule(context.tracer.getTracer()),
-                cache: new CacheContextModule(),
+                cache: context.cache.dangerouslyForkWithSharedCaches(),
                 dynamoBatchContext: new DynamoBatchContextModule(),
                 notifications: createNotificationsContextModule(),
                 actor: DynamoSystemActorContextModule.dangerouslyNew(
@@ -163,7 +185,11 @@ export function createTestContext({
         );
     };
 
-    const createUnauthenticatedSessionContext = (): ServerUnknownActionContext => {
+    const createUnauthenticatedSessionContext = (): Context<
+        ServerUnknownActionContextModules & {
+            notifications: NotificationsContextModuleBase;
+        }
+    > => {
         return processContext.clone({
             dynamoBatchContext: new DynamoBatchContextModule(),
             cache: new CacheContextModule(),
@@ -176,7 +202,12 @@ export function createTestContext({
         session:
             | {id: SessionId; account: {id: AccountId}; createdTime: Date}
             | {sessionId: SessionId; accountId: AccountId; createdTime: Date},
-    ): Context<ServerSessionActionContextModules & {fork: ForkActionContextModule}> => {
+    ): Context<
+        ServerSessionActionContextModules & {
+            fork: ForkActionContextModule;
+            notifications: NotificationsContextModuleBase;
+        }
+    > => {
         return processContext.clone({
             dynamoBatchContext: new DynamoBatchContextModule(),
             cache: new CacheContextModule(),
@@ -186,7 +217,13 @@ export function createTestContext({
         });
     };
 
-    const createSystemContext = (spaceId: SpaceId): ServerSystemActionContext => {
+    const createSystemContext = (
+        spaceId: SpaceId,
+    ): Context<
+        ServerSystemActionContextModules & {
+            notifications: NotificationsContextModuleBase;
+        }
+    > => {
         return processContext.clone({
             dynamoBatchContext: new DynamoBatchContextModule(),
             cache: new CacheContextModule(),

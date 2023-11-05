@@ -3,6 +3,7 @@ import {parse as parseCookieHeader, serialize as serializeSetCookieHeader} from 
 import {differenceInDays, isValid as isValidDate, parseISO} from "date-fns";
 import {Params} from "react-router";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
+import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
@@ -26,6 +27,11 @@ export type LoaderContextModules = MergeObjectIntersection<
     ServerUnknownActionContextModules & {
         rpc: LocalRpcContextModule;
         loader: LoaderContextModule;
+
+        /**
+         * Send notification events to our queue for processing.
+         */
+        notifications: NotificationsContextModuleBase;
 
         /**
          * Our Remix server has access to the tasks context module which we don't make

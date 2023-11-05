@@ -22,7 +22,6 @@ import {
 import {createStandardizedServerWithWebSockets} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
 import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
-import {NotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
@@ -186,7 +185,6 @@ runService({
                     // determination about their cache.
                     cache: context.cache.dangerouslyForkWithSharedCaches(),
                     dynamoBatchContext: new DynamoBatchContextModule(),
-                    notifications: notificationsContextModule,
                     actor: DynamoSystemActorContextModule.dangerouslyNew(
                         context.actor.serviceName,
                         spaceId,
@@ -195,12 +193,6 @@ runService({
                 action,
             );
         };
-
-        const notificationsContextModule = new NotificationsContextModule({
-            dangerouslyEscalateToSystemContext,
-            edgeServiceUrl,
-            tokenAgent,
-        });
 
         const webSocketServerBySpaceId = new DefaultMap(
             (spaceId: SpaceId) =>
@@ -278,7 +270,6 @@ runService({
                     return baseContext.with(
                         {
                             actor: actorContextModule,
-                            notifications: notificationsContextModule,
                             fork: new ForkActionContextModule(),
                         },
                         async context => {
@@ -353,10 +344,7 @@ runService({
                     }
 
                     return baseContext.with(
-                        {
-                            actor: actorContextModule,
-                            notifications: notificationsContextModule,
-                        },
+                        {actor: actorContextModule},
                         async (context: ServerSessionActionContext) => {
                             const input = TaskRealtimeLoadQueriesInputSchema.deserialize(
                                 await request.json(),

@@ -7,6 +7,7 @@ import {
     ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
@@ -14,7 +15,9 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {Replace} from "~/shared/helpers/types/replace.js";
 
 type TestWorkerSessionActionContextModules = ServerSessionActionContextModules &
-    Omit<WorkerSessionActionContextModules, keyof ServerSessionActionContextModules>;
+    Omit<WorkerSessionActionContextModules, keyof ServerSessionActionContextModules> & {
+        notifications: NotificationsContextModuleBase;
+    };
 
 type TestWorkerSystemActionContextModules = ServerSystemActionContextModules &
     Omit<WorkerSystemActionContextModules, keyof ServerSystemActionContextModules>;

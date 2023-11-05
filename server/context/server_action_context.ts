@@ -6,7 +6,6 @@ import {
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
-import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
@@ -32,11 +31,6 @@ export type ServerActionContextModulesBase = ServerProcessContextModules & {
      * We batch at the action level so that unrelated requests do not share IO.
      */
     dynamoBatchContext: DynamoBatchContextModule;
-
-    /**
-     * Send notification events to our queue for processing.
-     */
-    notifications: NotificationsContextModuleBase;
 };
 
 /**

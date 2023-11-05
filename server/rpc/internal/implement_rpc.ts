@@ -1,5 +1,6 @@
 import {DynamoActorServiceName} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
@@ -12,6 +13,7 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 export type RpcServerActionContext = Context<RpcServerActionContextModules>;
 
 export type RpcServerActionContextModules = ServerActionContextModules & {
+    notifications: NotificationsContextModuleBase;
     tasks: TaskContextModule;
 };
 

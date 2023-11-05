@@ -7,6 +7,7 @@ import {
 import {
     ServerActionContext,
     ServerSessionActionContext,
+    ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
@@ -19,6 +20,7 @@ import {
     getNotificationMessageContentSnippet,
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
+import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {
     authorizeSpaceAccess,
     getAccount,
@@ -26,6 +28,7 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -523,7 +526,11 @@ export async function getChannelPosts(
  * Create a new post by the current account in the provided channel.
  */
 export async function createPost(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {
+            notifications: NotificationsContextModuleBase;
+        }
+    >,
     {channelId, content}: {channelId: ChannelId; content: PostContent},
 ): Promise<{
     id: PostId;
@@ -818,7 +825,11 @@ export async function authorizePostAccess(
  * Add a new comment to a post.
  */
 export async function createPostComment(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {
+            notifications: NotificationsContextModuleBase;
+        }
+    >,
     {
         postId,
         parentCommentIndex,

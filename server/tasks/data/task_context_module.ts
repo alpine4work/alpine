@@ -296,7 +296,11 @@ export class TestTaskContextModule extends TaskContextModuleBase {
         shouldSkipIndexing,
     }: {
         dangerouslyEscalateToSystemContext: (
-            context: Context<{tracer: TracerContextModule; actor: DynamoActorContextModule}>,
+            context: Context<{
+                tracer: TracerContextModule;
+                actor: DynamoActorContextModule;
+                cache: CacheContextModule;
+            }>,
             spaceId: SpaceId,
             action: (context: ServerSystemActionContext) => Promise<void>,
         ) => Promise<void>;

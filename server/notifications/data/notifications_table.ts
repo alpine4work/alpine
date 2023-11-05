@@ -2,9 +2,9 @@ import {differenceInMinutes} from "date-fns";
 import {authorizeChatAccessForAccount, getChat} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
-    ServerActionContext,
-    ServerSessionActionContext,
-    ServerSystemActionContext,
+    ServerActionContextModules,
+    ServerSessionActionContextModules,
+    ServerSystemActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {
     getDocumentAndCommentThreadsWithInitialComments,
@@ -31,6 +31,7 @@ import {
     NotificationCreatePostEvent,
     NotificationEvent,
 } from "~/server/notifications/core/notification_event.js";
+import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {
     authorizeSpaceAccess,
     expensivelyGetAllSpaceAccounts,
@@ -38,6 +39,7 @@ import {
 } from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatModel} from "~/shared/chat/chat_model.js";
+import {Context} from "~/shared/context/context.js";
 import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
@@ -901,7 +903,9 @@ function getInitialInboxItem(spaceId: SpaceId, accountId: AccountId): InboxAttri
  * Get the session account's inbox in the provided space.
  */
 export async function getInbox(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     {spaceId}: {spaceId: SpaceId},
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     await authorizeSpaceAccess(context, spaceId);
@@ -928,7 +932,9 @@ export async function getInbox(
  * Get the entries for the current account's inbox.
  */
 export async function getInboxEntries(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     {
         spaceId,
         filter,
@@ -1015,7 +1021,9 @@ export async function getInboxEntries(
  * This will backfill updates both for non-archived and archived entries.
  */
 export async function backfillInboxEntries(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     {spaceId, readTime}: {spaceId: SpaceId; readTime: Date},
 ) {
     await authorizeSpaceAccess(context, spaceId);
@@ -1041,7 +1049,9 @@ export async function backfillInboxEntries(
 // will be directly added to the top of the inbox while the user is actively
 // observing.
 export async function observeInbox(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     {spaceId}: {spaceId: SpaceId},
 ): Promise<void> {
     await authorizeSpaceAccess(context, spaceId);
@@ -1141,7 +1151,9 @@ function getInboxEntryItemKey({
  * `processNotificationEvent()`.
  */
 export async function archiveInboxEntry(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<{archiveTime: Date}> {
     return archiveInboxEntryItemKey(
@@ -1160,7 +1172,9 @@ export async function archiveInboxEntry(
  * primary inbox so the user can easily find it.
  */
 export function unarchiveInboxEntry(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     {spaceId, key}: {spaceId: SpaceId; key: InboxEntryKey},
 ): Promise<void> {
     return unarchiveInboxEntryItemKey(
@@ -1174,7 +1188,7 @@ export function unarchiveInboxEntry(
 }
 
 async function archiveInboxEntryItemKey(
-    context: ServerActionContext,
+    context: Context<ServerActionContextModules & {notifications: NotificationsContextModuleBase}>,
     itemKey: InboxEntryItemKey,
 ): Promise<{archiveTime: Date}> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
@@ -1237,7 +1251,7 @@ async function archiveInboxEntryItemKey(
 }
 
 async function unarchiveInboxEntryItemKey(
-    context: ServerActionContext,
+    context: Context<ServerActionContextModules & {notifications: NotificationsContextModuleBase}>,
     itemKey: InboxEntryItemKey,
 ): Promise<void> {
     await authorizeSpaceAccess(context, itemKey.spaceId);
@@ -1294,7 +1308,9 @@ export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint
  * delivery queues.
  */
 export async function processNotificationEvent(
-    context: ServerSystemActionContext,
+    context: Context<
+        ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     event: NotificationEvent,
 ): Promise<void> {
     await notificationEventBeforeProcessingTestCheckpoint.waitForTest(event.authorId);
@@ -1306,7 +1322,9 @@ export async function processNotificationEvent(
 }
 
 function actuallyProcessNotificationEvent(
-    context: ServerSystemActionContext,
+    context: Context<
+        ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     event: NotificationEvent,
 ): Promise<void> {
     switch (event.type) {
@@ -1339,7 +1357,9 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
      * Get the accounts subscribed to notifications for this event.
      */
     getSubscribers: (
-        context: ServerSystemActionContext,
+        context: Context<
+            ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
+        >,
         event: Event,
     ) => Promise<{
         info: Info;
@@ -1350,14 +1370,21 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
      * Update the inbox entry for each subscriber. Called in parallel.
      */
     updateInboxEntry: (
-        context: ServerSystemActionContext,
+        context: Context<
+            ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
+        >,
         event: Event,
         options: {
             info: Info;
             account: AccountModel;
         },
     ) => Promise<void>;
-}): (context: ServerSystemActionContext, event: Event) => Promise<void> {
+}): (
+    context: Context<
+        ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
+    event: Event,
+) => Promise<void> {
     return async (context, event) => {
         await context.tracer.withSpan("Process notification event", async (context, span) => {
             span.addData({
@@ -1400,7 +1427,9 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
  * notification count updates.
  */
 async function updateInboxEntry<ItemKey extends InboxEntryItemKey>(
-    context: ServerSystemActionContext,
+    context: Context<
+        ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     event: NotificationEvent,
     itemKey: ItemKey,
     update: (
@@ -2089,7 +2118,9 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
  * underlying channel posts inbox entry so it will accumulate no new posts.
  */
 export async function getInboxChannelPostsEntryPosts(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     {
         spaceId,
         channelId,
@@ -2225,7 +2256,9 @@ export async function getInboxChannelPostsEntryPosts(
  * new threads.
  */
 export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     {
         spaceId,
         documentId,

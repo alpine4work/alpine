@@ -6,6 +6,7 @@ import {getMentionedAccountIdsInContent} from "~/server/content/get_mentioned_ac
 import {
     ServerActionContext,
     ServerSessionActionContext,
+    ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -15,9 +16,11 @@ import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
+import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
+import {Context} from "~/shared/context/context.js";
 import {
     DataLossError,
     FailedPreconditionError,
@@ -652,7 +655,11 @@ function actuallyGetOrCreateChatForAccounts(
  * Send a message to to the provided chat.
  */
 export function sendChatMessage(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {
+            notifications: NotificationsContextModuleBase;
+        }
+    >,
     {
         chatId,
         parentMessageIndex,

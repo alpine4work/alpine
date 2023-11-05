@@ -14,11 +14,13 @@ import {
     sendChatMessageToAccountsBeforeCreateChatTestCheckpoint,
     updateChatMessageContent,
 } from "~/server/chat/data/chat_table.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
+import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ChatMessageModel} from "~/shared/chat/chat_model.js";
+import {Context} from "~/shared/context/context.js";
 import {NotFoundError, PermissionDeniedError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -140,7 +142,9 @@ function sortSharedChats(
 // `getOrCreateChatForAccounts()` and `sendChatMessage()`. To avoid rewriting
 // tests the function is reconstructed here.
 async function sendChatMessageToAccounts(
-    context: ServerSessionActionContext,
+    context: Context<
+        ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
+    >,
     {
         spaceId,
         otherAccountIds,

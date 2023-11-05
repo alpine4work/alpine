@@ -9,6 +9,7 @@ ts_project(
         "//:node_modules/date-fns",
         "//server/context",
         "//server/dynamo/core",
+        "//server/notifications/core",
         "//shared/dynamo",
         "//shared/error",
         "//shared/helpers",

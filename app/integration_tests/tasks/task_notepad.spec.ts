@@ -10,9 +10,6 @@ const modifier = process.platform === "darwin" ? "Meta" : "Control";
 const context = createTestContext({shouldStartOpensearch: true});
 const services = createTestServices(context);
 
-// NOCOMMIT: Enter, tab, and stuff with variations of collapsed/expanded tasks.
-// Maybe do this in the same test as other arrow key navigation tests?
-
 test("can create tasks in notepad", async ({page, context: browserContext, viewport}) => {
     assert(viewport);
 

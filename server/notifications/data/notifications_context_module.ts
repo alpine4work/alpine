@@ -1,5 +1,5 @@
 import {DynamoActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
+import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {
     NotificationEvent,
@@ -46,28 +46,40 @@ abstract class NotificationsContextModuleBase
     }>
     implements NotificationsContextModuleBaseInterface
 {
-    protected readonly _dangerouslyEscalateToSystemContext: (
+    protected readonly _dangerouslyEscalateToSystemContext: <Value>(
         context: Context<{
             tracer: TracerContextModule;
             actor: DynamoActorContextModule;
             cache: CacheContextModule;
         }>,
         spaceId: SpaceId,
-        action: (context: ServerSystemActionContext) => Promise<void>,
-    ) => Promise<void>;
+        action: (
+            context: Context<
+                ServerSystemActionContextModules & {
+                    notifications: NotificationsContextModuleBaseInterface;
+                }
+            >,
+        ) => Promise<Value>,
+    ) => Promise<Value>;
 
     constructor({
         dangerouslyEscalateToSystemContext,
     }: {
-        dangerouslyEscalateToSystemContext: (
+        dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: ServerSystemActionContext) => Promise<void>,
-        ) => Promise<void>;
+            action: (
+                context: Context<
+                    ServerSystemActionContextModules & {
+                        notifications: NotificationsContextModuleBaseInterface;
+                    }
+                >,
+            ) => Promise<Value>,
+        ) => Promise<Value>;
     }) {
         super();
         this._dangerouslyEscalateToSystemContext = dangerouslyEscalateToSystemContext;
@@ -150,15 +162,21 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
         edgeServiceUrl,
         tokenAgent,
     }: {
-        dangerouslyEscalateToSystemContext: (
+        dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: ServerSystemActionContext) => Promise<void>,
-        ) => Promise<void>;
+            action: (
+                context: Context<
+                    ServerSystemActionContextModules & {
+                        notifications: NotificationsContextModuleBaseInterface;
+                    }
+                >,
+            ) => Promise<Value>,
+        ) => Promise<Value>;
         edgeServiceUrl: string;
         tokenAgent: TokenAgentBase;
     }) {
@@ -259,15 +277,21 @@ export class TestNotificationsContextModule extends NotificationsContextModuleBa
     constructor({
         dangerouslyEscalateToSystemContext,
     }: {
-        dangerouslyEscalateToSystemContext: (
+        dangerouslyEscalateToSystemContext: <Value>(
             context: Context<{
                 tracer: TracerContextModule;
                 actor: DynamoActorContextModule;
                 cache: CacheContextModule;
             }>,
             spaceId: SpaceId,
-            action: (context: ServerSystemActionContext) => Promise<void>,
-        ) => Promise<void>;
+            action: (
+                context: Context<
+                    ServerSystemActionContextModules & {
+                        notifications: NotificationsContextModuleBaseInterface;
+                    }
+                >,
+            ) => Promise<Value>,
+        ) => Promise<Value>;
     }) {
         // Can only use this context module in tests.
         assert(process.env.NODE_ENV === "test");

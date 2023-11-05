@@ -13,10 +13,7 @@ import {
     DynamoSystemActorContextModule,
     DynamoUnknownActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
-import {
-    ServerSystemActionContext,
-    ServerSystemActionContextModules,
-} from "~/server/context/server_action_context.js";
+import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {
@@ -187,21 +184,29 @@ runService({
                 // data at a higher permission level then let the session context see it. So we
                 // derive our new context from the process context to help avoid reusing any
                 // request-level caches.
-                const dangerouslyEscalateToSystemContext = (
+                const dangerouslyEscalateToSystemContext = <Value>(
                     context: Context<{
                         tracer: TracerContextModule;
                         actor: DynamoActorContextModule;
                         cache: CacheContextModule;
                     }>,
                     spaceId: SpaceId,
-                    action: (context: ServerSystemActionContext) => Promise<void>,
-                ): Promise<void> => {
+                    action: (
+                        context: Context<
+                            ServerSystemActionContextModules & {
+                                notifications: NotificationsContextModule;
+                            }
+                        >,
+                    ) => Promise<Value>,
+                ): Promise<Value> => {
                     return processContext.with<
                         Omit<
                             ServerSystemActionContextModules,
                             Exclude<keyof ServerProcessContextModules, "tracer">
-                        >,
-                        void
+                        > & {
+                            notifications: NotificationsContextModule;
+                        },
+                        Value
                     >(
                         {
                             tracer: new TracerContextModule(context.tracer.getTracer()),
@@ -253,13 +258,16 @@ runService({
                         tasks: new TaskContextModule({
                             // NOCOMMIT: Production router implementation.
                             router: new LocalTaskRealtimeServiceRouter({
-                                port: parseInt(
-                                    assertExists(
-                                        options.taskRealtimeServiceLocalPort,
-                                        "Task realtime service local port must be provided when running locally",
-                                    ),
-                                    10,
-                                ),
+                                port:
+                                    process.env.NODE_ENV === "production"
+                                        ? 4000
+                                        : parseInt(
+                                              assertExists(
+                                                  options.taskRealtimeServiceLocalPort,
+                                                  "Task realtime service local port must be provided when running locally",
+                                              ),
+                                              10,
+                                          ),
                             }),
                             tokenAgent,
                             dangerouslyEscalateToSystemContext,
