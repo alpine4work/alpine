@@ -57,16 +57,23 @@ export async function validateEmailAddress(
     dnsQueryUrl.searchParams.set("type", "mx");
     dnsQueryUrl.searchParams.set("name", domain);
 
-    const response = await fetchWithTracer(context.tracer.getTracer(), dnsQueryUrl, {
-        spanRoute: "/dns-query",
-        headers: {Accept: "application/dns-json"},
-    });
-    if (response.status !== 200)
-        throw new InternalError(
-            `DNS query for domain MX records failed with status: ${response.status}`,
-        );
+    const body = await fetchWithTracer(
+        context.tracer.getTracer(),
+        dnsQueryUrl,
+        {
+            spanRoute: "/dns-query",
+            headers: {Accept: "application/dns-json"},
+        },
+        async response => {
+            if (response.status !== 200)
+                throw new InternalError(
+                    `DNS query for domain MX records failed with status: ${response.status}`,
+                );
 
-    const body: any = await response.json();
+            return response.json();
+        },
+    );
+
     if (body.Status !== 0 || body.Answer.length === 0) {
         throw new InvalidArgumentError("Could not find MX DNS records for email domain", {
             displayMessage: errorDisplayMessage`The domain “${domain}” does not accept emails. Try providing a different email address where you can receive emails.`,

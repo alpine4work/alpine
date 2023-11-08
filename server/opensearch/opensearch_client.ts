@@ -1,4 +1,5 @@
 import createJsonBigInt from "json-bigint";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {
     OpensearchIndex,
@@ -29,8 +30,9 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {partitionArray} from "~/shared/helpers/iterable/partition_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isObject} from "~/shared/helpers/object/is_object.js";
 import {JsonObjectValue, JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
-import {fetchWithTracer, fetchWithTracerAndReturnSpan} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 const JsonBigInt = createJsonBigInt({useNativeBigInt: true});
@@ -297,16 +299,12 @@ type OpensearchError = {
  * - In development, makes sure indexes are created
  */
 export class OpensearchClient implements OpensearchClientInterface {
-    private readonly _protocol: string;
-    private readonly _hostname: string;
-    private readonly _port: number;
-    private readonly _host: string;
+    private readonly _url: URL;
+    private readonly _signer: AwsRequestSigner;
 
-    constructor({protocol, hostname, port}: {protocol: string; hostname: string; port: number}) {
-        this._protocol = protocol;
-        this._hostname = hostname;
-        this._port = port;
-        this._host = `${hostname}:${port}`;
+    constructor(url: string, signer: AwsRequestSigner) {
+        this._url = new URL(url);
+        this._signer = signer;
     }
 
     private readonly _ensureLocalIndexPromiseByIndex = new Map<
@@ -314,11 +312,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         Promise<void>
     >();
 
-    /**
-     * Makes sure the local index is ready and configured with the right
-     * parameters. Should only be called in development and test environments.
-     */
-    public async ensureLocalIndex<
+    private async _ensureLocalIndex<
         Routing extends string,
         DocId extends string,
         Doc,
@@ -326,62 +320,104 @@ export class OpensearchClient implements OpensearchClientInterface {
     >(tracer: TracerBase, index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>) {
         assert(process.env.NODE_ENV !== "production");
 
-        await getOrSetDefaultMapValue(this._ensureLocalIndexPromiseByIndex, index, () => {
-            return tracer.withSpan("Ensure local OpenSearch index", async tracer => {
-                // We don't wait for OpenSearch to start before executing code in our dev
-                // server and tests. That's because OpenSearch takes ~7s to start. That means
-                // we need to wait for it here before we can use it.
-                if (this._hostname === "localhost") {
-                    await waitForHttpServer(this._port);
-                }
+        await getOrSetDefaultMapValue(this._ensureLocalIndexPromiseByIndex, index, () =>
+            this._deployIndex(tracer, index),
+        );
+    }
 
-                // We need to wait for OpenSearch primary shards to be allocated before we can
-                // check the status of indexes or create new indexes. Otherwise OpenSearch
-                // returns weird partial health errors.
-                const healthResponse = await fetchWithTracer(
+    /**
+     * Creates the OpenSearch index if it doesn't exist and updates any dynamic
+     * settings or mappings. This function is idempotent. You can call it multiple
+     * times and it should produce the same response.
+     *
+     * May only be called in a production environment. Should only be called by our
+     * deployment scripts.
+     */
+    public async deployIndex<
+        Routing extends string,
+        DocId extends string,
+        Doc,
+        FlattenedKeys extends string,
+    >(tracer: TracerBase, index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>) {
+        assert(process.env.NODE_ENV === "production");
+
+        return this._deployIndex(tracer, index);
+    }
+
+    /**
+     * Deploys the OpenSearch index configuration and mapping. This function is
+     * idempotent. You can call it multiple times and it should produce the same
+     * response. We call it whenever the process restarts in development to make
+     * sure the latest index updates are properly incorporated.
+     *
+     * We also call this function as part of our production deployment process. If
+     * nothing in the index has changed this will be a noop (since this is
+     * idempotent). Only dynamic index settings can be updated. Static index
+     * settings must stay the same after the index has been created.
+     */
+    private async _deployIndex<
+        Routing extends string,
+        DocId extends string,
+        Doc,
+        FlattenedKeys extends string,
+    >(tracer: TracerBase, index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys>) {
+        return tracer.withSpan("Deploy OpenSearch index", async tracer => {
+            // We don't wait for OpenSearch to start before executing code in our dev
+            // server and tests. That's because OpenSearch takes ~7s to start. That means
+            // we need to wait for it here before we can use it.
+            if (this._url.hostname === "localhost") {
+                const port = parseInt(this._url.port, 10);
+                assert(Number.isInteger(port));
+                await waitForHttpServer(port);
+            }
+
+            // We need to wait for OpenSearch primary shards to be allocated before we can
+            // check the status of indexes or create new indexes. Otherwise OpenSearch
+            // returns weird partial health errors.
+            await fetchWithTracer(
+                tracer,
+                new URL("/_cluster/health?wait_for_status=yellow&timeout=60s", this._url),
+                {
+                    sign: this._signer.sign,
+                    spanRoute: "/_cluster/health",
+                    method: "GET",
+                },
+                async response => {
+                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                    // float-64 size in cluster health. Ok to use native JSON parser instead of
+                    // `json-bigint`.
+                    const body = await response.json();
+                    if (!response.ok) {
+                        throw new InternalError(
+                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                            // so it's ok to stringify with native JSON parser.
+                            `OpenSearch health check failed: ${JSON.stringify(body)}`,
+                        );
+                    }
+                },
+            );
+
+            await retryWithExponentialBackoff(async retry => {
+                const getBody = await fetchWithTracer(
                     tracer,
-                    `${this._protocol}://${this._host}/_cluster/health?wait_for_status=yellow&timeout=60s`,
+                    new URL(`/${index.name}/_settings`, this._url),
                     {
-                        spanRoute: "/_cluster/health",
+                        sign: this._signer.sign,
+                        spanRoute: `/${index.name}`,
                         method: "GET",
                     },
-                );
+                    async response => {
+                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                        // float-64 size in settings. Ok to use native JSON parser instead of
+                        // `json-bigint`.
+                        const getBody:
+                            | {error: {type: string}}
+                            | {
+                                  error: undefined;
+                                  [key: string]: OpensearchIndexConfig<string> | undefined;
+                              } = await response.json();
 
-                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                // float-64 size in cluster health. Ok to use native JSON parser instead of
-                // `json-bigint`.
-                const healthBody = await healthResponse.json();
-                if (!healthResponse.ok) {
-                    throw new InternalError(
-                        // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                        // so it's ok to stringify with native JSON parser.
-                        `OpenSearch health check failed: ${JSON.stringify(healthBody)}`,
-                    );
-                }
-
-                await retryWithExponentialBackoff(async retry => {
-                    const getResponse = await fetchWithTracer(
-                        tracer,
-                        `${this._protocol}://${this._host}/${index.name}/_settings`,
-                        {
-                            spanRoute: `/${index.name}`,
-                            method: "GET",
-                        },
-                    );
-
-                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                    // float-64 size in settings. Ok to use native JSON parser instead of
-                    // `json-bigint`.
-                    const getBody:
-                        | {error: {type: string}}
-                        | {
-                              error: undefined;
-                              [key: string]: OpensearchIndexConfig<string> | undefined;
-                          } = await getResponse.json();
-
-                    // If the index does not already exists then create a new one.
-                    if (getBody.error) {
-                        if (getBody.error.type !== "index_not_found_exception") {
+                        if (getBody.error && getBody.error?.type !== "index_not_found_exception") {
                             throw new InternalError(
                                 // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
                                 // so it's ok to stringify with native JSON parser.
@@ -389,10 +425,18 @@ export class OpensearchClient implements OpensearchClientInterface {
                             );
                         }
 
-                        const putResponse = await fetchWithTracer(
+                        return getBody;
+                    },
+                );
+
+                // If the index does not already exists then create a new one.
+                if (getBody.error) {
+                    try {
+                        await fetchWithTracer(
                             tracer,
-                            `${this._protocol}://${this._host}/${index.name}`,
+                            new URL(`/${index.name}`, this._url),
                             {
+                                sign: this._signer.sign,
                                 spanRoute: `/${index.name}`,
                                 method: "PUT",
                                 headers: {"content-type": "application/json"},
@@ -401,186 +445,205 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 // `json-bigint`.
                                 body: JSON.stringify(index.config),
                             },
-                        );
+                            async response => {
+                                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                                // float-64 size in settings. Ok to use native JSON parser instead of
+                                // `json-bigint`.
+                                const body = await response.json();
 
-                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                        // float-64 size in settings. Ok to use native JSON parser instead of
-                        // `json-bigint`.
-                        const putBody = await putResponse.json();
-
-                        if (!putResponse.ok) {
-                            const error = new InternalError(
-                                // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                                // so it's ok to stringify with native JSON parser.
-                                `Creating OpenSearch index failed: ${JSON.stringify(putBody)}`,
-                            );
-
-                            // We may have a concurrent process also trying to create the index. If we try
-                            // to create the index and it fails, try reading the index again to see if it
-                            // exists now.
-                            if (putBody.error.type === "resource_already_exists_exception") {
-                                retry(error);
-                            }
-
-                            throw error;
-                        }
-                    }
-                    // If the index does exist then check that the static configuration hasn't
-                    // changed and update the index's dynamic configuration.
-                    else {
-                        const previousIndexConfig = assertExists(getBody[index.name]);
-
-                        // If there are no custom filters/analyzers in our settings then set the
-                        // empty object.
-                        if (!previousIndexConfig.settings.analysis) {
-                            (previousIndexConfig.settings as any).analysis = {
-                                filter: {},
-                                analyzer: {},
-                            };
-                        }
-
-                        // We observe that when reading index settings, analysis properties are nested
-                        // under `index`. But the documentation says we should create analyzers at the
-                        // root level. Confusing!
-                        if ((previousIndexConfig.settings.index as any).analysis) {
-                            (previousIndexConfig.settings as any).analysis = (
-                                previousIndexConfig.settings.index as any
-                            ).analysis;
-                            delete (previousIndexConfig.settings.index as any).analysis;
-                        }
-
-                        // `number_of_shards` and `routing_partition_size` are returned as strings.
-                        // Treat them as integers.
-                        (previousIndexConfig.settings as any).index.number_of_shards = parseInt(
-                            (previousIndexConfig.settings as any).index.number_of_shards,
-                            10,
-                        );
-                        (previousIndexConfig.settings as any).index.routing_partition_size =
-                            parseInt(
-                                (previousIndexConfig.settings as any).index.routing_partition_size,
-                                10,
-                            );
-
-                        // The `stem_english_possessive` property is converted into a `string`. Convert
-                        // it back to a boolean.
-                        if (previousIndexConfig.settings.analysis?.filter) {
-                            for (const filter of Object.values(
-                                previousIndexConfig.settings.analysis.filter,
-                            )) {
-                                if ((filter as any).stem_english_possessive) {
-                                    (filter as any).stem_english_possessive = JSON.parse(
-                                        (filter as any).stem_english_possessive,
+                                if (!response.ok) {
+                                    throw new InternalError(
+                                        // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                                        // so it's ok to stringify with native JSON parser.
+                                        `Creating OpenSearch index failed: ${JSON.stringify(body)}`,
+                                        {cause: body.error},
                                     );
                                 }
-                            }
+                            },
+                        );
+                    } catch (error) {
+                        // We may have a concurrent process also trying to create the index. If we try
+                        // to create the index and it fails, try reading the index again to see if it
+                        // exists now.
+                        if (
+                            error instanceof Error &&
+                            isObject(error.cause) &&
+                            error.cause.type === "resource_already_exists_exception"
+                        ) {
+                            retry(error);
                         }
 
-                        // Unfortunately, when we read settings ElasticSearch doesn't return
-                        // `number_of_routing_shards`. We need to get it from a separate endpoint to
-                        // make sure it hasn't changed.
-                        // https://github.com/elastic/elasticsearch/issues/33036
-                        {
-                            const getResponse2 = await fetchWithTracer(
+                        throw error;
+                    }
+                }
+                // If the index does exist then check that the static configuration hasn't
+                // changed and update the index's dynamic configuration.
+                else {
+                    const previousIndexConfig = assertExists(getBody[index.name]);
+
+                    // If there are no custom filters/analyzers in our settings then set the
+                    // empty object.
+                    if (!previousIndexConfig.settings.analysis) {
+                        (previousIndexConfig.settings as any).analysis = {
+                            filter: {},
+                            analyzer: {},
+                        };
+                    }
+
+                    // We observe that when reading index settings, analysis properties are nested
+                    // under `index`. But the documentation says we should create analyzers at the
+                    // root level. Confusing!
+                    if ((previousIndexConfig.settings.index as any).analysis) {
+                        (previousIndexConfig.settings as any).analysis = (
+                            previousIndexConfig.settings.index as any
+                        ).analysis;
+                        delete (previousIndexConfig.settings.index as any).analysis;
+                    }
+
+                    // `number_of_shards` and `routing_partition_size` are returned as strings.
+                    // Treat them as integers.
+                    (previousIndexConfig.settings as any).index.number_of_shards = parseInt(
+                        (previousIndexConfig.settings as any).index.number_of_shards,
+                        10,
+                    );
+                    (previousIndexConfig.settings as any).index.routing_partition_size = parseInt(
+                        (previousIndexConfig.settings as any).index.routing_partition_size,
+                        10,
+                    );
+
+                    // The `stem_english_possessive` property is converted into a `string`. Convert
+                    // it back to a boolean.
+                    if (previousIndexConfig.settings.analysis?.filter) {
+                        for (const filter of Object.values(
+                            previousIndexConfig.settings.analysis.filter,
+                        )) {
+                            if ((filter as any).stem_english_possessive) {
+                                (filter as any).stem_english_possessive = JSON.parse(
+                                    (filter as any).stem_english_possessive,
+                                );
+                            }
+                        }
+                    }
+
+                    // Unfortunately, when we read settings ElasticSearch doesn't return
+                    // `number_of_routing_shards`. We need to get it from a separate endpoint to
+                    // make sure it hasn't changed.
+                    // https://github.com/elastic/elasticsearch/issues/33036
+                    {
+                        const numberOfRoutingShards = await fetchWithTracer(
+                            tracer,
+                            new URL(
+                                `/_cluster/state?filter_path=metadata.indices.${index.name}.routing_num_shards`,
+                                this._url,
+                            ),
+                            {
+                                sign: this._signer.sign,
+                                spanRoute: "/_cluster/state",
+                            },
+                            async response => {
+                                const numberOfRoutingShards: number = assertExists(
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                                    // float-64 size in settings. Ok to use native JSON parser instead of
+                                    // `json-bigint`.
+                                    (await response.json()).metadata.indices[index.name]
+                                        .routing_num_shards,
+                                );
+
+                                return numberOfRoutingShards;
+                            },
+                        );
+
+                        (previousIndexConfig.settings as any).index.number_of_routing_shards =
+                            numberOfRoutingShards;
+                    }
+
+                    const previousIndexStaticConfig =
+                        pickOpensearchStaticIndexConfig(previousIndexConfig);
+
+                    const indexStaticConfig = pickOpensearchStaticIndexConfig(index.config);
+
+                    if (!isDeepEqual(previousIndexStaticConfig, indexStaticConfig)) {
+                        throw new InternalError(
+                            // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                            // float-64 size in settings. Ok to use native JSON stringifier instead of
+                            // `json-bigint`.
+                            `OpenSearch index static settings changed: ${JSON.stringify(
+                                {old: previousIndexStaticConfig, new: indexStaticConfig},
+                                null,
+                                2,
+                            )}`,
+                        );
+                    }
+
+                    await runAllPromiseThunks(
+                        async () => {
+                            await fetchWithTracer(
                                 tracer,
-                                `${this._protocol}://${this._host}/_cluster/state?filter_path=metadata.indices.${index.name}.routing_num_shards`,
-                                {spanRoute: "/_cluster/state"},
+                                new URL(`/${index.name}/_settings`, this._url),
+                                {
+                                    sign: this._signer.sign,
+                                    spanRoute: `/${index.name}/_settings`,
+                                    method: "PUT",
+                                    headers: {"content-type": "application/json"},
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                                    // float-64 size in settings. Ok to use native JSON stringifier instead of
+                                    // `json-bigint`.
+                                    body: JSON.stringify(
+                                        omitOpensearchStaticIndexConfig(index.config).settings,
+                                    ),
+                                },
+                                async response => {
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                                    // float-64 size in settings. Ok to use native JSON parser instead of
+                                    // `json-bigint`.
+                                    const body = await response.json();
+
+                                    if (!response.ok) {
+                                        throw new InternalError(
+                                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                                            // so it's ok to stringify with native JSON parser.
+                                            `Updating OpenSearch index failed: ${JSON.stringify(
+                                                body,
+                                            )}`,
+                                        );
+                                    }
+                                },
                             );
-                            const numberOfRoutingShards: number = assertExists(
-                                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                // float-64 size in settings. Ok to use native JSON parser instead of
-                                // `json-bigint`.
-                                (await getResponse2.json()).metadata.indices[index.name]
-                                    .routing_num_shards,
+                        },
+                        async () => {
+                            await fetchWithTracer(
+                                tracer,
+                                new URL(`/${index.name}/_mappings`, this._url),
+                                {
+                                    sign: this._signer.sign,
+                                    spanRoute: `/${index.name}/_mappings`,
+                                    method: "PUT",
+                                    headers: {"content-type": "application/json"},
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                                    // float-64 size in settings. Ok to use native JSON stringifier instead of
+                                    // `json-bigint`.
+                                    body: JSON.stringify(index.config.mappings),
+                                },
+                                async response => {
+                                    // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
+                                    // float-64 size in settings. Ok to use native JSON parser instead of
+                                    // `json-bigint`.
+                                    const body = await response.json();
+
+                                    if (!response.ok) {
+                                        throw new InternalError(
+                                            // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
+                                            // so it's ok to stringify with native JSON parser.
+                                            `Updating OpenSearch index failed: ${JSON.stringify(
+                                                body,
+                                            )}`,
+                                        );
+                                    }
+                                },
                             );
-
-                            (previousIndexConfig.settings as any).index.number_of_routing_shards =
-                                numberOfRoutingShards;
-                        }
-
-                        const previousIndexStaticConfig =
-                            pickOpensearchStaticIndexConfig(previousIndexConfig);
-
-                        const indexStaticConfig = pickOpensearchStaticIndexConfig(index.config);
-
-                        if (!isDeepEqual(previousIndexStaticConfig, indexStaticConfig)) {
-                            throw new InternalError(
-                                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                // float-64 size in settings. Ok to use native JSON stringifier instead of
-                                // `json-bigint`.
-                                `OpenSearch index static settings changed: ${JSON.stringify(
-                                    {old: previousIndexStaticConfig, new: indexStaticConfig},
-                                    null,
-                                    2,
-                                )}`,
-                            );
-                        }
-
-                        await runAllPromiseThunks(
-                            async () => {
-                                const putResponse = await fetchWithTracer(
-                                    tracer,
-                                    `${this._protocol}://${this._host}/${index.name}/_settings`,
-                                    {
-                                        spanRoute: `/${index.name}/_settings`,
-                                        method: "PUT",
-                                        headers: {"content-type": "application/json"},
-                                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                        // float-64 size in settings. Ok to use native JSON stringifier instead of
-                                        // `json-bigint`.
-                                        body: JSON.stringify(
-                                            omitOpensearchStaticIndexConfig(index.config).settings,
-                                        ),
-                                    },
-                                );
-
-                                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                // float-64 size in settings. Ok to use native JSON parser instead of
-                                // `json-bigint`.
-                                const putBody = await putResponse.json();
-
-                                if (!putResponse.ok) {
-                                    throw new InternalError(
-                                        // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                                        // so it's ok to stringify with native JSON parser.
-                                        `Updating OpenSearch index failed: ${JSON.stringify(
-                                            putBody,
-                                        )}`,
-                                    );
-                                }
-                            },
-                            async () => {
-                                const putResponse = await fetchWithTracer(
-                                    tracer,
-                                    `${this._protocol}://${this._host}/${index.name}/_mappings`,
-                                    {
-                                        spanRoute: `/${index.name}/_mappings`,
-                                        method: "PUT",
-                                        headers: {"content-type": "application/json"},
-                                        // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                        // float-64 size in settings. Ok to use native JSON stringifier instead of
-                                        // `json-bigint`.
-                                        body: JSON.stringify(index.config.mappings),
-                                    },
-                                );
-
-                                // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
-                                // float-64 size in settings. Ok to use native JSON parser instead of
-                                // `json-bigint`.
-                                const putBody = await putResponse.json();
-
-                                if (!putResponse.ok) {
-                                    throw new InternalError(
-                                        // NOTE(#opensearch-important-json-disclaimer): Parsed by native JSON parser
-                                        // so it's ok to stringify with native JSON parser.
-                                        `Updating OpenSearch index failed: ${JSON.stringify(
-                                            putBody,
-                                        )}`,
-                                    );
-                                }
-                            },
-                        );
-                    }
-                });
+                        },
+                    );
+                }
             });
         });
     }
@@ -604,30 +667,36 @@ export class OpensearchClient implements OpensearchClientInterface {
         OpensearchIndexDocType<Index>
     > | null> {
         if (process.env.NODE_ENV !== "production") {
-            await this.ensureLocalIndex(tracer, index);
+            await this._ensureLocalIndex(tracer, index);
         }
 
-        const response = await fetchWithTracer(
+        const body = await fetchWithTracer(
             tracer,
-            `${this._protocol}://${this._host}/${index.name}/_doc/${id}?routing=${routing}&realtime=${realtime}`,
-            {spanRoute: `/${index.name}/_doc/:taskId`},
-        );
+            new URL(`/${index.name}/_doc/${id}?routing=${routing}&realtime=${realtime}`, this._url),
+            {
+                sign: this._signer.sign,
+                spanRoute: `/${index.name}/_doc/:taskId`,
+            },
+            async response => {
+                // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
+                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
+                // to strings to maintain precision. Ok to use native JSON parser since `long`s
+                // will be strings and we know how to handle those strings.
+                const body: {
+                    _seq_no: number;
+                    _primary_term: number;
+                } & (
+                    | {found: false}
+                    | {
+                          found: true;
+                          _id: string;
+                          _source: JsonValue;
+                      }
+                ) = await response.json();
 
-        // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
-        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
-        // to strings to maintain precision. Ok to use native JSON parser since `long`s
-        // will be strings and we know how to handle those strings.
-        const body: {
-            _seq_no: number;
-            _primary_term: number;
-        } & (
-            | {found: false}
-            | {
-                  found: true;
-                  _id: string;
-                  _source: JsonValue;
-              }
-        ) = await response.json();
+                return body;
+            },
+        );
 
         if (!body.found) return null;
 
@@ -663,13 +732,14 @@ export class OpensearchClient implements OpensearchClientInterface {
         > | null>
     > {
         if (process.env.NODE_ENV !== "production") {
-            await this.ensureLocalIndex(tracer, index);
+            await this._ensureLocalIndex(tracer, index);
         }
 
-        const response = await fetchWithTracer(
+        const body = await fetchWithTracer(
             tracer,
-            `${this._protocol}://${this._host}/${index.name}/_mget?routing=${routing}`,
+            new URL(`/${index.name}/_mget?routing=${routing}`, this._url),
             {
+                sign: this._signer.sign,
                 spanRoute: `/${index.name}/_mget`,
                 method: "POST",
                 headers: {"content-type": "application/json"},
@@ -679,27 +749,30 @@ export class OpensearchClient implements OpensearchClientInterface {
                     docs: ids.map(id => ({_id: id})),
                 }),
             },
-        );
+            async response => {
+                // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
+                // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
+                // to strings to maintain precision. Ok to use native JSON parser since `long`s
+                // will be strings and we know how to handle those strings.
+                const body: {
+                    docs: Array<
+                        {
+                            _id: string;
+                            _seq_no: number;
+                            _primary_term: number;
+                        } & (
+                            | {found: false}
+                            | {
+                                  found: true;
+                                  _source: JsonValue;
+                              }
+                        )
+                    >;
+                } = await response.json();
 
-        // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
-        // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
-        // to strings to maintain precision. Ok to use native JSON parser since `long`s
-        // will be strings and we know how to handle those strings.
-        const body: {
-            docs: Array<
-                {
-                    _id: string;
-                    _seq_no: number;
-                    _primary_term: number;
-                } & (
-                    | {found: false}
-                    | {
-                          found: true;
-                          _source: JsonValue;
-                      }
-                )
-            >;
-        } = await response.json();
+                return body;
+            },
+        );
 
         const docById = new Map<
             string,
@@ -753,7 +826,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         {retryVersionConflictError}: OpensearchClientBulkWriteOptions = {},
     ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
-            await this.ensureLocalIndex(tracer, index);
+            await this._ensureLocalIndex(tracer, index);
         }
 
         if (operations.length === 0) return;
@@ -776,10 +849,11 @@ export class OpensearchClient implements OpensearchClientInterface {
             }
         }
 
-        const response = await fetchWithTracer(
+        const body = await fetchWithTracer(
             tracer,
-            `${this._protocol}://${this._host}/${index.name}/_bulk?routing=${routing}`,
+            new URL(`/${index.name}/_bulk?routing=${routing}`, this._url),
             {
+                sign: this._signer.sign,
                 spanRoute: `/${index.name}/_bulk`,
                 method: "POST",
                 headers: {"content-type": "application/x-ndjson"},
@@ -789,17 +863,20 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // `long`s will be strings and we know how to handle those strings.
                 body: bulkBody.map(object => `${JSON.stringify(object)}\n`).join(""),
             },
-        );
+            async response => {
+                // NOTE(#opensearch-important-json-disclaimer): This response only contains
+                // errors and the error numbers fit in 64-bit floats.
+                const body: {
+                    errors: boolean;
+                    items: Array<{
+                        create?: {error?: OpensearchError};
+                        index?: {error?: OpensearchError};
+                    }>;
+                } = await response.json();
 
-        // NOTE(#opensearch-important-json-disclaimer): This response only contains
-        // errors and the error numbers fit in 64-bit floats.
-        const body: {
-            errors: boolean;
-            items: Array<{
-                create?: {error?: OpensearchError};
-                index?: {error?: OpensearchError};
-            }>;
-        } = await response.json();
+                return body;
+            },
+        );
 
         if (body.errors) {
             const maybeRecoverableErrors = filterMapArray(
@@ -857,11 +934,11 @@ export class OpensearchClient implements OpensearchClientInterface {
         },
     ): Promise<Array<{_id: string; _score: number; _source?: JsonValue}>> {
         if (process.env.NODE_ENV !== "production") {
-            await this.ensureLocalIndex(tracer, index);
+            await this._ensureLocalIndex(tracer, index);
         }
 
         return retryWithExponentialBackoff(async retry => {
-            const url = new URL(`${this._protocol}://${this._host}/${index.name}/_search`);
+            const url = new URL(`/${index.name}/_search`, this._url);
             url.searchParams.set("routing", routing);
             url.searchParams.set("size", String(size));
 
@@ -882,52 +959,70 @@ export class OpensearchClient implements OpensearchClientInterface {
             url.searchParams.set("timeout", "30s");
             url.searchParams.set("cancel_after_time_interval", "30s");
 
-            const {span, responsePromise} = fetchWithTracerAndReturnSpan(tracer, url, {
-                spanRoute: `/${index.name}/_search`,
-                method: "POST",
-                headers: {"content-type": "application/json"},
-                // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
-                // bigints we want to stringify as JSON integer literals so we need to use
-                // `json-bigint`.
-                body: JsonBigInt.stringify({
-                    query,
-                    sort,
-                    search_after: searchAfter,
-                    _source: !withoutDocs,
-                }),
-            });
+            try {
+                const body = await fetchWithTracer(
+                    tracer,
+                    url,
+                    {
+                        sign: this._signer.sign,
+                        spanRoute: `/${index.name}/_search`,
+                        method: "POST",
+                        headers: {"content-type": "application/json"},
+                        // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
+                        // bigints we want to stringify as JSON integer literals so we need to use
+                        // `json-bigint`.
+                        body: JsonBigInt.stringify({
+                            query,
+                            sort,
+                            search_after: searchAfter,
+                            _source: !withoutDocs,
+                        }),
+                    },
+                    async (response, span) => {
+                        span.addData({
+                            opensearch: {
+                                query: getOpensearchQueryClauseDescription(query),
+                                sort: JSON.stringify(sort),
+                            },
+                        });
 
-            span.addData({
-                opensearch: {
-                    query: getOpensearchQueryClauseDescription(query),
-                    sort: JSON.stringify(sort),
-                },
-            });
+                        // NOTE(#opensearch-important-json-disclaimer): We only use `_source` which is
+                        // deserialized with our index object type. `_source`s correctly serialize big
+                        // integers for JavaScript (they're stringified).
+                        //
+                        // However, `sort` values are a problem here! OpenSearch returns sort values in
+                        // its internal format. So a `long` will be a JSON number and that JSON number
+                        // may be too big to represent in a JavaScript 64-bit float so we'll get an
+                        // imprecise value.
+                        //
+                        // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
+                        // `sort` values unless you parse with `json-bigint`.
+                        const body:
+                            | {
+                                  hits: {
+                                      hits: Array<{
+                                          _id: string;
+                                          _score: number;
+                                          _source?: JsonValue;
+                                      }>;
+                                  };
+                                  error?: undefined;
+                              }
+                            | {error: OpensearchError; hits?: undefined} = await response.json();
 
-            const response = await responsePromise;
+                        if (body.error) {
+                            const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+                            throw new UnknownError(`OpenSearch search failed: ${errorType}`, {
+                                cause: body.error,
+                            });
+                        }
 
-            // NOTE(#opensearch-important-json-disclaimer): We only use `_source` which is
-            // deserialized with our index object type. `_source`s correctly serialize big
-            // integers for JavaScript (they're stringified).
-            //
-            // However, `sort` values are a problem here! OpenSearch returns sort values in
-            // its internal format. So a `long` will be a JSON number and that JSON number
-            // may be too big to represent in a JavaScript 64-bit float so we'll get an
-            // imprecise value.
-            //
-            // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
-            // `sort` values unless you parse with `json-bigint`.
-            const body:
-                | {
-                      hits: {hits: Array<{_id: string; _score: number; _source?: JsonValue}>};
-                      error?: undefined;
-                  }
-                | {error: OpensearchError; hits?: undefined} = await response.json();
+                        return body;
+                    },
+                );
 
-            if (body.error) {
-                const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                const error = new UnknownError(`OpenSearch search failed: ${errorType}`);
-
+                return body.hits.hits;
+            } catch (error) {
                 // While the index is being created we may get a
                 // `search_phase_execution_exception` error. Retry until our cluster is
                 // healthy.
@@ -938,10 +1033,14 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // quite figure out what we need to wait for.
                 if (
                     process.env.NODE_ENV !== "production" &&
-                    body.error.type === "search_phase_execution_exception" &&
-                    (body.error.reason === "all shards failed" ||
-                        (body.error.caused_by?.type === "search_phase_execution_exception" &&
-                            body.error.caused_by.reason.startsWith(
+                    error instanceof Error &&
+                    isObject(error.cause) &&
+                    error.cause.type === "search_phase_execution_exception" &&
+                    (error.cause.reason === "all shards failed" ||
+                        (isObject(error.cause.caused_by) &&
+                            error.cause.caused_by.type === "search_phase_execution_exception" &&
+                            typeof error.cause.caused_by.reason === "string" &&
+                            error.cause.caused_by.reason.startsWith(
                                 "Search rejected due to missing shards",
                             )))
                 ) {
@@ -950,8 +1049,6 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                 throw error;
             }
-
-            return body.hits.hits;
         });
     }
 
@@ -1060,18 +1157,23 @@ export class OpensearchClient implements OpensearchClientInterface {
         index: Index,
     ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
-            await this.ensureLocalIndex(tracer, index);
+            await this._ensureLocalIndex(tracer, index);
         }
 
-        const response = await fetchWithTracer(
+        await fetchWithTracer(
             tracer,
-            `${this._protocol}://${this._host}/${index.name}/_refresh`,
-            {spanRoute: `/${index.name}/_refresh`, method: "POST"},
+            new URL(`/${index.name}/_refresh`, this._url),
+            {
+                sign: this._signer.sign,
+                spanRoute: `/${index.name}/_refresh`,
+                method: "POST",
+            },
+            async response => {
+                if (!response.ok) {
+                    throw new InternalError("OpenSearch refresh failed");
+                }
+            },
         );
-
-        if (!response.ok) {
-            throw new InternalError("OpenSearch refresh failed");
-        }
     }
 
     /**
@@ -1103,10 +1205,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         },
     ): Promise<{versionConflictCount: number}> {
         if (process.env.NODE_ENV !== "production") {
-            await this.ensureLocalIndex(tracer, index);
+            await this._ensureLocalIndex(tracer, index);
         }
 
-        const url = new URL(`${this._protocol}://${this._host}/${index.name}/_update_by_query`);
+        const url = new URL(`/${index.name}/_update_by_query`, this._url);
         url.searchParams.set("routing", routing);
 
         // If there's a version conflict, proceed with the update. We'll have the
@@ -1127,51 +1229,55 @@ export class OpensearchClient implements OpensearchClientInterface {
         // should debug what's going on.
         url.searchParams.set("timeout", "1m");
 
-        const {span, responsePromise} = fetchWithTracerAndReturnSpan(tracer, url, {
-            spanRoute: `/${index.name}/_update_by_query`,
-            method: "POST",
-            headers: {"content-type": "application/json"},
-            // NOTE(#opensearch-important-json-disclaimer): `long`s in `query` must be
-            // stringified since the query clause type only supports JSON values. `script`
-            // also is typed as a JSON safe value.
-            body: JSON.stringify({query, script}),
-        });
-
-        span.addData({
-            opensearch: {
-                query: getOpensearchQueryClauseDescription(query),
+        return fetchWithTracer(
+            tracer,
+            url,
+            {
+                sign: this._signer.sign,
+                spanRoute: `/${index.name}/_update_by_query`,
+                method: "POST",
+                headers: {"content-type": "application/json"},
+                // NOTE(#opensearch-important-json-disclaimer): `long`s in `query` must be
+                // stringified since the query clause type only supports JSON values. `script`
+                // also is typed as a JSON safe value.
+                body: JSON.stringify({query, script}),
             },
-        });
+            async (response, span) => {
+                span.addData({
+                    opensearch: {
+                        query: getOpensearchQueryClauseDescription(query),
+                    },
+                });
 
-        const response = await responsePromise;
+                // NOTE(#opensearch-important-json-disclaimer): All numbers in this response
+                // should safely fit into JavaScript float-64 numbers so we don't need to use
+                // bigint parsing.
+                const body:
+                    | {
+                          timed_out: boolean;
+                          version_conflicts: number;
+                          failures: Array<unknown>;
+                          error?: undefined;
+                      }
+                    | {error: OpensearchError} = await response.json();
 
-        // NOTE(#opensearch-important-json-disclaimer): All numbers in this response
-        // should safely fit into JavaScript float-64 numbers so we don't need to use
-        // bigint parsing.
-        const body:
-            | {
-                  timed_out: boolean;
-                  version_conflicts: number;
-                  failures: Array<unknown>;
-                  error?: undefined;
-              }
-            | {error: OpensearchError} = await response.json();
+                if (body.error) {
+                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+                    throw new UnknownError(`OpenSearch update by query failed: ${errorType}`);
+                }
 
-        if (body.error) {
-            const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-            throw new UnknownError(`OpenSearch update by query failed: ${errorType}`);
-        }
+                if (body.failures.length > 0) {
+                    throw new UnknownError(
+                        `OpenSearch update by query failed with ${body.failures.length} failure(s)`,
+                    );
+                }
 
-        if (body.failures.length > 0) {
-            throw new UnknownError(
-                `OpenSearch update by query failed with ${body.failures.length} failure(s)`,
-            );
-        }
+                if (body.timed_out) {
+                    throw new DeadlineExceededError("OpenSearch update by query timed out");
+                }
 
-        if (body.timed_out) {
-            throw new DeadlineExceededError("OpenSearch update by query timed out");
-        }
-
-        return {versionConflictCount: body.version_conflicts};
+                return {versionConflictCount: body.version_conflicts};
+            },
+        );
     }
 }

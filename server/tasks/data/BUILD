@@ -36,12 +36,15 @@ ts_project(
     },
     visibility = [
         "//admin/dynamo:__pkg__",
+        "//admin/opensearch/deploy:__pkg__",
         "//server/accounts/update_name:__pkg__",
         "//server/remix:__pkg__",
         "//server/rpc:__pkg__",
         "//server/tasks:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@aws-sdk/client-ec2",
+        "//:node_modules/@aws-sdk/client-ecs",
         "//:node_modules/@internationalized/date",
         "//:node_modules/date-fns",
         "//:node_modules/murmurhash",
@@ -50,6 +53,7 @@ ts_project(
         "//server/content",
         "//server/dynamo/core",
         "//server/helpers",
+        "//server/helpers/node",
         "//server/opensearch",
         "//server/spaces",
         "//server/tasks/router",

@@ -1,4 +1,3 @@
-import {AwsClient} from "aws4fetch";
 import fs from "fs-extra";
 import getPort from "get-port";
 import {join as joinPath} from "path";
@@ -31,6 +30,7 @@ import {
 } from "~/server/dynamo/core/dynamo_context_module.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {NoopNotificationsContextModule} from "~/server/notifications/core/noop_notifications_context_module.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
@@ -275,22 +275,18 @@ export function createTestContext({
                 : null,
         ]);
 
-        const awsClient = new AwsClient({
+        const awsSigner = new AwsRequestSigner({
             accessKeyId: "local",
             secretAccessKey: "local",
         });
 
-        dynamoContextModule.initialize(awsClient, `http://localhost:${dynamoLocalPort}`);
+        dynamoContextModule.initialize(`http://localhost:${dynamoLocalPort}`, awsSigner);
 
         if (!opensearchLocal) {
             opensearchContextModule.initialize(new TestDisabledOpensearchClient());
         } else {
             opensearchContextModule.initialize(
-                new OpensearchClient({
-                    protocol: "http",
-                    hostname: "localhost",
-                    port: opensearchLocal.port,
-                }),
+                new OpensearchClient(`http://localhost:${opensearchLocal.port}`, awsSigner),
             );
         }
 

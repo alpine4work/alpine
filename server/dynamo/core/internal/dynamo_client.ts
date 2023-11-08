@@ -1,7 +1,6 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
-import {AwsClient} from "aws4fetch";
 import jsonStableStringify from "json-stable-stringify";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {
@@ -10,6 +9,7 @@ import {
     intoDynamoAttributeValueObject,
 } from "~/server/dynamo/core/internal/dynamo_attribute_value.js";
 import {DynamoClientInternal} from "~/server/dynamo/core/internal/dynamo_client_internal.js";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
@@ -57,11 +57,8 @@ export class DynamoClient {
      */
     private readonly _writeItemBatcher: DynamoClientWriteItemBatcher;
 
-    constructor(options: {
-        getAwsHttpClient: (tracer: TracerBase) => Promise<AwsClient>;
-        awsDynamoUrl: string;
-    }) {
-        this._client = new DynamoClientInternal(options);
+    constructor(url: string, signer: AwsRequestSigner) {
+        this._client = new DynamoClientInternal(url, signer);
         this._getItemBatcherByConsistency = {
             Eventual: new DynamoClientGetItemBatcher(this._client, "Eventual"),
             Strong: new DynamoClientGetItemBatcher(this._client, "Strong"),

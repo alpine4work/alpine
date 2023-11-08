@@ -6,7 +6,7 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 
-export class LocalTaskRealtimeServiceRouter extends TaskRealtimeServiceRouterBase {
+export class TaskRealtimeServiceLocalRouter extends TaskRealtimeServiceRouterBase {
     private readonly _port: number;
 
     constructor({port}: {port: number}) {
@@ -18,12 +18,17 @@ export class LocalTaskRealtimeServiceRouter extends TaskRealtimeServiceRouterBas
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
     ): Promise<TaskRealtimeServiceRoutes> {
         return {
-            partitions: [
+            partitionPlanes: [
                 {
-                    instances: [
+                    partitions: [
                         {
-                            // When running locally there's only one worker. All traffic goes there.
-                            workers: [{host: `localhost:${this._port}`}],
+                            instances: [
+                                {
+                                    isHealthy: true,
+                                    // When running locally there's only one worker. All traffic goes there.
+                                    workers: [{host: `localhost:${this._port}`}],
+                                },
+                            ],
                         },
                     ],
                 },

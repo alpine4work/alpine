@@ -1,7 +1,7 @@
 import {WorkerActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
 import {TokenAgentBase, TokenPayload} from "~/server/tokens/token_agent.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, UnavailableError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {
     RpcHttpCallInputSchema,
@@ -72,7 +72,7 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
 
                 const spaceIdFromSpan = span.getContextSpaceIdIfExists();
 
-                const responsePromise = fetchWithTracer(
+                return fetchWithTracer(
                     span,
                     new URL(`${this._protocol}//${this._host}/api/rpc/${definition.name}`),
                     {
@@ -98,27 +98,23 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
                             }),
                         ),
                     },
+                    async response => {
+                        const callOutput = await response
+                            .json()
+                            .then((output: any) => RpcHttpCallOutputSchema.deserialize(output))
+                            .catch(error => {
+                                // If we fail to parse the response body as JSON, classify as `Internal`
+                                // status code.
+                                //
+                                // Maybe an error is also thrown here for some network errors? If so we should
+                                // classify network errors as the `Unavailable` status code.
+                                throw new InternalError(error.message, {cause: error});
+                            });
+
+                        if (!callOutput.ok) throw callOutput.error;
+                        return definition.outputSchema.deserialize(callOutput.output);
+                    },
                 );
-
-                const response = await responsePromise.catch(error => {
-                    // Classify network errors as the `Unavailable` status code.
-                    throw new UnavailableError(error.message, {cause: error});
-                });
-
-                const callOutput = await response
-                    .json()
-                    .then((output: any) => RpcHttpCallOutputSchema.deserialize(output))
-                    .catch(error => {
-                        // If we fail to parse the response body as JSON, classify as `Internal`
-                        // status code.
-                        //
-                        // Maybe an error is also thrown here for some network errors? If so we should
-                        // classify network errors as the `Unavailable` status code.
-                        throw new InternalError(error.message, {cause: error});
-                    });
-
-                if (!callOutput.ok) throw callOutput.error;
-                return definition.outputSchema.deserialize(callOutput.output);
             },
         );
     }

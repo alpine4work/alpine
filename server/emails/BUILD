@@ -18,6 +18,7 @@ ts_project(
         "//:node_modules/mjml-react",
         "//:node_modules/react",
         "//server/helpers",
+        "//server/helpers/node",
         "//shared/context",
         "//shared/design",
         "//shared/error",

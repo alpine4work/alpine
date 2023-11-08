@@ -206,11 +206,13 @@ function TaskRowPriorityCell(
                     switch (event.key) {
                         case "Backspace":
                         case "Delete": {
-                            event.preventDefault();
-                            event.stopPropagation();
+                            if (event.currentTarget === event.target) {
+                                event.preventDefault();
+                                event.stopPropagation();
 
-                            if (!isReadOnly) {
-                                handlePriorityChange(null);
+                                if (!isReadOnly) {
+                                    handlePriorityChange(null);
+                                }
                             }
                             break;
                         }

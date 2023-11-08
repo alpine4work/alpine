@@ -18,9 +18,10 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {DataLossError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {
     SpaceId,
     TaskActionTransactionId,
@@ -200,30 +201,48 @@ export class TaskContextModule extends TaskContextModuleBase {
             return runAllPromises(
                 // Apply the action transaction in every host from our router since every host
                 // needs to be kept up-to-date in realtime.
-                hosts.map(async host => {
-                    const response = await fetchWithTracer(
-                        context.tracer.getTracer(),
-                        `http://${host}/${actionTransaction.spaceId}/applyActionTransaction`,
-                        {
-                            spanRoute: `/:spaceId/applyActionTransaction`,
-                            method: "POST",
-                            headers: {
-                                authorization: `bearer ${token}`,
-                                "content-type": "application/json",
-                            },
-                            body: requestBody,
-                        },
-                    );
+                //
+                // We apply the action whether or not the host is healthy!
+                hosts.map(async ({host}) => {
+                    await retryWithExponentialBackoff(async retry => {
+                        try {
+                            await fetchWithTracer(
+                                context.tracer.getTracer(),
+                                `http://${host}/${actionTransaction.spaceId}/applyActionTransaction`,
+                                {
+                                    spanRoute: `/:spaceId/applyActionTransaction`,
+                                    method: "POST",
+                                    headers: {
+                                        authorization: `bearer ${token}`,
+                                        "content-type": "application/json",
+                                    },
+                                    body: requestBody,
+                                },
+                                async response => {
+                                    const body = await response.json();
 
-                    const responseBody = await response.json();
+                                    if (!response.ok) {
+                                        if ("error" in body) {
+                                            throw ErrorSchema.deserialize(body.error);
+                                        } else {
+                                            throw new UnknownError(
+                                                "Couldn't apply task action transaction",
+                                            );
+                                        }
+                                    }
+                                },
+                            );
+                        } catch (error) {
+                            // Retry system errors (like `ECONNREFUSED` errors) since the service might be
+                            // starting up or may be temporarily unavailable. Non-system errors (like
+                            // `PermissionDeniedError` or `InvalidArgumentError`) we don't retry.
+                            if (isSystemError(error)) {
+                                retry(error);
+                            }
 
-                    if (!response.ok) {
-                        if ("error" in responseBody) {
-                            throw ErrorSchema.deserialize(responseBody.error);
-                        } else {
-                            throw new UnknownError("Couldn't apply task action transaction");
+                            throw error;
                         }
-                    }
+                    });
                 }),
             );
         });
@@ -248,8 +267,8 @@ export class TaskContextModule extends TaskContextModuleBase {
         spaceId: SpaceId,
         input: SchemaType<typeof TaskRealtimeLoadQueriesInputSchema>,
     ): Promise<SchemaType<typeof TaskRealtimeLoadQueriesOutputSchema>> {
-        const [hosts, token] = await runAllPromises([
-            this.router.getHosts(this._context, spaceId),
+        const [host, token] = await runAllPromises([
+            this.router.getSessionHost(this._context, spaceId, this._context.actor.getSessionId()),
             this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
                 type: "Session",
                 sessionId: this._context.actor.getSessionId(),
@@ -257,13 +276,7 @@ export class TaskContextModule extends TaskContextModuleBase {
             }),
         ]);
 
-        // Randomly select a host to load our queries from.
-        //
-        // NOCOMMIT: Use `SessionId` as random seed for routing.
-        assert(hosts.length > 0);
-        const host = hosts[randomInteger(hosts.length)]!;
-
-        const response = await fetchWithTracer(
+        return fetchWithTracer(
             this._context.tracer.getTracer(),
             `http://${host}/${spaceId}/loadQueries`,
             {
@@ -275,16 +288,17 @@ export class TaskContextModule extends TaskContextModuleBase {
                 },
                 body: JSON.stringify(TaskRealtimeLoadQueriesInputSchema.serialize(input)),
             },
+            async response => {
+                const body: {ok: true} | {ok: false; error: SchemaSerializedValue} =
+                    await response.json();
+
+                if (!body.ok) {
+                    throw ErrorSchema.deserialize(body.error);
+                }
+
+                return TaskRealtimeLoadQueriesOutputSchema.deserialize(body);
+            },
         );
-
-        const responseBody: {ok: true} | {ok: false; error: SchemaSerializedValue} =
-            await response.json();
-
-        if (!responseBody.ok) {
-            throw ErrorSchema.deserialize(responseBody.error);
-        }
-
-        return TaskRealtimeLoadQueriesOutputSchema.deserialize(responseBody);
     }
 }
 

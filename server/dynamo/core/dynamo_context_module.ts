@@ -1,9 +1,9 @@
-import {AwsClient} from "aws4fetch";
 import {
     DynamoClient,
     DynamoClientBatchContext,
     DynamoReadConsistency,
 } from "~/server/dynamo/core/internal/dynamo_client.js";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
@@ -11,7 +11,6 @@ import {InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
  * Context module for DynamoDB. Holds a DynamoDB client which is accessible to
@@ -74,11 +73,8 @@ export class DynamoContextModule<Modules extends {} = {}>
         this._retryTransaction = retryTransaction;
     }
 
-    public static new(options: {
-        getAwsHttpClient: (tracer: TracerBase) => Promise<AwsClient>;
-        awsDynamoUrl: string;
-    }) {
-        return new DynamoContextModule(new DynamoClient(options), {
+    public static new(url: string, signer: AwsRequestSigner) {
+        return new DynamoContextModule(new DynamoClient(url, signer), {
             defaultReadConsistency: "Eventual",
             retryTransaction: null,
         });
@@ -91,7 +87,7 @@ export class DynamoContextModule<Modules extends {} = {}>
      * May only run in a test environment.
      */
     public static test(): DynamoContextModule & {
-        initialize: (awsHttpClient: AwsClient, awsDynamoUrl: string) => void;
+        initialize: (url: string, signer: AwsRequestSigner) => void;
     } {
         assert(process.env.NODE_ENV === "test");
 
@@ -101,7 +97,7 @@ export class DynamoContextModule<Modules extends {} = {}>
         });
 
         return Object.assign(contextModule, {
-            initialize: (awsHttpClient: AwsClient, awsDynamoUrl: string) => {
+            initialize: (url: string, signer: AwsRequestSigner) => {
                 let hasInitialized = false;
                 try {
                     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -113,10 +109,7 @@ export class DynamoContextModule<Modules extends {} = {}>
                 assert(!hasInitialized, "Can not initialize DynamoDB client twice");
 
                 Object.defineProperty(contextModule, "_client", {
-                    value: new DynamoClient({
-                        getAwsHttpClient: async () => awsHttpClient,
-                        awsDynamoUrl,
-                    }),
+                    value: new DynamoClient(url, signer),
                     writable: false,
                 });
             },

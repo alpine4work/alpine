@@ -1,0 +1,78 @@
+import {CdkCustomResourceEvent, CdkCustomResourceResponse} from "aws-lambda";
+import {webcrypto} from "crypto";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {deployTaskIndexes} from "~/server/tasks/data/task_index.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
+
+// In Node.js v18 (AWS Lambda's latest Node.js version) `crypto` is not available as
+// a global. Set it as a global here.
+(globalThis as any).crypto = webcrypto;
+
+/**
+ * Our OpenSearch deploy script is called by the AWS CDK as a [CloudFormation
+ * custom resource][1]. It runs in [AWS Lambda][2].
+ *
+ * [1]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-custom-resources.html
+ * [2]: https://aws.amazon.com/lambda/
+ */
+export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomResourceResponse> {
+    const opensearchUrl = `https://${assertExists(process.env.OPENSEARCH_HOST)}`;
+
+    if (event.RequestType === "Delete") {
+        return {
+            StackId: event.StackId,
+            RequestId: event.RequestId,
+            LogicalResourceId: event.LogicalResourceId,
+        };
+    }
+
+    let waitUntilPromises = new Set<Promise<unknown>>();
+
+    const tracer = TracerRoot.new({
+        serviceName: "Adhoc",
+        // AWS Lambda functions run on Node.js
+        jsHost: "Node",
+        untrusted: false,
+        clock: unsynchronizedSystemClock,
+        sendEvent: event => {
+            // TODO(calebmer): Our deploy script is in a private isolated VPC subnet which
+            // means it can't access Honeycomb. We don't currently have NAT gateways to
+            // allow egress from isolated VPC subnets.
+            //
+            // Once we have a [enterprise plan with Honeycomb we can use AWS
+            // PrivateLink][1]. Or if we start running [Honeycomb refinery][2] in our
+            // VPC we can send events there.
+            //
+            // [1]: https://docs.honeycomb.io/integrations/aws/aws-privatelink/
+            // [2]: https://docs.honeycomb.io/manage-data-volume/refinery/
+            //
+            // eslint-disable-next-line no-console
+            console.log({
+                time: new Date(event.time).toISOString(),
+                data: event.getFlatData(),
+            });
+        },
+    });
+
+    const signer = new AwsRequestSigner();
+    const client = new OpensearchClient(opensearchUrl, signer);
+
+    await deployTaskIndexes(tracer, client);
+
+    // Wait for any promises passed into `waitUntil()` to resolve before returning.
+    while (waitUntilPromises.size > 0) {
+        const promises = waitUntilPromises;
+        waitUntilPromises = new Set();
+        await runAllPromises(promises);
+    }
+
+    return {
+        StackId: event.StackId,
+        RequestId: event.RequestId,
+        LogicalResourceId: event.LogicalResourceId,
+    };
+}

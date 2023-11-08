@@ -125,6 +125,10 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         type: IdentifierStringSchema,
         displayMessage: Schema.string,
     },
+    common: {
+        count: Schema.integer,
+        isBlocking: Schema.boolean,
+    },
     context: {
         accountId: Schema.id(),
         spaceId: Schema.id(),
@@ -202,6 +206,12 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         sqs: {
             queue: IdentifierStringSchema,
             messageId: Schema.string,
+        },
+        ecs: {
+            cluster: Schema.string,
+            taskDefinitionFamily: Schema.string,
+            taskCount: Schema.integer,
+            containerInstanceCount: Schema.integer,
         },
     },
     email: {

@@ -65,7 +65,7 @@ function actuallyCreateStandardizedRequestListener(
             const responsePromise = handleRequest(request);
 
             responsePromise.then(response => {
-                void sendStandardizedResponse(res, response);
+                sendStandardizedResponse(res, response);
             }, handleUnhandledError);
         } catch (error) {
             // The server should try its best to handle errors and provide a relevant error
@@ -131,7 +131,7 @@ export function createStandardizedRequestHeaders(reqHeaders: IncomingHttpHeaders
 /**
  * Convert a WhatWG response object to a Node.js response.
  */
-export async function sendStandardizedResponse(res: ServerResponse, response: Response) {
+export function sendStandardizedResponse(res: ServerResponse, response: Response) {
     res.statusCode = response.status;
 
     for (const [key, value] of response.headers.entries()) {
@@ -278,7 +278,7 @@ export function createStandardizedServerWithWebSockets(
 
                 // Otherwise, send the response as is (e.g. unauthorized),
                 // always disabling live-reload as this is a WebSocket upgrade
-                void sendStandardizedResponse(res, response);
+                sendStandardizedResponse(res, response);
             },
             error => {
                 // `error` should have already been logged by our request handler which is

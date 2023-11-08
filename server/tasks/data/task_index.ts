@@ -8,6 +8,7 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
+import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
@@ -53,6 +54,7 @@ import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_f
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 const taskIndexRefreshIntervalSecs = 30;
 const taskIndexRefreshIntervalMs = taskIndexRefreshIntervalSecs * 1000;
@@ -108,6 +110,21 @@ const TaskCollectionIndex = new OpensearchIndex<
     // We want to see new collections in search in near realtime.
     refreshInterval: "1s",
 });
+
+/**
+ * Deploy our task indexes to production.
+ *
+ * May only be called in a production environment. Should only be called by our
+ * deployment scripts.
+ */
+export async function deployTaskIndexes(tracer: TracerBase, client: OpensearchClient) {
+    assert(process.env.NODE_ENV === "production");
+
+    await runAllPromises([
+        client.deployIndex(tracer, TaskIndex),
+        client.deployIndex(tracer, TaskCollectionIndex),
+    ]);
+}
 
 /**
  * Get multiple tasks in parallel as a system actor. System actors have access

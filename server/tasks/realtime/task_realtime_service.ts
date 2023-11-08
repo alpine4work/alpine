@@ -15,6 +15,7 @@ import {
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createServerProcessContext,
     serverProcessContextParseOptions,
@@ -32,6 +33,7 @@ import {
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
+import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {TaskRealtimeServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -48,6 +50,7 @@ import {
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {captureResultPromise} from "~/shared/helpers/control/capture_result_promise.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -66,20 +69,21 @@ type TaskRealtimeSessionActionContextModules = ServerSessionActionContextModules
 runService({
     serviceName: "TaskRealtimeService",
     options: {
-        port: {type: "string"},
-        edgeServiceUrl: {type: "string"},
+        portBase: {type: "string"},
         appServicePublicKey: {type: "string"},
         edgeServiceFamilyPublicKey: {type: "string"},
         taskRealtimeServicePublicKey: {type: "string"},
         taskRealtimeServicePrivateKey: {type: "string"},
         ...serverProcessContextParseOptions,
     },
-    run: async (options, tracer) => {
-        const port = options.port ? parseInt(options.port, 10) : null;
-        if (!port || !Number.isInteger(port)) throw new InternalError("Missing integer `port` arg");
+    run: async ({options, tracer, workerIndex}) => {
+        const portBase = options.portBase ? parseInt(options.portBase, 10) : null;
+        if (!portBase || !Number.isInteger(portBase))
+            throw new InternalError("Missing integer `portBase` arg");
 
-        const {edgeServiceUrl} = options;
-        if (!edgeServiceUrl) throw new InternalError("Missing `edgeServiceUrl` option");
+        // In `development` environments our service only has one worker. Listen on
+        // `portBase` instead of `portBase + 1`.
+        const port = process.env.NODE_ENV !== "production" ? portBase : portBase + workerIndex + 1;
 
         if (!options.appServicePublicKey)
             throw new InternalError("Missing `appServicePublicKey` option");
@@ -139,12 +143,24 @@ runService({
             taskRealtimeServicePrivateKey,
         });
 
-        const processContext = createServerProcessContext({tracer, options});
+        const awsSigner =
+            process.env.NODE_ENV !== "production"
+                ? new AwsRequestSigner({accessKeyId: "local", secretAccessKey: "local"})
+                : new AwsRequestSigner();
+
+        const processContext = createServerProcessContext({tracer, awsSigner, options});
 
         const [server, {start}] = TaskRealtimeServer.new(processContext);
 
-        // NOCOMMIT: Real discovery promise!
-        start(Promise.resolve());
+        const startTime = Date.now();
+
+        start(
+            process.env.NODE_ENV === "production"
+                ? wait(taskRealtimeServiceDiscoveryWaitMs)
+                : // In development we only have one `TaskRealtimeService` instance and it's
+                  // always at the same port. It's always "discovered".
+                  Promise.resolve(),
+        );
 
         // Sometimes we want to upgrade a session actor to a system actor. This gives
         // the action escalated the system permission level which is dangerous! The
@@ -385,6 +401,24 @@ runService({
         const httpServer = createStandardizedServerWithWebSockets(
             tracer,
             async (request, url, span) => {
+                if (url.pathname === "/healthcheck") {
+                    if (Date.now() - startTime < taskRealtimeServiceDiscoveryWaitMs) {
+                        return Promise.resolve(
+                            new Response(
+                                "503 Service Unavailable: Waiting to be discovered by other services",
+                                {status: 503, headers: {"content-type": "text/plain"}},
+                            ),
+                        );
+                    }
+
+                    return Promise.resolve(
+                        new Response("200 OK", {
+                            status: 200,
+                            headers: {"content-type": "text/plain"},
+                        }),
+                    );
+                }
+
                 const result = await captureResultPromise(() => handleRequest(request, url, span));
 
                 if (result.ok) {
@@ -448,7 +482,7 @@ runService({
             // Log when ready in production to help when debugging container startup.
             if (process.env.NODE_ENV === "production") {
                 // eslint-disable-next-line no-console
-                console.log(`Listening on port ${port}`);
+                console.log(`Listening on port ${port} (pid: ${process.pid})`);
             }
         });
     },

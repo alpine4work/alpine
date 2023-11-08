@@ -83,8 +83,6 @@ export function useTaskUndoStackState({
     }, [undoState.redoStackRef, undoState.undoStackRef]);
 
     const pushUndoStackEntry = (entry: TaskUndoStackEntry) => {
-        console.log("pushUndoStackEntry");
-
         // Any action that's not an undo or redo clears our redo stack.
         for (const oldEntry of undoState.redoStackRef.current) oldEntry.release();
         undoState.redoStackRef.current = [];

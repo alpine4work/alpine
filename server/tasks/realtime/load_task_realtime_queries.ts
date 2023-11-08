@@ -228,7 +228,6 @@ export async function loadTaskRealtimeQueries(
         });
 
         const [{loadedState, tasks}, gridViewExpansionState] = await runAllPromises([
-            // NOCOMMIT: Multi-search?
             server.loadQuery(context, {
                 spaceId,
                 filters,

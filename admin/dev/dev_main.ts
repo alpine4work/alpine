@@ -93,6 +93,7 @@ export type Artifact = {
     readonly stdioPrefix: string;
     readonly publicPort: number;
     privatePort: number;
+    readonly privatePortArg?: string;
     readonly env?: {readonly [key: string]: string};
     readonly args?: ReadonlyArray<string>;
     readonly server: MutexValue<ArtifactServer | null>;
@@ -170,8 +171,10 @@ async function createArtifacts() {
             stdioPrefix: "tsk",
             publicPort: taskRealtimeDevPort,
             privatePort: privatePort3,
+            // In production we have an HTTP server for each CPU on the machine. In
+            // development we only have one HTTP server.
+            privatePortArg: "portBase",
             args: [
-                `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
@@ -372,7 +375,10 @@ async function rebuildArtifact(artifact: Artifact) {
 
         const subprocess = spawnWithCoordinatedStdio(
             executablePath,
-            [`--port=${artifact.privatePort}`, ...(artifact.args ?? [])],
+            [
+                `--${artifact.privatePortArg ?? "port"}=${artifact.privatePort}`,
+                ...(artifact.args ?? []),
+            ],
             {
                 env: {...process.env, ...artifact.env},
                 stdioPrefix: artifact.stdioPrefix,

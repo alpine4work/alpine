@@ -294,6 +294,32 @@ export type TracerEventData = {
     };
 
     /**
+     * Generic span fields unrelated to a specific sub-system in our
+     * infrastructure. Useful if you're writing a one-off span and want to include
+     * some data but don't want to define entirely new event data fields.
+     *
+     * You can't really compare these fields to each other across spans with
+     * different names.
+     */
+    readonly common?: {
+        /**
+         * A count of something related to the span. You should be able to tell what
+         * the count is referring to by the span name.
+         */
+        readonly count?: number;
+
+        /**
+         * This span is blocking other spans in our trace. As opposed to being run in
+         * parallel with other spans (e.g. via `context.process.waitUntil()` or
+         * `runAllPromises()`).
+         *
+         * If this is set to true it implies the span could be run in parallel but in
+         * this instance it's not.
+         */
+        readonly isBlocking?: boolean;
+    };
+
+    /**
      * Information about where this event ocurred in the product. Usually set
      * in the client's web browser then propagated.
      */
@@ -571,6 +597,32 @@ export type TracerEventData = {
              * around our systems.
              */
             readonly messageId?: string;
+        };
+
+        /**
+         * Information regarding AWS Elastic Container Service (ECS) which is AWS's
+         * version of Kubernetes.
+         */
+        readonly ecs?: {
+            /**
+             * The name of the ECS cluster we're operating against.
+             */
+            readonly cluster?: string;
+
+            /**
+             * The name of the ECS task definition family we're operating against.
+             */
+            readonly taskDefinitionFamily?: string;
+
+            /**
+             * The number of tasks our ECS operation is dealing with.
+             */
+            readonly taskCount?: number;
+
+            /**
+             * The number of container instances our ECS operation is dealing with.
+             */
+            readonly containerInstanceCount?: number;
         };
     };
 

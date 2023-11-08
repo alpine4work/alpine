@@ -2,9 +2,11 @@ import murmurhash from "murmurhash";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {InternalError} from "~/shared/error/error.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {decodeId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
@@ -12,15 +14,43 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * block while reloading the routes object. You can't use the old routes
  * object.
  */
-export const taskRealtimeServiceRoutesInvalidatedMs = 1000 * 60 * 4;
+export const taskRealtimeServiceRoutesInvalidatedMs = 1000 * 60 * 2;
 
 /**
  * The cached routes object should be revalidated after this period of time in
- * the background. Then when the routes object is invalid we can use the fresh
- * routes object we revalidated so the user doesn't pay a cache revalidation
- * latency penalty.
+ * the background. Then when the routes object becomes invalid we can use the
+ * fresh routes object we prefetched so the user doesn't pay a cache
+ * revalidation latency penalty.
  */
-export const taskRealtimeServiceRoutesRevalidateMs = 1000 * 60 * 3;
+export const taskRealtimeServiceRoutesRevalidateMs =
+    taskRealtimeServiceRoutesInvalidatedMs - 1000 * 5;
+
+/**
+ * The time `TaskRealtimeService` waits before it considers itself to be
+ * healthy. It's very important that `TaskRealtimeService` sees every new
+ * committed `TaskAction`. If `TaskRealtimeService` misses a `TaskAction`
+ * related to permissions it might then users may be allowed to view data
+ * they're not supposed until, worst case, the `TaskRealtimeService`
+ * instance restarts.
+ *
+ * We can't consider `TaskRealtimeService` to be healthy until all of our other
+ * services discover it. Until then we need to keep running our old
+ * `TaskRealtimeService` nodes.
+ *
+ * To be safe, we wait TWO route invalidations among our services. Our
+ * `TaskRealtimeService` should be discovered after only one invalidation but
+ * we wait two in case the ECS API calls we make are eventually consistent.
+ *
+ * Deployment speed is bounded by this time! So we need to balance the wait
+ * time being relatively quick while also not overloading ECS APIs.
+ */
+// NOTE(calebmer): I know "service discovery" is an area of distributed systems
+// but I'm unfamiliar with it. Maybe there are better ways to implement
+// discovery for `TaskRealtimeService`?
+//
+// I'd also love some protections/monitors that make sure `TaskRealtimeService`
+// does indeed see every `TaskAction`.
+export const taskRealtimeServiceDiscoveryWaitMs = taskRealtimeServiceRoutesInvalidatedMs * 2;
 
 /**
  * Describes the layout of our `TaskRealtimeService` fleet to allow
@@ -36,6 +66,7 @@ const TaskRealtimeServiceRoutesPartitionInstanceWorkerSchema = Schema.object({
 });
 
 const TaskRealtimeServiceRoutesPartitionInstanceSchema = Schema.object({
+    isHealthy: Schema.boolean,
     workers: Schema.array(TaskRealtimeServiceRoutesPartitionInstanceWorkerSchema),
 });
 
@@ -43,8 +74,20 @@ const TaskRealtimeServiceRoutesPartitionSchema = Schema.object({
     instances: Schema.array(TaskRealtimeServiceRoutesPartitionInstanceSchema),
 });
 
-export const TaskRealtimeServiceRoutesSchema = Schema.object({
+const TaskRealtimeServiceRoutesPartitionPlaneSchema = Schema.object({
     partitions: Schema.array(TaskRealtimeServiceRoutesPartitionSchema),
+});
+
+export const TaskRealtimeServiceRoutesSchema = Schema.object({
+    // During a deployment where we increase the number of `TaskRealtimeService`
+    // partitions we have, we may have the old set of partitions and the new set of
+    // partitions running at once.
+    //
+    // To make sure we route requests properly these "planes" (segmented by
+    // partition count) need to be considered separately. Randomly picking a
+    // partition for a space across partitions with different partition counts may
+    // end up with an unexpected distribution of spaces.
+    partitionPlanes: Schema.array(TaskRealtimeServiceRoutesPartitionPlaneSchema),
 });
 
 /**
@@ -80,28 +123,80 @@ export abstract class TaskRealtimeServiceRouterBase {
         } | null;
     } | null = null;
 
+    private readonly _stableRandom = new StableRandom("TaskRealtimeServiceRouter");
+
     /**
-     * Get the `TaskRealtimeService` URLs for this `SpaceId`. Will always return a
-     * non-empty array. If there are multiple URLs then that means we have multiple
+     * Get the `TaskRealtimeService` hosts for this `SpaceId` (combination of
+     * `hostname` and `port`).
+     *
+     * If there are multiple URLs then that means we have multiple
      * `TaskRealtimeService` instances for the space. You may choose one however
      * you'd like or send a request to all of them if you need.
+     *
+     * If there are no hosts something bad has happened while deploying! We should
+     * always have at least one host per `SpaceId`.
      */
     public async getHosts(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         spaceId: SpaceId,
-    ): Promise<Array<string>> {
+    ): Promise<Array<{isHealthy: boolean; host: string}>> {
         const routes = await this.getRoutes(context);
-        assert(routes.partitions.length > 0);
 
         const hash = murmurhash.v3(decodeId(spaceId));
-        const partition = routes.partitions[hash % routes.partitions.length]!;
-        assert(partition.instances.length > 0);
+        const hosts: Array<{isHealthy: boolean; host: string}> = [];
 
-        return partition.instances.map(instance => {
-            assert(instance.workers.length > 0);
-            const worker = instance.workers[hash % instance.workers.length]!;
-            return worker.host;
-        });
+        for (const partitionPlane of routes.partitionPlanes) {
+            if (partitionPlane.partitions.length === 0) continue;
+
+            const partition = partitionPlane.partitions[hash % partitionPlane.partitions.length]!;
+
+            for (const instance of partition.instances) {
+                if (instance.workers.length === 0) continue;
+
+                const worker = instance.workers[hash % instance.workers.length]!;
+                hosts.push({
+                    isHealthy: instance.isHealthy,
+                    host: worker.host,
+                });
+            }
+        }
+
+        return hosts;
+    }
+
+    /**
+     * If our session wants to connect to `TaskRealtimeService` then we
+     * consistently pick a single, healthy, host.
+     */
+    public async getSessionHost(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        spaceId: SpaceId,
+        sessionId: SessionId,
+    ): Promise<string> {
+        const allHosts = await this.getHosts(context, spaceId);
+
+        const healthyHosts = filterMapArray(allHosts, ({isHealthy, host}) =>
+            isHealthy ? host : null,
+        );
+
+        if (healthyHosts.length === 0) {
+            throw new InternalError(
+                "No healthy `TaskRealtimeService` instance found for this space",
+            );
+        }
+
+        if (healthyHosts.length === 1) {
+            return healthyHosts[0]!;
+        }
+
+        // The order of hosts is not specified. Since we want to route a `SessionId` to
+        // the same host over, sort the host list so our choice is stable if the host
+        // list doesn't change.
+        healthyHosts.sort();
+
+        const hostIndex = this._stableRandom.randomInteger(sessionId, 0, healthyHosts.length);
+
+        return healthyHosts[hostIndex]!;
     }
 
     /**
@@ -114,6 +209,7 @@ export abstract class TaskRealtimeServiceRouterBase {
      */
     protected abstract _loadRoutes(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        {isBlocking}: {isBlocking: boolean},
     ): Promise<TaskRealtimeServiceRoutes>;
 
     /**
@@ -154,7 +250,7 @@ export abstract class TaskRealtimeServiceRouterBase {
             this._routesState === null ||
             currentTime - this._routesState.loadTime > taskRealtimeServiceRoutesInvalidatedMs
         ) {
-            const routesPromise = this._loadRoutes(context);
+            const routesPromise = this._loadRoutes(context, {isBlocking: true});
             context.process.waitUntil(routesPromise);
 
             this._routesState = {
@@ -171,7 +267,7 @@ export abstract class TaskRealtimeServiceRouterBase {
             currentTime - this._routesState.loadTime > taskRealtimeServiceRoutesRevalidateMs &&
             !this._routesState.next
         ) {
-            const routesPromise = this._loadRoutes(context);
+            const routesPromise = this._loadRoutes(context, {isBlocking: false});
             context.process.waitUntil(routesPromise);
 
             this._routesState.next = {

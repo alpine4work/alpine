@@ -11,6 +11,7 @@ import {
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot, TracerServiceName} from "~/shared/tracer/tracer_root.js";
 
@@ -39,10 +40,11 @@ export function runService<Options extends ParseArgsConfig["options"]>({
 }: {
     serviceName: TracerServiceName;
     options: Options;
-    run: (
-        options: ParsedResults<{options: Options}>["values"],
-        tracer: TracerRoot,
-    ) => Promise<void>;
+    run: (options: {
+        options: ParsedResults<{options: Options}>["values"];
+        tracer: TracerRoot;
+        workerIndex: number;
+    }) => Promise<void>;
 }) {
     // Make our service easy to find in process managers. We include
     // "cyberworlds" and "node" so you can grep by those strings.
@@ -55,8 +57,10 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     if (cluster.isPrimary) {
         const workerCount = process.env.NODE_ENV !== "production" ? 1 : os.cpus().length;
 
-        for (let i = 0; i < workerCount; i++) {
-            cluster.fork();
+        for (let workerIndex = 0; workerIndex < workerCount; workerIndex++) {
+            cluster.fork({
+                SERVICE_WORKER_INDEX: workerIndex,
+            });
         }
 
         let isShuttingDown = false;
@@ -102,6 +106,8 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         });
         return;
     }
+
+    const workerIndex = parseInt(assertExists(process.env.SERVICE_WORKER_INDEX), 10);
 
     const parsedOptions = parseArgs({
         strict: true,
@@ -154,7 +160,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         tracer.logUncaughtException("Uncaught exception", error);
     });
 
-    run(parsedOptions.values, tracer).catch(error => {
+    run({options: parsedOptions.values, tracer, workerIndex}).catch(error => {
         // eslint-disable-next-line no-console
         console.error(error);
         process.exit(1);

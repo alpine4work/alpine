@@ -1,7 +1,6 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
 // `aws4fetch` for executing any AWS commands.
 import type * as types from "@aws-sdk/client-ses";
-import {AwsClient} from "aws4fetch";
 import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {encodeAwsUrlencodedFormat} from "~/server/emails/encode_aws_urlencoded_format.js";
@@ -11,21 +10,21 @@ import {
     getFromEmailAddressName,
 } from "~/server/emails/from_email_address.js";
 import {RenderedEmail} from "~/server/emails/internal/email_templates.js";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {UnknownError} from "~/shared/error/error.js";
-import {TracerBase} from "~/shared/tracer/tracer_base.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * Send an email with AWS SES. Used in production to send emails.
  */
 export class SesEmailContextModule extends EmailContextModuleBase {
-    // TODO(calebmer): When this code was written, all server code ran on
-    // Cloudflare Workers which could not run the AWS SDK. Now that this module
-    // only runs on Node.js we should switch to using the AWS SDK SES client.
-    private readonly _getAwsHttpClient: (tracer: TracerBase) => Promise<AwsClient>;
+    private readonly _url: string;
+    private readonly _signer: AwsRequestSigner;
 
-    constructor(getAwsHttpClient: (tracer: TracerBase) => Promise<AwsClient>) {
+    constructor(url: string, signer: AwsRequestSigner) {
         super();
-        this._getAwsHttpClient = getAwsHttpClient;
+        this._url = url;
+        this._signer = signer;
     }
 
     protected _send(
@@ -48,8 +47,7 @@ export class SesEmailContextModule extends EmailContextModuleBase {
                 },
             });
 
-            const client = await this._getAwsHttpClient(this._context.tracer.getTracer());
-            const output = await executeSesSendEmailCommand(client, {
+            const output = await executeSesSendEmailCommand(span, this._url, this._signer, {
                 Source: `"${fromEmailAddressName}" <${actualFromEmailAddress}>`,
                 Destination: {ToAddresses: [toEmailAddress]},
                 Message: {
@@ -70,15 +68,17 @@ export class SesEmailContextModule extends EmailContextModuleBase {
     }
 
     public fork() {
-        return new SesEmailContextModule(this._getAwsHttpClient);
+        return new SesEmailContextModule(this._url, this._signer);
     }
 }
 
 async function executeSesSendEmailCommand(
-    client: AwsClient,
+    span: TracerSpan,
+    url: string,
+    signer: AwsRequestSigner,
     input: types.SendEmailCommandInput,
 ): Promise<types.SendEmailCommandOutput> {
-    const response = await client.fetch("https://email.us-east-1.amazonaws.com", {
+    let request = new Request(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -90,6 +90,12 @@ async function executeSesSendEmailCommand(
             ...input,
         } as any),
     });
+
+    request = await signer.sign(request, span);
+
+    // We already have a span so we don't need `fetchWithTracer()`.
+    // eslint-disable-next-line no-global-fetch
+    const response = await fetch(request);
 
     const body: any = await response.json();
     const output = body.SendEmailResponse?.SendEmailResult;

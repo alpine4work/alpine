@@ -617,7 +617,11 @@ export class WebSocketServer<
         // In tests, block establishing the connection on authorization.
         await connectActionContext.tracer.withSpan(
             webSocketConnectionAuthorizationSpanName,
-            context => actualConnection.authorize(context as Context<SessionActionContextModules>),
+            (context, span) => {
+                span.addData({common: {isBlocking: true}});
+
+                return actualConnection.authorize(context as Context<SessionActionContextModules>);
+            },
         );
 
         const connection = new WebSocketServerTestConnectionWrapper({
@@ -735,7 +739,7 @@ const webSocketConnectionAuthorizationSpanName = "Authorizing WebSocket connecti
  * time period. At this point, we block all message sending and receiving until
  * authorization is revalidated.
  */
-const webSocketConnectionAuthorizationInvalidatedMs = 1000 * 60 * 4;
+const webSocketConnectionAuthorizationInvalidatedMs = 1000 * 60 * 2;
 
 /**
  * After this time period has elapsed since our last WebSocket connection
@@ -751,7 +755,8 @@ const webSocketConnectionAuthorizationInvalidatedMs = 1000 * 60 * 4;
  * connection is sitting idle with only ping/pong then we don't run
  * authorization.
  */
-const webSocketConnectionAuthorizationRevalidateMs = 1000 * 60 * 3;
+const webSocketConnectionAuthorizationRevalidateMs =
+    webSocketConnectionAuthorizationInvalidatedMs - 1000 * 10;
 
 class WebSocketServerConnectionWrapper<
     ProcessContextModules extends {
@@ -1102,14 +1107,25 @@ class WebSocketServerConnectionWrapper<
                 context.fork
                     ? (context as Context<SessionActionContextModules>).tracer.withSpan(
                           webSocketConnectionAuthorizationSpanName,
-                          context =>
-                              this.connection.authorize(
+                          (context, span) => {
+                              // Our authorization promise is blocking if handling procedures or sending the
+                              // connection new events is blocked on the authorization promise finishing.
+                              span.addData({common: {isBlocking: true}});
+
+                              return this.connection.authorize(
                                   context as Context<SessionActionContextModules>,
-                              ),
+                              );
+                          },
                       )
                     : this._detachedForker.withFork(
                           webSocketConnectionAuthorizationSpanName,
-                          context => this.connection.authorize(context),
+                          (context, span) => {
+                              // Our authorization promise is blocking if handling procedures or sending the
+                              // connection new events is blocked on the authorization promise finishing.
+                              span.addData({common: {isBlocking: true}});
+
+                              return this.connection.authorize(context);
+                          },
                       ),
             );
 
@@ -1136,14 +1152,25 @@ class WebSocketServerConnectionWrapper<
                 context.fork
                     ? (context as Context<SessionActionContextModules>).tracer.withSpan(
                           webSocketConnectionAuthorizationSpanName,
-                          context =>
-                              this.connection.authorize(
+                          (context, span) => {
+                              // Our authorization promise is blocking if handling procedures or sending the
+                              // connection new events is blocked on the authorization promise finishing.
+                              span.addData({common: {isBlocking: false}});
+
+                              return this.connection.authorize(
                                   context as Context<SessionActionContextModules>,
-                              ),
+                              );
+                          },
                       )
                     : this._detachedForker.withFork(
                           webSocketConnectionAuthorizationSpanName,
-                          context => this.connection.authorize(context),
+                          (context, span) => {
+                              // Our authorization promise is blocking if handling procedures or sending the
+                              // connection new events is blocked on the authorization promise finishing.
+                              span.addData({common: {isBlocking: false}});
+
+                              return this.connection.authorize(context);
+                          },
                       ),
             );
 
@@ -1538,7 +1565,11 @@ class WebSocketServerTestConnectionWrapper<
 
             await this._actionContext.fork.withFork(
                 webSocketConnectionAuthorizationSpanName,
-                context => this.connection.authorize(context),
+                (context, span) => {
+                    span.addData({common: {isBlocking: false}});
+
+                    return this.connection.authorize(context);
+                },
             );
         });
 
@@ -1589,11 +1620,16 @@ class WebSocketServerTestConnectionWrapper<
     public authorize() {
         return this._actionContext.fork.withFork(
             webSocketConnectionAuthorizationSpanName,
-            context =>
-                this.connection.authorize(context).catch(error => {
+            (context, span) => {
+                // Considered non-blocking since we aren't blocking any WebSocket operations
+                // like sending or receiving events.
+                span.addData({common: {isBlocking: false}});
+
+                return this.connection.authorize(context).catch(error => {
                     this.closeWithError(context, error);
                     throw error;
-                }),
+                });
+            },
         );
     }
 

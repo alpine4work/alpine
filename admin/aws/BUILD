@@ -4,9 +4,11 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "aws",
     data = [
+        "//admin/opensearch/deploy:deploy_lambda_directory",
         "//app:app_image_tarball_linux_x86_64_opt",
+        "//server/tasks/realtime:realtime_image_tarball_linux_x86_64_opt",
+        "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",
     ],
-    visibility = ["//app/dev:__pkg__"],
     deps = [
         "//:node_modules/aws-cdk-lib",
         "//:node_modules/chalk",
@@ -15,6 +17,9 @@ ts_project(
         "//:node_modules/pretty-ms",
         "//admin/dynamo",
         "//admin/helpers",
+        "//server/helpers/node",
+        "//server/tasks/router",
+        "//shared/helpers",
     ],
 )
 

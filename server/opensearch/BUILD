@@ -2,7 +2,10 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "opensearch",
-    visibility = ["//server:__subpackages__"],
+    visibility = [
+        "//admin/opensearch:__subpackages__",
+        "//server:__subpackages__",
+    ],
     deps = [
         "//:node_modules/@opensearch-project/opensearch",
         "//:node_modules/@types/json-bigint",

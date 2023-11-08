@@ -9,9 +9,13 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/@aws-sdk/credential-provider-node",
+        "//:node_modules/@smithy/types",
         "//:node_modules/@types/node",
+        "//:node_modules/aws4fetch",
         "//shared/error",
         "//shared/helpers",
+        "//shared/tracer",
     ],
 )
 

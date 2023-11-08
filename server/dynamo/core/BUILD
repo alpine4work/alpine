@@ -22,6 +22,7 @@ ts_project(
         "//:node_modules/date-fns",
         "//:node_modules/json-stable-stringify",
         "//server/emails",
+        "//server/helpers/node",
         "//server/schema",
         "//shared/context",
         "//shared/dynamo",

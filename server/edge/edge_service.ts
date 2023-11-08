@@ -1,5 +1,5 @@
 import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable_object_stub.js";
-import {EdgeTaskRealtimeServiceRouter} from "~/server/edge/edge_task_realtime_service_router.js";
+import {TaskRealtimeServiceEdgeRouter} from "~/server/edge/task_realtime_service_edge_router.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
 import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
@@ -9,8 +9,6 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
-import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -33,7 +31,7 @@ type EdgeServiceEnv = {
 let sharedResources: {
     env: EdgeServiceEnv;
     tokenAgentPromise: Promise<EdgeServiceFamilyTokenAgent>;
-    taskRealtimeServiceRouterPromise: Promise<EdgeTaskRealtimeServiceRouter>;
+    taskRealtimeServiceRouterPromise: Promise<TaskRealtimeServiceEdgeRouter>;
 } | null = null;
 
 function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: ExecutionContext) {
@@ -126,7 +124,7 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                     tokenAgentPromise,
                     taskRealtimeServiceRouterPromise: tokenAgentPromise.then(
                         tokenAgent =>
-                            new EdgeTaskRealtimeServiceRouter({
+                            new TaskRealtimeServiceEdgeRouter({
                                 protocol: url.protocol,
                                 host: url.host,
                                 tokenAgent,
@@ -244,7 +242,24 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                 const taskRealtimeServiceRouter =
                     await sharedResources.taskRealtimeServiceRouterPromise;
 
-                const taskRealtimeServiceHosts = await taskRealtimeServiceRouter.getHosts(
+                const headers = new Headers(request.headers);
+                addTracerPropagationContextHeader(headers, span);
+
+                // We authenticate with an `Authorization` not a `Cookie` header.
+                headers.delete("cookie");
+
+                // When connecting to `TaskRealtimeService` via the edge, you must authenticate
+                // with a session cookie. `Authorization` headers are ignored.
+                const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+                if (!sessionCookieToken) throw unauthenticatedSessionError();
+
+                const requestToken = await tokenAgent.dangerouslySignShortLivedToken(
+                    "TaskRealtimeService",
+                    sessionCookieToken,
+                );
+                headers.set("authorization", `bearer ${requestToken}`);
+
+                const taskRealtimeServiceHost = await taskRealtimeServiceRouter.getSessionHost(
                     Context.new({
                         process: new ProcessContextModule({
                             waitUntil: promise => executionContext.waitUntil(promise),
@@ -252,39 +267,29 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                         tracer: new TracerContextModule(span),
                     }),
                     spaceId,
+                    sessionCookieToken.sessionId,
                 );
-                assert(taskRealtimeServiceHosts.length > 0);
 
-                const taskRealtimeServiceHost =
-                    taskRealtimeServiceHosts.length === 1
-                        ? taskRealtimeServiceHosts[0]!
-                        : // Pick a realtime service URL at random if we got multiple. If we are
-                          // currently deploying the task realtime service there may be multiple live
-                          // servers. If we happen to pick the one that's shutting down it should be
-                          // closed soon enough.
-                          //
-                          // NOCOMMIT: Use `SessionId` as random seed for routing.
-                          taskRealtimeServiceHosts[randomInteger(taskRealtimeServiceHosts.length)]!;
-
-                const headers = new Headers(request.headers);
-                addTracerPropagationContextHeader(headers, span);
-
-                // We authenticate with an `Authorization` not a `Cookie` header.
-                headers.delete("cookie");
-
-                if (!headers.has("authorization")) {
-                    const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
-                    if (!sessionCookieToken) throw unauthenticatedSessionError();
-
-                    const requestToken = await tokenAgent.dangerouslySignShortLivedToken(
-                        "TaskRealtimeService",
-                        sessionCookieToken,
-                    );
-                    headers.set("authorization", `bearer ${requestToken}`);
+                if (process.env.NODE_ENV !== "production") {
+                    // eslint-disable-next-line no-global-fetch
+                    return fetch(`http://${taskRealtimeServiceHost}/${spaceId}`, {headers});
                 }
 
+                const [taskRealtimeServiceHostname = "", taskRealtimeServicePort = ""] =
+                    taskRealtimeServiceHost.split(":");
+
+                // Proxy a WebSocket connection through Cloudflare. Notice we're using `http`
+                // instead of `https`! Cloudflare is responsible for encrypting.
+                //
+                // Frustratingly, in production Cloudflare ignores non-default ports. So we run
+                // a small proxy server in `TaskRealtimeService` on port 80 that redirects to
+                // the right port.
+                //
                 // eslint-disable-next-line no-global-fetch
-                return fetch(`${url.protocol}//${taskRealtimeServiceHost}/${spaceId}`, {headers});
+                return fetch(
+                    `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}`,
+                    {headers},
+                );
             }
         }
 

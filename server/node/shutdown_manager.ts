@@ -19,7 +19,21 @@ let isShuttingDown = false;
 function handleShutdown(signal: "SIGINT" | "SIGTERM") {
     isShuttingDown = true;
 
+    // It's helpful to see service lifecycle events in production logs. All logging
+    // in response to user actions should go to Honeycomb.
+    if (process.env.NODE_ENV === "production") {
+        // eslint-disable-next-line no-console
+        console.log(`Graceful shutdown started (pid: ${process.pid})`);
+    }
+
     if (ingressTrafficShutdownListeners.size === 0 && shutdownListeners.size === 0) {
+        // It's helpful to see service lifecycle events in production logs. All logging
+        // in response to user actions should go to Honeycomb.
+        if (process.env.NODE_ENV === "production") {
+            // eslint-disable-next-line no-console
+            console.log(`Graceful shutdown finished (pid: ${process.pid})`);
+        }
+
         process.exit(0);
     } else {
         const ingressTrafficShutdownPromise = runAllPromises(
@@ -71,11 +85,26 @@ function handleShutdown(signal: "SIGINT" | "SIGTERM") {
 
         fullShutdownPromise.then(
             () => {
+                // It's helpful to see service lifecycle events in production logs. All logging
+                // in response to user actions should go to Honeycomb.
+                if (process.env.NODE_ENV === "production") {
+                    // eslint-disable-next-line no-console
+                    console.log(`Graceful shutdown finished (pid: ${process.pid})`);
+                }
+
                 process.exit(0);
             },
             error => {
                 // eslint-disable-next-line no-console
                 console.error(error);
+
+                // It's helpful to see service lifecycle events in production logs. All logging
+                // in response to user actions should go to Honeycomb.
+                if (process.env.NODE_ENV === "production") {
+                    // eslint-disable-next-line no-console
+                    console.log(`Graceful shutdown finished (pid: ${process.pid})`);
+                }
+
                 process.exit(1);
             },
         );

@@ -12,4 +12,7 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
 # --- end runfiles.bash initialization v3 ---
 
 "$(rlocation cyberworlds/admin/aws/cdk.sh)" deploy
+
+# TODO(calebmer): Someday, deploy to Cloudflare in an AWS custom resource so
+# everything we deploy goes through the AWS CDK.
 "$(rlocation cyberworlds/server/edge/wrangler.sh)" deploy

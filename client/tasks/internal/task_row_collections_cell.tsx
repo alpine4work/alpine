@@ -215,25 +215,27 @@ function TaskRowCollectionsCell(
                 switch (event.key) {
                     case "Backspace":
                     case "Delete": {
-                        event.preventDefault();
-                        event.stopPropagation();
+                        if (event.currentTarget === event.target) {
+                            event.preventDefault();
+                            event.stopPropagation();
 
-                        if (!isReadOnly) {
-                            commitActionTransactionEvenIfGhost(taskId => {
-                                const time = query.store.clock.now();
+                            if (!isReadOnly) {
+                                commitActionTransactionEvenIfGhost(taskId => {
+                                    const time = query.store.clock.now();
 
-                                return displayCollections.map(
-                                    (collection): TaskAction => ({
-                                        type: "UpdateTask",
-                                        time,
-                                        taskId,
-                                        taskAction: {
-                                            type: "RemoveCollection",
-                                            collectionId: collection.id,
-                                        },
-                                    }),
-                                );
-                            });
+                                    return displayCollections.map(
+                                        (collection): TaskAction => ({
+                                            type: "UpdateTask",
+                                            time,
+                                            taskId,
+                                            taskAction: {
+                                                type: "RemoveCollection",
+                                                collectionId: collection.id,
+                                            },
+                                        }),
+                                    );
+                                });
+                            }
                         }
                         break;
                     }

@@ -27,14 +27,23 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 
 // If the server needs to be stopped and it seems to be having trouble keeping
 // up with pending requests we should just force the closing of the connections
-const forcedStopTimeout = 1000 * 60;
+const forcedStopTimeout = 1000 * 120;
 
 // In cases a client is sending no more requests, we won't have the opportunity
 // to send `Connection: close` back In these cases we should just end the
 // connection as it has become idle. Note that this could be achieved
 // internally with `server.keepAliveTimeout` but the normal runtime value might
 // be different for what we'd like here
-const timeoutToTryEndIdle = 1000 * 15;
+//
+// NOTE(calebmer): Wait at least 60s before trying to end idle connections.
+// [ALB's idle timeout is 60s][1]. Increased the timeout since we were
+// experiencing 502 errors during a deploy. [This blog post][2] claims the fix
+// is to wait for ALB to close keep alive connections instead of us prematurely
+// closing the connection.
+//
+// [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/application-load-balancers.html#connection-idle-timeout
+// [2]:  https://www.tessian.com/blog/how-to-fix-http-502-errors/#:~:text=The%20502%20Bad%20Gateway%20error,segment%20to%20the%20ALB%20socket.
+const timeoutToTryEndIdle = 1000 * 65;
 
 /**
  * Register a shutdown listener for our HTTP server that stops the server from

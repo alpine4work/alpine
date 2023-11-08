@@ -1,4 +1,4 @@
-import {createAdhocAwsClient} from "~/admin/adhoc/create_adhoc_aws_client.js";
+import {createAdhocAwsRequestSigner} from "~/admin/adhoc/create_adhoc_aws_request_signer.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
@@ -33,22 +33,21 @@ export async function createAdhocDynamoContext({
         },
     });
 
-    const awsHttpClient = await createAdhocAwsClient({profile: awsProfile});
+    const awsSigner = await createAdhocAwsRequestSigner({profile: awsProfile});
 
     return Context.new({
         tracer: new TracerContextModule(tracer),
-        dynamo: DynamoContextModule.new({
-            getAwsHttpClient: async () => awsHttpClient,
-            awsDynamoUrl:
-                awsProfile !== "local"
-                    ? "https://dynamodb.us-east-1.amazonaws.com"
-                    : `http://localhost:${parseInt(
-                          assertExists(
-                              env.DYNAMO_LOCAL_PORT,
-                              "DynamoDB local port must be provided when running DynamoDB locally",
-                          ),
-                          10,
-                      )}`,
-        }),
+        dynamo: DynamoContextModule.new(
+            awsProfile !== "local"
+                ? "https://dynamodb.us-east-1.amazonaws.com"
+                : `http://localhost:${parseInt(
+                      assertExists(
+                          env.DYNAMO_LOCAL_PORT,
+                          "DynamoDB local port must be provided when running DynamoDB locally",
+                      ),
+                      10,
+                  )}`,
+            awsSigner,
+        ),
     });
 }

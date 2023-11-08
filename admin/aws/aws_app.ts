@@ -1,7 +1,11 @@
 import {App, Stack} from "aws-cdk-lib";
 import {fileURLToPath} from "url";
-import {addAllContainerAwsResources} from "~/admin/aws/internal/add_all_container_aws_resources.js";
-import {addAllDynamoAwsResources} from "~/admin/aws/internal/add_all_dynamo_aws_resources.js";
+import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
+import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
+import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
+import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 
 const outputDirectoryPath = fileURLToPath(new URL("output", import.meta.url));
 
@@ -13,6 +17,25 @@ export async function createAwsApp() {
 }
 
 async function addAwsResources(stack: Stack) {
-    const {dynamoTables} = await addAllDynamoAwsResources(stack);
-    addAllContainerAwsResources(stack, {dynamoTables});
+    const vpc = new AwsVpc(stack);
+
+    const ecsCluster = new AwsEcsCluster(stack, vpc);
+    const opensearch = new AwsOpensearch(stack, vpc);
+
+    const dynamo = await AwsDynamo.new(stack);
+
+    const taskRealtimeService = new AwsTaskRealtimeService(stack, {
+        vpc,
+        ecsCluster,
+        dynamo,
+        opensearch,
+    });
+
+    new AwsAppService(stack, {
+        vpc,
+        ecsCluster,
+        dynamo,
+        opensearch,
+        taskRealtimeService,
+    });
 }

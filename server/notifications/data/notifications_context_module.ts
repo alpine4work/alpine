@@ -227,7 +227,7 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                         {type: "System", spaceId},
                     );
 
-                    const response = await fetchWithTracer(
+                    await fetchWithTracer(
                         this._context.tracer.getTracer(),
                         new URL(
                             `/api/durable-objects/my-account/${accountId}/send-inbox-realtime-event-transaction`,
@@ -252,13 +252,14 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                                 }),
                             ),
                         },
+                        async response => {
+                            if (response.status !== 200 && response.status !== 412) {
+                                throw new InternalError(
+                                    "Failed to broadcast inbox realtime events from `MyAccountService`",
+                                );
+                            }
+                        },
                     );
-
-                    if (response.status !== 200 && response.status !== 412) {
-                        throw new InternalError(
-                            "Failed to broadcast inbox realtime events from `MyAccountService`",
-                        );
-                    }
                 },
             ),
         );

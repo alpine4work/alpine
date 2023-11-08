@@ -4,7 +4,6 @@ import fs from "fs-extra";
 import {createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
-import {LocalTaskRealtimeServiceRouter} from "~/app/local_task_realtime_service_router.js";
 import {seedDynamo} from "~/app/seed_dynamo.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
@@ -16,6 +15,7 @@ import {
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {
     createServerProcessContext,
     serverProcessContextParseOptions,
@@ -28,6 +28,8 @@ import {LoaderContextModule, LoaderContextModules} from "~/server/remix/loader_c
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
+import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
 import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -98,9 +100,11 @@ runService({
         remixDevServerPort: {type: "string"},
         taskRealtimeServiceLocalPort: {type: "string"},
         shouldSeedDynamo: {type: "boolean"},
+        ecsCluster: {type: "string"},
+        taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
         ...serverProcessContextParseOptions,
     },
-    run: async (options, tracer) => {
+    run: async ({options, tracer}) => {
         const port = options.port ? parseInt(options.port, 10) : null;
         if (!port || !Number.isInteger(port)) throw new InternalError("Missing integer `port` arg");
 
@@ -165,13 +169,51 @@ runService({
             appServicePrivateKey,
         });
 
-        const processContext = createServerProcessContext({tracer, options});
+        const awsSigner =
+            process.env.NODE_ENV !== "production"
+                ? new AwsRequestSigner({accessKeyId: "local", secretAccessKey: "local"})
+                : new AwsRequestSigner();
+
+        const processContext = createServerProcessContext({tracer, awsSigner, options});
+
+        // Cache `TaskRealtimeService` routes across the entire process.
+        const taskRealtimeServiceRouter =
+            process.env.NODE_ENV === "production"
+                ? new TaskRealtimeServiceEcsRouter({
+                      region: "us-east-1",
+                      ecsCluster: assertExists(
+                          options.ecsCluster,
+                          "`ecsCluster` option is required in production",
+                      ),
+                      ecsTaskDefinitionFamily: assertExists(
+                          options.taskRealtimeServiceEcsTaskDefinitionFamily,
+                          "`taskRealtimeServiceEcsTaskDefinitionFamily` option is required in production",
+                      ),
+                  })
+                : new TaskRealtimeServiceLocalRouter({
+                      port: parseInt(
+                          assertExists(
+                              options.taskRealtimeServiceLocalPort,
+                              "Task realtime service local port must be provided when running locally",
+                          ),
+                          10,
+                      ),
+                  });
 
         let hasSeededDynamo = false;
 
         const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
 
         const requestListener = createStandardizedRequestListener(tracer, (request, url, span) => {
+            if (url.pathname === "/api/internal/healthcheck") {
+                return Promise.resolve(
+                    new Response("200 OK", {
+                        status: 200,
+                        headers: {"content-type": "text/plain"},
+                    }),
+                );
+            }
+
             return withSessionCookie(tokenAgent, request, async sessionCookie => {
                 // Sometimes we want to upgrade a session actor to a system actor. This gives
                 // the action escalated the system permission level which is dangerous! The
@@ -256,19 +298,7 @@ runService({
                         actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
                         notifications: notificationsContextModule,
                         tasks: new TaskContextModule({
-                            // NOCOMMIT: Production router implementation.
-                            router: new LocalTaskRealtimeServiceRouter({
-                                port:
-                                    process.env.NODE_ENV === "production"
-                                        ? 4000
-                                        : parseInt(
-                                              assertExists(
-                                                  options.taskRealtimeServiceLocalPort,
-                                                  "Task realtime service local port must be provided when running locally",
-                                              ),
-                                              10,
-                                          ),
-                            }),
+                            router: taskRealtimeServiceRouter,
                             tokenAgent,
                             dangerouslyEscalateToSystemContext,
                         }),
@@ -321,7 +351,7 @@ runService({
             // Log when ready in production to help when debugging container startup.
             if (process.env.NODE_ENV === "production") {
                 // eslint-disable-next-line no-console
-                console.log(`Listening on port ${port}`);
+                console.log(`Listening on port ${port} (pid ${process.pid})`);
             }
         });
     },

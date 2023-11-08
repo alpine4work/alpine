@@ -171,8 +171,7 @@ export function createTestServices(context: TestContext): TestServer {
         taskRealtimeServiceSubprocess = spawn(
             joinPath(runfilesPath, "cyberworlds/server/tasks/realtime/realtime.sh"),
             [
-                `--port=${taskRealtimeServicePort}`,
-                `--edgeServiceUrl=http://localhost:${edgeServicePort}`,
+                `--portBase=${taskRealtimeServicePort}`,
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,

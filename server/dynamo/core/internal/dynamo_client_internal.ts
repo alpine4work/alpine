@@ -1,12 +1,12 @@
 // IMPORTANT: We are only importing `@aws-sdk` for types. Use
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
-import {AwsClient} from "aws4fetch";
 import {
     isConstructedDynamoTableSchemaIndexName,
     isConstructedDynamoTableSchemaName,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo_error.js";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
@@ -42,25 +42,19 @@ export type DynamoClientAction = Exclude<keyof DynamoClientInternal, "isLocal">;
 // If/when we migrate there may be some retries we've had to manually implement
 // that the SDK does automatically we'd have to sus out.
 export class DynamoClientInternal {
-    private readonly _getAwsHttpClient: (tracer: TracerBase) => Promise<AwsClient>;
-    private readonly _awsDynamoUrl: string;
+    private readonly _url: string;
+    private readonly _signer: AwsRequestSigner;
 
-    constructor({
-        getAwsHttpClient,
-        awsDynamoUrl,
-    }: {
-        getAwsHttpClient: (tracer: TracerBase) => Promise<AwsClient>;
-        awsDynamoUrl: string;
-    }) {
-        this._getAwsHttpClient = getAwsHttpClient;
-        this._awsDynamoUrl = awsDynamoUrl;
+    constructor(url: string, signer: AwsRequestSigner) {
+        this._url = url;
+        this._signer = signer;
     }
 
     /**
      * Is running against a local DynamoDB?
      */
     public isLocal(): boolean {
-        return /^https?:\/\/localhost(\/|:|$)/.test(this._awsDynamoUrl);
+        return /^https?:\/\/localhost(\/|:|$)/.test(this._url);
     }
 
     private async _execute<Input = never, Output = unknown>(
@@ -68,8 +62,7 @@ export class DynamoClientInternal {
         action: DynamoClientAction,
         input: Input,
     ): Promise<Output> {
-        const client = await this._getAwsHttpClient(span);
-        const response = await client.fetch(this._awsDynamoUrl, {
+        let request = new Request(this._url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-amz-json-1.0",
@@ -77,6 +70,13 @@ export class DynamoClientInternal {
             },
             body: JSON.stringify(input),
         });
+
+        request = await this._signer.sign(request, span);
+
+        // We create our own spans for DynamoDB actions so don't use
+        // `fetchWithTracer()`.
+        // eslint-disable-next-line no-global-fetch
+        const response = await fetch(request);
 
         const output: any = await response.json();
 

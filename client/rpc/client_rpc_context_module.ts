@@ -1,5 +1,5 @@
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {InternalError, UnavailableError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
@@ -13,7 +13,7 @@ import {
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
 import {SchemaDeserializationError, SchemaSerializedValue} from "~/shared/schema/schema.js";
-import {fetchWithTracerAndReturnSpan} from "~/shared/tracer/fetch_with_tracer.js";
+import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
@@ -109,7 +109,7 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
                 ? new URL(window.location.href).pathname.match(spaceIdRegExp)?.[1]
                 : undefined;
 
-        const {span, responsePromise} = fetchWithTracerAndReturnSpan(
+        await fetchWithTracer(
             firstCall.span,
             otherCalls.length === 0 ? `/api/rpc/${firstCall.name}` : "/api/rpc/_batch",
             {
@@ -142,70 +142,66 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
                               }),
                           ),
             },
-        );
-
-        // The first call is the parent of our HTTP execution. Link the other calls to
-        // the HTTP execution span so we can see the causal relationship.
-        for (const otherCall of otherCalls) {
-            otherCall.span.link(span);
-        }
-
-        const response = await responsePromise.catch(error => {
-            // Classify network errors as the `Unavailable` status code.
-            throw UnavailableError.from(error);
-        });
-
-        if (otherCalls.length === 0) {
-            const callOutput = await response
-                .json()
-                .then((output: any) => RpcHttpCallOutputSchema.deserialize(output))
-                .catch(error => {
-                    // If we fail to parse the response body as JSON, classify as `Internal`
-                    // status code.
-                    //
-                    // Maybe an error is also thrown here for some network errors? If so we should
-                    // classify network errors as the `Unavailable` status code.
-                    throw new InternalError(error.message, {cause: error});
-                });
-
-            if (!callOutput.ok) {
-                firstCall.outputPromiseResolver.reject(callOutput.error);
-            } else {
-                firstCall.outputPromiseResolver.resolve(callOutput.output);
-            }
-        } else {
-            const output = await response
-                .json()
-                .then((output: any) => RpcHttpBatchCallOutputSchema.deserialize(output))
-                .catch(error => {
-                    // If we fail to parse the response body as JSON, classify as `Internal`
-                    // status code.
-                    //
-                    // Maybe an error is also thrown here for some network errors? If so we should
-                    // classify network errors as the `Unavailable` status code.
-                    throw new InternalError(error.message, {cause: error});
-                });
-
-            if (!output.ok) {
-                throw output.error;
-            }
-
-            if (output.calls.length !== callBatch.length)
-                throw new InternalError(
-                    `Expected ${callBatch.length} call outputs but received ${output.calls.length} call outputs`,
-                );
-
-            callBatch.forEach((call, index) => {
-                // If anything throws while processing the output for a single call,
-                // reject only that call's promise.
-                const callOutput = output.calls[index]!;
-                if (!callOutput.ok) {
-                    call.outputPromiseResolver.reject(callOutput.error);
-                } else {
-                    call.outputPromiseResolver.resolve(callOutput.output);
+            async (response, span) => {
+                // The first call is the parent of our HTTP execution. Link the other calls to
+                // the HTTP execution span so we can see the causal relationship.
+                for (const otherCall of otherCalls) {
+                    otherCall.span.link(span);
                 }
-            });
-        }
+
+                if (otherCalls.length === 0) {
+                    const callOutput = await response
+                        .json()
+                        .then((output: any) => RpcHttpCallOutputSchema.deserialize(output))
+                        .catch(error => {
+                            // If we fail to parse the response body as JSON, classify as `Internal`
+                            // status code.
+                            //
+                            // Maybe an error is also thrown here for some network errors? If so we should
+                            // classify network errors as the `Unavailable` status code.
+                            throw new InternalError(error.message, {cause: error});
+                        });
+
+                    if (!callOutput.ok) {
+                        firstCall.outputPromiseResolver.reject(callOutput.error);
+                    } else {
+                        firstCall.outputPromiseResolver.resolve(callOutput.output);
+                    }
+                } else {
+                    const output = await response
+                        .json()
+                        .then((output: any) => RpcHttpBatchCallOutputSchema.deserialize(output))
+                        .catch(error => {
+                            // If we fail to parse the response body as JSON, classify as `Internal`
+                            // status code.
+                            //
+                            // Maybe an error is also thrown here for some network errors? If so we should
+                            // classify network errors as the `Unavailable` status code.
+                            throw new InternalError(error.message, {cause: error});
+                        });
+
+                    if (!output.ok) {
+                        throw output.error;
+                    }
+
+                    if (output.calls.length !== callBatch.length)
+                        throw new InternalError(
+                            `Expected ${callBatch.length} call outputs but received ${output.calls.length} call outputs`,
+                        );
+
+                    callBatch.forEach((call, index) => {
+                        // If anything throws while processing the output for a single call,
+                        // reject only that call's promise.
+                        const callOutput = output.calls[index]!;
+                        if (!callOutput.ok) {
+                            call.outputPromiseResolver.reject(callOutput.error);
+                        } else {
+                            call.outputPromiseResolver.resolve(callOutput.output);
+                        }
+                    });
+                }
+            },
+        );
     } catch (error) {
         for (const call of callBatch) {
             call.outputPromiseResolver.reject(error);

@@ -1228,16 +1228,18 @@ function TaskRowView(
                         switch (event.key) {
                             case "Backspace":
                             case "Delete": {
-                                event.preventDefault();
-                                event.stopPropagation();
+                                if (event.currentTarget === event.target) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
 
-                                if (!capabilities.isReadOnly) {
-                                    const titleInput = assertExists(titleInputRef.current);
+                                    if (!capabilities.isReadOnly) {
+                                        const titleInput = assertExists(titleInputRef.current);
 
-                                    if (titleInput.isEmpty()) {
-                                        deleteTaskAndAllChildrenAndFocusPreviousRow();
-                                    } else {
-                                        titleInput.clear();
+                                        if (titleInput.isEmpty()) {
+                                            deleteTaskAndAllChildrenAndFocusPreviousRow();
+                                        } else {
+                                            titleInput.clear();
+                                        }
                                     }
                                 }
                                 break;
