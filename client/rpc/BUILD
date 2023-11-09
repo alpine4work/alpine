@@ -3,6 +3,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "rpc",
     visibility = [
+        "//admin/adhoc:__pkg__",
         "//app:__subpackages__",
         "//client:__subpackages__",
     ],
