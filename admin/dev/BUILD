@@ -23,6 +23,7 @@ ts_project(
         "//admin/dynamo/local",
         "//admin/helpers",
         "//admin/opensearch/local",
+        "//admin/sqs/local",
         "//server/helpers/node",
         "//shared/error",
         "//shared/helpers",

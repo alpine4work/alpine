@@ -17,6 +17,9 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 /**
  * Send an email with AWS SES. Used in production to send emails.
  */
+// NOTE(calebmer): This class used to run in Cloudflare Workers where we can't
+// use the AWS SDK which is why we're using `AwsRequestSigner` directly.
+// Eventually this should probably migrate to `@aws-sdk/client-ses`.
 export class SesEmailContextModule extends EmailContextModuleBase {
     private readonly _url: string;
     private readonly _signer: AwsRequestSigner;

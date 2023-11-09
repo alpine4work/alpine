@@ -1,6 +1,6 @@
 workspace(name = "cyberworlds")
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
 # =========================================================================== #
 #                                Bazel Skylib                                 #
@@ -260,4 +260,15 @@ filegroup(
 """,
     sha256 = "e335c10679f743207d822c5f7948e930319835492575a9dba6b94f8a3b96fcc8",
     url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.10.0/jna-5.10.0.jar",
+)
+
+# =========================================================================== #
+#                            ElasticMQ (local SQS)                            #
+# =========================================================================== #
+
+http_file(
+    name = "elasticmq",
+    downloaded_file_path = "elasticmq-server.jar",
+    sha256 = "ef51a55fccf0882e6d666d8b19251d39ae190d9510409f734d8f2f8aed8c40b9",
+    url = "https://s3-eu-west-1.amazonaws.com/softwaremill-public/elasticmq-server-1.4.2.jar",
 )

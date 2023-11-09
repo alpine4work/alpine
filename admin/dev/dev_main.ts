@@ -33,6 +33,7 @@ import {
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
+import {startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {
     waitForProcessExit,
@@ -86,6 +87,11 @@ const dynamoLocalPort = parsePort(env.DYNAMO_LOCAL_PORT);
 const opensearchLocalDataPath = joinPath(devEnvPaths.data, "opensearch");
 const opensearchLocalLogsPath = joinPath(devEnvPaths.log, "opensearch");
 const opensearchLocalPort = parsePort(env.OPENSEARCH_LOCAL_PORT);
+
+const sqsLocalDataPath = joinPath(devEnvPaths.data, "sqs");
+const sqsLocalLogsPath = joinPath(devEnvPaths.log, "sqs");
+const sqsLocalPort = parsePort(env.SQS_LOCAL_PORT);
+const sqsLocalStatsPort = parsePort(env.SQS_LOCAL_STATS_PORT);
 
 export type Artifact = {
     readonly bazelTarget: string;
@@ -219,6 +225,12 @@ const fastSetupPromise = runAllPromises([
         dataPath: dynamoLocalDataPath,
         logsPath: dynamoLocalLogsPath,
         port: dynamoLocalPort,
+    }),
+    startSqsLocal({
+        dataPath: sqsLocalDataPath,
+        logsPath: sqsLocalLogsPath,
+        port: sqsLocalPort,
+        statsPort: sqsLocalStatsPort,
     }),
     remixDevServerPromise,
 ]);
