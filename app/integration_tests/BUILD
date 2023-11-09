@@ -15,6 +15,11 @@ ts_playwright_tests(
         "documents/document_comments.spec.ts": ["webkit_mobile"],
         # We have not mobile optimized inbox yet.
         "inbox/inbox_chat.spec.ts": ["webkit_mobile"],
+        # We have not mobile optimized tasks yet.
+        "tasks/task_detail_view_updates.spec.ts": ["webkit_mobile"],
+        "tasks/task_grid_view_updates.spec.ts": ["webkit_mobile"],
+        "tasks/task_notepad.spec.ts": ["webkit_mobile"],
+        "tasks/task_undo_grid_view_moves.spec.ts": ["webkit_mobile"],
     },
     deps = [
         "//:node_modules/@types/fs-extra",

@@ -736,6 +736,7 @@ export function commitTaskActionTransaction(
             id: TaskActionTransactionLeaseId;
             actions: ReadonlyArray<TaskUpdateTaskAction>;
         };
+        withoutAddingAffinityPoints?: boolean
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;
@@ -779,7 +780,7 @@ export function commitTaskActionTransaction(
         // idempotent. It's also not essential that we make these updates. If the
         // process crashes it doesn't really matter to users that affinity scores don't
         // update. Whereas it's critical we eventually index actions in OpenSearch.
-        {
+        if (!options.withoutAddingAffinityPoints) {
             const addAffinityPointsByCollectionId = new Map<TaskCollectionId, number>();
 
             for (const action of actions) {

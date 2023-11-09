@@ -467,7 +467,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
 
         assert(
             taskOrderIds.size === this._loadedTaskEntryStoreById.size,
-            "Query must not have a reference to a task entry store that's not in the task order",
+            "Query must have the same tasks in `taskOrder` and `loadedTaskEntryStoreById`",
         );
 
         assert(
@@ -710,8 +710,6 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     this._onLoadedTaskRemove(taskId, oldTaskEntry);
 
                     taskOrder = taskOrder.remove(oldCursor);
-
-                    // Get rid of our task entry store reference so it can be garbage collected.
                     this._loadedTaskEntryStoreById.delete(taskId);
                     continue;
                 }
@@ -751,8 +749,6 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                         this._onLoadedTaskAdd(taskId, newTaskEntry);
 
                         taskOrder = taskOrder.insert(newCursor, null);
-
-                        // Capture a reference to the task entry store so it's not garbage collected.
                         this._loadedTaskEntryStoreById.set(taskId, taskEntryStore);
                     }
                     continue;
@@ -775,8 +771,6 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     this._onLoadedTaskRemove(taskId, oldTaskEntry);
 
                     taskOrder = taskOrder.remove(oldCursor);
-
-                    // Get rid of our task entry store reference so it can be garbage collected.
                     this._loadedTaskEntryStoreById.delete(taskId);
                     continue;
                 }
@@ -813,6 +807,7 @@ export class TaskClientQueryInternal extends TaskClientTaskReferencesSubscriptio
                     this._onLoadedTaskRemove(taskId, oldTaskEntry);
 
                     taskOrder = taskOrder.remove(oldCursor);
+                    this._loadedTaskEntryStoreById.delete(taskId);
                 }
             }
         } finally {

@@ -1,4 +1,4 @@
-import {Page, expect} from "@playwright/test";
+import {Locator, Page, expect} from "@playwright/test";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
@@ -105,11 +105,7 @@ export async function expectTaskGridView(
             );
         }
 
-        if (await locator.getByLabel("Priority").isVisible()) {
-            await expect(locator.getByLabel("Priority")).toHaveValue(priority);
-        } else {
-            await expect(locator.getByTestId("TaskRowPriorityCell")).toHaveText(priority);
-        }
+        await expectTaskRowViewPriority(locator, priority);
 
         if (
             (await locator.getByLabel("Due date", {exact: true}).isVisible()) ||
@@ -147,4 +143,12 @@ export async function expectTaskGridView(
 
 function escapeRegExp(string: string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export async function expectTaskRowViewPriority(locator: Locator, priority: string) {
+    if (await locator.getByLabel("Priority").isVisible()) {
+        await expect(locator.getByLabel("Priority")).toHaveValue(priority);
+    } else {
+        await expect(locator.getByTestId("TaskRowPriorityCell")).toHaveText(priority);
+    }
 }

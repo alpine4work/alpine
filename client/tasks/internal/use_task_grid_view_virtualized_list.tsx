@@ -105,19 +105,18 @@ import {
     getTaskQuerySortCursorTaskId,
 } from "~/shared/tasks/task_query_sort_cursor.js";
 
-// TODO(calebmer): I need to write integration tests! Some tests to write:
+// TODO(calebmer): Should really write more integration tests for tasks. Some
+// tests to write:
 //
 // - Write a test for all navigation keyboard shortcuts
 //   (including `PageUp`/`PageDown`)
 // - Write a test for undoing a task move to make sure it scrolls
 // - Write a test undoing ghost task row changes
-// - Undo action that hid task
 // - Undo in virtualized scroll view
 // - Undo across peek and content underneath
 // - Type in task title, scroll it offscreen, scroll it back onscreen,
 //   undo/redo
 // - Editing task detail view dense fields
-// - Notepad page navigation (maintains on reload)
 // - Task filters/sorts navigation (maintains on reload)
 // - Ghost task cell editing
 // - Ghost task dense field editing

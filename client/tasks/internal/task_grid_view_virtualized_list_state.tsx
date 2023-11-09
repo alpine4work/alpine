@@ -303,6 +303,7 @@ export class TaskGridViewVirtualizedListState {
      * looking at.
      */
     private _getPreviousItemCount(
+        query: TaskClientQuery,
         iterator: TreeIterator<TaskQuerySortCursor, TaskGridViewVirtualizedTaskTreeValue | null>,
     ): number {
         if (!iterator.node) return 0;
@@ -312,7 +313,7 @@ export class TaskGridViewVirtualizedListState {
         for (let i = iterator._stack.length - 2; i >= 0; i--) {
             const parentNode = iterator._stack[i]!;
 
-            if (parentNode.key < beforeOrderKey) {
+            if (compareTaskQuerySortCursors(query.sorts, parentNode.key, beforeOrderKey) < 0) {
                 let valueItemCount: number;
                 if (parentNode.value === null) {
                     valueItemCount = 1;
@@ -338,9 +339,10 @@ export class TaskGridViewVirtualizedListState {
      * then return the index corresponding to the task. Otherwise return null.
      */
     public getIndexByRootCursorIfExists(cursor: TaskQuerySortCursor): number | null {
-        const iterator = this._tree?.tasks.find(cursor);
+        if (!this._tree) return null;
+        const iterator = this._tree.tasks.find(cursor);
         if (!iterator?.valid) return null;
-        return this._getPreviousItemCount(iterator);
+        return this._getPreviousItemCount(this._tree.query, iterator);
     }
 
     /**

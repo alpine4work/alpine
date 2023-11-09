@@ -127,6 +127,21 @@ export function getTaskTitleText(title: TaskTitle): string {
 }
 
 /**
+ * Creates a Y.js encoded task title from a string.
+ */
+export function createTaskTitleFromText(titleText: string): TaskTitle {
+    const prosemirrorNode = TaskTitleProsemirrorSchema.node("doc", {}, [
+        TaskTitleProsemirrorSchema.text(titleText),
+    ]);
+
+    const yDoc = new Y.Doc({guid: getYDocGuid()});
+    prosemirrorToYXmlFragment(prosemirrorNode, yDoc.getXmlFragment("doc"));
+    const title = Y.encodeStateAsUpdateV2(yDoc) as TaskTitle;
+    yDoc.destroy();
+    return title;
+}
+
+/**
  * A Y.js update to a `TaskTitle`.
  */
 export type TaskTitleUpdate = Uint8Array & {readonly _TaskTitleUpdate: never};
