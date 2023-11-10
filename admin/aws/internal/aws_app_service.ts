@@ -275,9 +275,9 @@ export class AwsAppService extends Construct {
             healthCheck: {
                 path: "/api/internal/healthcheck",
                 // Speed up deployment by requiring fewer healthy checks. Should only take
-                // ~1min to consider the service healthy.
+                // ~1:30min to consider the service healthy.
                 // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
-                healthyThresholdCount: 2,
+                healthyThresholdCount: 3,
             },
         });
     }

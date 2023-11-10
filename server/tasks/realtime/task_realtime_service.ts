@@ -143,10 +143,7 @@ runService({
             taskRealtimeServicePrivateKey,
         });
 
-        const awsSigner =
-            process.env.NODE_ENV !== "production"
-                ? new AwsRequestSigner({accessKeyId: "local", secretAccessKey: "local"})
-                : new AwsRequestSigner();
+        const awsSigner = new AwsRequestSigner();
 
         const processContext = createServerProcessContext({tracer, awsSigner, options});
 

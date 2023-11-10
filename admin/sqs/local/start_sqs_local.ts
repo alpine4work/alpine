@@ -46,7 +46,7 @@ export async function startSqsLocal({
     const queuesStoragePath = joinPath(dataPath, "queues_storage.conf");
     const messagesStoragePath = joinPath(dataPath, "messages_storage");
 
-    const configContents = `\
+    let configContents = `\
 include classpath("application.conf")
 
 node-address {
@@ -82,6 +82,17 @@ queues-storage {
 messages-storage {
     enabled = true
     uri = "jdbc:h2:${messagesStoragePath}"
+}
+
+queues {
+    JobDeadLetterQueue {}
+
+    JobQueue {
+        deadLettersQueue {
+            name = "JobDeadLetterQueue"
+            maxReceiveCount = 3
+        }
+    }
 }
 `;
 
