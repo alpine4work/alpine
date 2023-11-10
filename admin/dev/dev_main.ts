@@ -67,11 +67,6 @@ const parsePort = (portString: string | undefined) => {
     return port;
 };
 
-// Assign AWS env variables to `process.env` so
-// `@aws-sdk/credential-provider-node` picks them up.
-process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
-process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
-
 const honeycombApiKey = env.HONEYCOMB_API_KEY;
 
 const appDevPort = parsePort(env.APP_DEV_PORT);

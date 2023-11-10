@@ -14,7 +14,6 @@ ts_project(
     deps = [
         "//:node_modules/fs-extra",
         "//admin/helpers",
-        "//admin/sqs",
         "//server/helpers/node",
         "//shared/error",
         "//shared/helpers",
