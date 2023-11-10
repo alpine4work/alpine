@@ -15,6 +15,7 @@ ts_project(
         "//admin/dynamo/local",
         "//admin/helpers",
         "//admin/opensearch/local",
+        "//admin/sqs/local",
         "//server/accounts",
         "//server/context",
         "//server/dynamo/core",

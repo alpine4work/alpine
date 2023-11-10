@@ -1,0 +1,71 @@
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
+
+/**
+ * An object representing a background job. Jobs allow you to perform work
+ * without blocking the critical path. For example, you can:
+ *
+ * - Index search entities
+ * - Send push notifications
+ * - Perform some billing charge
+ *
+ * Jobs go to a single [AWS SQS][1] queue and are handled by a single service
+ * (`JobQueueService`). Why do we use a single service? It simplifies things.
+ * We have one job framework and you don't need to think about the underlying
+ * implementation.
+ *
+ * Job ordering is not guaranteed and jobs are processed with at-least once
+ * semantics. As such, job consumer functions must be idempotent. [AWS SQS][1]
+ * provides [FIFO queues which guarantee event order][2]. FIFO queues are more
+ * expensive and it's harder to achieve high throughput. Generally if you need
+ * background processing you should fit the work you need to do to the job
+ * framework.
+ *
+ * Right now, all jobs are processed with the same priority. Eventually, we may
+ * build a way to schedule lower priority work in the job framework.
+ *
+ * Ideally, all jobs should start processing in <10s. In rare occasions (like
+ * load spike scenarios) it may take longer to process a job. Don't put work
+ * on the job queue if it's important that work happens immediately. Instead
+ * you can use `context.process.waitUntil()` to immediately start running some
+ * function. However, if a delay is ok and you want to guarantee the work
+ * eventually happens (it must survive process restarts) put it on the job
+ * queue.
+ *
+ * [1]: https://aws.amazon.com/sqs
+ * [2]: https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-fifo-queues.html
+ */
+export type JobDescription = SchemaType<typeof JobDescriptionSchema>;
+
+// All job descriptions should have a `SpaceId` property.
+assertAssignableTypes<JobDescription, {spaceId: SpaceId}>();
+
+/**
+ * A job that can only be processed in test environments. To process this job
+ * we wait with the `TestCheckpoint` helper.
+ */
+export type TestJobDescription = SchemaType<typeof TestJobDescriptionSchema>;
+
+const TestJobDescriptionSchema = Schema.object({
+    type: Schema.value("Test"),
+    spaceId: Schema.id<SpaceId>(),
+    checkpointId: Schema.id(),
+});
+
+/**
+ * Indexes the latest version some data to make it searchable.
+ */
+export type IndexSearchEntityJobDescription = SchemaType<
+    typeof IndexSearchEntityJobDescriptionSchema
+>;
+
+const IndexSearchEntityJobDescriptionSchema = Schema.object({
+    type: Schema.value("IndexSearchEntity"),
+    spaceId: Schema.id<SpaceId>(),
+});
+
+export const JobDescriptionSchema = Schema.union({
+    Test: TestJobDescriptionSchema,
+    IndexSearchEntity: IndexSearchEntityJobDescriptionSchema,
+});

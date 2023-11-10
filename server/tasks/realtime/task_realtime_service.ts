@@ -143,10 +143,7 @@ runService({
             taskRealtimeServicePrivateKey,
         });
 
-        const awsSigner =
-            process.env.NODE_ENV !== "production"
-                ? new AwsRequestSigner({accessKeyId: "local", secretAccessKey: "local"})
-                : new AwsRequestSigner();
+        const awsSigner = new AwsRequestSigner();
 
         const processContext = createServerProcessContext({tracer, awsSigner, options});
 
@@ -271,6 +268,12 @@ runService({
 
             switch (pathnameSegments[1]) {
                 case undefined: {
+                    // NOTE(calebmer): This condition is important for security!
+                    // `TaskRealtimeService` has routes to the public internet so our Cloudflare
+                    // Worker `EdgeService` can make a connection. However, ONLY `EdgeService`
+                    // should be allowed to make WebSocket connections. This check makes sure of
+                    // that. Session cookies would use an `AppClient` service name, you need access
+                    // to `EdgeService`'s private key to get past this check.
                     if (actorContextModule.serviceName !== "EdgeService") {
                         throw new PermissionDeniedError(
                             "Only `EdgeService` can connect via WebSocket",

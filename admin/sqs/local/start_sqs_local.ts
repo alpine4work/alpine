@@ -18,6 +18,21 @@ const javaPathPromise = new Lazy(async () => {
 
 const elasticmqJarPath = joinPath(runfilesPath, "elasticmq/file/elasticmq-server.jar");
 
+export type SqsLocal = {
+    readonly dataPath: string;
+    readonly logsPath: string;
+    readonly port: number;
+
+    /**
+     * Stop the local SQS server. If `force: true` is set then we kill the server
+     * without letting it persist its state. Normally, in a clean shutdown SQS will
+     * persist its state and wait for any ongoing `ReceiveMessage` requests to
+     * finish. For tests, when we're done we're done. We don't want to wait on
+     * `ReceiveMessage` requests.
+     */
+    stop(options: {force: boolean}): Promise<void>;
+};
+
 /**
  * Starts a local [AWS SQS][1] (Simple Queue Service) server. We use
  * [ElasticMQ][2] to simulate AWS SQS locally.
@@ -34,8 +49,8 @@ export async function startSqsLocal({
     dataPath: string;
     logsPath: string;
     port: number;
-    statsPort: number;
-}) {
+    statsPort: number | null;
+}): Promise<SqsLocal> {
     const [, logFileDescriptor, javaPath] = await runAllPromises([
         fs.ensureDir(dataPath),
         fs.ensureDir(logsPath).then(() => fs.open(joinPath(logsPath, "elasticmq.log"), "a")),
@@ -62,11 +77,16 @@ rest-sqs {
     bind-hostname = "localhost"
     sqs-limits = "strict"
 }
+${
+    statsPort !== null
+        ? `\
 
 rest-stats {
     enabled = true
     bind-port = ${statsPort}
     bind-hostname = "localhost"
+}`
+        : ""
 }
 
 aws {
@@ -83,6 +103,17 @@ messages-storage {
     enabled = true
     uri = "jdbc:h2:${messagesStoragePath}"
 }
+
+queues {
+    JobDeadLetterQueue {}
+
+    JobQueue {
+        deadLettersQueue {
+            name = "JobDeadLetterQueue"
+            maxReceiveCount = 5
+        }
+    }
+}
 `;
 
     await fs.writeFile(configPath, configContents);
@@ -98,11 +129,17 @@ messages-storage {
     await waitForHttpServer(port);
 
     return {
+        dataPath,
+        logsPath,
         port,
-        stop: async () => {
+        stop: async ({force}: {force: boolean}) => {
             try {
-                subprocess.kill();
-                await waitForProcessExit(subprocess);
+                if (force) {
+                    subprocess.kill("SIGKILL");
+                } else {
+                    subprocess.kill();
+                    await waitForProcessExit(subprocess);
+                }
             } finally {
                 await fs.close(logFileDescriptor);
             }

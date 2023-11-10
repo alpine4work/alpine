@@ -10,6 +10,7 @@ ts_project(
     visibility = [
         "//admin/adhoc:__pkg__",
         "//admin/dev:__pkg__",
+        "//server/dynamo/test_helpers:__pkg__",
     ],
     deps = [
         "//:node_modules/fs-extra",

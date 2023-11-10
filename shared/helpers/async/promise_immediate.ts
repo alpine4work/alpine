@@ -1,3 +1,4 @@
+import {UnavailableError} from "~/shared/error/error.js";
 import {isPromiseLike} from "~/shared/helpers/async/is_promise_like.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -125,6 +126,30 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
     // https://github.com/acdlite/rfcs/blob/9c21ca1/text/0000-first-class-support-for-promises.md#reading-the-result-of-a-promise-that-was-read-previously
     public getStateWithoutListening(): PromiseState<Value> {
         return this._state;
+    }
+
+    /**
+     * Is this promise currently pending?
+     */
+    public isPending(): boolean {
+        return this._state.status === "pending";
+    }
+
+    /**
+     * Get the fulfilled promise value or throw an error if the promise is
+     * still pending.
+     */
+    public getOrThrow(): Value {
+        switch (this._state.status) {
+            case "fulfilled":
+                return this._state.value;
+            case "rejected":
+                throw this._state.reason;
+            case "pending":
+                throw new UnavailableError("Promise is pending");
+            default:
+                throw exhaustive(this._state);
+        }
     }
 
     static resolve<Value>(value: Value | PromiseLike<Value>): PromiseImmediate<Value> {

@@ -6,6 +6,7 @@ import {
     OpensearchLocal,
     startOpensearchLocal,
 } from "~/admin/opensearch/local/start_opensearch_local.js";
+import {SqsLocal, startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
@@ -58,7 +59,9 @@ assert(process.env.NODE_ENV === "test");
 export type TestContext = ServerProcessContext & {
     getDynamoLocalPort(): number;
     getOpensearchLocalPort(): number;
-    isOpensearchEnabled: boolean;
+    readonly isOpensearchEnabled: boolean;
+    getSqsLocalPort(): number;
+    restartSqsLocal(): Promise<void>;
 
     /**
      * An action where we don't know whether we're authenticated or not.
@@ -127,6 +130,7 @@ export function createTestContext({
 
     let dynamoLocal: DynamoLocal | null = null;
     let opensearchLocal: OpensearchLocal | null = null;
+    let sqsLocal: SqsLocal | null = null;
 
     const getDynamoLocalPort = () => {
         if (dynamoLocal === null) throw new InternalError("DynamoDB local has not started");
@@ -145,6 +149,26 @@ export function createTestContext({
         }
 
         return opensearchLocal.port;
+    };
+
+    const getSqsLocalPort = () => {
+        if (sqsLocal === null) throw new InternalError("SQS local has not started");
+        return sqsLocal.port;
+    };
+
+    const restartSqsLocal = async () => {
+        assert(sqsLocal, "SQS local must have been started before");
+
+        const currentSqsLocal = sqsLocal;
+        sqsLocal = null;
+        await currentSqsLocal.stop({force: true});
+
+        sqsLocal = await startSqsLocal({
+            dataPath: currentSqsLocal.dataPath,
+            logsPath: currentSqsLocal.logsPath,
+            port: currentSqsLocal.port,
+            statsPort: null,
+        });
     };
 
     const escalateToSystemContext = <Value>(
@@ -247,6 +271,8 @@ export function createTestContext({
         getDynamoLocalPort,
         getOpensearchLocalPort,
         isOpensearchEnabled: shouldStartOpensearch,
+        getSqsLocalPort,
+        restartSqsLocal,
         unauthenticatedAction: createUnauthenticatedSessionContext,
         action: createSessionContext,
         systemAction: createSystemContext,
@@ -254,17 +280,26 @@ export function createTestContext({
     });
 
     testSharedHooks.beforeAll(async () => {
-        const [tempPath, dynamoLocalPort, opensearchLocalPort] = await runAllPromises([
-            fs.mkdtemp(joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_test_")),
-            getPort(),
-            getPort(),
-        ]);
+        const [tempPath, dynamoLocalPort, opensearchLocalPort, sqsLocalPort] = await runAllPromises(
+            [
+                fs.mkdtemp(joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_test_")),
+                getPort(),
+                getPort(),
+                getPort(),
+            ],
+        );
 
-        [dynamoLocal, opensearchLocal] = await runAllPromises([
+        [dynamoLocal, sqsLocal, opensearchLocal] = await runAllPromises([
             startDynamoLocal({
                 dataPath: joinPath(tempPath, "dynamo/data"),
                 logsPath: joinPath(tempPath, "dynamo/logs"),
                 port: dynamoLocalPort,
+            }),
+            startSqsLocal({
+                dataPath: joinPath(tempPath, "sqs/data"),
+                logsPath: joinPath(tempPath, "sqs/logs"),
+                port: sqsLocalPort,
+                statsPort: null,
             }),
             shouldStartOpensearch
                 ? startOpensearchLocal({
@@ -294,7 +329,11 @@ export function createTestContext({
     }, 1000 * 30);
 
     testSharedHooks.afterAll(async () => {
-        await runAllPromises([dynamoLocal?.stop(), opensearchLocal?.stop()]);
+        await runAllPromises([
+            dynamoLocal?.stop(),
+            sqsLocal?.stop({force: true}),
+            opensearchLocal?.stop(),
+        ]);
     });
 
     return context;

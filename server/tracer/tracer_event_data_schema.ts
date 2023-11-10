@@ -204,7 +204,6 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             messageId: Schema.string,
         },
         sqs: {
-            queue: IdentifierStringSchema,
             messageId: Schema.string,
         },
         ecs: {
@@ -239,6 +238,12 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
     opensearch: {
         query: Schema.string,
         sort: Schema.string,
+    },
+    jobs: {
+        type: IdentifierStringSchema,
+        batchSize: Schema.integer,
+        delaySeconds: Schema.float,
+        queueDurationMs: Schema.float,
     },
 };
 

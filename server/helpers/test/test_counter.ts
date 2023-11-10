@@ -10,7 +10,7 @@ import {SchemaSerializedValue} from "~/shared/schema/schema.js";
 export class TestCounter<
     // We set `SchemaSerializedValue` as the bound so that `Key` is
     // JSON stringifiable.
-    Key extends SchemaSerializedValue,
+    Key extends SchemaSerializedValue | void,
 > {
     private _countByKey = new Map<string, number>();
 
@@ -30,7 +30,7 @@ export class TestCounter<
     public incrementForTest(key: Key): void {
         if (!import.meta.jest) return;
 
-        const keyString = jsonStableStringify(key);
+        const keyString = key !== undefined ? jsonStableStringify(key) : "undefined";
         const count = this._countByKey.get(keyString);
 
         // If there is no count, we aren't recording the count for this request. Don't
@@ -50,7 +50,7 @@ export class TestCounter<
     public recordForTest(key: Key): {getCount: () => number} {
         assert(import.meta.jest);
 
-        const keyString = jsonStableStringify(key);
+        const keyString = key !== undefined ? jsonStableStringify(key) : "undefined";
 
         if (!this._countByKey.has(keyString)) {
             this._countByKey.set(keyString, 0);
