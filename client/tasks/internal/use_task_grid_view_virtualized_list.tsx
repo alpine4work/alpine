@@ -3049,6 +3049,17 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
         const itemIndex = assertExists(viewRef.current?.getIndexByKeyIfExists(`Task:${taskKey}`));
 
+        const state = events.getState();
+        const itemCount = events.getItemCount();
+        const itemCountBeforeState = events.getItemCountBeforeState();
+        const stateItemIndex = itemIndex - itemCountBeforeState;
+
+        // Item is not in state, we can't delete it.
+        if (!(0 <= stateItemIndex && stateItemIndex < itemCount - itemCountBeforeState)) return;
+
+        const item = state.getItem(stateItemIndex);
+        if (item.type !== "Task") return;
+
         const focusPreviousRow = (itemIndex: number) => {
             let hasFoundPreviousRow = false;
 
@@ -3081,7 +3092,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
         // There may be a race condition where the task has a child our client doesn't
         // know about yet. This child won't be deleted. This race condition is
         // acceptable.
-        if (rootQuery.getLoadedTaskSnapshot(taskId).getChildTaskCount() === 0) {
+        if (item.query.getLoadedTaskSnapshot(taskId).getChildTaskCount() === 0) {
             disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint(taskId);
 
             rootQuery.store.commitTaskActionTransaction(
