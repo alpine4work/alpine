@@ -279,6 +279,10 @@ export class AwsAppService extends Construct {
                 // https://docs.aws.amazon.com/AmazonECS/latest/bestpracticesguide/load-balancer-healthcheck.html
                 healthyThresholdCount: 3,
             },
+            // Attempt to route sessions to the same EC2 instance for a day. This is an
+            // optimization that increases in-memory cache hits and not required for
+            // successful operation of the product.
+            stickinessCookieDuration: Duration.days(1),
         });
     }
 }
