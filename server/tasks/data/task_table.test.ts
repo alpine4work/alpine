@@ -17180,7 +17180,7 @@ test("account can remove access from itself but can't grant it back with an inva
             ],
             {leaseId: generateId<TaskActionTransactionLeaseId>()},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Lease not found (could have expired)"));
+    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
         PermissionDeniedError,
@@ -17278,7 +17278,7 @@ test("account can remove access from itself but can't use another account's leas
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Lease not found (could have expired)"));
+    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
         PermissionDeniedError,
@@ -17503,7 +17503,9 @@ test("account can remove access from itself but can't grant itself access back w
                 ],
                 {leaseId},
             ),
-        ).rejects.toThrow(new PermissionDeniedError("Lease expired"));
+        ).rejects.toThrow(
+            new PermissionDeniedError('Actor does not have "Edit" access level to task'),
+        );
 
         await expect(
             authorizeTaskAccess(session1.action(), task1.id, "Edit", null),
@@ -17617,7 +17619,7 @@ test("won't create lease if committed action doesn't remove access", async () =>
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Lease not found (could have expired)"));
+    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
         PermissionDeniedError,

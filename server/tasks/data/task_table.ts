@@ -736,7 +736,7 @@ export function commitTaskActionTransaction(
             id: TaskActionTransactionLeaseId;
             actions: ReadonlyArray<TaskUpdateTaskAction>;
         };
-        withoutAddingAffinityPoints?: boolean
+        withoutAddingAffinityPoints?: boolean;
     } = {},
 ): Promise<{
     extraActions: ReadonlyArray<TaskAction>;

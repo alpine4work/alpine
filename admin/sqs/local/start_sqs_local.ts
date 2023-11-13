@@ -61,6 +61,11 @@ export async function startSqsLocal({
     const queuesStoragePath = joinPath(dataPath, "queues_storage.conf");
     const messagesStoragePath = joinPath(dataPath, "messages_storage");
 
+    // For whatever reason you can't bind to IPv4 localhost in a MacOS sandbox but
+    // you can bind to IPv6 localhost. See:
+    // https://github.com/bazelbuild/bazel/issues/5206#issuecomment-402398624
+    const bindHostname = "[::1]";
+
     const configContents = `\
 include classpath("application.conf")
 
@@ -74,7 +79,7 @@ node-address {
 rest-sqs {
     enabled = true
     bind-port = ${port}
-    bind-hostname = "localhost"
+    bind-hostname = "${bindHostname}"
     sqs-limits = "strict"
 }
 ${
@@ -84,7 +89,7 @@ ${
 rest-stats {
     enabled = true
     bind-port = ${statsPort}
-    bind-hostname = "localhost"
+    bind-hostname = "${bindHostname}"
 }`
         : ""
 }

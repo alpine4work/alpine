@@ -172,7 +172,7 @@ test("if authorization fails then connection closes", async () => {
     ]);
 });
 
-test("authorization is renewed every three minutes when procedure is called", async () => {
+test("authorization is renewed every two minutes when procedure is called", async () => {
     const TestProtocol = defineWebSocketProtocol({
         procedures: {
             echo: {
@@ -294,19 +294,19 @@ test("authorization is renewed every three minutes when procedure is called", as
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3 - 100);
 
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
@@ -338,25 +338,25 @@ test("authorization is renewed every three minutes when procedure is called", as
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime(Math.floor((1000 * 60 * 2) / 3));
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime(Math.floor((1000 * 60 * 2) / 3));
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
@@ -390,7 +390,7 @@ test("authorization is renewed every three minutes when procedure is called", as
     expect(request3PromiseResolver.isSettled()).toEqual(true);
 });
 
-test("authorization is renewed every three minutes when event is sent", async () => {
+test("authorization is renewed every two minutes when event is sent", async () => {
     const TestProtocol = defineWebSocketProtocol({
         procedures: {
             echo: {
@@ -475,19 +475,19 @@ test("authorization is renewed every three minutes when event is sent", async ()
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3 - 100);
 
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
@@ -510,7 +510,7 @@ test("authorization is renewed every three minutes when event is sent", async ()
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
@@ -532,19 +532,19 @@ test("authorization is renewed every three minutes when event is sent", async ()
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
@@ -671,19 +671,19 @@ test("authorization error will close the connection", async () => {
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3 - 100);
 
     expect(authorizationStartCount).toEqual(1);
     expect(authorizationFinishCount).toEqual(1);
@@ -706,19 +706,19 @@ test("authorization error will close the connection", async () => {
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     webSocket.send(
         JSON.stringify(TestMessageFromClientSchema.serialize({type: "Ping", tracerContext: null})),
     );
 
-    import.meta.jest.advanceTimersByTime(1000 * 60);
+    import.meta.jest.advanceTimersByTime((1000 * 60 * 2) / 3);
 
     expect(authorizationStartCount).toEqual(2);
     expect(authorizationFinishCount).toEqual(2);
