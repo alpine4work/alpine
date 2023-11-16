@@ -1,6 +1,5 @@
 import {useSearchParams} from "@remix-run/react";
 import {LoaderSchema as SpaceRouteLoaderSchema} from "~/app/routes/s.$spaceId.js";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
 import {ChatView} from "~/client/chat/chat_view.js";
 import {Box} from "~/client/design/box.js";
 import {joinPrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
@@ -11,6 +10,7 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {getChatAndInitialMessages} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {ChatId} from "~/shared/id/types/id_types.js";

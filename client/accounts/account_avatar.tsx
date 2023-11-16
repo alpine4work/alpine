@@ -1,8 +1,8 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {useMemo} from "react";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
-import {parseAccountName} from "~/client/accounts/internal/parse_account_name.js";
 import {AccountModel, AccountModelData} from "~/shared/accounts/account_model.js";
+import {parseAccountNameAssumingWesternNameOrder} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
@@ -48,16 +48,19 @@ export function AccountAvatar({
     const {firstInitial, lastInitial} = useMemo(() => {
         const splitter = new GraphemeSplitter();
 
-        const {firstName, lastName} = parseAccountName(accountData);
+        // TODO(calebmer): If we ever support eastern name order of family name first
+        // then given name, the initials should preserve that order. We shouldn't put
+        // the given name initial first.
+        const {givenName, familyName} = parseAccountNameAssumingWesternNameOrder(accountData);
 
         // We use iterators instead of indexing into the name because iterators give us
         // full Unicode unicode code points. This means grapheme clusters will be
         // split, but surrogate pairs will be preserved.
         //
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/@@iterator
-        const firstInitial: string = splitter.iterateGraphemes(firstName).next().value;
-        const lastInitial: string | null = lastName
-            ? splitter.iterateGraphemes(lastName).next().value
+        const firstInitial: string = splitter.iterateGraphemes(givenName).next().value;
+        const lastInitial: string | null = familyName
+            ? splitter.iterateGraphemes(familyName).next().value
             : null;
 
         return {firstInitial, lastInitial};

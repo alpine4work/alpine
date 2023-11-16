@@ -1,5 +1,4 @@
 import {useSearchParams} from "react-router-dom";
-import {getAccountShortNameWithoutFullNameTooltip} from "~/client/accounts/account_short_name.js";
 import {PostView} from "~/client/forum/post_view.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -8,6 +7,7 @@ import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
 import {getPostAndInitialComments} from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {PostCommentModel, PostModel} from "~/shared/forum/post_model.js";
 import {PostId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
