@@ -1,5 +1,6 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {Node, ResolvedPos} from "prosemirror-model";
+import {ContentNodeTypeName} from "~/shared/content/content_type_names.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
@@ -62,7 +63,7 @@ export function getContentSnippet(
                     if (textNodeIndex === 0) {
                         // If the node is line breaking then round remaining lines down since no other
                         // text can go on the line.
-                        const nodeType = node.type.name as ContentNodes;
+                        const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
                         if (assertExists(isLineBreakingByNodeType[nodeType])) {
                             remainingBefore = {
                                 lineCount: remainingBefore.isAtLineBreak
@@ -93,7 +94,7 @@ export function getContentSnippet(
                     if (textNodeIndex === node.childCount - 1) {
                         // If the node is line breaking then round remaining lines down since no other
                         // text can go on the line.
-                        const nodeType = node.type.name as ContentNodes;
+                        const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
                         if (assertExists(isLineBreakingByNodeType[nodeType])) {
                             remainingAfter = {
                                 lineCount: remainingAfter.isAtLineBreak
@@ -136,7 +137,7 @@ export function getContentSnippet(
                 } else {
                     // If the node is line breaking then round remaining lines down since no other
                     // text can go on the line.
-                    const nodeType = childNode.type.name as ContentNodes;
+                    const nodeType = childNode.type.name as Exclude<ContentNodeTypeName, "text">;
                     if (assertExists(isLineBreakingByNodeType[nodeType])) {
                         remainingBefore = {
                             lineCount: remainingBefore.isAtLineBreak
@@ -175,7 +176,7 @@ export function getContentSnippet(
                 } else {
                     // If the node is line breaking then round remaining lines down since no other
                     // text can go on the line.
-                    const nodeType = childNode.type.name as ContentNodes;
+                    const nodeType = childNode.type.name as Exclude<ContentNodeTypeName, "text">;
                     if (assertExists(isLineBreakingByNodeType[nodeType])) {
                         remainingAfter = {
                             lineCount: remainingAfter.isAtLineBreak
@@ -202,7 +203,7 @@ export function getContentSnippet(
     const resolvedFrom = resolvedPos.doc.resolve(from);
     for (let depth = resolvedFrom.depth; depth >= 0; depth--) {
         const node = resolvedFrom.node(depth);
-        const nodeType = node.type.name as ContentNodes;
+        const nodeType = node.type.name as Exclude<ContentNodeTypeName, "text">;
         if (assertExists(dontCutLeadingChildrenByNodeType[nodeType])) {
             from = resolvedFrom.start(depth);
         }
@@ -337,20 +338,6 @@ function consumeLinesOfText(
     };
 }
 
-export type ContentNodes =
-    | "doc"
-    | "title"
-    | "paragraph"
-    | "quoteBlock"
-    | "codeBlock"
-    | "unorderedListItem"
-    | "orderedListItem"
-    | "checkListItem"
-    | "break"
-    | "heading"
-    | "divider"
-    | "mention";
-
 /**
  * Does the provided node cause a line break? If it does then we can consider
  * that when computing how many lines remain around the text we're trying
@@ -360,7 +347,7 @@ export type ContentNodes =
  * false if the node is styled with `display: inline`.
  */
 const isLineBreakingByNodeType: {
-    [Key in ContentNodes]: boolean;
+    [Key in Exclude<ContentNodeTypeName, "text">]: boolean;
 } = {
     // `display: block`
     doc: true,
@@ -387,7 +374,7 @@ const isLineBreakingByNodeType: {
  * avoid cutting the leading content of a node.
  */
 const dontCutLeadingChildrenByNodeType: {
-    [Key in ContentNodes]: boolean;
+    [Key in Exclude<ContentNodeTypeName, "text">]: boolean;
 } = {
     doc: false,
     title: true,

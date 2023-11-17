@@ -87,10 +87,11 @@ export async function getCollaborativelyUpdateContentResult({
 
         for (const step of clientSteps) {
             const stepResult = step.apply(content);
-            if (!stepResult.doc)
+            if (!stepResult.doc) {
                 throw new FailedPreconditionError(
                     `Could not apply step to content: ${stepResult.failed!}`,
                 );
+            }
 
             invertedSteps.push(step.invert(content));
 
@@ -134,10 +135,11 @@ export async function getCollaborativelyUpdateContentResult({
 
             for (const step of clientSteps) {
                 const stepResult = step.apply(clientContent);
-                if (!stepResult.doc)
+                if (!stepResult.doc) {
                     throw new FailedPreconditionError(
                         `Could not apply step to content: ${stepResult.failed!}`,
                     );
+                }
 
                 invertedClientSteps.push(step.invert(clientContent));
 
