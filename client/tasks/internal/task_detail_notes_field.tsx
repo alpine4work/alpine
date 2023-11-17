@@ -2,74 +2,28 @@ import {
     Memo,
     Ref,
     forwardRef,
-    useCallback,
     useEffect,
     useId,
     useImperativeHandle,
-    useReducer,
     useRef,
+    useState,
 } from "react";
-import {
-    CollaborativeContentEditorAction,
-    CollaborativeContentEditorState,
-    createCollaborativeContentEditorStateReducer,
-    getInitialCollaborativeContentEditorState,
-} from "~/client/content/collaborative_content_editor_state.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
-import {reduceContentReferences} from "~/client/content/content_editor_state.js";
 import {ContentView} from "~/client/content/content_view.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {useShowToast} from "~/client/design/toast.js";
-import {useDevConsoleTool} from "~/client/dev/dev_console.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {ErrorToast, useShowToast} from "~/client/design/toast.js";
+import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
+import {useStore} from "~/client/helpers/store/use_store.js";
+import {TaskDetailNotesContentEditorWebSocketClient} from "~/client/tasks/internal/task_detail_notes_content_editor_web_socket_client.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
-import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
 import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
-import {UnavailableError} from "~/shared/error/error.js";
-import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {noop} from "~/shared/helpers/control/noop.js";
-import {Id, generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {sprinkles} from "~/shared/styles/styles.js";
-import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
-
-type TaskNotesContentEditorState = CollaborativeContentEditorState<
-    TaskNotesContentWithReferences,
-    TaskNotesContentEditorExtraState
->;
-
-type TaskNotesContentEditorExtraState = {
-    readonly taskId: TaskId;
-};
-
-type TaskNotesContentEditorAction = CollaborativeContentEditorAction<
-    TaskNotesContentWithReferences,
-    TaskNotesContentEditorExtraAction
->;
-
-type TaskNotesContentEditorExtraAction = {
-    readonly type: "Reset";
-    readonly state: TaskNotesContentEditorState;
-};
-
-const reduceCollaborativeContentEditorState = createCollaborativeContentEditorStateReducer<
-    TaskNotesContentWithReferences,
-    TaskNotesContentEditorExtraState,
-    TaskNotesContentEditorExtraAction
->((state, action) => {
-    if (action.type === "Extra") {
-        cast<"Reset">(action.extra.type);
-        return action.extra.state;
-    }
-
-    return state;
-});
 
 export type TaskDetailNotesFieldRef = {
     isFocused(): boolean;
@@ -101,7 +55,13 @@ function TaskDetailNotesField(
     },
     ref: Ref<TaskDetailNotesFieldRef>,
 ) {
+    const context = useAppContext();
     const showToast = useShowToast();
+
+    const events = useEvents({
+        getContext: () => context,
+        showToast: (toast: ErrorToast) => showToast(toast),
+    });
 
     const labelId = useId();
     const editorRef = useRef<ContentEditorRef>(null);
@@ -118,202 +78,44 @@ function TaskDetailNotesField(
         [isReadOnly],
     );
 
-    const [state, _dispatch] = useReducer(
-        reduceCollaborativeContentEditorState,
-        {
-            initialVersion: initialNotesVersion,
-            initialContent: initialNotesContent,
-            reduceReferences: reduceContentReferences,
-            extra: {taskId},
-            // We incorporate notes undo/redo into the task system's undo/redo stack.
-            disableUndoKeyboardShortcuts: true,
-        },
-        getInitialCollaborativeContentEditorState,
-    );
-
-    const dispatch = useCallback((actions: ReadonlyArray<TaskNotesContentEditorAction>) => {
-        // It is essential for correctness that actions which change `editorState` run
-        // immediately. Consider the case where we receive some steps from the server
-        // (`ReceiveSteps` action) and the user makes an edit (`Edit` action) at the
-        // exact same time.
-        //
-        // React gives the `ReceiveSteps` action a lower priority since it came from a
-        // WebSocket message. It runs the reducer then *cancels* the React re-render
-        // since an `Edit` comes in at a high, user interaction, priority.
-        //
-        // When we receive an action that changes `editorState`, we need React to
-        // immediately re-render the component with the new state so if a user types in
-        // their ProseMirror `EditorView` it is applied on top of the `editorState` we
-        // received from the server.
-        runWithImmediatePriority(() => {
-            _dispatch(actions);
+    const [client, setClient] = useState(() => {
+        return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
+            taskId,
+            initialNotesVersion,
+            initialNotesContent,
+            showToast: events.showToast,
         });
-    }, []);
+    });
 
-    const getState = useEvent(() => state);
-
-    // If the `TaskId` changes then we need to reset our state since we're
-    // connecting to a different notes backend.
-    if (state.extra.taskId !== taskId) {
-        dispatch([
-            {
-                type: "Extra",
-                extra: {
-                    type: "Reset",
-                    state: getInitialCollaborativeContentEditorState({
-                        initialVersion: initialNotesVersion,
-                        initialContent: initialNotesContent,
-                        reduceReferences: reduceContentReferences,
-                        extra: {taskId},
-                    }),
-                },
-            },
-        ]);
+    // Re-initialize state if the `TaskId` changes.
+    if (client.taskId !== taskId) {
+        setClient(() => {
+            return new TaskDetailNotesContentEditorWebSocketClient(events.getContext, {
+                taskId,
+                initialNotesVersion,
+                initialNotesContent,
+                showToast: events.showToast,
+            });
+        });
     }
 
-    // TODO(calebmer): Instead of a component error, WebSocket connection errors
-    // should probably be a big blocking modal that the user can retry?
-    if (state.errorState.hasError) throw state.errorState.error;
+    const [shouldConnect] = useState(true);
 
-    const {
-        isConnected,
-        procedures: {backfill, updateContent},
-        toggleShouldConnect,
-    } = useWebSocket(
-        TaskNotesCollaborationProtocol,
-        `/api/durable-objects/task-notes/${taskId}`,
-        event => {
-            switch (event.type) {
-                case "UpdateContentWithoutPersistence": {
-                    dispatch([
-                        {
-                            type: "ReceiveSteps",
-                            newVersion: event.newVersion,
-                            steps: event.steps.map(step => ({
-                                step,
-                                clientId: event.clientId,
-                            })),
-                            stepsContentReferences: event.stepsContentReferences,
-                        },
-                    ]);
-                    break;
-                }
-                case "PersistedContent": {
-                    // TODO(calebmer, #global-loading-indicator): Show a saving indicator until
-                    // content has persisted!
-                    //
-                    // TODO(calebmer, #unsaved-changes-confirmation): User should not be able to
-                    // close the page if we haven't finished saving their document. It will
-                    // look ok on their machine but might not be on the server.
-                    break;
-                }
-                default:
-                    throw exhaustive(event);
-            }
-        },
-    );
-
-    useDevConsoleTool("taskNotesContentEditor", () => ({toggleShouldConnect}));
-
-    // When we first connect to our WebSocket or reconnect after a disconnect, send
-    // a backfill request to update our local notes state to the latest version.
-    //
-    // We use `connectionIdRef` to make sure we only run the backfill once per
-    // connection.
-    const connectionIdRef = useRef<Id | null>(null);
     useEffect(() => {
-        if (!isConnected) {
-            connectionIdRef.current = null;
-            return;
-        }
+        if (!shouldConnect) return;
 
-        if (connectionIdRef.current) return;
-        const connectionId = generateId();
-        connectionIdRef.current = connectionId;
+        client.connect();
+        return () => {
+            client.disconnect();
+        };
+    }, [client, shouldConnect]);
 
-        backfill({
-            version: getState().editorState.getVersion(),
-        })
-            .then(output => {
-                // If while waiting on our backfill we disconnected then don't update
-                // our state. We use an `Id` to make sure if we connect/reconnect quickly we
-                // still ignore the backfill result.
-                if (connectionIdRef.current !== connectionId) return;
+    const state = useStore(client.state);
 
-                if (output.result.type === "Available") {
-                    dispatch([
-                        {
-                            type: "ReceiveSteps",
-                            newVersion: output.result.newVersion,
-                            steps: output.result.steps,
-                            stepsContentReferences: output.result.stepsContentReferences,
-                        },
-                    ]);
-                } else {
-                    const state = getState();
-
-                    // If the user had some pending changes they'll be reset. Show the user an error
-                    // message to let them know we threw away their changes.
-                    if (state.pendingSendableSteps) {
-                        showToast({
-                            type: "Error",
-                            title: "Couldn’t save changes to task",
-                            error: new UnavailableError(
-                                "Throwing away local task notes changes because collaboration service is missing the steps we need to backfill",
-                                {
-                                    displayMessage: errorDisplayMessage`The task’s notes changed while you were offline and we didn’t know how to update your changes to the task’s notes to avoid conflicting updates. Now if you type your changes again they’ll save.`,
-                                },
-                            ),
-                        });
-                    }
-
-                    dispatch([
-                        {
-                            type: "Extra",
-                            extra: {
-                                type: "Reset",
-                                state: getInitialCollaborativeContentEditorState({
-                                    initialVersion: output.result.newVersion,
-                                    initialContent: output.result.content,
-                                    reduceReferences: reduceContentReferences,
-                                    extra: {taskId},
-                                }),
-                            },
-                        },
-                    ]);
-                }
-            })
-            .catch(error => {
-                // If while waiting on our backfill we disconnected then don't update
-                // our state. We use an `Id` to make sure if we connect/reconnect quickly we
-                // still ignore the backfill result.
-                if (connectionIdRef.current !== connectionId) return;
-
-                dispatch([{type: "Error", error}]);
-            });
-    }, [backfill, dispatch, getState, isConnected, showToast, taskId]);
-
-    const lastPendingSendableStepsVersionSentToServerRef = useRef<number | null>(null);
-    useEffect(() => {
-        // Don't send updates if we're not connected. We also want this effect to
-        // re-run when we disconnect/reconnect.
-        if (!isConnected) return;
-
-        if (
-            state.pendingSendableSteps &&
-            lastPendingSendableStepsVersionSentToServerRef.current !==
-                state.pendingSendableSteps.version
-        ) {
-            updateContent({
-                version: state.pendingSendableSteps.version,
-                steps: state.pendingSendableSteps.steps,
-                clientId: state.pendingSendableSteps.clientId,
-            }).catch(error => dispatch([{type: "Error", error}]));
-
-            lastPendingSendableStepsVersionSentToServerRef.current =
-                state.pendingSendableSteps.version;
-        }
-    }, [dispatch, isConnected, state.pendingSendableSteps, updateContent]);
+    // TODO(calebmer): We probably want some retry mechanism for the user? But
+    // until the user retries, we don't want an infinite loop where we keep trying
+    // to update the document content.
+    if (state?.errorState.hasError) throw state.errorState.error;
 
     // 20 perfectly fits 4 lines of regular text before the input needs to
     // start growing.
@@ -354,7 +156,7 @@ function TaskDetailNotesField(
                             ref={editorRef}
                             aria-labelledby={labelId}
                             state={state.editorState}
-                            onChange={state => dispatch([{type: "Edit", editorState: state}])}
+                            onChange={state => client.changeEditorState(state)}
                             placeholder="Add more details…"
                             className={sprinkles({
                                 paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),

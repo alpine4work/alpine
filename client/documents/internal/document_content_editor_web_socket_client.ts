@@ -23,7 +23,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {ImmutableMap} from "~/shared/helpers/immutable/immutable_map.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
-import {Id, generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId} from "~/shared/id/types/id_types.js";
 import {MessagingRealtimeEvent} from "~/shared/messaging/messaging_realtime_protocol.js";
 import {ProsemirrorSelectionWrapper} from "~/shared/prosemirror/prosemirror_selection_schema.js";
@@ -129,24 +128,24 @@ export class DocumentContentEditorWebSocketClient {
     public connect() {
         assert(this._disconnect === null, "WebSocket is already connected");
 
-        let connectionId: Id | null = null;
+        let connectionState: {isBackfilling: boolean} | null = null;
 
         this._client.connect();
 
         const unsubscribeFromClientState = this._client.state.subscribe(() => {
             const clientState = this._client.state.getSnapshot();
 
-            if (connectionId !== null && !clientState.isConnected) {
-                connectionId = null;
+            if (connectionState !== null && !clientState.isConnected) {
+                connectionState = null;
 
                 maybeSendUpdatesToServer();
             }
 
             // Whenever we successfully connect to the WebSocket, send a backfill request
             // so we can get any steps we missed while disconnected from the WebSocket.
-            if (connectionId === null && clientState.isConnected) {
-                const ourConnectionId = generateId();
-                connectionId = ourConnectionId;
+            if (connectionState === null && clientState.isConnected) {
+                const ourConnectionState = {isBackfilling: true};
+                connectionState = ourConnectionState;
 
                 this._client.procedures
                     .backfill({
@@ -155,9 +154,9 @@ export class DocumentContentEditorWebSocketClient {
                     .then(
                         output => {
                             // If while waiting on our backfill we disconnected then don't update
-                            // our state. We use an `Id` to make sure if we connect/reconnect quickly we
+                            // our state. We use an object to make sure if we connect/reconnect quickly we
                             // still ignore the backfill result.
-                            if (connectionId !== ourConnectionId) return;
+                            if (connectionState !== ourConnectionState) return;
 
                             // One dispatch call just to make sure React applies these actions atomically
                             // and doesn't do any scheduling weirdness.
@@ -198,12 +197,15 @@ export class DocumentContentEditorWebSocketClient {
                                     },
                                 },
                             ]);
+
+                            ourConnectionState.isBackfilling = false;
+                            maybeSendUpdatesToServer();
                         },
                         error => {
                             // If while waiting on our backfill we disconnected then don't update
-                            // our state. We use an `Id` to make sure if we connect/reconnect quickly we
+                            // our state. We use an object to make sure if we connect/reconnect quickly we
                             // still ignore the backfill result.
-                            if (connectionId !== ourConnectionId) return;
+                            if (connectionState !== ourConnectionState) return;
 
                             this._dispatch({type: "Error", error});
                         },
@@ -322,7 +324,14 @@ export class DocumentContentEditorWebSocketClient {
         const maybeSendUpdatesToServer = () => {
             const state = this._state.getSnapshot();
 
-            if (connectionId === null) {
+            // Don't send an update to the server if:
+            //
+            // 1. We're disconnected (`connectionState === null`)
+            // 2. We're waiting on a backfill (`connectionState.isBackfilling === true`)
+            //
+            // We have to wait for a backfill (2) in case we were connected previously,
+            // sent an update, but didn't get an acknowledgement for the update back.
+            if (connectionState === null || connectionState.isBackfilling === true) {
                 cursorDisappearTimeout?.clear();
                 cursorDisappearTimeout = null;
                 return;
