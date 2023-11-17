@@ -5,10 +5,10 @@ import {createContentMentionTextStore} from "~/client/accounts/create_content_me
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {computeContentOrderedListItemNumbers} from "~/shared/content/compute_content_ordered_list_item_numbers.js";
 import {contentCheckListItemIconSvg} from "~/shared/content/content_check_list_item_icon_svg.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
-import {clampListItemIndentation} from "~/shared/content/content_schema.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -90,49 +90,6 @@ export function renderContentFragmentToHtmlStore(
 
         const orderedListItemNumberByNode = new Map<Node, number>();
 
-        const computeChildrenOrderedListItemNumbers = (node: Node) => {
-            let previousListItemNumberByIndent: Array<number> = [];
-
-            node.content.forEach(childNode => {
-                if (!childNode.type.groups.includes("listItem")) {
-                    previousListItemNumberByIndent = [];
-                    return;
-                }
-
-                const indent = clampListItemIndentation(childNode.attrs.indent);
-
-                if (childNode.type.name !== "orderedListItem") {
-                    previousListItemNumberByIndent = previousListItemNumberByIndent.slice(
-                        0,
-                        indent,
-                    );
-                } else {
-                    // If this item's indentation level is higher than the previous item's
-                    // indentation level, add new counters for the new indentation levels.
-                    //
-                    // If this item's indentation level is lower than the previous item's
-                    // indentation level, clear deeper indentation level counters since those
-                    // counters are done.
-                    if (previousListItemNumberByIndent.length < indent + 1) {
-                        for (let i = previousListItemNumberByIndent.length; i < indent + 1; i++) {
-                            previousListItemNumberByIndent.push(0);
-                        }
-                    } else if (previousListItemNumberByIndent.length > indent + 1) {
-                        previousListItemNumberByIndent = previousListItemNumberByIndent.slice(
-                            0,
-                            indent + 1,
-                        );
-                    }
-
-                    const previousListItemNumber = previousListItemNumberByIndent[indent]!;
-                    const listItemNumber = previousListItemNumber + 1;
-                    previousListItemNumberByIndent[indent] = listItemNumber;
-
-                    orderedListItemNumberByNode.set(childNode, listItemNumber);
-                }
-            });
-        };
-
         return serializeProsemirrorFragmentToHtml(content.doc.content, {
             startPos: 1,
             decorations,
@@ -156,7 +113,10 @@ export function renderContentFragmentToHtmlStore(
                         assert($pos.parent === node && $pos.parentOffset === 0);
 
                         const parentNode = $pos.node($pos.depth - 1);
-                        computeChildrenOrderedListItemNumbers(parentNode);
+                        computeContentOrderedListItemNumbers(
+                            parentNode,
+                            orderedListItemNumberByNode,
+                        );
 
                         listItemNumber = orderedListItemNumberByNode.get(node);
                         assert(listItemNumber !== undefined);
