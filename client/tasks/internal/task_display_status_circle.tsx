@@ -1,9 +1,8 @@
 import {Check} from "phosphor-react";
-import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {buttonPressedOverlayOpacity, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this

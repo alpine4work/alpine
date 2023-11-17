@@ -13,6 +13,7 @@ import "~/shared/styles/internal/global/global_2_defaults.css.js";
 
 export * from "~/shared/styles/internal/animation.css.js";
 export * from "~/shared/styles/internal/border_radius.css.js";
+export * from "~/shared/styles/internal/button.css.js";
 export * from "~/shared/styles/internal/color_scheme.css.js";
 export * as contentEditorStyles from "~/shared/styles/internal/content_editor.css.js";
 export * as contentSchemaStyles from "~/shared/styles/internal/content_schema.css.js";

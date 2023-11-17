@@ -13,7 +13,6 @@ import {
 } from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
-import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayPlacement} from "~/client/design/overlay.js";
 import {
@@ -30,7 +29,12 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {Sprinkles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
+import {
+    Sprinkles,
+    buttonPressedOverlayOpacity,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};

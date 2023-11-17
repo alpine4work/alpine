@@ -1,4 +1,5 @@
 import {Check} from "phosphor-react";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 // Hardcode Phosphor check icon SVG since we don't want to mount a React root
 // for every checkbox. And since we need to generate HTML without React.
@@ -9,5 +10,4 @@ import {Check} from "phosphor-react";
 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
 Check;
 
-export const contentCheckListItemIconSvg =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 256 256"><rect width="256" height="256" fill="none"></rect><polyline points="216 72 104 184 48 128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></polyline></svg>';
+export const contentCheckListItemIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" class="${contentSchemaStyles.checkListItemCheckboxIconClassName}" viewBox="0 0 256 256"><rect width="256" height="256" fill="none"/><polyline points="216 72 104 184 48 128" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"/></svg>`;

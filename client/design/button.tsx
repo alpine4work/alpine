@@ -20,12 +20,11 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
+    buttonPressedOverlayOpacity,
     colorSchemeVars,
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
-
-export const buttonPressedOverlayOpacity = 0.2;
 
 const ButtonForwardRef = forwardRef(Button);
 export {ButtonForwardRef as Button};

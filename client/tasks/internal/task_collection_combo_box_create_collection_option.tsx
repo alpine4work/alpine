@@ -5,14 +5,17 @@ import {useEffect, useRef, useState} from "react";
 import {mergeProps, useHover, useOption} from "react-aria";
 import {ComboBoxState} from "react-stately";
 import {Box} from "~/client/design/box.js";
-import {buttonPressedOverlayOpacity} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
+import {
+    buttonPressedOverlayOpacity,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 export function TaskCollectionComboBoxCreateCollectionOption<T>({
     comboBoxState,

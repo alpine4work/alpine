@@ -14,6 +14,7 @@ import {lerp} from "~/shared/helpers/number/lerp.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {borderRadius} from "~/shared/styles/internal/border_radius.css.js";
+import {buttonPressedOverlayOpacity} from "~/shared/styles/internal/button.css.js";
 import {
     CssVarFunction,
     colorSchemeVars,
@@ -272,8 +273,8 @@ export const orderedListItemClassName = style({
     },
 });
 
-const checkListItemCheckboxDesktopSize = spacing["4"];
-const checkListItemCheckboxMobileSize = spacing["5"];
+const checkListItemCheckboxDesktopSize = "4";
+const checkListItemCheckboxMobileSize = "5";
 
 export const checkListItemCheckedClassName = style({
     color: colorSchemeVars["grey-60"],
@@ -288,7 +289,7 @@ export const checkListItemCheckboxContainerClassName = style({
     top: 0,
     left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
         parseRemLengthNumber(listItemIndentation) / 2 -
-        (parseRemLengthNumber(checkListItemCheckboxDesktopSize) +
+        (parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize]) +
             parseRemLengthNumber(spacing["1"]) * 2) /
             2
     }rem)`,
@@ -304,7 +305,7 @@ export const checkListItemCheckboxContainerClassName = style({
             top: `-${spacing["0.5"]}`,
             left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
                 parseRemLengthNumber(listItemIndentation) / 2 -
-                (parseRemLengthNumber(checkListItemCheckboxMobileSize) +
+                (parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize]) +
                     parseRemLengthNumber(spacing["1"]) * 2) /
                     2
             }rem)`,
@@ -312,47 +313,62 @@ export const checkListItemCheckboxContainerClassName = style({
     },
 });
 
-// TODO(calebmer): Come back to this when we design task check boxes. Also add
-// a nice animation or something when checked. I'm a little skeptical a circle
-// is the right design. Checkboxes are typically squares. See:
-// http://danieldelaney.net/checkboxes/
-//
 // TODO(calebmer): We also need a disabled style for this checkbox when the
 // checkbox is read-only.
 export const checkListItemCheckboxClassName = style({
+    position: "relative",
+    overflow: "hidden",
     borderRadius: "100%",
-    width: checkListItemCheckboxDesktopSize,
-    height: checkListItemCheckboxDesktopSize,
-    padding: spacing["0.5"],
+    width: spacing[checkListItemCheckboxDesktopSize],
+    height: spacing[checkListItemCheckboxDesktopSize],
     backgroundColor: "transparent",
-    color: colorSchemeVars["grey-70"],
+    color: "transparent",
     borderWidth: 1,
-    borderColor: colorSchemeVars["grey-70"],
+    borderColor: colorSchemeVars["grey-40"],
     selectors: {
         [`${checkListItemCheckedClassName} &`]: {
-            backgroundColor: colorSchemeVars["theme-50-const"],
+            backgroundColor: colorSchemeVars["theme-50"],
             color: colorSchemeVars["grey-0-const"],
-            borderColor: colorSchemeVars["theme-50-const"],
+            borderWidth: 0,
         },
     },
     "@media": {
         [mobilePlatformMediaQuery]: {
-            width: checkListItemCheckboxMobileSize,
-            height: checkListItemCheckboxMobileSize,
-            padding: spacing["1"],
+            width: spacing[checkListItemCheckboxMobileSize],
+            height: spacing[checkListItemCheckboxMobileSize],
         },
     },
 });
 
 export const checkListItemCheckboxPressedClassName = style({
     backgroundColor: colorSchemeVars["grey-10"],
-    color: colorSchemeVars["grey-90"],
-    borderColor: colorSchemeVars["grey-90"],
     selectors: {
         [`${checkListItemCheckedClassName} &`]: {
-            backgroundColor: colorSchemeVars["theme-60-const"],
-            color: colorSchemeVars["grey-0-const"],
-            borderColor: colorSchemeVars["theme-60-const"],
+            backgroundColor: colorSchemeVars["theme-50"],
+        },
+        [`${checkListItemCheckedClassName} &::before`]: {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            backgroundColor: colorSchemeVars["grey-dark"],
+            opacity: buttonPressedOverlayOpacity,
+        },
+    },
+});
+
+export const checkListItemCheckboxIconClassName = style({
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    width: addRemLengths(spacing["2"], spacing["0.5"]),
+    height: addRemLengths(spacing["2"], spacing["0.5"]),
+    transform: `translate(-50%, -50%) scale(${parseInt(checkListItemCheckboxDesktopSize, 10) / 4})`,
+    pointerEvents: "none",
+    "@media": {
+        [mobilePlatformMediaQuery]: {
+            transform: `translate(-50%, -50%) scale(${
+                parseInt(checkListItemCheckboxMobileSize, 10) / 4
+            })`,
         },
     },
 });
