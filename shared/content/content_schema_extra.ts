@@ -1,4 +1,5 @@
 import {NodeSpec} from "prosemirror-model";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
@@ -12,6 +13,10 @@ const {dividerClassName, headingLevel1ClassName, headingLevel2ClassName, heading
  */
 function createProsemirrorNodesSpec<Nodes extends {[key: string]: NodeSpec}>(nodes: Nodes): Nodes {
     return nodes;
+}
+
+export function clampHeadingLevel(level: unknown): number {
+    return typeof level === "number" ? clamp(1, Math.floor(level), 3) : 1;
 }
 
 /**
@@ -43,11 +48,8 @@ export const contentStructuralProsemirrorNodeSpecs = createProsemirrorNodesSpec(
             },
         },
         toDOM: node => {
-            const unknownLevel: unknown = node.attrs.level;
-            const level =
-                typeof unknownLevel === "number"
-                    ? Math.max(Math.min(3, Math.floor(unknownLevel)), 1)
-                    : 1;
+            const level = clampHeadingLevel(node.attrs.level);
+
             return [
                 `h${level + 1}`,
                 {

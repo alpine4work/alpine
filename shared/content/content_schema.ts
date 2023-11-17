@@ -182,6 +182,7 @@ export const contentBaseProsemirrorSchemaSpec = createProsemirrorSchemaSpec({
                     {
                         class: classNames(listItemClassName, bulletListItemClassName),
                         style: assignInlineVars({[listItemIndentationVar]: indent.toString()}),
+                        "data-list-indent": indent,
                     },
                     0,
                 ];

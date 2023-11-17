@@ -53,17 +53,26 @@ export function createContentEditorOrderedListItemNodeView(node: Node): NodeView
     };
 }
 
-function parseOrderedListItemData(element: HTMLElement): {number: number; indent: number} | null {
-    if (element.dataset.listIndent === undefined || element.dataset.listNumber === undefined)
-        return null;
+/**
+ * Parses data from the element if its a list item. If its a list item returns
+ * an object with indentation. If its an ordered list item then we'll also
+ * return a non-null `number`. If it's not an ordered list item then `number`
+ * will be null.
+ */
+function parseListItemData(element: HTMLElement): {indent: number; number: number | null} | null {
+    if (element.dataset.listIndent === undefined) return null;
 
-    const indent = parseInt(element.dataset.listIndent, 10);
-    const number = parseInt(element.dataset.listNumber, 10);
+    let indent = parseInt(element.dataset.listIndent, 10);
+    indent = !isNaN(indent) && Number.isInteger(indent) && indent >= 0 ? indent : 0;
 
-    return {
-        indent: !isNaN(indent) && Number.isInteger(indent) && indent >= 0 ? indent : 0,
-        number: !isNaN(number) && Number.isInteger(number) && number >= 0 ? number : 0,
-    };
+    if (element.dataset.listNumber === undefined) {
+        return {indent, number: null};
+    }
+
+    let number = parseInt(element.dataset.listNumber, 10);
+    number = !isNaN(number) && Number.isInteger(number) && number >= 0 ? number : 0;
+
+    return {indent, number};
 }
 
 /**
@@ -74,12 +83,15 @@ function parseOrderedListItemData(element: HTMLElement): {number: number; indent
  * that follow.
  */
 function setOrderedListItemNumber(element: HTMLElement) {
-    const listItemData = parseOrderedListItemData(element);
+    const listItemData = parseListItemData(element);
     if (!listItemData) return;
 
     // Find the previous list item. Skipping over any list items with a nested
     // indentation.
-    let previousListItem: {element: HTMLElement; data: {number: number; indent: number}} | null = {
+    let previousListItem: {
+        element: HTMLElement;
+        data: {indent: number; number: number | null};
+    } | null = {
         element,
         data: listItemData,
     };
@@ -90,7 +102,7 @@ function setOrderedListItemNumber(element: HTMLElement) {
             break;
         }
 
-        const previousListItemData = parseOrderedListItemData(previousElement);
+        const previousListItemData = parseListItemData(previousElement);
         if (!previousListItemData) {
             previousListItem = null;
             break;
@@ -108,7 +120,8 @@ function setOrderedListItemNumber(element: HTMLElement) {
         previousListItem = null;
     }
 
-    const newListItemNumber = previousListItem !== null ? previousListItem.data.number + 1 : 1;
+    const newListItemNumber =
+        typeof previousListItem?.data.number === "number" ? previousListItem.data.number + 1 : 1;
 
     // Our list item already has the right number. We don't need to update.
     if (newListItemNumber === listItemData.number) return;
@@ -132,7 +145,7 @@ function resetSiblingOrderedListItemNumbers(
     let nextListItemElement: ChildNode | null = startNode;
 
     while (nextListItemElement && nextListItemElement instanceof HTMLElement) {
-        const nextListItemData = parseOrderedListItemData(nextListItemElement);
+        const nextListItemData = parseListItemData(nextListItemElement);
 
         // Non-list items end the list.
         if (!nextListItemData) break;
@@ -177,10 +190,9 @@ function observeOrderListItemSiblingMutations(parentNode: ParentNode): () => voi
         () => {
             const observer = new MutationObserver(mutations => {
                 for (const mutation of mutations) {
-                    // Only consider mutations that remove a node above an element.
                     if (
                         mutation.type !== "childList" ||
-                        mutation.removedNodes.length === 0 ||
+                        (mutation.addedNodes.length === 0 && mutation.removedNodes.length === 0) ||
                         !mutation.nextSibling
                     ) {
                         continue;
@@ -190,7 +202,7 @@ function observeOrderListItemSiblingMutations(parentNode: ParentNode): () => voi
                     let currentListItemIndent: number | undefined;
 
                     while (nextListItemElement && nextListItemElement instanceof HTMLElement) {
-                        const nextListItemData = parseOrderedListItemData(nextListItemElement);
+                        const nextListItemData = parseListItemData(nextListItemElement);
 
                         // Non-list items end the list.
                         if (!nextListItemData) break;

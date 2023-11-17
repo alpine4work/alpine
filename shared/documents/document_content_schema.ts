@@ -66,6 +66,7 @@ const documentWithoutTitleContentProsemirrorSchemaSpec = createProsemirrorSchema
                             [checkListItemCheckedClassName]: node.attrs.checked,
                         }),
                         style: assignInlineVars({[listItemIndentationVar]: indent.toString()}),
+                        "data-list-indent": indent,
                     },
                     0,
                 ];

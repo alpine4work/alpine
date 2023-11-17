@@ -178,7 +178,7 @@ export class ContentEditorDomClipboardSerializer extends DOMSerializer {
                 childDom.nextSibling instanceof HTMLElement &&
                 (childDom.nextSibling.tagName === "UL" || childDom.nextSibling.tagName === "OL") &&
                 // We can merge if the list type is the same or if there are not any direct
-                // `<li>` children. If there's a direct `<li>` children then we need to
+                // `<li>` children. If there's a direct `<li>` child then we need to
                 // preserve the list type.
                 (childDom.nextSibling.tagName === childDom.tagName ||
                     iterableEvery(
