@@ -94,35 +94,42 @@ export function renderContentFragmentToHtmlStore(
             let previousListItemNumberByIndent: Array<number> = [];
 
             node.content.forEach(childNode => {
-                if (childNode.type.name !== "orderedListItem") {
+                if (!childNode.type.groups.includes("listItem")) {
                     previousListItemNumberByIndent = [];
                     return;
                 }
 
                 const indent = clampListItemIndentation(childNode.attrs.indent);
 
-                // If this item's indentation level is higher than the previous item's
-                // indentation level, add new counters for the new indentation levels.
-                //
-                // If this item's indentation level is lower than the previous item's
-                // indentation level, clear deeper indentation level counters since those
-                // counters are done.
-                if (previousListItemNumberByIndent.length < indent + 1) {
-                    for (let i = previousListItemNumberByIndent.length; i < indent + 1; i++) {
-                        previousListItemNumberByIndent.push(0);
-                    }
-                } else if (previousListItemNumberByIndent.length > indent + 1) {
+                if (childNode.type.name !== "orderedListItem") {
                     previousListItemNumberByIndent = previousListItemNumberByIndent.slice(
                         0,
-                        indent + 1,
+                        indent,
                     );
+                } else {
+                    // If this item's indentation level is higher than the previous item's
+                    // indentation level, add new counters for the new indentation levels.
+                    //
+                    // If this item's indentation level is lower than the previous item's
+                    // indentation level, clear deeper indentation level counters since those
+                    // counters are done.
+                    if (previousListItemNumberByIndent.length < indent + 1) {
+                        for (let i = previousListItemNumberByIndent.length; i < indent + 1; i++) {
+                            previousListItemNumberByIndent.push(0);
+                        }
+                    } else if (previousListItemNumberByIndent.length > indent + 1) {
+                        previousListItemNumberByIndent = previousListItemNumberByIndent.slice(
+                            0,
+                            indent + 1,
+                        );
+                    }
+
+                    const previousListItemNumber = previousListItemNumberByIndent[indent]!;
+                    const listItemNumber = previousListItemNumber + 1;
+                    previousListItemNumberByIndent[indent] = listItemNumber;
+
+                    orderedListItemNumberByNode.set(childNode, listItemNumber);
                 }
-
-                const previousListItemNumber = previousListItemNumberByIndent[indent]!;
-                const listItemNumber = previousListItemNumber + 1;
-                previousListItemNumberByIndent[indent] = listItemNumber;
-
-                orderedListItemNumberByNode.set(childNode, listItemNumber);
             });
         };
 
