@@ -86,13 +86,6 @@ const {
 
 // TODO(calebmer): Implement touch toolbar for mobile.
 
-declare module "prosemirror-model" {
-    // Augment `NodeType` with the undocumented `groups` array.
-    interface NodeType {
-        readonly groups: ReadonlyArray<string>;
-    }
-}
-
 function wrap<Content extends ContentWithReferences>(
     state: EditorState,
 ): ContentEditorState<Content> {

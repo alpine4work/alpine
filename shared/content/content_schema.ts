@@ -10,6 +10,11 @@ import {Schema} from "~/shared/schema/schema.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 declare module "prosemirror-model" {
+    // Augment `NodeType` with the undocumented `groups` array.
+    interface NodeType {
+        readonly groups: ReadonlyArray<string>;
+    }
+
     interface AttributeSpec {
         // We expect every attribute to come with a schema from our schema framework.
         // `createSchemaForProsemirrorSchema()` will use this.
