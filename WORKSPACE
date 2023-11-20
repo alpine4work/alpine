@@ -160,6 +160,14 @@ filegroup(
     visibility = ["//visibility:public"],
 )
 """,
+    # Enable DynamoDB logging:
+    # https://stackoverflow.com/questions/29525469/how-do-i-enable-dynamodb-local-logging
+    patch_args = ["-p1"],
+    patch_cmds = [
+        "zip -d DynamoDBLocal.jar log4j2.xml",
+        "zip -u DynamoDBLocal.jar log4j2.xml",
+    ],
+    patches = ["//admin/patches:bazel/dynamo_local.patch"],
     # You can find DynamoDB local versions here:
     # https://s3.us-west-2.amazonaws.com/dynamodb-local/
     sha256 = "433564d6f96c50852c276133b95106870da67e54e39434f1a473827ad20b3576",
