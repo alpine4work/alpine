@@ -10,7 +10,7 @@ import crypto from "crypto";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
-import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
 const opensearchDeployScriptLambdaDirectoryPath = joinPath(
     runfilesPath,

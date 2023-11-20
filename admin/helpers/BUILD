@@ -16,6 +16,7 @@ ts_project(
         "//:node_modules/env-paths",
         "//:node_modules/fs-extra",
         "//:node_modules/pidtree",
+        "//server/helpers/node",
         "//shared/error",
         "//shared/helpers",
     ],

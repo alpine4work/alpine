@@ -1,6 +1,6 @@
 import glob from "fast-glob";
 import {join as joinPath, relative} from "path";
-import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";

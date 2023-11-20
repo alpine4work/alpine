@@ -16,6 +16,7 @@ import {ServerSystemActionContextModules} from "~/server/context/server_action_c
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {
     createServerProcessContext,
     serverProcessContextParseOptions,
@@ -42,8 +43,6 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
-
-const runfilesPath = assertExists(process.env.RUNFILES);
 
 const assetsBuildDirectory = joinPath(runfilesPath, "cyberworlds/app/public/build");
 

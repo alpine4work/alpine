@@ -11,6 +11,7 @@ ts_project(
         "//admin/helpers",
         "//server/dynamo/core",
         "//shared/helpers",
+        "//shared/helpers/node",
         "//shared/schema",
     ],
 )

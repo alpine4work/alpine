@@ -1,7 +1,7 @@
 import dotenv, {DotenvParseOutput} from "dotenv";
 import fs from "fs-extra";
 import path from "path";
-import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";

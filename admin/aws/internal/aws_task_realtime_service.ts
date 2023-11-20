@@ -18,8 +18,8 @@ import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
-import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
 import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare_ips.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 

@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
-import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {Mutex} from "~/shared/helpers/async/mutex.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 

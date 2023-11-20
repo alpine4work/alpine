@@ -14,8 +14,8 @@ import {
     devTaskRealtimeServicePublicKeyPath,
     ensureDevServiceKeys,
 } from "~/admin/helpers/dev_service_keys.js";
-import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";

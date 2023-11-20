@@ -1,11 +1,11 @@
 import {spawn} from "child_process";
 import {join as joinPath} from "path";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
 import {DeadlineExceededError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 
 /**
@@ -15,8 +15,6 @@ import {quote} from "~/shared/helpers/string/quote.js";
  * think there's a use case for this in production.
  */
 export async function waitForHttpServer(port: number) {
-    const runfilesPath = assertExists(process.env.RUNFILES);
-
     // NOTE(calebmer, 2023-10-30): I used to have a `waitForHttpServer()`
     // implementation in Node.js but later discovered it was leaking file
     // descriptors! The file descriptor leak appears to be a [bug in Node.js][1].

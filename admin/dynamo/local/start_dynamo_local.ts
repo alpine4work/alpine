@@ -1,7 +1,7 @@
 import {spawn} from "child_process";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
-import {runfilesPath} from "~/admin/helpers/runfiles_path.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
