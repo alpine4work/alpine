@@ -280,3 +280,21 @@ http_file(
     sha256 = "ef51a55fccf0882e6d666d8b19251d39ae190d9510409f734d8f2f8aed8c40b9",
     url = "https://s3-eu-west-1.amazonaws.com/softwaremill-public/elasticmq-server-1.4.2.jar",
 )
+
+# =========================================================================== #
+#                                   Cohere                                    #
+# =========================================================================== #
+
+http_file(
+    name = "cohere_embed_english_light_v3_0_tokenizer_config",
+    downloaded_file_path = "tokenizer_config.json",
+    sha256 = "8add36e54b823757656aa9e216c9552cdbce9d7ddfffb45a35fa6d6dbf361370",
+    url = "https://huggingface.co/Cohere/Cohere-embed-english-light-v3.0/resolve/af99964c9f9b5356e7c690bec577743df457fcb2/tokenizer_config.json",
+)
+
+http_file(
+    name = "cohere_embed_english_light_v3_0_tokenizer",
+    downloaded_file_path = "tokenizer.json",
+    sha256 = "243655762254d2a961c98b2b8b9d5783dfdb66ff0be4dee94207fb94b35938a0",
+    url = "https://huggingface.co/Cohere/Cohere-embed-english-light-v3.0/resolve/af99964c9f9b5356e7c690bec577743df457fcb2/tokenizer.json",
+)

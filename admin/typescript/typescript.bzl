@@ -18,6 +18,7 @@ def ts_project(
         test_srcs = None,
         lint_and_format_srcs = None,
         deps = [],
+        data = [],
         test_deps = [],
         test_data = [],
         tests = {},
@@ -35,6 +36,7 @@ def ts_project(
         lint_and_format_srcs: Sources to run lint and format tests for. Defaults to all
         JavaScript, TypeScript, JSON, and Markdown files.
         deps: Any dependencies this project needs to run.
+        data: Any data this project needs at runtime in its runfiles.
         test_deps: Any dependencies this project needs to run tests.
         test_data: Any data for this project that is only available in tests.
         tests: Provide extra arguments to individual tests. Keyed by test label.
@@ -56,6 +58,7 @@ def ts_project(
         name = name,
         srcs = srcs,
         deps = deps,
+        data = data,
         tsconfig = "//:tsconfig",
         transpiler = partial.make(swc, **_SWC_KWARGS),
         declaration = True,
@@ -139,7 +142,7 @@ def ts_project(
                     # https://jestjs.io/docs/ecmascript-modules
                     "--experimental-vm-modules",
                 ] + extra_node_options,
-                data = _dedupe_labels(deps + test_deps + test_data + [
+                data = _dedupe_labels(deps + data + test_deps + test_data + [
                                           "//:node_modules/@juggle/resize-observer",
                                           "//:node_modules/@testing-library/jest-dom",
                                           "//:node_modules/@types/jest",
