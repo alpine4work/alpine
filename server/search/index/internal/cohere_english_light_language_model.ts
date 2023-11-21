@@ -2,6 +2,7 @@ import {BertTokenizer} from "@xenova/transformers";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {LanguageModelBase} from "~/server/search/index/internal/language_model_base.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -16,14 +17,19 @@ const cohereEnglishLightTokenizerJsonPath = joinPath(
     "cohere_embed_english_light_v3_0_tokenizer/file/tokenizer.json",
 );
 
-export class CohereEnglishLightTokenizer {
+/**
+ * API for Cohere's `embed-english-light-v3.0` model. [Read more][1].
+ *
+ * [1]: https://txt.cohere.com/introducing-embed-v3/
+ */
+export class CohereEnglishLightLanguageModel implements LanguageModelBase {
     private readonly _tokenizer: BertTokenizer;
 
     private constructor(tokenizer: BertTokenizer) {
         this._tokenizer = tokenizer;
     }
 
-    private static readonly _tokenizerPromise = new Lazy(async () => {
+    private static readonly _promise = new Lazy(async () => {
         const [configContents, jsonContents] = await runAllPromises([
             fs.readFile(cohereEnglishLightTokenizerConfigPath, "utf8"),
             fs.readFile(cohereEnglishLightTokenizerJsonPath, "utf8"),
@@ -39,12 +45,25 @@ export class CohereEnglishLightTokenizer {
 
         const tokenizer = new BertTokenizer(json, config);
 
-        return new CohereEnglishLightTokenizer(tokenizer);
+        return new CohereEnglishLightLanguageModel(tokenizer);
     });
 
     public static get() {
-        return this._tokenizerPromise.get();
+        return this._promise.get();
     }
+
+    /**
+     * The ideal maximum number of tokens in embedding text. 512 as per the [Cohere
+     * embed documentation][1].
+     *
+     * > We recommend reducing the length of each text to be under 512 tokens for
+     * > optimal quality.
+     *
+     * Going above this length is fine but not recommended.
+     *
+     * [1]: https://docs.cohere.com/reference/embed
+     */
+    public readonly idealMaxEmbedTokenCount = 512;
 
     /**
      * Count the number of tokens for the `embed-english-light-v3.0` model. Uses

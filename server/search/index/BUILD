@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/fs-extra",
         "//:node_modules/natural",
         "//:node_modules/prosemirror-model",
+        "//server/documents/data",
         "//server/helpers/node",
         "//server/opensearch",
         "//shared/error",

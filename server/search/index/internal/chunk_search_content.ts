@@ -1,6 +1,6 @@
 import natural from "natural";
 import {Fragment, Mark, Node} from "prosemirror-model";
-import {CohereEnglishLightTokenizer} from "~/server/search/index/internal/cohere_english_light_tokenizer.js";
+import {LanguageModelBase} from "~/server/search/index/internal/language_model_base.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
@@ -17,17 +17,10 @@ import {
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
-
-// NOCOMMIT: Small messages like "Nice!" shouldn't be chunked at all? Two
-// adjacent messages shouldn't chunk the same content twice?
-
-// NOCOMMIT: Link to this:
-// https://www.pinecone.io/learn/chunking-strategies/
-
-// NOCOMMIT: Context, link to this:
-// https://community.openai.com/t/the-length-of-the-embedding-contents/111471/7
 
 type RecursiveIterable<T> = Iterable<T | RecursiveIterable<T>>;
 
@@ -45,35 +38,49 @@ function mapRecursiveIterable<Value, NewValue>(
 
 /**
  * Take arbitrary content and divide it into `SearchContentChunk`s of the ideal
- * length for our LLM (Cohere).
+ * length for our LLM (Cohere). We divide content into chunks along the natural
+ * structure of the document. (e.g. Headings create separate chunks.)
  *
- * Also prints our content to Markdown formatted text which we index in
+ * Also prints our content to Markdown formatted text which we can index in
  * OpenSearch for keyword search.
+ *
+ * Picking good chunks for an LLM can be more art than science. For an
+ * introduction to chunking strategies see [this blog post from Pinecone][1].
+ * Chunks also can't be context-less.
+ *
+ * You should add some preamble to chunks so the LLM can better understand
+ * what's in the content. A good discussion on adding context to chunks is in
+ * [this reply on the OpenAI forums][2]. To add context to chunks implement the
+ * `getChunkPreamble` function.
+ *
+ * [1]: https://www.pinecone.io/learn/chunking-strategies/
+ * [2]: https://community.openai.com/t/the-length-of-the-embedding-contents/111471/7
  */
 export async function chunkSearchContent(
     content: Node,
     {
+        model,
         getAccountIfExists,
+        getChunkPreamble = () => ({text: "", lineMarginBottom: 0}),
     }: {
+        model: LanguageModelBase;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
+        getChunkPreamble?: (options: {
+            context: SearchContentChunkContext;
+            isInitialChunk: boolean;
+        }) => {text: string; lineMarginBottom: number};
     },
 ) {
-    const tokenizer = await CohereEnglishLightTokenizer.get();
+    const chunk = await getFullSearchContentChunk(content, {model, getAccountIfExists});
 
-    const chunk = await getFullSearchContentChunk(content, {tokenizer, getAccountIfExists});
+    const splitChunks = splitSearchContentChunk(chunk, {
+        model,
+        getChunkPreamble,
+    });
 
-    // The maximum number of tokens in a search content chunk. 512 as per the
-    // [Cohere embed documentation][1].
-    //
-    // > We recommend reducing the length of each text to be under 512 tokens for
-    // > optimal quality.
-    //
-    // [1]: https://docs.cohere.com/reference/embed
-    const maxTokenCount = 512;
-
-    return splitSearchContentChunk(chunk, maxTokenCount);
+    return splitChunks.map(chunk => printSearchContentChunk(chunk));
 }
 
 /**
@@ -90,6 +97,7 @@ export type SearchContentChunk =
     | {
           isGroup: false;
           tokenCount: number;
+          context: SearchContentChunkContext;
           sentenceChunks: Array<{text: string; tokenCount: number}>;
           lineMarginTop: number;
           lineMarginBottom: number;
@@ -97,21 +105,26 @@ export type SearchContentChunk =
     | {
           isGroup: true;
           tokenCount: number;
+          context: SearchContentChunkContext;
           childChunks: Array<SearchContentChunk>;
       };
+
+export type SearchContentChunkContext = {
+    sectionHeading: string | null;
+};
 
 /**
  * Convert arbitrary content into a chunk tree where the leaf nodes are
  * sentences (printed to Markdown formatted text). Each level of the tree
  * represents a different level of structure.
  */
-export function getFullSearchContentChunk(
+export async function getFullSearchContentChunk(
     content: Node,
     {
-        tokenizer,
+        model,
         getAccountIfExists,
     }: {
-        tokenizer: {countTokens: (text: string) => number};
+        model: LanguageModelBase;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
@@ -125,19 +138,40 @@ export function getFullSearchContentChunk(
             sentenceChunks: Array<string>;
             lineMarginTop: number;
             lineMarginBottom: number;
+            sectionHeading: string | null;
         }>
-    > = mapRecursiveIterable(
-        mapIterable(chunkSearchContentBySections(content.content), contentChunk =>
-            mapIterable(chunkSearchContentByParagraphs(contentChunk), contentChunk =>
-                chunkSearchContentByListItems(contentChunk),
-            ),
-        ),
-        fragment =>
-            chunkSearchContentBySentenceForBlockFragment(content, fragment, {
-                orderListItemNumberByNode: new Map(),
-                getAccountIfExists,
-            }),
-    );
+    > = mapIterable(chunkSearchContentBySections(content.content), contentChunk => {
+        // The heading fragment should not get `sectionHeading` context. Only the
+        // content below it.
+        return contentChunk.headingFragment
+            ? concatIterables(
+                  next(contentChunk.headingFragment, null),
+                  next(contentChunk.fragment, contentChunk.sectionHeadingNode),
+              )
+            : next(contentChunk.fragment, contentChunk.sectionHeadingNode);
+
+        function next(fragment: Fragment, sectionHeadingNode: Node | null) {
+            const sectionHeadingPromise = sectionHeadingNode
+                ? printSearchTextForInlineFragment(sectionHeadingNode.content, {
+                      getAccountIfExists,
+                  })
+                : null;
+
+            return mapRecursiveIterable(
+                chunkSearchContentByIntroduction(chunkSearchContentByParagraphs(fragment)),
+                fragment =>
+                    mapRecursiveIterable(chunkSearchContentByListItems(fragment), fragment =>
+                        runAllPromises([
+                            sectionHeadingPromise,
+                            chunkSearchContentBySentenceForBlockFragment(content, fragment, {
+                                orderListItemNumberByNode: new Map(),
+                                getAccountIfExists,
+                            }),
+                        ]).then(([sectionHeading, chunk]) => ({...chunk, sectionHeading})),
+                    ),
+            );
+        }
+    });
 
     // Consumes the structured chunk iterable recursively and turns it into a tree
     // object. We also product a token count at each level of the tree.
@@ -147,6 +181,7 @@ export function getFullSearchContentChunk(
                 sentenceChunks: Array<string>;
                 lineMarginTop: number;
                 lineMarginBottom: number;
+                sectionHeading: string | null;
             }>
         >,
     ): Promise<SearchContentChunk> => {
@@ -165,7 +200,7 @@ export function getFullSearchContentChunk(
                 let tokenCount2 = 0;
 
                 const sentenceChunks = chunk.sentenceChunks.map(sentenceChunk => {
-                    const tokenCount = tokenizer.countTokens(sentenceChunk);
+                    const tokenCount = model.countTokens(sentenceChunk);
                     tokenCount1 += tokenCount;
                     tokenCount2 += tokenCount;
                     return {text: sentenceChunk, tokenCount};
@@ -174,6 +209,7 @@ export function getFullSearchContentChunk(
                 return {
                     isGroup: false,
                     tokenCount: tokenCount2,
+                    context: {sectionHeading: chunk.sectionHeading},
                     sentenceChunks,
                     lineMarginTop: chunk.lineMarginTop,
                     lineMarginBottom: chunk.lineMarginBottom,
@@ -186,8 +222,23 @@ export function getFullSearchContentChunk(
             return chunks[0]!;
         }
 
+        // A group's context must be the same as every child chunk's context.
+        let context = null;
+        if (chunks.length > 0) {
+            context = chunks[0]!.context;
+            for (let i = 1; i < chunks.length; i++) {
+                const chunk = chunks[i]!;
+
+                if (!isDeepEqual(context, chunk.context)) {
+                    context = null;
+                    break;
+                }
+            }
+        }
+
         return {
             isGroup: true,
+            context: context ?? {sectionHeading: null},
             tokenCount: tokenCount1,
             childChunks: chunks,
         };
@@ -207,36 +258,98 @@ export function getFullSearchContentChunk(
  */
 function splitSearchContentChunk(
     chunk: SearchContentChunk,
-    maxTokenCount: number,
+    {
+        model,
+        getChunkPreamble: _getChunkPreamble,
+    }: {
+        model: LanguageModelBase;
+        getChunkPreamble: (options: {
+            context: SearchContentChunkContext;
+            isInitialChunk: boolean;
+        }) => {text: string; lineMarginBottom: number};
+    },
 ): Array<SearchContentChunk> {
+    const getChunkPreamble = (
+        context: SearchContentChunkContext,
+        {isInitialChunk = false}: {isInitialChunk?: boolean} = {},
+    ) => {
+        const preamble = _getChunkPreamble({
+            context,
+            isInitialChunk,
+        });
+        return {
+            text: preamble.text,
+            lineMarginBottom: preamble.lineMarginBottom,
+            tokenCount: model.countTokens(preamble.text),
+        };
+    };
+
+    let nextChunkPreamble: {text: string; lineMarginBottom: number; tokenCount: number} | null =
+        getChunkPreamble(chunk.context, {isInitialChunk: true});
     const splitChunks: Array<SearchContentChunk> = [];
+
+    const addNextChunkPreamble = (
+        nextChunkPreamble: {text: string; lineMarginBottom: number; tokenCount: number},
+        chunk: SearchContentChunk,
+    ): SearchContentChunk => {
+        if (nextChunkPreamble.text.length === 0 && nextChunkPreamble.lineMarginBottom === 0) {
+            return chunk;
+        }
+
+        return {
+            isGroup: true,
+            tokenCount: nextChunkPreamble.tokenCount + chunk.tokenCount,
+            context: {sectionHeading: null},
+            childChunks: [
+                {
+                    isGroup: false,
+                    tokenCount: nextChunkPreamble.tokenCount,
+                    context: {sectionHeading: null},
+                    sentenceChunks: [nextChunkPreamble],
+                    lineMarginTop: 0,
+                    lineMarginBottom: nextChunkPreamble.lineMarginBottom,
+                },
+                chunk,
+            ],
+        };
+    };
 
     // Takes our structured chunk and splits it into smaller chunks of appropriate
     // size for the LLM. In Cohere's case it performs best with <512 tokens at
     // a time.
     const split = (chunk: SearchContentChunk) => {
-        if (chunk.tokenCount <= maxTokenCount) {
-            splitChunks.push(chunk);
+        nextChunkPreamble ??= getChunkPreamble(chunk.context);
+
+        if (chunk.tokenCount <= model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount) {
+            splitChunks.push(addNextChunkPreamble(nextChunkPreamble, chunk));
+            nextChunkPreamble = null;
             return;
         }
 
         if (!chunk.isGroup) {
-            // All new chunks are added here without any margin. At the end of this block
-            // we'll add all chunks in here to `splitChunks` with the right margins.
-            const newSplitChunks: Array<SearchContentChunk & {isGroup: false}> = [];
-
             let workingGroupTokenCount = 0;
             let workingGroupSentenceChunks: Array<{text: string; tokenCount: number}> = [];
 
             for (const sentenceChunk of chunk.sentenceChunks) {
-                if (workingGroupTokenCount + sentenceChunk.tokenCount > maxTokenCount) {
-                    newSplitChunks.push({
-                        isGroup: false,
-                        tokenCount: workingGroupTokenCount,
-                        sentenceChunks: workingGroupSentenceChunks,
-                        lineMarginTop: 0,
-                        lineMarginBottom: 0,
-                    });
+                nextChunkPreamble ??= getChunkPreamble(chunk.context);
+
+                if (
+                    workingGroupTokenCount + sentenceChunk.tokenCount >
+                    model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
+                ) {
+                    splitChunks.push(
+                        addNextChunkPreamble(nextChunkPreamble, {
+                            isGroup: false,
+                            tokenCount: workingGroupTokenCount,
+                            context: chunk.context,
+                            sentenceChunks: workingGroupSentenceChunks,
+                            // Margin doesn't matter in a split chunk since there's no content before
+                            // or after.
+                            lineMarginTop: 0,
+                            lineMarginBottom: 0,
+                        }),
+                    );
+                    nextChunkPreamble = null;
 
                     workingGroupTokenCount = 0;
                     workingGroupSentenceChunks = [];
@@ -249,49 +362,59 @@ function splitSearchContentChunk(
                 workingGroupSentenceChunks.push(sentenceChunk);
             }
 
+            nextChunkPreamble ??= getChunkPreamble(chunk.context);
+
             if (workingGroupSentenceChunks.length > 0) {
-                newSplitChunks.push({
-                    isGroup: false,
-                    tokenCount: workingGroupTokenCount,
-                    sentenceChunks: workingGroupSentenceChunks,
-                    lineMarginTop: 0,
-                    lineMarginBottom: 0,
-                });
+                splitChunks.push(
+                    addNextChunkPreamble(nextChunkPreamble, {
+                        isGroup: false,
+                        tokenCount: workingGroupTokenCount,
+                        context: chunk.context,
+                        sentenceChunks: workingGroupSentenceChunks,
+                        // Margin doesn't matter in a split chunk since there's no content before
+                        // or after.
+                        lineMarginTop: 0,
+                        lineMarginBottom: 0,
+                    }),
+                );
+                nextChunkPreamble = null;
 
                 workingGroupTokenCount = 0;
                 workingGroupSentenceChunks = [];
-            }
-
-            for (let i = 0; i < newSplitChunks.length; i++) {
-                const newSplitStructuredChunk = newSplitChunks[0]!;
-
-                splitChunks.push({
-                    isGroup: false,
-                    tokenCount: newSplitStructuredChunk.tokenCount,
-                    sentenceChunks: newSplitStructuredChunk.sentenceChunks,
-                    lineMarginTop: i === 0 ? chunk.lineMarginTop : 0,
-                    lineMarginBottom: i === newSplitChunks.length - 1 ? chunk.lineMarginBottom : 0,
-                });
             }
         } else {
             let workingGroupTokenCount = 0;
             let workingGroupChildChunks: Array<SearchContentChunk> = [];
 
             for (const childChunk of chunk.childChunks) {
-                if (workingGroupTokenCount + childChunk.tokenCount > maxTokenCount) {
-                    splitChunks.push({
-                        isGroup: true,
-                        tokenCount: workingGroupTokenCount,
-                        childChunks: workingGroupChildChunks,
-                    });
+                nextChunkPreamble ??= getChunkPreamble(childChunk.context);
+
+                if (
+                    workingGroupTokenCount + childChunk.tokenCount >
+                    model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
+                ) {
+                    splitChunks.push(
+                        addNextChunkPreamble(nextChunkPreamble, {
+                            isGroup: true,
+                            tokenCount: workingGroupTokenCount,
+                            context: chunk.context,
+                            childChunks: workingGroupChildChunks,
+                        }),
+                    );
+                    nextChunkPreamble = null;
 
                     workingGroupTokenCount = 0;
                     workingGroupChildChunks = [];
                 }
 
+                nextChunkPreamble ??= getChunkPreamble(childChunk.context);
+
                 // If this chunk alone is too big for our LLM's context window then recursively
                 // split it into smaller chunks. Otherwise, add it to the chunk we're building.
-                if (childChunk.tokenCount > maxTokenCount) {
+                if (
+                    childChunk.tokenCount >
+                    model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
+                ) {
                     split(childChunk);
                 } else {
                     workingGroupTokenCount += childChunk.tokenCount;
@@ -300,11 +423,15 @@ function splitSearchContentChunk(
             }
 
             if (workingGroupChildChunks.length > 0) {
-                splitChunks.push({
-                    isGroup: true,
-                    tokenCount: workingGroupTokenCount,
-                    childChunks: workingGroupChildChunks,
-                });
+                splitChunks.push(
+                    addNextChunkPreamble(nextChunkPreamble, {
+                        isGroup: true,
+                        tokenCount: workingGroupTokenCount,
+                        context: chunk.context,
+                        childChunks: workingGroupChildChunks,
+                    }),
+                );
+                nextChunkPreamble = null;
 
                 workingGroupTokenCount = 0;
                 workingGroupChildChunks = [];
@@ -317,38 +444,115 @@ function splitSearchContentChunk(
 }
 
 /**
+ * Print a chunk to text. We put spaces in between sentences and add the
+ * maximum line margin between two adjacent chunks.
+ */
+function printSearchContentChunk(chunk: SearchContentChunk): string {
+    const flatChunks: Array<SearchContentChunk & {isGroup: false}> = [];
+
+    const loop = (chunk: SearchContentChunk) => {
+        if (!chunk.isGroup) {
+            flatChunks.push(chunk);
+        } else {
+            for (const childChunk of chunk.childChunks) {
+                loop(childChunk);
+            }
+        }
+    };
+
+    loop(chunk);
+
+    let text = "";
+
+    for (let i = 0; i < flatChunks.length; i++) {
+        const chunk = flatChunks[i]!;
+
+        if (i !== 0) {
+            const lastChunk = flatChunks[i - 1]!;
+            const lineMargin = Math.max(lastChunk.lineMarginBottom, chunk.lineMarginTop);
+
+            text += "\n".repeat(lineMargin);
+        }
+
+        for (let j = 0; j < chunk.sentenceChunks.length; j++) {
+            const sentenceChunk = chunk.sentenceChunks[j]!;
+
+            if (j !== 0) text += " ";
+            text += sentenceChunk.text;
+        }
+    }
+
+    return text;
+}
+
+/**
  * Chunk content into sections inferred by content structure. We use headings
  * and dividers added by the user to determine document sections. A section
  * starts with a heading or divider and spans until the next heading or
  * divider.
  */
-function* chunkSearchContentBySections(fragment: Fragment): IterableIterator<Fragment> {
+function* chunkSearchContentBySections(fragment: Fragment): IterableIterator<{
+    sectionHeadingNode: Node | null;
+    headingFragment: Fragment | null;
+    fragment: Fragment;
+}> {
     let hasBrokenFragment = false;
+    let previousHeadingNodes: Array<Node> = [];
     let previousNodes: Array<Node> = [];
 
     for (const node of fragment.content) {
         if (
             previousNodes.length > 0 &&
-            ((node.type.name === "heading" &&
-                // Prevent "orphan" headings by including headings with no following content
-                // together in the same fragment.
-                previousNodes.some(previousNode => previousNode.type.name !== "heading")) ||
-                node.type.name === "divider")
+            (node.type.name === "heading" || node.type.name === "divider")
         ) {
             hasBrokenFragment = true;
 
-            yield new Fragment(previousNodes);
+            yield {
+                sectionHeadingNode:
+                    previousHeadingNodes.length > 0
+                        ? previousHeadingNodes[previousHeadingNodes.length - 1]!
+                        : null,
+                headingFragment:
+                    previousHeadingNodes.length > 0 ? new Fragment(previousHeadingNodes) : null,
+                fragment: new Fragment(previousNodes),
+            };
+
+            previousHeadingNodes = [];
             previousNodes = [];
         }
 
-        previousNodes.push(node);
+        if (previousNodes.length === 0 && node.type.name === "heading") {
+            previousHeadingNodes.push(node);
+        } else {
+            previousNodes.push(node);
+        }
     }
 
-    if (!hasBrokenFragment) {
-        yield fragment;
+    // Don't create a new `Fragment` object if we didn't break the content into sections.
+    if (!hasBrokenFragment && previousHeadingNodes.length === 0) {
+        yield {
+            sectionHeadingNode: null,
+            headingFragment: null,
+            fragment,
+        };
     } else if (previousNodes.length > 0) {
-        yield new Fragment(previousNodes);
-        previousNodes = [];
+        yield {
+            sectionHeadingNode:
+                previousHeadingNodes.length > 0
+                    ? previousHeadingNodes[previousHeadingNodes.length - 1]!
+                    : null,
+            headingFragment:
+                previousHeadingNodes.length > 0 ? new Fragment(previousHeadingNodes) : null,
+            fragment: new Fragment(previousNodes),
+        };
+    }
+    // If we have only heading nodes then emit a fragment with just heading nodes.
+    else if (previousHeadingNodes.length > 0) {
+        yield {
+            sectionHeadingNode: null,
+            headingFragment: null,
+            fragment: new Fragment(previousHeadingNodes),
+        };
     }
 }
 
@@ -379,6 +583,44 @@ function* chunkSearchContentByParagraphs(fragment: Fragment): IterableIterator<F
         yield new Fragment(previousListItemNodes);
         previousListItemNodes = [];
     }
+}
+
+/**
+ * If it appears like some content introduces the following piece of content
+ * then we put that content in the same chunk. Right now, the logic is quite
+ * dumb. If a fragment ends with a text node the ends with the `:` character
+ * then we say that fragment introduces the next fragment. A better approach
+ * could be to use some simple statistical model to group related paragraphs.
+ *
+ * This should run at the paragraph chunk level.
+ */
+function* chunkSearchContentByIntroduction(
+    fragments: Iterable<Fragment>,
+): RecursiveIterable<Fragment> {
+    let previousFragments: Array<Fragment> = [];
+
+    for (const fragment of fragments) {
+        const lastTextNode = getLastTextNodeIfExists(fragment);
+
+        if (lastTextNode && /:\s*$/.test(lastTextNode.text ?? "")) {
+            previousFragments.push(fragment);
+            continue;
+        }
+
+        if (previousFragments.length === 0) {
+            yield fragment;
+        } else {
+            yield [...previousFragments, fragment];
+            previousFragments = [];
+        }
+    }
+}
+
+function getLastTextNodeIfExists(node: Node | Fragment): Node | null {
+    const lastChildNode = node.lastChild;
+    if (!lastChildNode) return null;
+    if (lastChildNode.isText) return lastChildNode;
+    return getLastTextNodeIfExists(lastChildNode);
 }
 
 /**
