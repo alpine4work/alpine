@@ -501,6 +501,215 @@ export class OpensearchIndexSearchAsYouTypeType extends OpensearchIndexTypeBase<
     }
 }
 
+export type OpensearchIndexKnnVectorTypeConfig = {
+    /**
+     * The number of dimensions in the vector. For example the Cohere
+     * `embed-english-light-v3.0` model has 384 dimensions ([source][1]).
+     *
+     * [1]: https://docs.cohere.com/reference/embed
+     */
+    readonly dimensions: number;
+
+    /**
+     * Are vector dimensions represented as a float (4 bytes) or a byte?
+     * Defaults to `float`.
+     *
+     * Prefer using `byte` for large scale applications since it provides a
+     * significant reduction to memory usage, indexing throughput, and query
+     * latency with minimal effect on recall ([source 1][1], [source 2][2]).
+     *
+     * Can only use the `byte` data type with the `lucene` query engine.
+     *
+     * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-vector/#lucene-byte-vector
+     * [2]: https://www.elastic.co/blog/save-space-with-byte-sized-vectors
+     */
+    readonly dataType?: "float" | "byte";
+
+    /**
+     * Underlying configuration of the Approximate k-NN algorithm you want to use.
+     * [Config documentation][1].
+     *
+     * [1]: https://opensearch.org/docs/latest/search-plugins/knn/knn-index#method-definitions
+     */
+    readonly method: {
+        /**
+         * HNSW is the [only supported method][1] by all engines. IVF is supported
+         * by faiss.
+         *
+         * HNSW (Hierarchical Navigable Small World) is state-of-the-art for
+         * efficient vector search. Learn more about HNSW [here][2].
+         *
+         * [1]: https://opensearch.org/docs/latest/search-plugins/knn/knn-index#supported-nmslib-methods
+         * [2]: https://towardsdatascience.com/similarity-search-part-4-hierarchical-navigable-small-world-hnsw-2aad4fe87d37
+         */
+        readonly name: "hnsw" | "ivf";
+
+        /**
+         * The function used to measure the distance between two points. [Supported
+         * OpenSearch space types][1]. Check the documentation of the model you're
+         * using when picking a value to see what distance function they recommend.
+         *
+         * From the [Cohere documentation on their v3 embedding models][2]:
+         *
+         * > All models return normalized embeddings and can use dot product, cosine
+         * > similarity, and Euclidean distance as the similarity metric. All metrics
+         * > return identical rankings.
+         *
+         * `l2` is OpenSearch's default. `l2` refers to Euclidean distance
+         * ([source][3]). Prefer using `l2` if your model supports it (like Cohere)
+         * since it's the OpenSearch default.
+         *
+         * [1]: https://opensearch.org/docs/latest/search-plugins/knn/approximate-knn/#spaces
+         * [2]: https://txt.cohere.com/introducing-embed-v3/
+         * [3]: https://aws.amazon.com/blogs/big-data/choose-the-k-nn-algorithm-for-your-billion-scale-use-case-with-opensearch/
+         */
+        readonly spaceType: "l1" | "l2" | "linf" | "cosinesimil";
+
+        /**
+         * The engine to use. Here's [OpenSearch's recommendation on picking an
+         * engine][1].
+         *
+         * > In general, nmslib outperforms both faiss and Lucene on search. However,
+         * > to optimize for indexing throughput, faiss is a good option. For
+         * > relatively smaller datasets (up to a few million vectors), the Lucene
+         * > engine demonstrates better latencies and recall. At the same time, the
+         * > size of the index is smallest compared to the other engines, which allows
+         * > it to use smaller AWS instances for data nodes.
+         * >
+         * > Also, the Lucene engine uses a pure Java implementation and does not share
+         * > any of the limitations that engines using platform-native code experience.
+         * > However, one exception to this is that the maximum dimension count for the
+         * > Lucene engine is 1,024, compared with 16,000 for the other engines. Refer
+         * > to the sample mapping parameters in the following section to see where
+         * > this is configured.
+         *
+         * Some other important considerations:
+         *
+         * - The Lucene engine supports [byte vectors][2] whereas the other engines do
+         *   not. Byte vectors provide a significant reduction to memory usage,
+         *   indexing throughput, and query latency with minimal effect on recall
+         *   ([source 1][3], [source 2][4]).
+         *
+         * - The Lucene engine and faiss engine support [efficient k-NN search with
+         *   filters][5]. You can see the procedures of both in the previous link.
+         *   Lucene's procedure is simpler.
+         *
+         * I (@calebmer) recommend using Lucene unless you have a specific reason for
+         * another engine. Because it supports important functionality for performance
+         * (byte vectors and efficient filter search) and avoids the limitations of
+         * non-Java plugins.
+         *
+         * [1]: https://opensearch.org/docs/latest/search-plugins/knn/approximate-knn/#recommendations-for-engines-and-cluster-node-sizing
+         * [2]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-vector/#lucene-byte-vector
+         * [3]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-vector/#lucene-byte-vector
+         * [4]: https://www.elastic.co/blog/save-space-with-byte-sized-vectors
+         * [5]: https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn/
+         */
+        readonly engine: "lucene" | "nmslib" | "faiss";
+    } & (
+        | {
+              readonly name: "hnsw";
+              readonly engine: "lucene";
+
+              /**
+               * See [lucene hnsw parameters][1] for more information about these.
+               *
+               * [1]: https://opensearch.org/docs/latest/search-plugins/knn/knn-index#hnsw-parameters-2
+               */
+              readonly parameters: {
+                  readonly ef_construction: number;
+                  readonly m: number;
+              };
+          }
+        | {
+              readonly name: "hnsw";
+              readonly engine: "nmslib";
+
+              /**
+               * See [nslib hnsw parameters][1] for more information about these.
+               *
+               * [1]: https://opensearch.org/docs/latest/search-plugins/knn/knn-index#hnsw-parameters
+               */
+              readonly parameters: {
+                  readonly ef_construction: number;
+                  readonly m: number;
+              };
+          }
+        | {
+              readonly name: "hnsw";
+              readonly engine: "faiss";
+
+              /**
+               * See [faiss hnsw parameters][1] for more information about these.
+               *
+               * [1]: https://opensearch.org/docs/latest/search-plugins/knn/knn-index#hnsw-parameters-1
+               */
+              readonly parameters: {
+                  readonly ef_search: number;
+                  readonly ef_construction: number;
+                  readonly m: number;
+                  readonly encoder: string;
+              };
+          }
+        | {
+              readonly name: "ivf";
+              readonly engine: "faiss";
+
+              /**
+               * See [faiss ivf parameters][1] for more information about these.
+               *
+               * [1]: https://opensearch.org/docs/latest/search-plugins/knn/knn-index#ivf-parameters
+               */
+              readonly parameters: {
+                  readonly nlist: number;
+                  readonly nprobes: number;
+                  readonly encoder: string;
+              };
+          }
+    );
+};
+
+/**
+ * An OpenSearch [k-NN vector field type][1] for implementing semantic search.
+ *
+ * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/knn-vector/
+ */
+export class OpensearchIndexKnnVectorType extends OpensearchIndexTypeBase<
+    ReadonlyArray<number>,
+    "this"
+> {
+    private readonly _config: OpensearchIndexKnnVectorTypeConfig;
+
+    constructor(config: OpensearchIndexKnnVectorTypeConfig) {
+        super();
+        this._config = config;
+    }
+
+    public override getConfig(builder: OpensearchIndexConfigBuilder) {
+        return {
+            type: "knn_vector",
+            index: true,
+            dimension: this._config.dimensions,
+            data_type: this._config.dataType ?? "float",
+            method: {
+                name: this._config.method.name,
+                space_type: this._config.method.spaceType,
+                engine: this._config.method.engine,
+                parameters: this._config.method.parameters,
+            },
+        };
+    }
+
+    public override serialize(value: ReadonlyArray<number>): JsonValue {
+        return value;
+    }
+
+    public override deserialize(value: JsonValue): ReadonlyArray<number> {
+        assert(Array.isArray(value));
+        return value;
+    }
+}
+
 /**
  * An OpenSearch [array field type][1].
  *
