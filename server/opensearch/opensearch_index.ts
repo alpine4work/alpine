@@ -118,6 +118,7 @@ export class OpensearchIndex<
             numberOfRoutingShards,
             sort,
             refreshInterval,
+            disableSourceField = false,
         }: {
             name: string;
 
@@ -200,6 +201,37 @@ export class OpensearchIndex<
              * bit, consider increasing this from the default value of 1s.
              */
             refreshInterval: string;
+
+            /**
+             * Should we disable the `_source` field on this index?
+             *
+             * This is a dangerous feature to enable. From the [ElasticSearch
+             * documentation][1]:
+             *
+             * > Though very handy to have around, the source field does incur storage
+             * > overhead within the index. For this reason, it can be disabled [...]
+             * >
+             * > [...]
+             * >
+             * > Warning: Think before disabling the _source field
+             * >
+             * > Users often disable the `_source` field without thinking about the
+             * > consequences, and then live to regret it. If the `_source` field isn’t
+             * > available then a number of features are not supported:
+             * >
+             * > - The `update`, `update_by_query`, and `reindex` APIs.
+             * > - On the fly highlighting.
+             * > - The ability to reindex from one Elasticsearch index to another, either
+             * >   to change mappings or analysis, or to upgrade an index to a new major
+             * >   version.
+             * > - The ability to debug queries or aggregations by viewing the original
+             * >   document used at index time.
+             * > - Potentially in the future, the ability to repair index corruption
+             * >   automatically.
+             *
+             * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-source-field.html#disable-source-field
+             */
+            disableSourceField?: boolean;
         },
     ) {
         this.type = type;
@@ -304,6 +336,9 @@ export class OpensearchIndex<
                 // by space.
                 _routing: {
                     required: true,
+                },
+                _source: {
+                    enabled: !disableSourceField,
                 },
                 ...typeConfig,
             },

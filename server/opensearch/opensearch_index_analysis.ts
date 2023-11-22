@@ -50,6 +50,13 @@ export class OpensearchIndexAnalysisCustomAnalyzer {
             }),
         };
     }
+
+    public extend(nameAddition: string, {filter}: {filter: Array<OpensearchIndexAnalysisFilter>}) {
+        return new OpensearchIndexAnalysisCustomAnalyzer(`${this.name}_${nameAddition}`, {
+            tokenizer: this._tokenizer,
+            filter: [...this._filter, ...filter],
+        });
+    }
 }
 
 export type OpensearchIndexAnalysisFilter =
@@ -79,6 +86,14 @@ type OpensearchIndexAnalysisFilterConfig =
     | {
           readonly type: "word_delimiter_graph";
           readonly stem_english_possessive?: boolean;
+      }
+    | {
+          readonly type: "shingle";
+          readonly max_shingle_size?: number;
+          readonly min_shingle_size?: number;
+          readonly output_unigrams?: boolean;
+          readonly token_separator?: string;
+          readonly filler_token?: string;
       };
 
 /**

@@ -2267,7 +2267,7 @@ The bill grows at a measured pace as more and more folks within the organization
 
 Eventually our sales team makes contact with IT. We make the argument that the company will pay *less* money than the Slack stack if they switch to Cyberworlds and end-users will have a better experience making them more productive.`,
 
-        // Chunk 8:
+        // Chunk 9:
         `\
 This is from the “Product vision and strategy” document:
 

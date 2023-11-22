@@ -1,8 +1,5 @@
+import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {OpensearchClientDocWithVersion} from "~/server/opensearch/opensearch_client.js";
-import {
-    OpensearchIndexAnalysisCustomAnalyzer,
-    OpensearchIndexAnalysisCustomFilter,
-} from "~/server/opensearch/opensearch_index_analysis.js";
 import {
     OpensearchIndexArrayType,
     OpensearchIndexBooleanType,
@@ -32,40 +29,7 @@ import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.
 const TaskCollectionNameType = createCrdtRegisterOpensearchType(
     LabelStringRegister,
     new OpensearchIndexSearchAsYouTypeType({
-        // When localizing our product we should consider adding additional analyzers
-        // for other languages.
-        //
-        // We add the `word_delimiter_graph` filter to the [default English language
-        // analyzer][1] to split up identifiers, allowing us to search them. For
-        // example `["FY2024Q3"]` is split into `["FY", "2024", "Q", "3"]` so you can
-        // search `"Q3"` and find what you're looking for. It also splits
-        // camelCase/PascalCase which helps programming queries (e.g. if we had
-        // `["TaskRealtimeService"]` it becomes `["Task", "Realtime", "Service"]`).
-        //
-        // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-lang-analyzer.html#english-analyzer
-        analyzer: new OpensearchIndexAnalysisCustomAnalyzer("english_with_word_delimiter_graph", {
-            tokenizer: "standard",
-            filter: [
-                new OpensearchIndexAnalysisCustomFilter("english_possessive_stemmer", {
-                    type: "stemmer",
-                    language: "possessive_english",
-                }),
-                "lowercase",
-                new OpensearchIndexAnalysisCustomFilter("english_stop", {
-                    type: "stop",
-                    stopwords: "_english_",
-                }),
-                new OpensearchIndexAnalysisCustomFilter("english_stemmer", {
-                    type: "stemmer",
-                    language: "english",
-                }),
-                new OpensearchIndexAnalysisCustomFilter("english_word_delimiter_graph", {
-                    type: "word_delimiter_graph",
-                    // English possessives are already stemmed.
-                    stem_english_possessive: false,
-                }),
-            ],
-        }),
+        analyzer: opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
     }),
 );
 

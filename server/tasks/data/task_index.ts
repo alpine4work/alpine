@@ -841,8 +841,7 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
             // NOTE(calebmer, 2023-09-25): As I'm adding this, it's unclear to me how docs
             // that are updated but not refreshed work. Does the script get the same doc as
             // what's in the index even if the index isn't refreshed? Or does the script
-            // get the live doc? This noop check only makes sense if the script gets the
-            // live, out-of-date, doc.
+            // get the live doc?
             const noopConditionExpression = `!(${sortableAccountFields
                 .map(sortableAccountField => {
                     const sortableAccountFieldSegments = sortableAccountField.split(".");

@@ -6,6 +6,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {ObjectSchema} from "~/shared/schema/schema.js";
@@ -431,24 +432,34 @@ export class OpensearchIndexKeywordType extends OpensearchIndexTypeBase<string, 
  * An OpenSearch [text string field type][1]. Text field types are analyzed for
  * better searching of human text.
  *
+ * If you want to index the same text in multiple ways you can provide
+ * additional types through `fields`.
+ *
  * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/text/
  */
-export class OpensearchIndexTextType extends OpensearchIndexTypeBase<string, "this"> {
+export class OpensearchIndexTextType<
+    Fields extends {[key: string]: OpensearchIndexTypeBase<string, "this">} = {},
+> extends OpensearchIndexTypeBase<string, "this" | (keyof Fields & string)> {
     private readonly _analyzer: OpensearchIndexAnalysisAnalyzer;
+    private readonly _fields: Fields | undefined;
 
-    constructor({analyzer}: {analyzer: OpensearchIndexAnalysisAnalyzer}) {
+    constructor({analyzer, fields}: {analyzer: OpensearchIndexAnalysisAnalyzer; fields?: Fields}) {
         super();
         this._analyzer = analyzer;
+        this._fields = fields;
     }
 
     public override getConfig(builder: OpensearchIndexConfigBuilder) {
         return {
             type: "text",
+            index: true,
             analyzer:
                 typeof this._analyzer === "string"
                     ? this._analyzer
                     : this._analyzer.getConfig(builder),
-            index: true,
+            fields: this._fields
+                ? mapObjectValues(this._fields, type => type.getConfig(builder))
+                : undefined,
         };
     }
 
