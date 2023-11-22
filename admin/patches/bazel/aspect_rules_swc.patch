@@ -16,7 +16,7 @@ diff -ur a/swc/private/swc.bzl b/swc/private/swc.bzl
 +        # Not sandboxing means we have to trust SWC to be hermetic. This is a dangerous
 +        # assumption. SWC could look at `package.json` or `.swcrc` files it is not supposed
 +        # to. Generally SWC is a small, focused, tool so we trust it to behave hermetically.
-+        execution_requirements = {},
++        execution_requirements = {"no-sandbox": "1"},
          **kwargs
      )
 

@@ -13,8 +13,8 @@ index e4ed5aecb725ca7db6a2e8780270f1edc45d0ba8..d7818ccb41573834454742334de68044
 +        //
 +        // - `ref`s aren't initialized until the layout effect phase
 +        // - Element's are "headless" and not added to `document` until the
-+        //    insertion phase finishes so we can't call
-+        //    `document.getElementById()`
++        //   insertion phase finishes so we can't call
++        //   `document.getElementById()`
 +        //
 +        // We want the ability to manually mutate the DOM ourselves for
 +        // integrating with third-party libraries like ProseMirror. If we mutate
@@ -90,8 +90,8 @@ index aadc619790be0fde7d02348ee0b0a58793710845..ec6c3373bb72f959ecee13a6fd1df64a
 +          //
 +          // - `ref`s aren't initialized until the layout effect phase
 +          // - Element's are "headless" and not added to `document` until the
-+          //    insertion phase finishes so we can't call
-+          //    `document.getElementById()`
++          //   insertion phase finishes so we can't call
++          //   `document.getElementById()`
 +          //
 +          // We want the ability to manually mutate the DOM ourselves for
 +          // integrating with third-party libraries like ProseMirror. If we mutate
