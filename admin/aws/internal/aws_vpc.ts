@@ -1,11 +1,5 @@
 import {Stack} from "aws-cdk-lib";
-import {
-    InterfaceVpcEndpoint,
-    InterfaceVpcEndpointAwsService,
-    SubnetType,
-    Vpc,
-} from "aws-cdk-lib/aws-ec2";
-import {AnyPrincipal, Effect, PolicyStatement} from "aws-cdk-lib/aws-iam";
+import {Vpc} from "aws-cdk-lib/aws-ec2";
 
 // NOTE(calebmer): This doesn't extend from `Construct` for historical reasons.
 // Before we adopted the `Construct` sub-class convention (which is common
@@ -22,24 +16,8 @@ export class AwsVpc extends Vpc {
             natGateways: 0,
         });
 
-        const secretsManagerEndpoint = new InterfaceVpcEndpoint(this, "SecretsManagerEndpoint", {
-            vpc: this,
-            service: InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
-            subnets: {subnetType: SubnetType.PRIVATE_ISOLATED},
-        });
-
-        // Allow reading any secret value from this endpoint. Endpoint policies do not
-        // override or replace identity-based policies or resource-base policies. They
-        // are applied in addition to these policies.
-        //
-        // https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-access.html
-        secretsManagerEndpoint.addToPolicy(
-            new PolicyStatement({
-                principals: [new AnyPrincipal()],
-                effect: Effect.ALLOW,
-                actions: ["secretsmanager:GetSecretValue"],
-                resources: ["*"],
-            }),
-        );
+        // NOTE(calebmer, 2023-11-26): Used to have a secrets manager
+        // `InterfaceVpcEndpoint` and a DynamoDB `GatewayVpcEndpoint` in here. But
+        // turns out, they cost money. Let's only add endpoints if we need them.
     }
 }

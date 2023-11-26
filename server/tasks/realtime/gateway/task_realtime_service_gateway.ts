@@ -17,6 +17,9 @@ assert(process.getuid && process.setuid && process.getgid && process.setgid);
 // Unfortunately this code doesn't run in development but it's based off
 // `dev_proxy_server.ts` which does run in development. As we find/fix bugs in
 // `dev_proxy_server.ts` those changes should also probably be ported here.
+//
+// TODO(calebmer): We should run this code in development to make it easier to
+// find bugs.
 
 const {
     values: {port: portsArray},

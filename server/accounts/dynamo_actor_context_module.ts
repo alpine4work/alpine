@@ -22,7 +22,12 @@ import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 /**
  * Services that may perform an action against our system.
  */
-export type DynamoActorServiceName = "Test" | "AppClient" | TokenServiceName | "JobQueueService";
+export type DynamoActorServiceName =
+    | "Adhoc"
+    | "Test"
+    | "AppClient"
+    | TokenServiceName
+    | "JobQueueService";
 
 assertAssignableTypes<DynamoActorServiceName, TracerServiceName>();
 

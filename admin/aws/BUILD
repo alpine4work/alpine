@@ -4,7 +4,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "aws",
     data = [
-        "//admin/opensearch/deploy:deploy_lambda_directory",
+        "//admin/opensearch/deploy",
         "//app:app_image_tarball_linux_x86_64_opt",
         "//server/tasks/realtime:realtime_image_tarball_linux_x86_64_opt",
         "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",

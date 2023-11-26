@@ -322,9 +322,7 @@ export class OpensearchIndex<
                     // Docs with the same `routing` value should always go to one shard so we never
                     // need to do a cross network search when searching within a `routing` value.
                     routing_partition_size: 1,
-                    // Benchmarks show `zstd_no_dict` provides better compression ratio than
-                    // `default` for the same read performance. Seems like a better default.
-                    codec: "zstd_no_dict",
+                    codec: "default",
                 },
                 analysis: {
                     filter: Object.fromEntries(customFilterDefinitionByName),

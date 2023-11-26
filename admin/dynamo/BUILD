@@ -10,8 +10,8 @@ ts_project(
         "//:node_modules/fast-glob",
         "//admin/helpers",
         "//server/dynamo/core",
+        "//server/helpers/node",
         "//shared/helpers",
-        "//shared/helpers/node",
         "//shared/schema",
     ],
 )

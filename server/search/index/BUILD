@@ -10,6 +10,7 @@ ts_project(
     ],
     deps = [
         ":index_data",
+        "//:node_modules/@types/fs-extra",
         "//:node_modules/@xenova/transformers",
         "//:node_modules/fs-extra",
         "//:node_modules/natural",
