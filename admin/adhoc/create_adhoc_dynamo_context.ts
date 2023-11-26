@@ -2,6 +2,7 @@ import {createAdhocAwsRequestSigner} from "~/admin/adhoc/create_adhoc_aws_reques
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -16,7 +17,7 @@ export async function createAdhocDynamoContext({
     awsProfile,
 }: {
     awsProfile?: string;
-} = {}): Promise<DynamoContext> {
+} = {}): Promise<DynamoContext & {getAwsSigner: () => AwsRequestSigner}> {
     const tracer = createServerTracer({
         serviceName: "Adhoc",
         jsHost: "Node",
@@ -35,7 +36,7 @@ export async function createAdhocDynamoContext({
 
     const awsSigner = await createAdhocAwsRequestSigner({profile: awsProfile});
 
-    return Context.new({
+    const context = Context.new({
         tracer: new TracerContextModule(tracer),
         dynamo: DynamoContextModule.new(
             awsProfile !== "local"
@@ -50,4 +51,6 @@ export async function createAdhocDynamoContext({
             awsSigner,
         ),
     });
+
+    return Object.assign(context, {getAwsSigner: () => awsSigner});
 }
