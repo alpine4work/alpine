@@ -333,7 +333,6 @@ export async function getChannel(
         id: channelItem.channelId,
         spaceId: channelItem.spaceId,
         createdTime: channelItem.createdTime,
-        version: channelItem.updateLockVersion ?? 0,
         name: channelItem.name,
         description: {
             doc: channelItem.description,

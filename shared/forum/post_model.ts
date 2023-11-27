@@ -44,15 +44,7 @@ export class PostModel extends Model(
          */
         previewCommentAuthors: Schema.array(AccountModel.schema),
     }),
-) {
-    /**
-     * Get an ever increasing version number that helps you tell what the latest
-     * version of the post is when comparing two posts.
-     */
-    public getVersion(): number {
-        return this.contentUpdatedTime?.getTime() ?? this.createdTime.getTime();
-    }
-}
+) {}
 
 /**
  * A comment on a post.
