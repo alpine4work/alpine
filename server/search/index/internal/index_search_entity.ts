@@ -55,7 +55,6 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
-import {getMessageVersion} from "~/shared/messaging/message_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
@@ -64,7 +63,6 @@ import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_
 
 type SearchEntity = {
     readonly id: SearchEntityId;
-    readonly version: number | bigint | ReadonlyArray<number | bigint>;
     readonly accessPolicy: SearchEntityIndexAccessPolicy;
     readonly title: string | null;
     readonly body: string | null;
@@ -499,7 +497,6 @@ async function indexAccountSearchEntity(
 
     return {
         id: `Account:${accountId}`,
-        version: account.initialData.version,
 
         // Anyone in a space can see all the accounts in a space.
         accessPolicy: {
@@ -526,8 +523,6 @@ async function indexDocumentSearchEntity(
 
     return {
         id: `Document:${documentId}`,
-
-        version: document.version,
 
         // TODO(calebmer): Documents are currently accessible to everyone in a space.
         // When we add access controls we need to update this with proper access policy
@@ -632,8 +627,6 @@ async function indexDocumentCommentSearchEntity(
     return {
         id: `DocumentComment:${documentId}:${commentThreadId}:${commentIndex}`,
 
-        version: getMessageVersion(comment),
-
         // TODO(calebmer): Documents are currently accessible to everyone in a space.
         // When we add access controls we need to update this with proper access policy
         // information.
@@ -675,8 +668,6 @@ async function indexChannelSearchEntity(
 
     return {
         id: `Channel:${channelId}`,
-
-        version: channel.version,
 
         // TODO(calebmer): Channels are currently accessible to everyone in a space.
         // When we add access controls we need to update this with proper access policy
@@ -731,8 +722,6 @@ async function indexPostSearchEntity(
 
     return {
         id: `Post:${postId}`,
-
-        version: post.getVersion(),
 
         // TODO(calebmer): Channels are currently accessible to everyone in a space.
         // When we add access controls we need to update this with proper access policy
@@ -795,8 +784,6 @@ async function indexPostCommentSearchEntity(
     return {
         id: `PostComment:${postId}:${commentIndex}`,
 
-        version: getMessageVersion(comment),
-
         // TODO(calebmer): Documents are currently accessible to everyone in a space.
         // When we add access controls we need to update this with proper access policy
         // information.
@@ -836,11 +823,6 @@ async function indexChatSearchEntity(
 
     return {
         id: `Chat:${chatId}`,
-
-        // TODO(calebmer): Chats currently can't be updated. Eventually I think we'll
-        // add chats that you can add account members to. At that point we'll need this
-        // version number to increment.
-        version: [],
 
         accessPolicy: {
             accountGrantAccountIds: chat.accounts.map(account => account.id),
@@ -911,8 +893,6 @@ async function indexChatMessageSearchEntity(
 
     return {
         id: `ChatMessage:${chatId}:${messageIndex}`,
-
-        version: getMessageVersion(message),
 
         accessPolicy: {
             accountGrantAccountIds: chat.accounts.map(account => account.id),
@@ -1024,9 +1004,6 @@ async function indexTaskSearchEntity(
     return {
         id: `Task:${taskId}`,
 
-        // NOCOMMIT: Versioning doesn't work for tasks! Need a different mechanism...
-        version: 0,
-
         accessPolicy: {
             accountGrantAccountIds: Array.from(accountGrantAccountIds),
             defaultGrantType,
@@ -1058,9 +1035,6 @@ async function indexTaskCollectionSearchEntity(
 
     return {
         id: `TaskCollection:${collectionId}`,
-
-        // NOCOMMIT: Versioning doesn't work for tasks! Need a different mechanism...
-        version: 0,
 
         accessPolicy: {
             accountGrantAccountIds: Array.from(accountGrantAccountIds),

@@ -9,7 +9,6 @@ export class ChannelModel extends Model(
         id: Schema.id<ChannelId>(),
         spaceId: Schema.id<SpaceId>(),
         createdTime: Schema.date,
-        version: Schema.integer,
         name: LabelStringSchema,
         description: MessageContentWithReferencesSchema,
     }),
