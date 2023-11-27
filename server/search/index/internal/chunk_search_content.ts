@@ -72,7 +72,13 @@ export async function chunkSearchContent(
             isInitialChunk: boolean;
         }) => {text: string; lineMarginBottom: number};
     },
-) {
+): Promise<{
+    getFullText: () => string;
+    chunks: Array<{
+        preambleEndIndex: number;
+        text: string;
+    }>;
+}> {
     const chunk = await getFullSearchContentChunk(content, {model, getAccountIfExists});
 
     const splitChunks = splitSearchContentChunk(chunk, {
@@ -80,7 +86,11 @@ export async function chunkSearchContent(
         getChunkPreamble,
     });
 
-    return splitChunks.map(chunk => printSearchContentChunk(chunk));
+    return {
+        getFullText: () =>
+            printSearchContentChunk({preamble: {text: "", lineMarginBottom: 0}, body: chunk}).text,
+        chunks: splitChunks.map(chunk => printSearchContentChunk(chunk)),
+    };
 }
 
 /**
@@ -268,7 +278,10 @@ function splitSearchContentChunk(
             isInitialChunk: boolean;
         }) => {text: string; lineMarginBottom: number};
     },
-): Array<SearchContentChunk> {
+): Array<{
+    preamble: {text: string; lineMarginBottom: number; tokenCount: number};
+    body: SearchContentChunk;
+}> {
     const getChunkPreamble = (
         context: SearchContentChunkContext,
         {isInitialChunk = false}: {isInitialChunk?: boolean} = {},
@@ -286,33 +299,10 @@ function splitSearchContentChunk(
 
     let nextChunkPreamble: {text: string; lineMarginBottom: number; tokenCount: number} | null =
         getChunkPreamble(chunk.context, {isInitialChunk: true});
-    const splitChunks: Array<SearchContentChunk> = [];
-
-    const addNextChunkPreamble = (
-        nextChunkPreamble: {text: string; lineMarginBottom: number; tokenCount: number},
-        chunk: SearchContentChunk,
-    ): SearchContentChunk => {
-        if (nextChunkPreamble.text.length === 0 && nextChunkPreamble.lineMarginBottom === 0) {
-            return chunk;
-        }
-
-        return {
-            isGroup: true,
-            tokenCount: nextChunkPreamble.tokenCount + chunk.tokenCount,
-            context: {sectionHeading: null},
-            childChunks: [
-                {
-                    isGroup: false,
-                    tokenCount: nextChunkPreamble.tokenCount,
-                    context: {sectionHeading: null},
-                    sentenceChunks: [nextChunkPreamble],
-                    lineMarginTop: 0,
-                    lineMarginBottom: nextChunkPreamble.lineMarginBottom,
-                },
-                chunk,
-            ],
-        };
-    };
+    const splitChunks: Array<{
+        preamble: {text: string; lineMarginBottom: number; tokenCount: number};
+        body: SearchContentChunk;
+    }> = [];
 
     // Takes our structured chunk and splits it into smaller chunks of appropriate
     // size for the LLM. In Cohere's case it performs best with <512 tokens at
@@ -321,7 +311,7 @@ function splitSearchContentChunk(
         nextChunkPreamble ??= getChunkPreamble(chunk.context);
 
         if (chunk.tokenCount <= model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount) {
-            splitChunks.push(addNextChunkPreamble(nextChunkPreamble, chunk));
+            splitChunks.push({preamble: nextChunkPreamble, body: chunk});
             nextChunkPreamble = null;
             return;
         }
@@ -337,8 +327,9 @@ function splitSearchContentChunk(
                     workingGroupTokenCount + sentenceChunk.tokenCount >
                     model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
                 ) {
-                    splitChunks.push(
-                        addNextChunkPreamble(nextChunkPreamble, {
+                    splitChunks.push({
+                        preamble: nextChunkPreamble,
+                        body: {
                             isGroup: false,
                             tokenCount: workingGroupTokenCount,
                             context: chunk.context,
@@ -347,8 +338,8 @@ function splitSearchContentChunk(
                             // or after.
                             lineMarginTop: 0,
                             lineMarginBottom: 0,
-                        }),
-                    );
+                        },
+                    });
                     nextChunkPreamble = null;
 
                     workingGroupTokenCount = 0;
@@ -365,8 +356,9 @@ function splitSearchContentChunk(
             nextChunkPreamble ??= getChunkPreamble(chunk.context);
 
             if (workingGroupSentenceChunks.length > 0) {
-                splitChunks.push(
-                    addNextChunkPreamble(nextChunkPreamble, {
+                splitChunks.push({
+                    preamble: nextChunkPreamble,
+                    body: {
                         isGroup: false,
                         tokenCount: workingGroupTokenCount,
                         context: chunk.context,
@@ -375,8 +367,8 @@ function splitSearchContentChunk(
                         // or after.
                         lineMarginTop: 0,
                         lineMarginBottom: 0,
-                    }),
-                );
+                    },
+                });
                 nextChunkPreamble = null;
 
                 workingGroupTokenCount = 0;
@@ -393,14 +385,15 @@ function splitSearchContentChunk(
                     workingGroupTokenCount + childChunk.tokenCount >
                     model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
                 ) {
-                    splitChunks.push(
-                        addNextChunkPreamble(nextChunkPreamble, {
+                    splitChunks.push({
+                        preamble: nextChunkPreamble,
+                        body: {
                             isGroup: true,
                             tokenCount: workingGroupTokenCount,
                             context: chunk.context,
                             childChunks: workingGroupChildChunks,
-                        }),
-                    );
+                        },
+                    });
                     nextChunkPreamble = null;
 
                     workingGroupTokenCount = 0;
@@ -423,14 +416,15 @@ function splitSearchContentChunk(
             }
 
             if (workingGroupChildChunks.length > 0) {
-                splitChunks.push(
-                    addNextChunkPreamble(nextChunkPreamble, {
+                splitChunks.push({
+                    preamble: nextChunkPreamble,
+                    body: {
                         isGroup: true,
                         tokenCount: workingGroupTokenCount,
                         context: chunk.context,
                         childChunks: workingGroupChildChunks,
-                    }),
-                );
+                    },
+                });
                 nextChunkPreamble = null;
 
                 workingGroupTokenCount = 0;
@@ -447,31 +441,40 @@ function splitSearchContentChunk(
  * Print a chunk to text. We put spaces in between sentences and add the
  * maximum line margin between two adjacent chunks.
  */
-function printSearchContentChunk(chunk: SearchContentChunk): string {
+function printSearchContentChunk(chunk: {
+    preamble: {text: string; lineMarginBottom: number};
+    body: SearchContentChunk;
+}): {
+    preambleEndIndex: number;
+    text: string;
+} {
     const flatChunks: Array<SearchContentChunk & {isGroup: false}> = [];
 
-    const loop = (chunk: SearchContentChunk) => {
+    const flattenChunk = (chunk: SearchContentChunk) => {
         if (!chunk.isGroup) {
             flatChunks.push(chunk);
         } else {
             for (const childChunk of chunk.childChunks) {
-                loop(childChunk);
+                flattenChunk(childChunk);
             }
         }
     };
 
-    loop(chunk);
+    flattenChunk(chunk.body);
 
-    let text = "";
+    let text = chunk.preamble.text;
+    let lastLineMargin = chunk.preamble.lineMarginBottom;
 
     for (let i = 0; i < flatChunks.length; i++) {
         const chunk = flatChunks[i]!;
 
-        if (i !== 0) {
-            const lastChunk = flatChunks[i - 1]!;
-            const lineMargin = Math.max(lastChunk.lineMarginBottom, chunk.lineMarginTop);
-
-            text += "\n".repeat(lineMargin);
+        if (i === 0 && text.length === 0 && lastLineMargin === 0) {
+            // Preamble is empty, don't add margin lines at the beginning of the text.
+        } else {
+            const lineMargin = Math.max(lastLineMargin, chunk.lineMarginTop);
+            if (lineMargin > 0) {
+                text += "\n".repeat(lineMargin);
+            }
         }
 
         for (let j = 0; j < chunk.sentenceChunks.length; j++) {
@@ -480,9 +483,20 @@ function printSearchContentChunk(chunk: SearchContentChunk): string {
             if (j !== 0) text += " ";
             text += sentenceChunk.text;
         }
+
+        lastLineMargin = chunk.lineMarginBottom;
     }
 
-    return text;
+    return {
+        preambleEndIndex: Math.min(
+            chunk.preamble.text.length + chunk.preamble.lineMarginBottom,
+            // If we just have the preamble and no main content then `lineMarginBottom`
+            // wasn't added to `text`. Make sure we don't return an index larger than
+            // `text.length`.
+            text.length,
+        ),
+        text,
+    };
 }
 
 /**

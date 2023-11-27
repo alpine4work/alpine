@@ -3,6 +3,8 @@ import {getDocument} from "~/server/documents/data/documents_table.js";
 import {chunkSearchContent} from "~/server/search/index/internal/chunk_search_content.js";
 import {CohereEnglishLightLanguageModel} from "~/server/search/index/internal/cohere_english_light_language_model.js";
 import {LanguageModelBase} from "~/server/search/index/internal/language_model_base.js";
+import {SearchEntityId} from "~/server/search/index/internal/search_entity_id.js";
+import {SearchEntityIndexAccessPolicy} from "~/server/search/index/internal/search_entity_index_doc.js";
 import {truncateTokens} from "~/server/search/index/internal/truncate_tokens.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -14,6 +16,18 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {AccountId, ContentMentionAccountId, DocumentId} from "~/shared/id/types/id_types.js";
 
 // NOCOMMIT: Small messages like "Nice!" shouldn't be embedded at all?
+
+type SearchEntity = {
+    readonly id: SearchEntityId;
+    readonly version: number;
+    readonly accessPolicy: SearchEntityIndexAccessPolicy;
+    readonly title: string | null;
+    readonly body: string | null;
+    readonly embeddingChunks: ReadonlyArray<{
+        readonly preambleEndIndex: number;
+        readonly text: string;
+    }>;
+};
 
 class SearchEntityIndexer {
     private readonly _context: ServerSystemActionContext;
@@ -56,10 +70,31 @@ export function indexSearchEntity() {
     // NOCOMMIT
 }
 
-async function indexDocumentSearchEntity(indexer: SearchEntityIndexer, documentId: DocumentId) {
+async function indexDocumentSearchEntity(
+    indexer: SearchEntityIndexer,
+    documentId: DocumentId,
+): Promise<SearchEntity> {
     const document = await indexer.getDocument(documentId);
 
-    await chunkDocumentSearchContent(document.content.doc, indexer);
+    const {getFullText, chunks} = await chunkDocumentSearchContent(document.content.doc, indexer);
+
+    return {
+        id: `Document:${documentId}`,
+
+        version: document.version,
+
+        // TODO(calebmer): Documents are currently accessible to everyone in a space.
+        // When we add access controls we need to update this with proper access policy
+        // information.
+        accessPolicy: {
+            accountGrantAccountIds: [],
+            defaultGrantType: "Space",
+        },
+
+        title: document.getTitle(),
+        body: getFullText(),
+        embeddingChunks: chunks,
+    };
 }
 
 export function chunkDocumentSearchContent(

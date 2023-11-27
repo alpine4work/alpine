@@ -2140,10 +2140,12 @@ test("correctly chunks document content", async () => {
                 ],
             }) as DocumentContent,
             {model, getAccountIfExists},
-        ),
+        ).then(({chunks}) => chunks),
     ).toEqual([
         // Chunk 1:
-        `\
+        {
+            preambleEndIndex: 0,
+            text: `\
 # Product vision and strategy
 
 This document is a part of our packet introducing Cyberworlds (code name, will change when we go to market). See all documents in this packet
@@ -2162,9 +2164,12 @@ Cyberworlds will streamline work collaboration by bringing together the top prod
 - **Quality is hard to find.** Growth hacks, design drift, lack of conviction, and tech debt have taken a toll on the user experience of existing products. Users are frustrated and want something better. Today, buyers are facing tough decisions between best-in-class products and a bundle—we plan to build a best-in-class product bundle.
 - **Dedicated to our craft.** We believe execution is the key to this opportunity. The innovation here is not the product but rather in designing a company that can build at the quality users deserve with meaningful momentum. By committing to these values we hope to attract top talent.
 - **Stay focused and maintain work-life boundaries.** With all your conversations in one place, we can make sure they don’t reach you outside of work hours. We hope to help make work a more enjoyable and equitable place to be through our product’s design and get out of the way when you’re done for the day.`,
+        },
 
         // Chunk 2:
-        `\
+        {
+            preambleEndIndex: 58,
+            text: `\
 This is from the “Product vision and strategy” document:
 
 ### User journey
@@ -2176,9 +2181,12 @@ When a customer uses Cyberworlds, the product should be a core part of their emp
 - “While I’m working on the task, I get a message from someone on a different team asking for advice using a tool my team owns. I remember a co-worker on my team wrote a guide for this tool last week. I hit a keyboard shortcut, type a quick search, find the document in seconds, and send it all without leaving the Cyberworlds chat.”
 - “At the end of the day, I get a calendar notification from Cyberworlds for a work happy hour. I pack up and leave knowing I won’t get a single work notification until tomorrow morning.”
 - “The next day when I sit down with my coffee before work, I casually browse my Cyberworlds feed instead of reading the news. Here’s a post of my co-worker’s cute dog, here’s a meme a younger colleague shared, here’s a post from a senior designer talking about color theory. I open Cyberworlds instead of reading the news because it brings me joy and brings me closer to my team.”`,
+        },
 
         // Chunk 3:
-        `\
+        {
+            preambleEndIndex: 58,
+            text: `\
 This is from the “Product vision and strategy” document:
 
 ## Strategy
@@ -2200,12 +2208,15 @@ We won’t start with one product. Instead we will start with:
 - **Tasks:** Every person gets a best-in-class personalized task product and the data ladders up into a larger project management system managers can use to plan and track work across teams. Project management solutions don’t work if the end-user isn’t in the habit of contributing data.
 
 We hope to make each product 10–20% higher quality than competitive solutions in core workflows and will fill out feature gaps over time.`,
+        },
 
         // NOCOMMIT: Test the query "Why is our product different?" It should match
         // this chunk thanks to semantic search.
 
         // Chunk 4:
-        `\
+        {
+            preambleEndIndex: 84,
+            text: `\
 This is from the “Product vision and strategy” document in the “Strategy” section:
 
 We believe what will truly differentiate our solution and make it 10x better than what’s out there is deep integration across products. The meta features we will have at launch are:
@@ -2214,9 +2225,12 @@ We believe what will truly differentiate our solution and make it 10x better tha
 - **Inbox:** All of your mentions and subscriptions in one, organized, place. With intelligent prioritization of notifications and better handling of resolved/unresolved states than read/unread.
 - **Mobile:** We want to meet people wherever they work. Many people spend a good chunk of time working from their phones. We aim to have a feature compatible and high quality mobile app. We have a technical strategy that will get us to feature compatible in 1–2 years. Meeting our quality bar is a risk but we can iterate over time.
 - **Feed:** The home page will be an algorithmically ranked feed showing you interesting content from across your organization. This helps people feel more connected to and learn from their colleagues. In addition to being a growth lever as people see how their co-workers use the product. Feed is where watercooler style soft work happens. Unlike inbox which is a part of a user’s core workflow.`,
+        },
 
         // Chunk 5:
-        `\
+        {
+            preambleEndIndex: 58,
+            text: `\
 This is from the “Product vision and strategy” document:
 
 ### What quality means to us
@@ -2226,9 +2240,12 @@ We want the product to feel well made and trustworthy. We recognize that people 
 - **Speed of thought:** Users perceive the product as responding immediately to any of their commands. The product doesn’t slow down as usage across their company increases. When the user wants to “write something down real quick” they open Cyberworlds.
 - **Zero glitches:** When the user expects something to happen, it happens. It is exceedingly rare to see an error message or UI in a broken state. The product feels reliable for even the customer’s most critical work.
 - **Design excellence:** We practice and expect design excellence across the product and organization. Our product will be meticulously crafted in every pixel and interaction. Interaction design excellence includes making sure the product is accessible by keyboard and by touch.`,
+        },
 
         // Chunk 6:
-        `\
+        {
+            preambleEndIndex: 58,
+            text: `\
 This is from the “Product vision and strategy” document:
 
 ### Differentiation, go to market, and pricing
@@ -2242,9 +2259,12 @@ Our product led growth motion will be: insist on email sign in using a company e
 We will give SSO away for free to start building good will with IT and encourage centralized IT management.
 
 Our pricing model will be **usage based pricing**. *Every single employee in an organization should be able to sign into their company workspace for $0*. Only as employees actually start to use the product do we start to charge. This also means as we launch new products and usage goes up—we make more revenue without new pricing models to learn.`,
+        },
 
         // Chunk 7:
-        `\
+        {
+            preambleEndIndex: 118,
+            text: `\
 This is from the “Product vision and strategy” document in the “Differentiation, go to market, and pricing” section:
 
 Right now, the plan is to charge by hours using the product in increments of \\~100 hours/week. Tracking time is a unified way to measure usage across all products. It is simple to understand and so easy for finance teams to estimate. We charge in increments of 100 hours/week so that individual behavior does not change the bill. Increased usage from at least two or three users is needed for the bill to increase (say usage from individual users fluctuates between 5–20 hours/week).
@@ -2252,9 +2272,12 @@ Right now, the plan is to charge by hours using the product in increments of \\~
 Of course we can provide custom enterprise plans that lock in a price for stability.
 
 While this pricing model can get expensive when Cyberworlds is fully adopted in an organization, it will be less expensive than paying for each of these tools individually. So we can make a consolidation and cost saving argument to IT as the product gains adoption within an organization.`,
+        },
 
         // Chunk 8:
-        `\
+        {
+            preambleEndIndex: 58,
+            text: `\
 This is from the “Product vision and strategy” document:
 
 ### Example scenario of the product led growth motion
@@ -2266,9 +2289,12 @@ Joe is a product manager reading Sara’s document. He notices Cyberworlds has a
 The bill grows at a measured pace as more and more folks within the organization adopt the product. At first it starts as a small cost which can be easily justified and expensed. Over time the bill attracts the attention of IT.
 
 Eventually our sales team makes contact with IT. We make the argument that the company will pay *less* money than the Slack stack if they switch to Cyberworlds and end-users will have a better experience making them more productive.`,
+        },
 
         // Chunk 9:
-        `\
+        {
+            preambleEndIndex: 58,
+            text: `\
 This is from the “Product vision and strategy” document:
 
 ---
@@ -2280,5 +2306,6 @@ Each product we launch is more revenue from the customers we already have becaus
 In the first 3–4 years we will likely be very focused on beating the Slack stack in product teams. Once we are in a position of strength there, we will update our strategy.
 
 To learn how we plan to build this product read our 1–2 year execution plan. Want to invest? Learn more about our friends and family round. To go back to the page with all our full document packet click here.`,
+        },
     ]);
 });

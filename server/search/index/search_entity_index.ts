@@ -14,7 +14,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
 // sprawling out around the codebase.
 const SearchEntityIndex = new OpensearchIndex<
     SpaceId,
-    SearchEntityId,
+    `${SearchEntityId}:${number}`,
     OpensearchIndexTypeType<typeof SearchEntityIndexDocType>,
     OpensearchIndexTypeFlattenedKeysType<typeof SearchEntityIndexDocType>
 >(SearchEntityIndexDocType, {
@@ -22,12 +22,13 @@ const SearchEntityIndex = new OpensearchIndex<
     numberOfShards: 12,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
 
-    // Our searches are always within a specific space. Use index sorting to make
-    // filtering by `SpaceId` more efficient.
+    // Our searches are always within a specific space and generally for a specific
+    // kind of doc (either keyword search or semantic search). Use index sorting to
+    // make filtering by `SpaceId` then the doc type more efficient.
     //
     // We then sort by type to make searches for specific kinds of entities more
     // efficient. Such as a type-ahead search.
-    sort: [{field: "spaceId"}, {field: "type"}],
+    sort: [{field: "spaceId"}, {field: "data.type"}, {field: "type"}],
 
     // The search index should be near realtime to serve search requests. However,
     // there's already some delay because entities are indexed in a background job.
