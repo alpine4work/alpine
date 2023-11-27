@@ -213,3 +213,11 @@ export function getLastChangedMessage<Message extends MessageModel>(
     if (changeTime2 > changeTime1) return message2;
     return message1;
 }
+
+/**
+ * Get an ever increasing version number that helps you tell what the latest
+ * version of the message is when comparing two messages.
+ */
+export function getMessageVersion(message: MessageModel): number {
+    return (getMessagePayloadChangeTime(message.payload) ?? message.createdTime).getTime();
+}
