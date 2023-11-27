@@ -20,7 +20,6 @@ import {
     defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
     getTruncatedMessageContentForReplyPreview,
-    messageViewActionsWidth,
     messageViewPreviewScale,
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
@@ -45,7 +44,7 @@ import {
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";
-import {contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",
@@ -307,15 +306,11 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                             position="relative"
                             paddingBottom="3"
                             style={{
-                                paddingLeft: addRemLengths(
-                                    getMessageBubbleMarginLeft(marginX),
-                                    spacing["2"],
-                                ),
+                                paddingLeft: getMessageBubbleMarginLeft(marginX),
                                 paddingRight: addRemLengths(
                                     spacing["2"],
-                                    spacing["3"],
-                                    spacing[messageViewActionsWidth],
-                                    spacing["3"],
+                                    spacing["7"],
+                                    spacing["5"],
                                 ),
                             }}
                         >
@@ -424,6 +419,16 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                         marginX="2"
                         backgroundColor="grey-5"
                         borderRadius={messageViewBubbleBorderRadius}
+                        style={{
+                            // Use `box-shadow` for border to not contribute to the element's size.
+                            //
+                            // NOTE(calebmer, 2023-11-27): Added this border to the message input since the
+                            // background alone made the input look too much like any other comment. The
+                            // border helps it stand out more, gives it visual importance. I want to keep
+                            // the background so the appearance of the message input accurately reflects a
+                            // message bubble. Let's make this change and see how I feel using it.
+                            boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+                        }}
                     >
                         <Box
                             ref={useScrollbar({

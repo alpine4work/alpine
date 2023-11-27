@@ -77,7 +77,7 @@ function MessageViewEditor<RoomKey extends string>(
                     display="inline-block"
                     paddingX="0.5"
                     paddingY="1.5"
-                    backgroundColor="grey-0"
+                    backgroundColor="grey-5"
                     borderTopLeftRadius={
                         !shouldMergeWithPreviousMessage
                             ? messageViewBubbleBorderRadius
