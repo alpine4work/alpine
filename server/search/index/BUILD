@@ -6,7 +6,6 @@ ts_project(
     test_deps = [
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
-        "//shared/documents",
     ],
     deps = [
         ":index_data",
@@ -15,9 +14,12 @@ ts_project(
         "//:node_modules/fs-extra",
         "//:node_modules/natural",
         "//:node_modules/prosemirror-model",
+        "//server/chat/data",
         "//server/documents/data",
+        "//server/forum/data",
         "//server/helpers/node",
         "//server/opensearch",
+        "//server/tasks/data",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",

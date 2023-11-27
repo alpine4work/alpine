@@ -161,10 +161,7 @@ export async function loadTaskRealtimeQueries(
             context.process.waitUntil(promise);
         }
 
-        const collectionIds = new Set(
-            task.collections.raw.collections.getArray().map(({collectionId}) => collectionId),
-        );
-        for (const collectionId of collectionIds) {
+        for (const {collectionId} of task.collections.raw.collections.getArray()) {
             if (loadCollectionPromiseById.has(collectionId)) continue;
 
             const promise = (async () => {

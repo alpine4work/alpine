@@ -752,8 +752,34 @@ export function sendChatMessage(
 /**
  * Authorize that the current account is allowed to access the chat.
  */
-export function authorizeChatAccess(context: ServerSessionActionContext, chatId: ChatId) {
-    return authorizeChatAccessForAccount(context, chatId, context.actor.getAccountId());
+export async function authorizeChatAccess(
+    context: ServerActionContext,
+    chatId: ChatId,
+): Promise<{spaceId: SpaceId}> {
+    switch (context.actor.type) {
+        case "Session": {
+            return authorizeChatAccessForAccount(context, chatId, context.actor.getAccountId());
+        }
+
+        // If we have access to the space, we have access to the chat...
+        case "System": {
+            const chatItem = await ChatTable.getItemIfExists(context, {
+                partitionType: "Chat",
+                sortRangeType: "Attributes",
+                chatId,
+            });
+
+            if (!chatItem) {
+                throw new PermissionDeniedError("Account does not have access to chat");
+            }
+
+            await authorizeSpaceAccess(context, chatItem.spaceId);
+
+            return {spaceId: chatItem.spaceId};
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
 }
 
 /**
@@ -1070,7 +1096,7 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
  * Get a single chat message comment.
  */
 export async function getChatMessage(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<ChatMessageModel> {
     const [{spaceId}, item] = await runAllPromises([

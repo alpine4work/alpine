@@ -259,16 +259,17 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                 );
                 headers.set("authorization", `bearer ${requestToken}`);
 
-                const taskRealtimeServiceHost = await taskRealtimeServiceRouter.getSessionHost(
-                    Context.new({
-                        process: new ProcessContextModule({
-                            waitUntil: promise => executionContext.waitUntil(promise),
+                const taskRealtimeServiceHost =
+                    await taskRealtimeServiceRouter.getStickySessionHost(
+                        Context.new({
+                            process: new ProcessContextModule({
+                                waitUntil: promise => executionContext.waitUntil(promise),
+                            }),
+                            tracer: new TracerContextModule(span),
                         }),
-                        tracer: new TracerContextModule(span),
-                    }),
-                    spaceId,
-                    sessionCookieToken.sessionId,
-                );
+                        spaceId,
+                        sessionCookieToken.sessionId,
+                    );
 
                 if (process.env.NODE_ENV !== "production") {
                     // eslint-disable-next-line no-global-fetch

@@ -4,6 +4,7 @@ import murmurhash from "murmurhash";
 import {Step} from "prosemirror-transform";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
+    ServerActionContext,
     ServerSessionActionContext,
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
@@ -3140,7 +3141,7 @@ const TaskItemAuthorizationCache = new ContextCache<TaskId, TaskEssentialAttribu
  * task in memory then we should load from DynamoDB, not OpenSearch.
  */
 async function getTaskItemForAuthorization(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     taskId: TaskId,
     loaders: {getTaskIndexDocIfExists: (taskId: TaskId) => TaskIndexDoc | undefined} | null,
 ): Promise<TaskEssentialAttributesItemBase> {
@@ -3565,7 +3566,7 @@ async function isTaskAccessAuthorized(
  * before using the `loaders` object.
  */
 export async function authorizeTaskAccess(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     taskId: TaskId,
     expectedAccessLevel: TaskCollectionAccessLevel,
     loaders: {
@@ -3574,27 +3575,38 @@ export async function authorizeTaskAccess(
             collectionId: TaskCollectionId,
         ) => TaskCollectionIndexDoc | undefined;
     } | null,
-) {
-    const {spaceId, hasAccess} = await isTaskAccessAuthorized(
-        context,
-        taskId,
-        expectedAccessLevel,
-        loaders,
-    );
+): Promise<{spaceId: SpaceId}> {
+    switch (context.actor.type) {
+        case "System": {
+            const taskItem = await getTaskItemForAuthorization(context, taskId, loaders);
+            await authorizeSpaceAccess(context, taskItem.spaceId);
+            return {spaceId: taskItem.spaceId};
+        }
+        case "Session": {
+            const {spaceId, hasAccess} = await isTaskAccessAuthorized(
+                context as ServerSessionActionContext,
+                taskId,
+                expectedAccessLevel,
+                loaders,
+            );
 
-    if (!hasAccess) {
-        throw new PermissionDeniedError(
-            quote`Actor does not have ${expectedAccessLevel} access level to task`,
-            {
-                displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
-                    await getTaskItemForAuthorization(context, taskId, loaders),
-                    expectedAccessLevel,
-                ),
-            },
-        );
+            if (!hasAccess) {
+                throw new PermissionDeniedError(
+                    quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                    {
+                        displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
+                            await getTaskItemForAuthorization(context, taskId, loaders),
+                            expectedAccessLevel,
+                        ),
+                    },
+                );
+            }
+
+            return {spaceId};
+        }
+        default:
+            throw exhaustive(context.actor);
     }
-
-    return {spaceId};
 }
 
 /**
@@ -4023,7 +4035,7 @@ export async function getTaskNotepadPageIds(
  * needed to render.
  */
 export async function getTaskNotesContentWithoutReferences(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     taskId: TaskId,
 ): Promise<{
     spaceId: SpaceId;
@@ -4050,7 +4062,7 @@ export async function getTaskNotesContentWithoutReferences(
  * Get the current notes content for some task.
  */
 export async function getTaskNotesContent(
-    context: ServerSessionActionContext,
+    context: ServerActionContext,
     taskId: TaskId,
 ): Promise<{
     spaceId: SpaceId;

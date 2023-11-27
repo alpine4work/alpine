@@ -2140,11 +2140,11 @@ test("correctly chunks document content", async () => {
                 ],
             }) as DocumentContent,
             {model, getAccountIfExists},
-        ).then(({chunks}) => chunks),
+        ).then(({embeddingChunks}) => embeddingChunks),
     ).toEqual([
         // Chunk 1:
         {
-            preambleEndIndex: 0,
+            preambleEndIndex: 31,
             text: `\
 # Product vision and strategy
 

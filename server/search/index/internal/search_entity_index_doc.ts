@@ -21,7 +21,7 @@ import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // NOCOMMIT: Participating accounts list
 
-type SearchEntityIndexDefaultGrantType = IntegerMappingStringType<
+export type SearchEntityIndexDefaultGrantType = IntegerMappingStringType<
     typeof SearchEntityIndexDefaultGrantTypeIntegerMapping
 >;
 

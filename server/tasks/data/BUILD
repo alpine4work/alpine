@@ -40,6 +40,7 @@ ts_project(
         "//server/accounts/update_name:__pkg__",
         "//server/remix:__pkg__",
         "//server/rpc:__pkg__",
+        "//server/search/index:__pkg__",
         "//server/tasks:__subpackages__",
     ],
     deps = [

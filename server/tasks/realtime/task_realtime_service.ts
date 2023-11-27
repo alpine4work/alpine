@@ -24,12 +24,19 @@ import {createStandardizedServerWithWebSockets} from "~/server/node/create_stand
 import {runService} from "~/server/node/run_service.js";
 import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
+import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {
+    prepareTaskCollectionForClient,
+    prepareTaskForClient,
+} from "~/server/tasks/data/task_realtime_protocol_helpers.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
+    TaskRealtimeGetCollectionSchema,
+    TaskRealtimeGetTaskSchema,
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
@@ -57,7 +64,9 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
@@ -255,7 +264,7 @@ runService({
             const pathnameSegments = url.pathname.slice(1).split("/");
 
             if (!pathnameSegments[0] || !isId<SpaceId>(pathnameSegments[0]))
-                throw new InvalidArgumentError("Expected ID in path");
+                throw new InvalidArgumentError("Expected `SpaceId` in path");
 
             const spaceId = pathnameSegments[0];
 
@@ -386,6 +395,201 @@ runService({
                                         queries,
                                         extraQueries,
                                         updateEvent,
+                                    }),
+                                ),
+                                {
+                                    status: 200,
+                                    headers: {"content-type": "application/json"},
+                                },
+                            );
+                        },
+                    );
+                }
+                case "getTask": {
+                    if (pathnameSegments.length !== 3) throw new NotFoundError("Route not found");
+
+                    if (request.method !== "GET") {
+                        throw new InvalidArgumentError(
+                            quote`Invalid request method ${request.method}`,
+                        );
+                    }
+
+                    const taskId = pathnameSegments[2];
+
+                    if (!taskId || !isId<TaskId>(taskId))
+                        throw new InvalidArgumentError("Expected `TaskId` in path");
+
+                    if (
+                        actorContextModule.serviceName !== "AppService" &&
+                        actorContextModule.serviceName !== "JobQueueService"
+                    ) {
+                        throw new PermissionDeniedError(
+                            "Only `AppService` or `JobQueueService` can get tasks",
+                        );
+                    }
+
+                    // We don't currently implement authorization to check that you're allowed to
+                    // read a task.
+                    if (!(actorContextModule instanceof DynamoSystemActorContextModule)) {
+                        throw new PermissionDeniedError("Only system actors can get tasks");
+                    }
+
+                    return baseContext.with(
+                        {actor: actorContextModule},
+                        async (context: TaskRealtimeSystemActionContext) => {
+                            const task = await server.getTask(context, spaceId, taskId);
+
+                            // NOTE(calebmer): Passing in null will wipe all private data from the task.
+                            // Given this is a system context a better approach may be to include all
+                            // private data. Wiping is the safer option and nothing downstream needs the
+                            // data at the moment.
+                            const taskModel = prepareTaskForClient(null, task);
+
+                            let promises: Array<Promise<void>> = [];
+                            const loadingTaskIds = new Set<TaskId>();
+                            const loadingCollectionIds = new Set<TaskCollectionId>();
+
+                            const rootTaskId = taskId;
+                            const referencedTaskModels: Array<TaskModel> = [];
+                            const referencedCollectionModels: Array<TaskCollectionModel> = [];
+
+                            const trackTaskDependencies = (task: TaskIndexDoc) => {
+                                const parentTaskId = task.id;
+                                if (
+                                    parentTaskId &&
+                                    parentTaskId !== rootTaskId &&
+                                    !loadingTaskIds.has(parentTaskId)
+                                ) {
+                                    loadingTaskIds.add(parentTaskId);
+                                    promises.push(
+                                        server
+                                            .getTask(context, spaceId, parentTaskId)
+                                            .then(parentTask => {
+                                                referencedTaskModels.push(
+                                                    // NOTE(calebmer): Passing in null will wipe all private data from the task.
+                                                    // Given this is a system context a better approach may be to include all
+                                                    // private data. Wiping is the safer option and nothing downstream needs the
+                                                    // data at the moment.
+                                                    prepareTaskForClient(null, parentTask),
+                                                );
+                                                trackTaskDependencies(parentTask);
+                                            }),
+                                    );
+                                }
+
+                                for (const {
+                                    collectionId,
+                                } of task.collections.raw.collections.getArray()) {
+                                    if (loadingCollectionIds.has(collectionId)) continue;
+
+                                    loadingCollectionIds.add(collectionId);
+                                    promises.push(
+                                        server
+                                            .getCollection(context, spaceId, collectionId)
+                                            .then(collection => {
+                                                referencedCollectionModels.push(
+                                                    prepareTaskCollectionForClient(collection),
+                                                );
+                                            }),
+                                    );
+                                }
+                            };
+
+                            trackTaskDependencies(task);
+
+                            // Wait for all the promises in the `promises` array. We may add new `promises`
+                            // while waiting so we need to loop until `promises` is empty.
+                            {
+                                let hasError = false;
+                                let error: unknown;
+
+                                // Wait for all discovered promises to resolve before returning.
+                                //
+                                // Even if there's an error. Only throw our error at the very end.
+                                while (promises.length > 0) {
+                                    const currentPromises = promises;
+                                    promises = [];
+
+                                    try {
+                                        await runAllPromises(currentPromises);
+                                    } catch (newError) {
+                                        if (!hasError) {
+                                            hasError = true;
+                                            error = newError;
+                                        }
+                                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+                                        // just the first one. Probably by using an `AggregateError`.
+                                        else if (!isSystemError(error) && isSystemError(newError)) {
+                                            error = newError;
+                                        }
+                                    }
+                                }
+
+                                if (hasError) throw error;
+                            }
+
+                            return new Response(
+                                JSON.stringify(
+                                    TaskRealtimeGetTaskSchema.serialize({
+                                        ok: true,
+                                        task: taskModel,
+                                        referencedTasks: referencedTaskModels,
+                                        referencedCollections: referencedCollectionModels,
+                                    }),
+                                ),
+                                {
+                                    status: 200,
+                                    headers: {"content-type": "application/json"},
+                                },
+                            );
+                        },
+                    );
+                }
+                case "getCollection": {
+                    if (pathnameSegments.length !== 3) throw new NotFoundError("Route not found");
+
+                    if (request.method !== "GET") {
+                        throw new InvalidArgumentError(
+                            quote`Invalid request method ${request.method}`,
+                        );
+                    }
+
+                    const collectionId = pathnameSegments[2];
+
+                    if (!collectionId || !isId<TaskCollectionId>(collectionId))
+                        throw new InvalidArgumentError("Expected `TaskCollectionId` in path");
+
+                    if (
+                        actorContextModule.serviceName !== "AppService" &&
+                        actorContextModule.serviceName !== "JobQueueService"
+                    ) {
+                        throw new PermissionDeniedError(
+                            "Only `AppService` or `JobQueueService` can get collections",
+                        );
+                    }
+
+                    // We don't currently implement authorization to check that you're allowed to
+                    // read a task.
+                    if (!(actorContextModule instanceof DynamoSystemActorContextModule)) {
+                        throw new PermissionDeniedError("Only system actors can get collections");
+                    }
+
+                    return baseContext.with(
+                        {actor: actorContextModule},
+                        async (context: TaskRealtimeSystemActionContext) => {
+                            const collection = await server.getCollection(
+                                context,
+                                spaceId,
+                                collectionId,
+                            );
+
+                            const collectionModel = prepareTaskCollectionForClient(collection);
+
+                            return new Response(
+                                JSON.stringify(
+                                    TaskRealtimeGetCollectionSchema.serialize({
+                                        ok: true,
+                                        collection: collectionModel,
                                     }),
                                 ),
                                 {

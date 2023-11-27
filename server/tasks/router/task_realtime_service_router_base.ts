@@ -4,6 +4,7 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {decodeId} from "~/shared/id/id.js";
 import {SessionId, SpaceId} from "~/shared/id/types/id_types.js";
@@ -168,7 +169,7 @@ export abstract class TaskRealtimeServiceRouterBase {
      * If our session wants to connect to `TaskRealtimeService` then we
      * consistently pick a single, healthy, host.
      */
-    public async getSessionHost(
+    public async getStickySessionHost(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         spaceId: SpaceId,
         sessionId: SessionId,
@@ -195,6 +196,40 @@ export abstract class TaskRealtimeServiceRouterBase {
         healthyHosts.sort();
 
         const hostIndex = this._stableRandom.randomInteger(sessionId, 0, healthyHosts.length);
+
+        return healthyHosts[hostIndex]!;
+    }
+
+    /**
+     * Get a random host for connecting to `TaskRealtimeService`. May return a
+     * different host every call.
+     */
+    public async getRandomHost(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        spaceId: SpaceId,
+    ): Promise<string> {
+        const allHosts = await this.getHosts(context, spaceId);
+
+        const healthyHosts = filterMapArray(allHosts, ({isHealthy, host}) =>
+            isHealthy ? host : null,
+        );
+
+        if (healthyHosts.length === 0) {
+            throw new InternalError(
+                "No healthy `TaskRealtimeService` instance found for this space",
+            );
+        }
+
+        if (healthyHosts.length === 1) {
+            return healthyHosts[0]!;
+        }
+
+        // The order of hosts is not specified. Since we want to route a `SessionId` to
+        // the same host over, sort the host list so our choice is stable if the host
+        // list doesn't change.
+        healthyHosts.sort();
+
+        const hostIndex = randomInteger(healthyHosts.length);
 
         return healthyHosts[hostIndex]!;
     }

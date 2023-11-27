@@ -12,6 +12,7 @@ ts_project(
         "//app:__pkg__",
         "//server/notifications/data:__pkg__",
         "//server/rpc:__pkg__",
+        "//server/search/index:__pkg__",
     ],
     deps = [
         "//:node_modules/date-fns",

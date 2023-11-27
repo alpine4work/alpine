@@ -74,7 +74,7 @@ export async function chunkSearchContent(
     },
 ): Promise<{
     getFullText: () => string;
-    chunks: Array<{
+    embeddingChunks: Array<{
         preambleEndIndex: number;
         text: string;
     }>;
@@ -89,7 +89,7 @@ export async function chunkSearchContent(
     return {
         getFullText: () =>
             printSearchContentChunk({preamble: {text: "", lineMarginBottom: 0}, body: chunk}).text,
-        chunks: splitChunks.map(chunk => printSearchContentChunk(chunk)),
+        embeddingChunks: splitChunks.map(chunk => printSearchContentChunk(chunk)),
     };
 }
 

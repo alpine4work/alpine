@@ -24,8 +24,12 @@ import {TaskPositionByAccountIdAndNotepadPageIdMap} from "~/shared/tasks/task_po
  * section.)
  *
  * We also need to convert the task to a `TaskModel`.
+ *
+ * If null is passed in for `accountId` we wipe all potentially private data
+ * from the task as a safety precaution. This may not be what you want if
+ * you're using a system context.
  */
-export function prepareTaskForClient(accountId: AccountId, task: TaskIndexDoc): TaskModel {
+export function prepareTaskForClient(accountId: AccountId | null, task: TaskIndexDoc): TaskModel {
     return new TaskModel({
         id: task.id,
         spaceId: task.spaceId,
@@ -80,8 +84,9 @@ export function prepareTaskForClient(accountId: AccountId, task: TaskIndexDoc): 
         // pages. The session account never changes so this doesn't need to respond in
         // realtime.
         positionByAccountIdAndNotepadPageId: reduceIterable(
-            filterIterable(task.notepadPages.raw.positionById.actualEntries(), ([key]) =>
-                key.startsWith(accountId),
+            filterIterable(
+                task.notepadPages.raw.positionById.actualEntries(),
+                ([key]) => accountId !== null && key.startsWith(accountId),
             ),
             (positionById, [key, {value, version}]) =>
                 value !== null

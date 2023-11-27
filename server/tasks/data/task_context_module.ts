@@ -1,11 +1,14 @@
 import {
     DynamoActorContextModule,
     DynamoSessionActorContextModule,
+    DynamoSystemActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
 import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
+    TaskRealtimeGetCollectionSchema,
+    TaskRealtimeGetTaskSchema,
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
@@ -25,10 +28,13 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {
     SpaceId,
     TaskActionTransactionId,
+    TaskCollectionId,
+    TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export abstract class TaskContextModuleBase extends ContextModuleBase<{
@@ -268,7 +274,11 @@ export class TaskContextModule extends TaskContextModuleBase {
         input: SchemaType<typeof TaskRealtimeLoadQueriesInputSchema>,
     ): Promise<SchemaType<typeof TaskRealtimeLoadQueriesOutputSchema>> {
         const [host, token] = await runAllPromises([
-            this.router.getSessionHost(this._context, spaceId, this._context.actor.getSessionId()),
+            this.router.getStickySessionHost(
+                this._context,
+                spaceId,
+                this._context.actor.getSessionId(),
+            ),
             this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
                 type: "Session",
                 sessionId: this._context.actor.getSessionId(),
@@ -297,6 +307,118 @@ export class TaskContextModule extends TaskContextModuleBase {
                 }
 
                 return TaskRealtimeLoadQueriesOutputSchema.deserialize(body);
+            },
+        );
+    }
+
+    /**
+     * Gets a single task its parent tasks and collections (recursively).
+     *
+     * We need to read the task from `TaskRealtimeService` which keeps query data
+     * up-to-date in realtime. (Unlike OpenSearch which is behind by at least 30
+     * seconds.) If the task is available in the `TaskRealtimeService` cache it's
+     * returned immediately without a network request to the database. Otherwise,
+     * the task is loaded from OpenSearch and `TaskRealtimeService` applies its
+     * realtime action history window to make sure the task is up-to-date.
+     */
+    public async getTask(
+        this: TaskContextModule &
+            ContextModuleBase<{
+                process: ProcessContextModule;
+                tracer: TracerContextModule;
+                actor: DynamoSystemActorContextModule;
+            }>,
+        spaceId: SpaceId,
+        taskId: TaskId,
+    ): Promise<SchemaType<typeof TaskRealtimeGetTaskSchema>> {
+        const [host, token] = await runAllPromises([
+            // NOTE(calebmer, 2023-11-27): If this function ever supports session actors
+            // (and not just system actors) then we should use `getStickySessionHost()`
+            // when there's a session actor and `getRandomHost()` when there's a system
+            // actor.
+            this.router.getRandomHost(this._context, spaceId),
+            this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
+                type: "System",
+                spaceId: this._context.actor.getSpaceId(),
+            }),
+        ]);
+
+        return fetchWithTracer(
+            this._context.tracer.getTracer(),
+            `http://${host}/${spaceId}/getTask/${taskId}`,
+            {
+                spanRoute: `/:spaceId/getTask/:taskId`,
+                method: "GET",
+                headers: {
+                    authorization: `bearer ${token}`,
+                    "content-type": "application/json",
+                },
+            },
+            async response => {
+                const body: {ok: true} | {ok: false; error: SchemaSerializedValue} =
+                    await response.json();
+
+                if (!body.ok) {
+                    throw ErrorSchema.deserialize(body.error);
+                }
+
+                return TaskRealtimeGetTaskSchema.deserialize(body);
+            },
+        );
+    }
+
+    /**
+     * Gets a single task collection.
+     *
+     * We need to read the task from `TaskRealtimeService` which keeps query data
+     * up-to-date in realtime. (Unlike OpenSearch which is behind by at least 30
+     * seconds.) If the task is available in the `TaskRealtimeService` cache it's
+     * returned immediately without a network request to the database. Otherwise,
+     * the task is loaded from OpenSearch and `TaskRealtimeService` applies its
+     * realtime action history window to make sure the task is up-to-date.
+     */
+    public async getCollection(
+        this: TaskContextModule &
+            ContextModuleBase<{
+                process: ProcessContextModule;
+                tracer: TracerContextModule;
+                actor: DynamoSystemActorContextModule;
+            }>,
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+    ): Promise<SchemaType<typeof TaskRealtimeGetCollectionSchema>> {
+        const [host, token] = await runAllPromises([
+            // NOTE(calebmer, 2023-11-27): If this function ever supports session actors
+            // (and not just system actors) then we should use `getStickySessionHost()`
+            // when there's a session actor and `getRandomHost()` when there's a system
+            // actor.
+            this.router.getRandomHost(this._context, spaceId),
+            this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
+                type: "System",
+                spaceId: this._context.actor.getSpaceId(),
+            }),
+        ]);
+
+        return fetchWithTracer(
+            this._context.tracer.getTracer(),
+            `http://${host}/${spaceId}/getCollection/${collectionId}`,
+            {
+                spanRoute: `/:spaceId/getCollection/:collectionId`,
+                method: "GET",
+                headers: {
+                    authorization: `bearer ${token}`,
+                    "content-type": "application/json",
+                },
+            },
+            async response => {
+                const body: {ok: true} | {ok: false; error: SchemaSerializedValue} =
+                    await response.json();
+
+                if (!body.ok) {
+                    throw ErrorSchema.deserialize(body.error);
+                }
+
+                return TaskRealtimeGetCollectionSchema.deserialize(body);
             },
         );
     }
