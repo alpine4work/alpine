@@ -23,21 +23,6 @@ const javaBasePathPromise = new Lazy(async () => {
 
 const opensearchLocalBinPath = joinPath(runfilesPath, "opensearch_local/bin/opensearch");
 
-// Canonicalize architectures in the same way JNA does:
-// https://github.com/java-native-access/jna/blob/e96f30192e9455e7cc4117cce06fc3fa80bead55/src/com/sun/jna/Platform.java#L242-L270
-const jnaCanonicalArchitecture = new Map([
-    ["x86_64", "x86-64"],
-    ["amd64", "x86-64"],
-    ["arm64", "aarch64"],
-]);
-
-const opensearchLocalJnaBootLibraryPath = joinPath(
-    runfilesPath,
-    `opensearch_local_jna/com/sun/jna/${process.platform}-${
-        jnaCanonicalArchitecture.get(process.arch) ?? process.arch
-    }`,
-);
-
 export type OpensearchLocal = {
     readonly port: number;
     stop(): Promise<void>;
@@ -104,19 +89,9 @@ export async function startOpensearchLocal({
                     ...(process.env.NODE_ENV === "test"
                         ? ["-XX:ParallelGCThreads=1", "-XX:ConcGCThreads=1"]
                         : []),
-                    // Fix "Unable to load JNA" warning which is caused by the version of JNA in
-                    // OpenSearch (5.5.0) not having a MacOS M1 compatible `jnidispatch` binary.
-                    //
-                    // There may also be a security issue with MacOS not allowing programs to
-                    // create executables from memory:
-                    // https://groups.google.com/g/jna-users/c/Bws1h060faA
-                    //
-                    // Here's the ElasticSearch documentation for Linux on the topic:
-                    // https://www.elastic.co/guide/en/elasticsearch/reference/current/executable-jna-tmpdir.html
-                    //
-                    // Set `jna.debug_load` and `jna.debug_load.jna` to help us debug what's
-                    // happening with the JNA load.
-                    `-Djna.nosys=true -Djna.nounpack=true -Djna.boot.library.path=${opensearchLocalJnaBootLibraryPath} -Djna.debug_load=true -Djna.debug_load.jna=true`,
+                    // NOTE(calebmer, 2023-11-22): Set `jna.debug_load` and `jna.debug_load.jna` to
+                    // help us debug issues with the JNA load which caused problems in the past.
+                    `-Djna.nosys=true -Djna.debug_load=true -Djna.debug_load.jna=true`,
                 ].join(" "),
             },
             stdio: ["ignore", "ignore", "ignore"],

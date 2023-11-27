@@ -3,7 +3,7 @@ import {IConnectable, Port, SubnetType} from "aws-cdk-lib/aws-ec2";
 import {Effect, IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Code, Function as LambdaFunction, Runtime} from "aws-cdk-lib/aws-lambda";
 import {RetentionDays} from "aws-cdk-lib/aws-logs";
-import {Domain, EngineVersion} from "aws-cdk-lib/aws-opensearchservice";
+import {Domain} from "aws-cdk-lib/aws-opensearchservice";
 import {Provider} from "aws-cdk-lib/custom-resources";
 import {Construct} from "constructs";
 import crypto from "crypto";
@@ -43,7 +43,7 @@ export class AwsOpensearch extends Construct {
             // Only allow traffic to/from OpenSearch within our subnet.
             vpcSubnets: [{subnetType: SubnetType.PRIVATE_ISOLATED}],
 
-            version: EngineVersion.OPENSEARCH_2_9,
+            version: {version: "OpenSearch_2.11"},
 
             // Free tier OpenSearch instances. Should upgrade as we get real traffic.
             capacity: {

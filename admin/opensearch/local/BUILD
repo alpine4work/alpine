@@ -35,12 +35,10 @@ js_library(
     data = [
         "@bazel_tools//tools/jdk:current_java_runtime",
         "@opensearch_local",
-        "@opensearch_local_jna//:jnidispatch",
     ],
     no_copy_to_bin = [
         "@bazel_tools//tools/jdk:current_java_runtime",
         "@opensearch_local",
-        "@opensearch_local_jna//:jnidispatch",
     ],
 )
 
