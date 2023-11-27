@@ -31,5 +31,8 @@
     "remoteUser": "vscode",
     "features": {
         "ghcr.io/devcontainers/features/docker-in-docker:1": {}
+    },
+    "remoteEnv": {
+        "PATH": "${containerEnv:PATH}:/workspaces/cyberworlds/admin/bin"
     }
 }
