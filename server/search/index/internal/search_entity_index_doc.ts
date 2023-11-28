@@ -37,7 +37,10 @@ const SearchEntityIndexAccessPolicyType = OpensearchIndexObjectType.new({
     fields: {
         accountGrantAccountIds: new OpensearchIndexArrayType(
             new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
-        ),
+        ).transform<ReadonlySet<AccountId>>({
+            serialize: accountIds => Array.from(accountIds),
+            deserialize: accountIds => new Set(accountIds),
+        }),
         defaultGrantType: new OpensearchIndexByteType({isFilterable: true})
             .transform<SearchEntityIndexDefaultGrantType>({
                 serialize: type => SearchEntityIndexDefaultGrantTypeIntegerMapping.into(type),

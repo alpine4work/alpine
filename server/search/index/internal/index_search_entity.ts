@@ -485,7 +485,7 @@ class SearchEntityIndexer {
     }
 }
 
-export function indexSearchEntity() {
+export function indexSearchEntity(): Promise<SearchEntity> {
     // NOCOMMIT
 }
 
@@ -500,7 +500,7 @@ async function indexAccountSearchEntity(
 
         // Anyone in a space can see all the accounts in a space.
         accessPolicy: {
-            accountGrantAccountIds: [],
+            accountGrantAccountIds: new Set(),
             defaultGrantType: "Space",
         },
 
@@ -528,7 +528,7 @@ async function indexDocumentSearchEntity(
         // When we add access controls we need to update this with proper access policy
         // information.
         accessPolicy: {
-            accountGrantAccountIds: [],
+            accountGrantAccountIds: new Set(),
             defaultGrantType: "Space",
         },
 
@@ -594,6 +594,8 @@ async function indexDocumentCommentSearchEntity(
     commentIndex: number,
 ): Promise<SearchEntity> {
     const [documentPreview, comment] = await runAllPromises([
+        // NOCOMMIT: All document comments depend on the preview. Can this be
+        // optimized?
         indexer.getDocumentPreview(documentId),
         indexer.getDocumentComment(documentId, commentThreadId, commentIndex),
     ]);
@@ -631,7 +633,7 @@ async function indexDocumentCommentSearchEntity(
         // When we add access controls we need to update this with proper access policy
         // information.
         accessPolicy: {
-            accountGrantAccountIds: [],
+            accountGrantAccountIds: new Set(),
             defaultGrantType: "Space",
         },
 
@@ -673,7 +675,7 @@ async function indexChannelSearchEntity(
         // When we add access controls we need to update this with proper access policy
         // information.
         accessPolicy: {
-            accountGrantAccountIds: [],
+            accountGrantAccountIds: new Set(),
             defaultGrantType: "Space",
         },
 
@@ -727,7 +729,7 @@ async function indexPostSearchEntity(
         // When we add access controls we need to update this with proper access policy
         // information.
         accessPolicy: {
-            accountGrantAccountIds: [],
+            accountGrantAccountIds: new Set(),
             defaultGrantType: "Space",
         },
 
@@ -750,6 +752,8 @@ async function indexPostCommentSearchEntity(
     commentIndex: number,
 ): Promise<SearchEntity> {
     const [post, comment] = await runAllPromises([
+        // NOCOMMIT: All post comments depend on the post. Can this be
+        // optimized?
         indexer.getPost(postId),
         indexer.getPostComment(postId, commentIndex),
     ]);
@@ -788,7 +792,7 @@ async function indexPostCommentSearchEntity(
         // When we add access controls we need to update this with proper access policy
         // information.
         accessPolicy: {
-            accountGrantAccountIds: [],
+            accountGrantAccountIds: new Set(),
             defaultGrantType: "Space",
         },
 
@@ -825,7 +829,7 @@ async function indexChatSearchEntity(
         id: `Chat:${chatId}`,
 
         accessPolicy: {
-            accountGrantAccountIds: chat.accounts.map(account => account.id),
+            accountGrantAccountIds: new Set(chat.accounts.map(account => account.id)),
             defaultGrantType: null,
         },
 
@@ -841,6 +845,8 @@ async function indexChatMessageSearchEntity(
     messageIndex: number,
 ): Promise<SearchEntity> {
     const [chat, message] = await runAllPromises([
+        // NOCOMMIT: All chat messages depend on the chat. Can this be
+        // optimized?
         indexer.getChat(chatId),
         indexer.getChatMessage(chatId, messageIndex),
     ]);
@@ -895,7 +901,7 @@ async function indexChatMessageSearchEntity(
         id: `ChatMessage:${chatId}:${messageIndex}`,
 
         accessPolicy: {
-            accountGrantAccountIds: chat.accounts.map(account => account.id),
+            accountGrantAccountIds: new Set(chat.accounts.map(account => account.id)),
             defaultGrantType: null,
         },
 
@@ -1005,7 +1011,7 @@ async function indexTaskSearchEntity(
         id: `Task:${taskId}`,
 
         accessPolicy: {
-            accountGrantAccountIds: Array.from(accountGrantAccountIds),
+            accountGrantAccountIds,
             defaultGrantType,
         },
 
@@ -1024,20 +1030,20 @@ async function indexTaskCollectionSearchEntity(
 
     const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
         accessPolicy.defaultGrant?.type ?? null;
-    let accountGrantAccountIds = Array.from(accessPolicy.accountGrantById.keys());
+    let accountGrantAccountIds = new Set(accessPolicy.accountGrantById.keys());
 
     // If we have a space default grant then the individual account grants don't
     // matter for the search entity. Lets exclude them to save space in the index.
     if (defaultGrantType !== null) {
         cast<"Space">(defaultGrantType);
-        accountGrantAccountIds = [];
+        accountGrantAccountIds = new Set();
     }
 
     return {
         id: `TaskCollection:${collectionId}`,
 
         accessPolicy: {
-            accountGrantAccountIds: Array.from(accountGrantAccountIds),
+            accountGrantAccountIds,
             defaultGrantType,
         },
 

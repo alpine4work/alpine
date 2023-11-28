@@ -209,7 +209,11 @@ export class TaskContextModule extends TaskContextModuleBase {
                     // Apply the action transaction in every host from our router since every host
                     // needs to be kept up-to-date in realtime.
                     //
-                    // We apply the action whether or not the host is healthy!
+                    // We apply the action whether or not the host is healthy! The host will be in
+                    // an unhealthy state for a couple minutes after it starts up. That way all
+                    // processes can discover the host and start sending it action transactions
+                    // (through this very call). That way when a host is healthy we know it's
+                    // already been receiving all new committed action transactions.
                     hosts.map(async ({host}) => {
                         await retryWithExponentialBackoff(async retry => {
                             try {

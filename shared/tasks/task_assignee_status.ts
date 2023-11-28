@@ -6,7 +6,7 @@ import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
  * The task assignee status represents whether an account is actively working
  * on a task or not.
  *
- * `TaskAssigneeStatus` is dependant on `TaskStatus`. If `TaskStatus` is
+ * `TaskAssigneeStatus` is dependent on `TaskStatus`. If `TaskStatus` is
  * `Closed` then `TaskAssigneeStatus` is always `Inactive`. If a user reopens a
  * closed task then `TaskAssigneeStatus` should be reset to `Inactive`.
  *

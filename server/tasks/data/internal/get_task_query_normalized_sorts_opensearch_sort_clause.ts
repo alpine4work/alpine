@@ -155,7 +155,7 @@ const minInt64 = -(2n ** 63n);
  * This function returns a cursor with `bigint`s which must be stringified with
  * `json-bigint` because OpenSearch can parse large number literals into `long`s.
  *
- * The implementation of this function is highly dependant on the
+ * The implementation of this function is highly dependent on the
  * implementation of both `getTaskQueryNormalizedSortCursorValueFromIndexDoc()`
  * and `getTaskQueryNormalizedSortsOpensearchSortClause()`!
  *

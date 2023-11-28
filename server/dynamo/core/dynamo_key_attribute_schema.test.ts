@@ -162,6 +162,9 @@ test("can serialize and deserialize a reversed key attribute", () => {
 test("can serialize and deserialize label strings in the right order", () => {
     const strings = [
         "Hello, world!",
+        "Hello, world.",
+        "Hello, world?",
+        "Hello, world",
         "😍",
         "\ud83d\ude0d",
         String.raw`\ud83d\ude0d`,
