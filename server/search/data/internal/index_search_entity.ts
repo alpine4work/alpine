@@ -11,16 +11,16 @@ import {
     getPostCommentPayload,
     getPostContentAndChannel,
 } from "~/server/forum/data/forum_table.js";
-import {chunkSearchContent} from "~/server/search/index/internal/chunk_search_content.js";
-import {CohereEnglishLightLanguageModel} from "~/server/search/index/internal/cohere_english_light_language_model.js";
-import {LanguageModelBase} from "~/server/search/index/internal/language_model_base.js";
-import {SearchEntityDependencyId} from "~/server/search/index/internal/search_entity_dependency_id.js";
-import {SearchEntityId} from "~/server/search/index/internal/search_entity_id.js";
+import {chunkSearchContent} from "~/server/search/data/internal/chunk_search_content.js";
+import {CohereEnglishLightLanguageModel} from "~/server/search/data/internal/cohere_english_light_language_model.js";
+import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
+import {SearchEntityDependencyId} from "~/server/search/data/internal/search_entity_dependency_id.js";
+import {SearchEntityId} from "~/server/search/data/internal/search_entity_id.js";
 import {
     SearchEntityIndexAccessPolicy,
     SearchEntityIndexDefaultGrantType,
-} from "~/server/search/index/internal/search_entity_index_doc.js";
-import {truncateTokens} from "~/server/search/index/internal/truncate_tokens.js";
+} from "~/server/search/data/internal/search_entity_index_doc.js";
+import {truncateTokens} from "~/server/search/data/internal/truncate_tokens.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {getTaskNotesContent} from "~/server/tasks/data/task_table.js";

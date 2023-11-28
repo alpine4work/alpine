@@ -1,4 +1,4 @@
-import {LanguageModelBase} from "~/server/search/index/internal/language_model_base.js";
+import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
 
 /**
  * Truncate some text to the specified number of tokens. If the text was truncated

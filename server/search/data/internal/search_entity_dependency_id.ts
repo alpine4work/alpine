@@ -1,4 +1,4 @@
-import {SearchEntityId} from "~/server/search/index/internal/search_entity_id.js";
+import {SearchEntityId} from "~/server/search/data/internal/search_entity_id.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {
     AccountId,

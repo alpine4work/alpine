@@ -2,7 +2,7 @@ import {BertTokenizer} from "@xenova/transformers";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {LanguageModelBase} from "~/server/search/index/internal/language_model_base.js";
+import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";

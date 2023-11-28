@@ -13,7 +13,7 @@ import {
     OpensearchIndexTypeType,
     OpensearchIndexUnionObjectType,
 } from "~/server/opensearch/opensearch_index_type.js";
-import {SearchEntityDependencyId} from "~/server/search/index/internal/search_entity_dependency_id.js";
+import {SearchEntityDependencyId} from "~/server/search/data/internal/search_entity_dependency_id.js";
 import {
     IntegerMappingStringType,
     createEnumIntegerMapping,

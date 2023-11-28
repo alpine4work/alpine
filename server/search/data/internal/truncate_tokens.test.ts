@@ -1,5 +1,5 @@
-import {CohereEnglishLightLanguageModel} from "~/server/search/index/internal/cohere_english_light_language_model.js";
-import {truncateTokens} from "~/server/search/index/internal/truncate_tokens.js";
+import {CohereEnglishLightLanguageModel} from "~/server/search/data/internal/cohere_english_light_language_model.js";
+import {truncateTokens} from "~/server/search/data/internal/truncate_tokens.js";
 
 test("truncates document titles appropriately", async () => {
     const model = await CohereEnglishLightLanguageModel.get();

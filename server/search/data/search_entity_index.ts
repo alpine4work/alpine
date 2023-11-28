@@ -3,8 +3,8 @@ import {
     OpensearchIndexTypeFlattenedKeysType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
-import {SearchEntityId} from "~/server/search/index/internal/search_entity_id.js";
-import {SearchEntityIndexDocType} from "~/server/search/index/internal/search_entity_index_doc.js";
+import {SearchEntityId} from "~/server/search/data/internal/search_entity_id.js";
+import {SearchEntityIndexDocType} from "~/server/search/data/internal/search_entity_index_doc.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 // IMPORTANT: Don't export this. All access to the index should be exposed

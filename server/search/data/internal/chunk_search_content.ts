@@ -1,6 +1,6 @@
 import natural from "natural";
 import {Fragment, Mark, Node} from "prosemirror-model";
-import {LanguageModelBase} from "~/server/search/index/internal/language_model_base.js";
+import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
