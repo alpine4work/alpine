@@ -5,6 +5,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -18,14 +19,14 @@ import {
  * OpenSearch that we can search across.
  */
 export type SearchEntityId =
-    | `Account:${AccountId}`
+    | `Account:${AccountId | ContentMentionAccountId}`
     | `Document:${DocumentId}`
-    | `DocumentComment:${DocumentId}:${DocumentCommentThreadId}:${number}`
+    | `DocumentComment:${DocumentId}-${DocumentCommentThreadId}-${number}`
     | `Channel:${ChannelId}`
     | `Post:${PostId}`
-    | `PostComment:${PostId}:${number}`
+    | `PostComment:${PostId}-${number}`
     | `Chat:${ChatId}`
-    | `ChatMessage:${ChatId}:${number}`
+    | `ChatMessage:${ChatId}-${number}`
     | `Task:${TaskId}`
     | `TaskCollection:${TaskCollectionId}`;
 
@@ -54,44 +55,45 @@ export type SearchEntityIdObject =
  * Parse a `SearchEntityId` into a more convenient to use object format.
  */
 export function parseSearchEntityId(id: SearchEntityId): SearchEntityIdObject {
-    const idParts = id.split(":");
+    const [idType, idPayload] = id.split(":");
+    const idPayloadParts = idPayload?.split("-") ?? [];
 
-    switch (idParts[0]) {
+    switch (idType) {
         case "Account":
-            return {type: "Account", accountId: idParts[1] as AccountId};
+            return {type: "Account", accountId: idPayloadParts[0] as AccountId};
         case "Document":
-            return {type: "Document", documentId: idParts[1] as DocumentId};
+            return {type: "Document", documentId: idPayloadParts[0] as DocumentId};
         case "DocumentComment":
             return {
                 type: "DocumentComment",
-                documentId: idParts[1] as DocumentId,
-                commentThreadId: idParts[2] as DocumentCommentThreadId,
-                commentIndex: parseInt(idParts[3]!, 10),
+                documentId: idPayloadParts[0] as DocumentId,
+                commentThreadId: idPayloadParts[1] as DocumentCommentThreadId,
+                commentIndex: parseInt(idPayloadParts[2]!, 10),
             };
         case "Channel":
-            return {type: "Channel", channelId: idParts[1] as ChannelId};
+            return {type: "Channel", channelId: idPayloadParts[0] as ChannelId};
         case "Post":
-            return {type: "Post", postId: idParts[1] as PostId};
+            return {type: "Post", postId: idPayloadParts[0] as PostId};
         case "PostComment":
             return {
                 type: "PostComment",
-                postId: idParts[1] as PostId,
-                commentIndex: parseInt(idParts[3]!, 10),
+                postId: idPayloadParts[0] as PostId,
+                commentIndex: parseInt(idPayloadParts[1]!, 10),
             };
         case "Chat":
-            return {type: "Chat", chatId: idParts[1] as ChatId};
+            return {type: "Chat", chatId: idPayloadParts[0] as ChatId};
         case "ChatMessage":
             return {
                 type: "ChatMessage",
-                chatId: idParts[1] as ChatId,
-                messageIndex: parseInt(idParts[3]!, 10),
+                chatId: idPayloadParts[0] as ChatId,
+                messageIndex: parseInt(idPayloadParts[1]!, 10),
             };
         case "Task":
-            return {type: "Task", taskId: idParts[1] as TaskId};
+            return {type: "Task", taskId: idPayloadParts[0] as TaskId};
         case "TaskCollection":
-            return {type: "TaskCollection", collectionId: idParts[1] as TaskCollectionId};
+            return {type: "TaskCollection", collectionId: idPayloadParts[0] as TaskCollectionId};
         default:
-            throw new InternalError(quote`Unrecognized search entity ID type ${idParts[0] ?? ""}`);
+            throw new InternalError(quote`Unrecognized search entity ID type ${idType ?? ""}`);
     }
 }
 
@@ -106,17 +108,17 @@ export function printSearchEntityId(idObject: SearchEntityIdObject): SearchEntit
         case "Document":
             return `Document:${idObject.documentId}`;
         case "DocumentComment":
-            return `DocumentComment:${idObject.documentId}:${idObject.commentThreadId}:${idObject.commentIndex}`;
+            return `DocumentComment:${idObject.documentId}-${idObject.commentThreadId}-${idObject.commentIndex}`;
         case "Channel":
             return `Channel:${idObject.channelId}`;
         case "Post":
             return `Post:${idObject.postId}`;
         case "PostComment":
-            return `PostComment:${idObject.postId}:${idObject.commentIndex}`;
+            return `PostComment:${idObject.postId}-${idObject.commentIndex}`;
         case "Chat":
             return `Chat:${idObject.chatId}`;
         case "ChatMessage":
-            return `ChatMessage:${idObject.chatId}:${idObject.messageIndex}`;
+            return `ChatMessage:${idObject.chatId}-${idObject.messageIndex}`;
         case "Task":
             return `Task:${idObject.taskId}`;
         case "TaskCollection":

@@ -1,5 +1,3 @@
-import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
-import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
     OpensearchIndexTypeFlattenedKeysType,
@@ -8,8 +6,6 @@ import {
 import {SearchEntityId} from "~/server/search/index/internal/search_entity_id.js";
 import {SearchEntityIndexDocType} from "~/server/search/index/internal/search_entity_index_doc.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {IdentifierStringSchema} from "~/shared/schema/helpers/identifier_string_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
@@ -74,34 +70,4 @@ const SearchEntityIndex = new OpensearchIndex<
     //
     // NOCOMMIT: Test that we can still highlight with no source
     disableSourceField: true,
-});
-
-const SearchTable = DynamoTableSchema.new({
-    name: "Search",
-    partitions: [
-        {
-            name: "Entity",
-            partitionKeyAttributes: {
-                entityId:
-                    DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchEntityId>,
-            },
-            sortRanges: [
-                {
-                    name: "Attributes",
-                    sortKeyAttributes: {},
-                    attributes: Schema.object({}),
-                },
-                {
-                    name: "Dependent",
-                    sortKeyAttributes: {
-                        dependentEntityId:
-                            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchEntityId>,
-                    },
-                    attributes: Schema.object({
-                        granularity: Schema.enum(["Full", "Preview", "Authorization"]),
-                    }),
-                },
-            ],
-        },
-    ],
 });

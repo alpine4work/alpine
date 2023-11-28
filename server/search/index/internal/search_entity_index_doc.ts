@@ -9,9 +9,11 @@ import {
     OpensearchIndexObjectType,
     OpensearchIndexSearchAsYouTypeType,
     OpensearchIndexTextType,
+    OpensearchIndexTypeBase,
     OpensearchIndexTypeType,
     OpensearchIndexUnionObjectType,
 } from "~/server/opensearch/opensearch_index_type.js";
+import {SearchEntityDependencyId} from "~/server/search/index/internal/search_entity_dependency_id.js";
 import {
     IntegerMappingStringType,
     createEnumIntegerMapping,
@@ -169,6 +171,17 @@ const SearchEntityIndexDataTypeIntegerMapping = createEnumIntegerMapping({
 const SearchEntityIndexContentDataType = OpensearchIndexObjectType.new({
     fields: {
         /**
+         * Other entities that this search entity depends on.
+         * `SearchEntityDependencyId`s are `SearchEntityId`s plus some extra
+         * information about what specific attribute we depend on.
+         */
+        dependencyIds: new OpensearchIndexArrayType(
+            new OpensearchIndexKeywordType({
+                isFilterable: true,
+            }) as OpensearchIndexTypeBase<SearchEntityDependencyId, "this">,
+        ),
+
+        /**
          * Titles use the OpenSearch [`search_as_you_type` field][1] which includes an
          * optimization for prefix matching. Which is important for building
          * autocomplete experiences.
@@ -269,23 +282,6 @@ export const SearchEntityIndexDocType = OpensearchIndexObjectType.new({
             isFilterable: true,
             isSortable: true,
         }),
-
-        // NOCOMMIT: This may actually go somewhere in DynamoDB?? Along with
-        // transaction information.
-
-        // version: new OpensearchIndexLongType(),
-        // indexerVersion: new OpensearchIndexLongType(),
-
-        // dependencies: new OpensearchIndexArrayType(
-        //     OpensearchIndexObjectType.new({
-        //         fields: {
-        //             entityId: new OpensearchIndexKeywordType({
-        //                 isFilterable: true,
-        //             }) as OpensearchIndexTypeBase<SearchEntityId, "this">,
-        //             version: new OpensearchIndexLongType(),
-        //         },
-        //     }),
-        // ),
 
         accessPolicy: SearchEntityIndexAccessPolicyType,
 

@@ -14,6 +14,7 @@ import {
 import {chunkSearchContent} from "~/server/search/index/internal/chunk_search_content.js";
 import {CohereEnglishLightLanguageModel} from "~/server/search/index/internal/cohere_english_light_language_model.js";
 import {LanguageModelBase} from "~/server/search/index/internal/language_model_base.js";
+import {SearchEntityDependencyId} from "~/server/search/index/internal/search_entity_dependency_id.js";
 import {SearchEntityId} from "~/server/search/index/internal/search_entity_id.js";
 import {
     SearchEntityIndexAccessPolicy,
@@ -84,6 +85,8 @@ class SearchEntityIndexer {
     >;
     public readonly model: LanguageModelBase;
 
+    private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
+
     private constructor(
         context: Context<ServerSystemActionContextModules & {tasks: TaskContextModule}>,
         model: LanguageModelBase,
@@ -104,6 +107,7 @@ class SearchEntityIndexer {
     public readonly getAccountIfExists = (
         accountId: AccountId | ContentMentionAccountId,
     ): Promise<AccountModel | null> => {
+        this._dependencyIds.add(`Account:${accountId}`);
         return getAccountIfExists(this._context, this._context.actor.getSpaceId(), accountId);
     };
 
@@ -114,10 +118,12 @@ class SearchEntityIndexer {
     }
 
     public getDocumentContent(documentId: DocumentId): Promise<DocumentContent> {
+        this._dependencyIds.add(`Document:${documentId}:Content`);
         return getDocumentContent(this._context, documentId);
     }
 
     public getDocumentTitle(documentId: DocumentId): Promise<string> {
+        this._dependencyIds.add(`Document:${documentId}:Title`);
         return getDocumentTitle(this._context, documentId);
     }
 
@@ -126,6 +132,9 @@ class SearchEntityIndexer {
         commentThreadId: DocumentCommentThreadId,
         commentIndex: number,
     ): Promise<MessagePayload> {
+        this._dependencyIds.add(
+            `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}:Payload`,
+        );
         return getDocumentCommentPayload(this._context, {
             documentId,
             commentThreadId,
@@ -136,29 +145,37 @@ class SearchEntityIndexer {
     public getChannelNameAndDescriptionContent(
         channelId: ChannelId,
     ): Promise<{name: string; description: MessageContent}> {
+        this._dependencyIds.add(`Channel:${channelId}:NameAndDescriptionContent`);
         return getChannelNameAndDescriptionContent(this._context, channelId);
     }
 
     public getChannelPreview(channelId: ChannelId): Promise<ChannelPreviewModel> {
+        this._dependencyIds.add(`Channel:${channelId}:Preview`);
         return getChannelPreview(this._context, channelId);
     }
 
     // NOCOMMIT: Channel should be added as an implicit dependency
-    public getPostContentAndChannel(
+    public async getPostContentAndChannel(
         postId: PostId,
     ): Promise<{content: PostContent; channel: ChannelPreviewModel}> {
-        return getPostContentAndChannel(this._context, postId);
+        this._dependencyIds.add(`Post:${postId}:Content`);
+        const contentAndChannel = await getPostContentAndChannel(this._context, postId);
+        this._dependencyIds.add(`Channel:${contentAndChannel.channel.id}:Preview`);
+        return contentAndChannel;
     }
 
     public getPostCommentPayload(postId: PostId, commentIndex: number): Promise<MessagePayload> {
+        this._dependencyIds.add(`PostComment:${postId}-${commentIndex}:Payload`);
         return getPostCommentPayload(this._context, {postId, commentIndex});
     }
 
     public getChatAccountIds(chatId: ChatId): Promise<ReadonlyArray<AccountId>> {
+        this._dependencyIds.add(`Chat:${chatId}:AccountIds`);
         return getChatAccountIds(this._context, chatId);
     }
 
     public getChatMessagePayload(chatId: ChatId, messageIndex: number): Promise<MessagePayload> {
+        this._dependencyIds.add(`ChatMessage:${chatId}-${messageIndex}:Payload`);
         return getChatMessagePayload(this._context, {chatId, messageIndex});
     }
 
@@ -171,7 +188,7 @@ class SearchEntityIndexer {
             content: TaskNotesContentWithReferences;
         };
     }> {
-        // NOCOMMIT: Mark referenced tasks and referenced collections as dependencies
+        this._dependencyIds.add(`Task:${taskId}`);
 
         const [{task, referencedTasks, referencedCollections}, notesContent] = await runAllPromises(
             [
@@ -181,10 +198,18 @@ class SearchEntityIndexer {
         );
 
         const referencedTaskById = new Map<TaskId, TaskModel>(
-            referencedTasks.map(task => [task.id, task]),
+            referencedTasks.map(task => {
+                this._dependencyIds.add(`Task:${task.id}:Authorization`);
+
+                return [task.id, task];
+            }),
         );
         const referencedCollectionById = new Map<TaskCollectionId, TaskCollectionModel>(
-            referencedCollections.map(collection => [collection.id, collection]),
+            referencedCollections.map(collection => {
+                this._dependencyIds.add(`TaskCollection:${collection.id}:Authorization`);
+
+                return [collection.id, collection];
+            }),
         );
 
         return {
@@ -196,6 +221,8 @@ class SearchEntityIndexer {
     }
 
     public async getTaskCollection(collectionId: TaskCollectionId): Promise<TaskCollectionModel> {
+        this._dependencyIds.add(`TaskCollection:${collectionId}`);
+
         const {collection} = await this._context.tasks.getCollection(
             this._context.actor.getSpaceId(),
             collectionId,
@@ -338,7 +365,7 @@ async function indexDocumentCommentSearchEntity(
             : null;
 
     return {
-        id: `DocumentComment:${documentId}:${commentThreadId}:${commentIndex}`,
+        id: `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`,
 
         // TODO(calebmer): Documents are currently accessible to everyone in a space.
         // When we add access controls we need to update this with proper access policy
@@ -477,7 +504,7 @@ async function indexPostCommentSearchEntity(
             : null;
 
     return {
-        id: `PostComment:${postId}:${commentIndex}`,
+        id: `PostComment:${postId}-${commentIndex}`,
 
         // TODO(calebmer): Documents are currently accessible to everyone in a space.
         // When we add access controls we need to update this with proper access policy
@@ -579,7 +606,7 @@ async function indexChatMessageSearchEntity(
             : null;
 
     return {
-        id: `ChatMessage:${chatId}:${messageIndex}`,
+        id: `ChatMessage:${chatId}-${messageIndex}`,
 
         accessPolicy: {
             accountGrantAccountIds: new Set(chatAccountIds),

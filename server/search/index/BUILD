@@ -16,7 +16,6 @@ ts_project(
         "//:node_modules/prosemirror-model",
         "//server/chat/data",
         "//server/documents/data",
-        "//server/dynamo/core",
         "//server/forum/data",
         "//server/helpers/node",
         "//server/opensearch",
