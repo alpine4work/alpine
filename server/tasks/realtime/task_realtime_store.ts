@@ -1132,11 +1132,17 @@ export class TaskRealtimeStoreInternal {
     ): Promise<void> {
         await taskRealtimeStoreBeforeLoadTaskTestCheckpoint.waitForTest(this.spaceId);
 
-        const tasks = await getTaskIndexDocsIfExist(
-            context,
-            this.spaceId,
-            taskLoadBatch.map(({taskId}) => taskId),
-        );
+        const [tasks] = await runAllPromises([
+            getTaskIndexDocsIfExist(
+                context,
+                this.spaceId,
+                taskLoadBatch.map(({taskId}) => taskId),
+            ),
+            // We need to make sure we have a full action history store before calling
+            // `_executeLoadTaskBatchSync()` which needs the action history to catch up our
+            // OpenSearch query result.
+            this.ensureFullActionHistory(context),
+        ]);
 
         // Remove the `version` property from loaded tasks. The tasks we keep track of
         // in our store don't have the OpenSearch version since we update the tasks
@@ -1296,11 +1302,17 @@ export class TaskRealtimeStoreInternal {
     ): Promise<void> {
         await taskRealtimeStoreBeforeLoadCollectionTestCheckpoint.waitForTest(this.spaceId);
 
-        const collections = await getTaskCollectionIndexDocsIfExist(
-            context,
-            this.spaceId,
-            collectionLoadBatch.map(({collectionId}) => collectionId),
-        );
+        const [collections] = await runAllPromises([
+            getTaskCollectionIndexDocsIfExist(
+                context,
+                this.spaceId,
+                collectionLoadBatch.map(({collectionId}) => collectionId),
+            ),
+            // We need to make sure we have a full action history store before calling
+            // `_executeLoadCollectionBatchSync()` which needs the action history to catch
+            // up our OpenSearch query result.
+            this.ensureFullActionHistory(context),
+        ]);
 
         // Remove the `version` property from loaded collections. The collections we
         // keep track of in our store don't have the OpenSearch version since we update
