@@ -62,6 +62,7 @@ type SearchEntity = {
     readonly body: string | null;
     readonly embeddingChunks: ReadonlyArray<{
         readonly preambleEndIndex: number;
+        readonly tokenCountWithoutPreamble: number;
         readonly text: string;
     }>;
 };

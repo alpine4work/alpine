@@ -76,6 +76,7 @@ export async function chunkSearchContent(
     getFullText: () => string;
     embeddingChunks: Array<{
         preambleEndIndex: number;
+        tokenCountWithoutPreamble: number;
         text: string;
     }>;
 }> {
@@ -446,6 +447,7 @@ function printSearchContentChunk(chunk: {
     body: SearchContentChunk;
 }): {
     preambleEndIndex: number;
+    tokenCountWithoutPreamble: number;
     text: string;
 } {
     const flatChunks: Array<SearchContentChunk & {isGroup: false}> = [];
@@ -495,6 +497,7 @@ function printSearchContentChunk(chunk: {
             // `text.length`.
             text.length,
         ),
+        tokenCountWithoutPreamble: chunk.body.tokenCount,
         text,
     };
 }

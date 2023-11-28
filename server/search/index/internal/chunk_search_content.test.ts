@@ -2145,6 +2145,7 @@ test("correctly chunks document content", async () => {
         // Chunk 1:
         {
             preambleEndIndex: 31,
+            tokenCountWithoutPreamble: 481,
             text: `\
 # Product vision and strategy
 
@@ -2169,6 +2170,7 @@ Cyberworlds will streamline work collaboration by bringing together the top prod
         // Chunk 2:
         {
             preambleEndIndex: 58,
+            tokenCountWithoutPreamble: 432,
             text: `\
 This is from the “Product vision and strategy” document:
 
@@ -2186,6 +2188,7 @@ When a customer uses Cyberworlds, the product should be a core part of their emp
         // Chunk 3:
         {
             preambleEndIndex: 58,
+            tokenCountWithoutPreamble: 412,
             text: `\
 This is from the “Product vision and strategy” document:
 
@@ -2216,6 +2219,7 @@ We hope to make each product 10–20% higher quality than competitive solutions 
         // Chunk 4:
         {
             preambleEndIndex: 84,
+            tokenCountWithoutPreamble: 322,
             text: `\
 This is from the “Product vision and strategy” document in the “Strategy” section:
 
@@ -2230,6 +2234,7 @@ We believe what will truly differentiate our solution and make it 10x better tha
         // Chunk 5:
         {
             preambleEndIndex: 58,
+            tokenCountWithoutPreamble: 227,
             text: `\
 This is from the “Product vision and strategy” document:
 
@@ -2245,6 +2250,7 @@ We want the product to feel well made and trustworthy. We recognize that people 
         // Chunk 6:
         {
             preambleEndIndex: 58,
+            tokenCountWithoutPreamble: 406,
             text: `\
 This is from the “Product vision and strategy” document:
 
@@ -2264,6 +2270,7 @@ Our pricing model will be **usage based pricing**. *Every single employee in an 
         // Chunk 7:
         {
             preambleEndIndex: 118,
+            tokenCountWithoutPreamble: 177,
             text: `\
 This is from the “Product vision and strategy” document in the “Differentiation, go to market, and pricing” section:
 
@@ -2277,6 +2284,7 @@ While this pricing model can get expensive when Cyberworlds is fully adopted in 
         // Chunk 8:
         {
             preambleEndIndex: 58,
+            tokenCountWithoutPreamble: 323,
             text: `\
 This is from the “Product vision and strategy” document:
 
@@ -2294,6 +2302,7 @@ Eventually our sales team makes contact with IT. We make the argument that the c
         // Chunk 9:
         {
             preambleEndIndex: 58,
+            tokenCountWithoutPreamble: 206,
             text: `\
 This is from the “Product vision and strategy” document:
 
