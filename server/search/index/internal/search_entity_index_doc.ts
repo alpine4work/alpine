@@ -20,6 +20,7 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // NOCOMMIT: Participating accounts list
+// NOCOMMIT: Created time and updated time
 
 export type SearchEntityIndexDefaultGrantType = IntegerMappingStringType<
     typeof SearchEntityIndexDefaultGrantTypeIntegerMapping
