@@ -58,7 +58,7 @@ type StringifiableSetValueForDeepEqualCheck<ReplacedValue> = ReadonlySet<
  *
  * Stringifies to a JSON-like language but because we support types like maps,
  * sets, and dates it's not exactly JSON. We don't currently have a parser for
- * this format.
+ * this format. Currently, this format is a subset of JavaScript.
  *
  * Throws an error if we run into an unsupported type. Unlike `isDeepEqual()`
  * which will return false. You may provide a `replacer` function to stringify
@@ -187,7 +187,7 @@ function stringifyMapForDeepEqualCheck<ReplacedValue>(
     // Map item order does not matter in `isDeepEqual()`.
     entries.sort((entry1, entry2) => defaultCompareStrings(entry1.key, entry2.key));
 
-    return `Map(${entries.map(entry => `${entry.key}:${entry.value}`).join(",")})`;
+    return `Map({${entries.map(entry => `${entry.key}:${entry.value}`).join(",")}})`;
 }
 
 function stringifySetForDeepEqualCheck<ReplacedValue>(

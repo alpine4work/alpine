@@ -132,6 +132,17 @@ test("map order does not matter for equality", () => {
         ]),
         false,
     );
+    testDeepEqual(
+        new Map([
+            [1, 2],
+            [3, 4],
+        ]),
+        new Map([
+            [3, 2],
+            [1, 4],
+        ]),
+        false,
+    );
 });
 
 test("maps are not equal to objects", () => {
