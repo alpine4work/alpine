@@ -3,7 +3,7 @@ import {
     OpensearchIndexTypeFlattenedKeysType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
-import {SearchEntityId} from "~/server/search/data/internal/search_entity_id.js";
+import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
 import {SearchEntityIndexDocType} from "~/server/search/data/internal/search_entity_index_doc.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 

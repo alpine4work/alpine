@@ -1,3 +1,4 @@
+import {IndexSearchEntityJobDescriptionSchema} from "~/server/search/core/index_search_entity_job_description.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -51,18 +52,6 @@ const TestJobDescriptionSchema = Schema.object({
     type: Schema.value("Test"),
     spaceId: Schema.id<SpaceId>(),
     checkpointId: Schema.id(),
-});
-
-/**
- * Indexes the latest version some data to make it searchable.
- */
-export type IndexSearchEntityJobDescription = SchemaType<
-    typeof IndexSearchEntityJobDescriptionSchema
->;
-
-const IndexSearchEntityJobDescriptionSchema = Schema.object({
-    type: Schema.value("IndexSearchEntity"),
-    spaceId: Schema.id<SpaceId>(),
 });
 
 export const JobDescriptionSchema = Schema.union({

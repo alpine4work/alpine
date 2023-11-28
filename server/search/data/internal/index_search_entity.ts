@@ -11,11 +11,11 @@ import {
     getPostCommentPayload,
     getPostContentAndChannel,
 } from "~/server/forum/data/forum_table.js";
+import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
+import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
 import {chunkSearchContent} from "~/server/search/data/internal/chunk_search_content.js";
 import {CohereEnglishLightLanguageModel} from "~/server/search/data/internal/cohere_english_light_language_model.js";
 import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
-import {SearchEntityDependencyId} from "~/server/search/data/internal/search_entity_dependency_id.js";
-import {SearchEntityId} from "~/server/search/data/internal/search_entity_id.js";
 import {
     SearchEntityIndexAccessPolicy,
     SearchEntityIndexDefaultGrantType,
@@ -118,7 +118,7 @@ class SearchEntityIndexer {
     }
 
     public getDocumentContent(documentId: DocumentId): Promise<DocumentContent> {
-        this._dependencyIds.add(`Document:${documentId}:Content`);
+        this._dependencyIds.add(`Document:${documentId}`);
         return getDocumentContent(this._context, documentId);
     }
 
@@ -132,9 +132,7 @@ class SearchEntityIndexer {
         commentThreadId: DocumentCommentThreadId,
         commentIndex: number,
     ): Promise<MessagePayload> {
-        this._dependencyIds.add(
-            `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}:Payload`,
-        );
+        this._dependencyIds.add(`DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`);
         return getDocumentCommentPayload(this._context, {
             documentId,
             commentThreadId,
@@ -145,7 +143,7 @@ class SearchEntityIndexer {
     public getChannelNameAndDescriptionContent(
         channelId: ChannelId,
     ): Promise<{name: string; description: MessageContent}> {
-        this._dependencyIds.add(`Channel:${channelId}:NameAndDescriptionContent`);
+        this._dependencyIds.add(`Channel:${channelId}`);
         return getChannelNameAndDescriptionContent(this._context, channelId);
     }
 
@@ -158,24 +156,24 @@ class SearchEntityIndexer {
     public async getPostContentAndChannel(
         postId: PostId,
     ): Promise<{content: PostContent; channel: ChannelPreviewModel}> {
-        this._dependencyIds.add(`Post:${postId}:Content`);
+        this._dependencyIds.add(`Post:${postId}`);
         const contentAndChannel = await getPostContentAndChannel(this._context, postId);
         this._dependencyIds.add(`Channel:${contentAndChannel.channel.id}:Preview`);
         return contentAndChannel;
     }
 
     public getPostCommentPayload(postId: PostId, commentIndex: number): Promise<MessagePayload> {
-        this._dependencyIds.add(`PostComment:${postId}-${commentIndex}:Payload`);
+        this._dependencyIds.add(`PostComment:${postId}-${commentIndex}`);
         return getPostCommentPayload(this._context, {postId, commentIndex});
     }
 
     public getChatAccountIds(chatId: ChatId): Promise<ReadonlyArray<AccountId>> {
-        this._dependencyIds.add(`Chat:${chatId}:AccountIds`);
+        this._dependencyIds.add(`Chat:${chatId}`);
         return getChatAccountIds(this._context, chatId);
     }
 
     public getChatMessagePayload(chatId: ChatId, messageIndex: number): Promise<MessagePayload> {
-        this._dependencyIds.add(`ChatMessage:${chatId}-${messageIndex}:Payload`);
+        this._dependencyIds.add(`ChatMessage:${chatId}-${messageIndex}`);
         return getChatMessagePayload(this._context, {chatId, messageIndex});
     }
 
