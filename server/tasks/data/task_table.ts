@@ -781,6 +781,11 @@ export function commitTaskActionTransaction(
         // idempotent. It's also not essential that we make these updates. If the
         // process crashes it doesn't really matter to users that affinity scores don't
         // update. Whereas it's critical we eventually index actions in OpenSearch.
+        //
+        // So we don't put this logic in `afterCommitTaskActionTransaction()` and
+        // instead call `context.process.waitUntil()` directly.
+        // `afterCommitTaskActionTransaction()` is reserved for idempotent, critical,
+        // work.
         if (!options.withoutAddingAffinityPoints) {
             const addAffinityPointsByCollectionId = new Map<TaskCollectionId, number>();
 

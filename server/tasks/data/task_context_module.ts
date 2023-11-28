@@ -34,7 +34,6 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
-import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export abstract class TaskContextModuleBase extends ContextModuleBase<{
@@ -172,86 +171,89 @@ export class TaskContextModule extends TaskContextModuleBase {
      * provide realtime task data for `SpaceId`. This will send the action to all
      * connected WebSocket clients as well.
      */
-    private async _applyActionTransactionInRealtimeService(actionTransaction: {
+    private _applyActionTransactionInRealtimeService(actionTransaction: {
         spaceId: SpaceId;
         committedTime: Date;
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
         clientId: TaskRealtimeClientId | null;
     }) {
-        const [hosts, token] = await runAllPromises([
-            this.router.getHosts(this._context, actionTransaction.spaceId),
-            this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
-                type: "System",
-                spaceId: actionTransaction.spaceId,
-            }),
-        ]);
+        return this._context.tracer.withSpan(
+            "Apply task action transaction",
+            async (context, span) => {
+                span.addData({
+                    tasks: {
+                        actions: actionTransaction.actions.map(getTaskActionLabel).join(","),
+                        actionCount: actionTransaction.actions.length,
+                        actionTransactionId: actionTransaction.actionTransactionId,
+                    },
+                });
 
-        const requestBody = JSON.stringify(
-            TaskRealtimeApplyActionTransactionInputSchema.serialize({
-                committedTime: actionTransaction.committedTime,
-                actions: actionTransaction.actions,
-                clientId: actionTransaction.clientId,
-            }),
-        );
+                const [hosts, token] = await runAllPromises([
+                    this.router.getHosts(this._context, actionTransaction.spaceId),
+                    this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
+                        type: "System",
+                        spaceId: actionTransaction.spaceId,
+                    }),
+                ]);
 
-        return this._context.tracer.withSpan("Apply task action transaction", (context, span) => {
-            span.addData({
-                tasks: {
-                    actions: actionTransaction.actions.map(getTaskActionLabel).join(","),
-                    actionCount: actionTransaction.actions.length,
-                    actionTransactionId: actionTransaction.actionTransactionId,
-                },
-            });
+                const requestBody = JSON.stringify(
+                    TaskRealtimeApplyActionTransactionInputSchema.serialize({
+                        committedTime: actionTransaction.committedTime,
+                        actions: actionTransaction.actions,
+                        clientId: actionTransaction.clientId,
+                    }),
+                );
 
-            return runAllPromises(
-                // Apply the action transaction in every host from our router since every host
-                // needs to be kept up-to-date in realtime.
-                //
-                // We apply the action whether or not the host is healthy!
-                hosts.map(async ({host}) => {
-                    await retryWithExponentialBackoff(async retry => {
-                        try {
-                            await fetchWithTracer(
-                                context.tracer.getTracer(),
-                                `http://${host}/${actionTransaction.spaceId}/applyActionTransaction`,
-                                {
-                                    spanRoute: `/:spaceId/applyActionTransaction`,
-                                    method: "POST",
-                                    headers: {
-                                        authorization: `bearer ${token}`,
-                                        "content-type": "application/json",
+                return runAllPromises(
+                    // Apply the action transaction in every host from our router since every host
+                    // needs to be kept up-to-date in realtime.
+                    //
+                    // We apply the action whether or not the host is healthy!
+                    hosts.map(async ({host}) => {
+                        await retryWithExponentialBackoff(async retry => {
+                            try {
+                                await fetchWithTracer(
+                                    context.tracer.getTracer(),
+                                    `http://${host}/${actionTransaction.spaceId}/applyActionTransaction`,
+                                    {
+                                        spanRoute: `/:spaceId/applyActionTransaction`,
+                                        method: "POST",
+                                        headers: {
+                                            authorization: `bearer ${token}`,
+                                            "content-type": "application/json",
+                                        },
+                                        body: requestBody,
                                     },
-                                    body: requestBody,
-                                },
-                                async response => {
-                                    const body = await response.json();
+                                    async response => {
+                                        const body = await response.json();
 
-                                    if (!response.ok) {
-                                        if ("error" in body) {
-                                            throw ErrorSchema.deserialize(body.error);
-                                        } else {
-                                            throw new UnknownError(
-                                                "Couldn't apply task action transaction",
-                                            );
+                                        if (!response.ok) {
+                                            if ("error" in body) {
+                                                throw ErrorSchema.deserialize(body.error);
+                                            } else {
+                                                throw new UnknownError(
+                                                    "Couldn't apply task action transaction",
+                                                );
+                                            }
                                         }
-                                    }
-                                },
-                            );
-                        } catch (error) {
-                            // Retry system errors (like `ECONNREFUSED` errors) since the service might be
-                            // starting up or may be temporarily unavailable. Non-system errors (like
-                            // `PermissionDeniedError` or `InvalidArgumentError`) we don't retry.
-                            if (isSystemError(error)) {
-                                retry(error);
-                            }
+                                    },
+                                );
+                            } catch (error) {
+                                // Retry system errors (like `ECONNREFUSED` errors) since the service might be
+                                // starting up or may be temporarily unavailable. Non-system errors (like
+                                // `PermissionDeniedError` or `InvalidArgumentError`) we don't retry.
+                                if (isSystemError(error)) {
+                                    retry(error);
+                                }
 
-                            throw error;
-                        }
-                    });
-                }),
-            );
-        });
+                                throw error;
+                            }
+                        });
+                    }),
+                );
+            },
+        );
     }
 
     /**
