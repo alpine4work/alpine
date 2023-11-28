@@ -43,7 +43,7 @@ import {decodeIdInto, encodeId, generateId} from "~/shared/id/id.js";
 import {AccountId, ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const ChatTable = DynamoTableSchema.new({
@@ -1012,7 +1012,7 @@ export function getSharedChatsForTest(
 }
 
 /**
- * Get the provided chat `ChatId`. Returning null if the chat does not exist.
+ * Get the provided chat by `ChatId`.
  */
 export async function getChat(context: ServerActionContext, chatId: ChatId): Promise<ChatModel> {
     let chatItem: ChatAttributesItem | undefined;
@@ -1093,6 +1093,74 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
 }
 
 /**
+ * Get the provided `AccountId` members of a chat.
+ */
+export async function getChatAccountIds(
+    context: ServerActionContext,
+    chatId: ChatId,
+): Promise<ReadonlyArray<AccountId>> {
+    let chatItem: ChatAttributesItem | undefined;
+    const accountIds: Array<AccountId> = [];
+
+    for await (const item of ChatTable.query(context, {
+        partitionKey: {
+            partitionType: "Chat",
+            chatId,
+        },
+        startSortKey: {
+            sortRangeType: "Attributes",
+        },
+        endSortKey: {
+            sortRangeType: "Account",
+            accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
+        },
+        limit: "All",
+    })) {
+        switch (item.sortRangeType) {
+            case "Attributes": {
+                assert(!chatItem);
+                chatItem = item;
+                break;
+            }
+            case "Account": {
+                assert(chatItem);
+
+                if (item.spaceId !== chatItem.spaceId)
+                    throw new DataLossError(
+                        "Expected chat account item to have same space ID as chat item",
+                    );
+
+                accountIds.push(item.accountId);
+                break;
+            }
+            default:
+                throw exhaustive(item);
+        }
+    }
+
+    if (!chatItem) throw new NotFoundError("Chat not found");
+
+    await authorizeSpaceAccess(context, chatItem.spaceId);
+
+    switch (context.actor.type) {
+        case "Session": {
+            const sessionAccountId = context.actor.getAccountId();
+            if (!accountIds.some(accountId => accountId === sessionAccountId))
+                throw new PermissionDeniedError("Account does not have access to chat");
+            break;
+        }
+        case "System": {
+            // All you need for system access is access to the space.
+            break;
+        }
+        default:
+            throw exhaustive(context.actor);
+    }
+
+    return accountIds;
+}
+
+/**
  * Get a single chat message comment.
  */
 export async function getChatMessage(
@@ -1110,6 +1178,26 @@ export async function getChatMessage(
     ]);
 
     return createChatMessageModelFromItem(context, spaceId, item);
+}
+
+/**
+ * Get a single chat message comment's payload.
+ */
+export async function getChatMessagePayload(
+    context: ServerActionContext,
+    {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
+): Promise<MessagePayload> {
+    const [, item] = await runAllPromises([
+        authorizeChatAccess(context, chatId),
+        ChatTable.getItem(context, {
+            partitionType: "Chat",
+            sortRangeType: "Messages",
+            chatId,
+            messageIndex,
+        }),
+    ]);
+
+    return item.payload;
 }
 
 async function createChatMessageModelFromItem(

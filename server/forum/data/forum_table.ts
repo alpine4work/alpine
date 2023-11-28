@@ -71,7 +71,7 @@ import {
     MessageContentSchema,
     emptyMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -381,6 +381,30 @@ export function getChannelPreview(
 }
 
 /**
+ * Get the channel name and description content without references.
+ */
+export async function getChannelNameAndDescriptionContent(
+    context: ServerActionContext,
+    id: ChannelId,
+): Promise<{
+    name: string;
+    description: MessageContent;
+}> {
+    const channelItem = await ForumTable.getItem(context, {
+        partitionType: "Channel",
+        sortRangeType: "Attributes",
+        channelId: id,
+    });
+
+    await authorizeSpaceAccess(context, channelItem.spaceId);
+
+    return {
+        name: channelItem.name,
+        description: channelItem.description,
+    };
+}
+
+/**
  * Authorize that the current user has access to a channel. Implicitly also authorizes
  * that the current user has access to the space the channel is in.
  */
@@ -598,6 +622,24 @@ export async function getPost(context: ServerActionContext, id: PostId): Promise
         authorizeChannelAccess(context, postItem.channelId),
         postItem,
     );
+}
+
+export async function getPostContentAndChannel(
+    context: ServerActionContext,
+    id: PostId,
+): Promise<{content: PostContent; channel: ChannelPreviewModel}> {
+    const postItem = await ForumTable.getItem(context, {
+        partitionType: "Post",
+        sortRangeType: "Attributes",
+        postId: id,
+    });
+
+    const channel = await authorizeChannelAccess(context, postItem.channelId);
+
+    return {
+        channel,
+        content: postItem.content,
+    };
 }
 
 async function createPostModelFromItem(
@@ -964,6 +1006,26 @@ export async function getPostComment(
     ]);
 
     return createPostCommentModelFromItem(context, spaceId, item);
+}
+
+/**
+ * Get a single post comment's payload.
+ */
+export async function getPostCommentPayload(
+    context: ServerActionContext,
+    {postId, commentIndex}: {postId: PostId; commentIndex: number},
+): Promise<MessagePayload> {
+    const [, item] = await runAllPromises([
+        authorizePostAccess(context, postId),
+        ForumTable.getItem(context, {
+            partitionType: "Post",
+            sortRangeType: "Comments",
+            postId,
+            commentIndex,
+        }),
+    ]);
+
+    return item.payload;
 }
 
 async function createPostCommentModelFromItem(

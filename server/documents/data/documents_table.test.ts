@@ -16,12 +16,15 @@ import {
     documentContentCacheEvictionTimeoutMs,
     getDocument,
     getDocumentComment,
+    getDocumentCommentPayload,
     getDocumentCommentThreadItemAfterFirstGetItemTestCheckpoint,
     getDocumentCommentThreadNotificationSubscribers,
     getDocumentCommentsFromEnd,
     getDocumentCommentsFromStart,
+    getDocumentContent,
     getDocumentContentSteps,
     getDocumentPreviewIfExists,
+    getDocumentTitle,
     getDocumentsTableForTest,
     getInternalDocumentTestCounter,
     updateDocumentCommentContent,
@@ -212,6 +215,10 @@ test("can read a created document", async () => {
         version: 0,
         content: content.toJSON(),
     });
+    expect(await getDocumentTitle(context.action(session1), documentId)).toEqual("Foo bar");
+    expect((await getDocumentContent(context.action(session1), documentId)).toJSON()).toEqual(
+        content.toJSON(),
+    );
     expect(await getDocumentPreviewIfExists(context.action(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
@@ -1044,7 +1051,7 @@ test("reads the document on first update but not on subsequent updates", async (
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(2);
+    expect(getCount()).toEqual(1);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1053,7 +1060,7 @@ test("reads the document on first update but not on subsequent updates", async (
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(2);
+    expect(getCount()).toEqual(1);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 2,
@@ -1065,7 +1072,7 @@ test("reads the document on first update but not on subsequent updates", async (
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(3);
+    expect(getCount()).toEqual(1);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1074,7 +1081,7 @@ test("reads the document on first update but not on subsequent updates", async (
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(3);
+    expect(getCount()).toEqual(1);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 3,
@@ -1086,7 +1093,7 @@ test("reads the document on first update but not on subsequent updates", async (
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(4);
+    expect(getCount()).toEqual(1);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1095,7 +1102,7 @@ test("reads the document on first update but not on subsequent updates", async (
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(4);
+    expect(getCount()).toEqual(1);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 4,
@@ -1107,7 +1114,7 @@ test("reads the document on first update but not on subsequent updates", async (
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(5);
+    expect(getCount()).toEqual(1);
 });
 
 test("can't update a document that doesn't exist", async () => {
@@ -1358,7 +1365,7 @@ test("updates may happen with different caches", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(2);
+    expect(getCount()).toEqual(1);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1367,7 +1374,7 @@ test("updates may happen with different caches", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(2);
+    expect(getCount()).toEqual(1);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 2,
@@ -1379,7 +1386,7 @@ test("updates may happen with different caches", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(3);
+    expect(getCount()).toEqual(1);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1389,7 +1396,7 @@ test("updates may happen with different caches", async () => {
         cacheOverrideForTest: otherCache,
     });
 
-    expect(getCount()).toEqual(4);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 3,
@@ -1401,7 +1408,7 @@ test("updates may happen with different caches", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(5);
+    expect(getCount()).toEqual(2);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1411,7 +1418,7 @@ test("updates may happen with different caches", async () => {
         cacheOverrideForTest: otherCache,
     });
 
-    expect(getCount()).toEqual(5);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 4,
@@ -1423,7 +1430,7 @@ test("updates may happen with different caches", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(6);
+    expect(getCount()).toEqual(2);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1432,7 +1439,7 @@ test("updates may happen with different caches", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(6);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 5,
@@ -1444,7 +1451,7 @@ test("updates may happen with different caches", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(7);
+    expect(getCount()).toEqual(2);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1454,7 +1461,7 @@ test("updates may happen with different caches", async () => {
         cacheOverrideForTest: otherCache,
     });
 
-    expect(getCount()).toEqual(7);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 6,
@@ -1466,7 +1473,7 @@ test("updates may happen with different caches", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(8);
+    expect(getCount()).toEqual(2);
 });
 
 test("reads the document again after an expiration timer fires", async () => {
@@ -1497,7 +1504,7 @@ test("reads the document again after an expiration timer fires", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(2);
+    expect(getCount()).toEqual(1);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1506,7 +1513,7 @@ test("reads the document again after an expiration timer fires", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(2);
+    expect(getCount()).toEqual(1);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 2,
@@ -1518,7 +1525,7 @@ test("reads the document again after an expiration timer fires", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(3);
+    expect(getCount()).toEqual(1);
 
     import.meta.jest.runAllTimers();
 
@@ -1529,7 +1536,7 @@ test("reads the document again after an expiration timer fires", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(4);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 3,
@@ -1541,7 +1548,7 @@ test("reads the document again after an expiration timer fires", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(5);
+    expect(getCount()).toEqual(2);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1550,7 +1557,7 @@ test("reads the document again after an expiration timer fires", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(5);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 4,
@@ -1562,7 +1569,7 @@ test("reads the document again after an expiration timer fires", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(6);
+    expect(getCount()).toEqual(2);
 });
 
 test("resets the timer eviction timer on every update", async () => {
@@ -1593,7 +1600,7 @@ test("resets the timer eviction timer on every update", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(2);
+    expect(getCount()).toEqual(1);
 
     import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs);
 
@@ -1604,7 +1611,7 @@ test("resets the timer eviction timer on every update", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(3);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 2,
@@ -1616,11 +1623,11 @@ test("resets the timer eviction timer on every update", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(4);
+    expect(getCount()).toEqual(2);
 
     import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs / 2);
 
-    expect(getCount()).toEqual(4);
+    expect(getCount()).toEqual(2);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1629,7 +1636,7 @@ test("resets the timer eviction timer on every update", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(4);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 3,
@@ -1641,11 +1648,11 @@ test("resets the timer eviction timer on every update", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(5);
+    expect(getCount()).toEqual(2);
 
     import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs / 2);
 
-    expect(getCount()).toEqual(5);
+    expect(getCount()).toEqual(2);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1654,7 +1661,7 @@ test("resets the timer eviction timer on every update", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(5);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 4,
@@ -1666,11 +1673,11 @@ test("resets the timer eviction timer on every update", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(6);
+    expect(getCount()).toEqual(2);
 
     import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs / 2);
 
-    expect(getCount()).toEqual(6);
+    expect(getCount()).toEqual(2);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1679,7 +1686,7 @@ test("resets the timer eviction timer on every update", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(6);
+    expect(getCount()).toEqual(2);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 5,
@@ -1691,11 +1698,11 @@ test("resets the timer eviction timer on every update", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(7);
+    expect(getCount()).toEqual(2);
 
     import.meta.jest.advanceTimersByTime(documentContentCacheEvictionTimeoutMs);
 
-    expect(getCount()).toEqual(7);
+    expect(getCount()).toEqual(2);
 
     await updateDocumentContent(context.action(session1), {
         id: documentId,
@@ -1704,7 +1711,7 @@ test("resets the timer eviction timer on every update", async () => {
         clientId: generateId(),
     });
 
-    expect(getCount()).toEqual(8);
+    expect(getCount()).toEqual(3);
 
     expect(massageDocument(await getDocument(context.action(session1), documentId))).toEqual({
         version: 6,
@@ -1716,7 +1723,7 @@ test("resets the timer eviction timer on every update", async () => {
             .toJSON(),
     });
 
-    expect(getCount()).toEqual(9);
+    expect(getCount()).toEqual(3);
 });
 
 test("updates the document title whenever it changes", async () => {
@@ -2394,6 +2401,12 @@ test("can not read a created document in a different space", async () => {
     });
 
     await expect(getDocument(context.action(session1), documentId)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(getDocumentTitle(context.action(session1), documentId)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(getDocumentContent(context.action(session1), documentId)).rejects.toThrow(
         PermissionDeniedError,
     );
     await expect(getDocumentPreviewIfExists(context.action(session1), documentId)).rejects.toThrow(
@@ -6935,6 +6948,11 @@ describe("Comments", () => {
             const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
             return getDocumentComment(context, {documentId, commentThreadId, commentIndex});
+        },
+        async getMessagePayload(context, {roomKey, messageIndex: commentIndex}) {
+            const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
+
+            return getDocumentCommentPayload(context, {documentId, commentThreadId, commentIndex});
         },
         async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
             const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);

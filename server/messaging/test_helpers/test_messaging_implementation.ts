@@ -1,4 +1,5 @@
 import {
+    ServerActionContext,
     ServerSessionActionContext,
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
@@ -20,6 +21,7 @@ import {
 } from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageChange} from "~/shared/messaging/message_change_schema.js";
 import {
@@ -28,7 +30,11 @@ import {
     assertMessageContent,
     createSimpleMessageContent,
 } from "~/shared/messaging/message_content_schema.js";
-import {MessageModel, MessageRoomKeyType} from "~/shared/messaging/message_model.js";
+import {
+    MessageModel,
+    MessagePayload,
+    MessageRoomKeyType,
+} from "~/shared/messaging/message_model.js";
 
 /**
  * Create a new message in a room.
@@ -59,6 +65,17 @@ type GetMessageFunctionForTest<Message extends MessageModel> = (
         messageIndex: number;
     },
 ) => Promise<Message>;
+
+/**
+ * Get only a message payload.
+ */
+type GetMessagePayloadFunctionForTest<Message extends MessageModel> = (
+    context: ServerSessionActionContext,
+    options: {
+        roomKey: MessageRoomKeyType<Message>;
+        messageIndex: number;
+    },
+) => Promise<MessagePayload>;
 
 /**
  * Update the content of a message.
@@ -240,6 +257,11 @@ export type TestMessagingImplementation<RoomKey extends string> = {
     getMessage: GetMessageFunctionForTest<MessageModel<RoomKey>>;
 
     /**
+     * Get only the payload for a message.
+     */
+    getMessagePayload: GetMessagePayloadFunctionForTest<MessageModel<RoomKey>>;
+
+    /**
      * Update the content of a message.
      *
      * We will record the time at which the content was updated and show that the
@@ -305,6 +327,7 @@ export function testMessagingImplementation<RoomKey extends string>(
         getMissingRoomKey,
         createMessage,
         getMessage,
+        getMessagePayload,
         getMessagesFromStart,
         getMessagesFromEnd,
         updateMessageContent,
@@ -362,6 +385,25 @@ export function testMessagingImplementation<RoomKey extends string>(
             }
             default:
                 throw exhaustive(message.payload);
+        }
+    }
+
+    function massageMessagePayload(payload: MessagePayload) {
+        switch (payload.type) {
+            case "Content": {
+                return {
+                    parentMessageIndex: payload.parentMessageIndex,
+                    content: payload.content,
+                    hasContentUpdated: payload.contentUpdatedTime !== null,
+                };
+            }
+            case "Deleted": {
+                return {
+                    isDeleted: true,
+                };
+            }
+            default:
+                throw exhaustive(payload);
         }
     }
 
@@ -435,6 +477,73 @@ export function testMessagingImplementation<RoomKey extends string>(
         };
     }
 
+    async function expectGetMessage(
+        context: ServerSessionActionContext,
+        {roomKey, messageIndex}: {roomKey: RoomKey; messageIndex: number},
+        expected: any,
+    ) {
+        expect(
+            massageMessage(
+                await getMessage(context, {
+                    roomKey,
+                    messageIndex,
+                }),
+            ),
+        ).toEqual(expected);
+
+        expect(
+            massageMessagePayload(
+                await getMessagePayload(context, {
+                    roomKey,
+                    messageIndex,
+                }),
+            ),
+        ).toEqual(omitObject(expected, ["author"]));
+    }
+
+    async function expectGetMessageNotToBeNull(
+        context: ServerSessionActionContext,
+        {roomKey, messageIndex}: {roomKey: RoomKey; messageIndex: number},
+    ) {
+        expect(
+            massageMessage(
+                await getMessage(context, {
+                    roomKey,
+                    messageIndex,
+                }),
+            ),
+        ).not.toBeNull();
+
+        expect(
+            massageMessagePayload(
+                await getMessagePayload(context, {
+                    roomKey,
+                    messageIndex,
+                }),
+            ),
+        ).not.toBeNull();
+    }
+
+    async function expectGetMessageToThrow(
+        context: ServerSessionActionContext,
+        {roomKey, messageIndex}: {roomKey: RoomKey; messageIndex: number},
+        expected: any,
+    ) {
+        await expect(() =>
+            getMessage(context, {
+                roomKey,
+                messageIndex,
+            }),
+        ).rejects.toThrow(expected);
+
+        await expect(() =>
+            getMessagePayload(context, {
+                roomKey,
+                messageIndex,
+            }),
+        ).rejects.toThrow(expected);
+    }
+
     describe("Messaging implementation", () => {
         test("can create room", async () => {
             const room = await createRoom(context.action(session1), space.id);
@@ -495,19 +604,19 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(message.index).toEqual(0);
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
         });
 
         test("can create multiple messages", async () => {
@@ -521,19 +630,19 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(message1.index).toEqual(0);
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message1.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message1.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             const message2 = await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -543,19 +652,19 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(message2.index).toEqual(1);
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message2.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content2,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message2.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content2,
+                    hasContentUpdated: false,
+                },
+            );
 
             const message3 = await createMessage(context.action(session1), {
                 roomKey: room.key,
@@ -565,19 +674,19 @@ export function testMessagingImplementation<RoomKey extends string>(
 
             expect(message3.index).toEqual(2);
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message3.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content3,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message3.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content3,
+                    hasContentUpdated: false,
+                },
+            );
         });
 
         test("can create message from a different account", async () => {
@@ -589,19 +698,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session2.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session2.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
         });
 
         test("can not create message in a room that doesn't exist", async () => {
@@ -686,9 +795,11 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            await expect(() =>
-                getMessage(context.action(session1), {roomKey: room.key, messageIndex: 42}),
-            ).rejects.toThrow(NotFoundError);
+            await expectGetMessageToThrow(
+                context.action(session1),
+                {roomKey: room.key, messageIndex: 42},
+                NotFoundError,
+            );
         });
 
         test("can not get a message in a different space", async () => {
@@ -700,12 +811,14 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            await expect(
-                getMessage(context.action(otherSpaceSession), {
+            await expectGetMessageToThrow(
+                context.action(otherSpaceSession),
+                {
                     roomKey: room.key,
                     messageIndex: message.index,
-                }),
-            ).rejects.toThrow(PermissionDeniedError);
+                },
+                PermissionDeniedError,
+            );
         });
 
         if (createPrivateRoom !== "Unimplemented") {
@@ -718,33 +831,29 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                 });
 
-                expect(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ).not.toBeNull();
+                await expectGetMessageNotToBeNull(context.action(session1), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
 
-                expect(
-                    await getMessage(context.action(session2), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ).not.toBeNull();
+                await expectGetMessageNotToBeNull(context.action(session2), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
 
-                expect(
-                    await getMessage(context.action(session3), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ).not.toBeNull();
+                await expectGetMessageNotToBeNull(context.action(session3), {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                });
 
-                await expect(
-                    getMessage(context.action(session4), {
+                await expectGetMessageToThrow(
+                    context.action(session4),
+                    {
                         roomKey: room.key,
                         messageIndex: message.index,
-                    }),
-                ).rejects.toThrow(PermissionDeniedError);
+                    },
+                    PermissionDeniedError,
+                );
             });
         }
 
@@ -775,61 +884,61 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content4,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message1.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message1.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message2.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: message1.index,
-                content: content2,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message2.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: message1.index,
+                    content: content2,
+                    hasContentUpdated: false,
+                },
+            );
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message3.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: message2.index,
-                content: content3,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message3.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: message2.index,
+                    content: content3,
+                    hasContentUpdated: false,
+                },
+            );
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message4.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: message2.index,
-                content: content4,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message4.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: message2.index,
+                    content: content4,
+                    hasContentUpdated: false,
+                },
+            );
         });
 
         test("can not create message with a parent that doesn't exist", async () => {
@@ -898,19 +1007,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             await updateMessageContent(context.action(session1), {
                 roomKey: room.key,
@@ -918,19 +1027,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content2,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content2,
-                hasContentUpdated: true,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content2,
+                    hasContentUpdated: true,
+                },
+            );
         });
 
         test("can not update message on room that doesn't exist", async () => {
@@ -964,19 +1073,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             await expect(
                 updateMessageContent(context.action(session2), {
@@ -986,19 +1095,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }),
             ).rejects.toThrow(PermissionDeniedError);
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
         });
 
         test("can not update message from different space", async () => {
@@ -1010,19 +1119,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             await expect(
                 updateMessageContent(context.action(otherSpaceSession), {
@@ -1032,19 +1141,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
         });
 
         if (createPrivateRoom !== "Unimplemented") {
@@ -1057,19 +1166,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                 });
 
-                expect(
-                    massageMessage(
-                        await getMessage(context.action(session1), {
-                            roomKey: room.key,
-                            messageIndex: message.index,
-                        }),
-                    ),
-                ).toEqual({
-                    author: session1.account,
-                    parentMessageIndex: null,
-                    content: content1,
-                    hasContentUpdated: false,
-                });
+                await expectGetMessage(
+                    context.action(session1),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                );
 
                 await expect(
                     updateMessageContent(context.action(session4), {
@@ -1079,19 +1188,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                     }),
                 ).rejects.toThrow(PermissionDeniedError);
 
-                expect(
-                    massageMessage(
-                        await getMessage(context.action(session1), {
-                            roomKey: room.key,
-                            messageIndex: message.index,
-                        }),
-                    ),
-                ).toEqual({
-                    author: session1.account,
-                    parentMessageIndex: null,
-                    content: content1,
-                    hasContentUpdated: false,
-                });
+                await expectGetMessage(
+                    context.action(session1),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                );
             });
         }
 
@@ -1111,19 +1220,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             await expect(
                 updateMessageContent(context.action(session1), {
@@ -1133,19 +1242,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }),
             ).rejects.toThrow(InvalidArgumentError);
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
         });
 
         test("can delete message", async () => {
@@ -1157,36 +1266,36 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                isDeleted: true,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    isDeleted: true,
+                },
+            );
         });
 
         test("can not delete message on room that doesn't exist", async () => {
@@ -1218,19 +1327,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             await expect(
                 deleteMessage(context.action(session2), {
@@ -1239,19 +1348,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }),
             ).rejects.toThrow(PermissionDeniedError);
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
         });
 
         test("can not delete message from different space", async () => {
@@ -1263,19 +1372,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             await expect(
                 deleteMessage(context.action(otherSpaceSession), {
@@ -1284,19 +1393,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                 }),
             ).rejects.toThrow(new PermissionDeniedError("Account does not have access to space"));
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
         });
 
         if (createPrivateRoom !== "Unimplemented") {
@@ -1309,19 +1418,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                     content: content1,
                 });
 
-                expect(
-                    massageMessage(
-                        await getMessage(context.action(session1), {
-                            roomKey: room.key,
-                            messageIndex: message.index,
-                        }),
-                    ),
-                ).toEqual({
-                    author: session1.account,
-                    parentMessageIndex: null,
-                    content: content1,
-                    hasContentUpdated: false,
-                });
+                await expectGetMessage(
+                    context.action(session1),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                );
 
                 await expect(
                     deleteMessage(context.action(session4), {
@@ -1330,19 +1439,19 @@ export function testMessagingImplementation<RoomKey extends string>(
                     }),
                 ).rejects.toThrow(PermissionDeniedError);
 
-                expect(
-                    massageMessage(
-                        await getMessage(context.action(session1), {
-                            roomKey: room.key,
-                            messageIndex: message.index,
-                        }),
-                    ),
-                ).toEqual({
-                    author: session1.account,
-                    parentMessageIndex: null,
-                    content: content1,
-                    hasContentUpdated: false,
-                });
+                await expectGetMessage(
+                    context.action(session1),
+                    {
+                        roomKey: room.key,
+                        messageIndex: message.index,
+                    },
+                    {
+                        author: session1.account,
+                        parentMessageIndex: null,
+                        content: content1,
+                        hasContentUpdated: false,
+                    },
+                );
             });
         }
 
@@ -1355,36 +1464,36 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                isDeleted: true,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    isDeleted: true,
+                },
+            );
 
             await expect(
                 deleteMessage(context.action(session1), {
@@ -1403,36 +1512,36 @@ export function testMessagingImplementation<RoomKey extends string>(
                 content: content1,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                parentMessageIndex: null,
-                content: content1,
-                hasContentUpdated: false,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    parentMessageIndex: null,
+                    content: content1,
+                    hasContentUpdated: false,
+                },
+            );
 
             await deleteMessage(context.action(session1), {
                 roomKey: room.key,
                 messageIndex: message.index,
             });
 
-            expect(
-                massageMessage(
-                    await getMessage(context.action(session1), {
-                        roomKey: room.key,
-                        messageIndex: message.index,
-                    }),
-                ),
-            ).toEqual({
-                author: session1.account,
-                isDeleted: true,
-            });
+            await expectGetMessage(
+                context.action(session1),
+                {
+                    roomKey: room.key,
+                    messageIndex: message.index,
+                },
+                {
+                    author: session1.account,
+                    isDeleted: true,
+                },
+            );
 
             await expect(
                 updateMessageContent(context.action(session1), {

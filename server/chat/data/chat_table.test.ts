@@ -4,7 +4,9 @@ import {
     createChatForTest,
     deleteChatMessage,
     getChat,
+    getChatAccountIds,
     getChatMessage,
+    getChatMessagePayload,
     getChatMessagesFromEnd,
     getChatMessagesFromStart,
     getOptimisticChatId,
@@ -3285,26 +3287,44 @@ test("can not get chat you don't have access to", async () => {
     await expect(
         getChat(context.action(scenario.sessionA1), message.chatId),
     ).resolves.not.toBeNull();
+    await expect(
+        getChatAccountIds(context.action(scenario.sessionA1), message.chatId),
+    ).resolves.not.toBeNull();
 
     await expect(
         getChat(context.action(scenario.sessionA2), message.chatId),
+    ).resolves.not.toBeNull();
+    await expect(
+        getChatAccountIds(context.action(scenario.sessionA2), message.chatId),
     ).resolves.not.toBeNull();
 
     await expect(getChat(context.action(scenario.sessionA3), message.chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
+    await expect(
+        getChatAccountIds(context.action(scenario.sessionA3), message.chatId),
+    ).rejects.toThrow(PermissionDeniedError);
 
     await expect(getChat(context.action(scenario.sessionB1), message.chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
+    await expect(
+        getChatAccountIds(context.action(scenario.sessionB1), message.chatId),
+    ).rejects.toThrow(PermissionDeniedError);
 
     await expect(
         getChat(context.systemAction(scenario.spaceA.id), message.chatId),
+    ).resolves.not.toBeNull();
+    await expect(
+        getChatAccountIds(context.systemAction(scenario.spaceA.id), message.chatId),
     ).resolves.not.toBeNull();
 
     await expect(getChat(context.systemAction(scenario.spaceB.id), message.chatId)).rejects.toThrow(
         PermissionDeniedError,
     );
+    await expect(
+        getChatAccountIds(context.systemAction(scenario.spaceB.id), message.chatId),
+    ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("correctly authorizes which accounts are in the chat", async () => {
@@ -3597,6 +3617,9 @@ testMessagingImplementation<ChatId>(context, {
     },
     async getMessage(context, {roomKey: chatId, messageIndex}) {
         return getChatMessage(context, {chatId, messageIndex});
+    },
+    async getMessagePayload(context, {roomKey: chatId, messageIndex}) {
+        return getChatMessagePayload(context, {chatId, messageIndex});
     },
     async updateMessageContent(context, {roomKey: chatId, messageIndex, content}) {
         return updateChatMessageContent(context, {

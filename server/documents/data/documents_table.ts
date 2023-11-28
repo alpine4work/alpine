@@ -79,7 +79,7 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_change_schema.js";
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
-import {MessagePayloadSchema} from "~/shared/messaging/message_model.js";
+import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
 import {
     visitProsemirrorNode,
     visitProsemirrorStep,
@@ -751,8 +751,6 @@ export async function getDocumentAndCommentThreads(
     commentThreads: Array<DocumentCommentThreadModel>;
 }> {
     try {
-        getInternalDocumentTestCounter.incrementForTest(documentId);
-
         let _attributes: DocumentAttributesItem | null = null;
         let stepTransactionsAfterSnapshot: Array<DocumentStepTransactionAfterSnapshotItem> = [];
         let maybeSnapshot: DocumentSnapshotItem | null = null;
@@ -959,6 +957,31 @@ export async function getDocumentAndCommentThreads(
         spaceIdPromiseResolver?.reject(error);
         throw error;
     }
+}
+
+/**
+ * Get only the document's title. Very fast since this does not load the
+ * document's full content.
+ */
+export async function getDocumentTitle(
+    context: ServerActionContext,
+    documentId: DocumentId,
+): Promise<string> {
+    const documentPreview = await getDocumentPreview(context, documentId);
+    return documentPreview.getTitle();
+}
+
+/**
+ * Get only the document's content. Does not load any references or comment
+ * threads or anything else needed to construct a full `DocumentModel`.
+ */
+export async function getDocumentContent(
+    context: ServerActionContext,
+    documentId: DocumentId,
+): Promise<DocumentContent> {
+    const internalDocument = await getInternalDocumentIfExists(context, documentId);
+    if (!internalDocument) throw new NotFoundError("Document not found");
+    return internalDocument.content;
 }
 
 /**
@@ -2829,6 +2852,30 @@ export async function getDocumentComment(
 }
 
 /**
+ * Get a single document comment's payload.
+ */
+export async function getDocumentCommentPayload(
+    context: ServerActionContext,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+    },
+): Promise<MessagePayload> {
+    const {commentItem} = await getDocumentCommentItem(context, {
+        documentId,
+        commentThreadId,
+        commentIndex,
+    });
+
+    return commentItem.payload;
+}
+
+/**
  * Get a document comment's author.
  */
 export async function getDocumentCommentAuthorId(
@@ -2864,12 +2911,10 @@ async function getDocumentCommentItem(
         commentIndex: number;
     },
 ) {
-    const [documentItem, , commentItem] = await runAllPromises([
-        DocumentsTable.getItem(context, {
-            partitionType: "Document",
-            sortRangeType: "Attributes",
-            documentId,
-        }),
+    const [documentPreview, , commentItem] = await runAllPromises([
+        // Authorizes access:
+        getDocumentPreview(context, documentId),
+
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
@@ -2883,10 +2928,8 @@ async function getDocumentCommentItem(
         }),
     ]);
 
-    await authorizeSpaceAccess(context, documentItem.spaceId);
-
     return {
-        spaceId: documentItem.spaceId,
+        spaceId: documentPreview.spaceId,
         commentItem,
     };
 }
@@ -2931,12 +2974,10 @@ export function updateDocumentCommentContent(
     contentUpdatedTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
-            DocumentsTable.getItem(context, {
-                partitionType: "Document",
-                sortRangeType: "Attributes",
-                documentId,
-            }),
+        const [, commentThreadItem, commentItem] = await runAllPromises([
+            // Authorizes access:
+            getDocumentPreview(context, documentId),
+
             getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
@@ -2949,8 +2990,6 @@ export function updateDocumentCommentContent(
                 commentIndex,
             }),
         ]);
-
-        await authorizeSpaceAccess(context, documentItem.spaceId);
 
         if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update comments you authored");
@@ -3039,12 +3078,10 @@ export function deleteDocumentComment(
     },
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
-        const [documentItem, commentThreadItem, commentItem] = await runAllPromises([
-            DocumentsTable.getItem(context, {
-                partitionType: "Document",
-                sortRangeType: "Attributes",
-                documentId,
-            }),
+        const [, commentThreadItem, commentItem] = await runAllPromises([
+            // Authorizes access:
+            getDocumentPreview(context, documentId),
+
             getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
@@ -3057,8 +3094,6 @@ export function deleteDocumentComment(
                 commentIndex,
             }),
         ]);
-
-        await authorizeSpaceAccess(context, documentItem.spaceId);
 
         if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only delete comments you authored");
@@ -3143,32 +3178,28 @@ export async function getDocumentCommentThreadAndInitialComments(
     initialComments: Array<DocumentCommentModel>;
     initialOtherReferencedComments: Array<DocumentCommentModel>;
 }> {
-    const documentItemPromise = DocumentsTable.getItem(context, {
-        partitionType: "Document",
-        sortRangeType: "Attributes",
-        documentId,
-    });
+    // Authorizes access:
+    const documentPreviewPromise = getDocumentPreview(context, documentId);
 
     const [, commentThread, {comments, otherReferencedComments}] = await runAllPromises([
-        documentItemPromise,
+        documentPreviewPromise,
         (async () => {
             const commentThreadItem = await getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
             });
 
-            const {spaceId} = await documentItemPromise;
+            const {spaceId} = await documentPreviewPromise;
             return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
         })(),
         getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
             documentId,
             commentThreadId,
-            getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
             limit,
             afterCommentIndex: null,
             beforeCommentIndex: null,
         }),
-        documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
     ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
@@ -3331,14 +3362,11 @@ export async function getDocumentCommentsFromStart(
     otherReferencedComments: Array<DocumentCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    const documentItemPromise = DocumentsTable.getItem(context, {
-        partitionType: "Document",
-        sortRangeType: "Attributes",
-        documentId,
-    });
+    // Authorizes access:
+    const documentPreviewPromise = getDocumentPreview(context, documentId);
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
-        documentItemPromise,
+        documentPreviewPromise,
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
@@ -3346,12 +3374,11 @@ export async function getDocumentCommentsFromStart(
         getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
             documentId,
             commentThreadId,
-            getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
             limit,
             afterCommentIndex,
             beforeCommentIndex,
         }),
-        documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
     ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
@@ -3510,14 +3537,11 @@ export async function getDocumentCommentsFromEnd(
     otherReferencedComments: Array<DocumentCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    const documentItemPromise = DocumentsTable.getItem(context, {
-        partitionType: "Document",
-        sortRangeType: "Attributes",
-        documentId,
-    });
+    // Authorizes access:
+    const documentPreviewPromise = getDocumentPreview(context, documentId);
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
-        documentItemPromise,
+        documentPreviewPromise,
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
@@ -3525,12 +3549,11 @@ export async function getDocumentCommentsFromEnd(
         getDocumentCommentsFromEndAssumingAuthorizedCommentThread(context, {
             documentId,
             commentThreadId,
-            getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
             limit,
             afterCommentIndex,
             beforeCommentIndex,
         }),
-        documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
     ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
@@ -3722,11 +3745,8 @@ export async function backfillDocumentComments(
     newOtherReferencedComments: Array<DocumentCommentModel>;
     commentChangesResult: DocumentCommentChangesResult;
 }> {
-    const documentItemPromise = DocumentsTable.getItem(context, {
-        partitionType: "Document",
-        sortRangeType: "Attributes",
-        documentId,
-    });
+    // Authorizes access:
+    const documentPreviewPromise = getDocumentPreview(context, documentId);
 
     const commentThreadItemPromise = getDocumentCommentThreadItem(context, {
         documentId,
@@ -3735,7 +3755,7 @@ export async function backfillDocumentComments(
 
     const [, commentThreadItem, {comments, otherReferencedComments}, commentChangesResult] =
         await runAllPromises([
-            documentItemPromise,
+            documentPreviewPromise,
             commentThreadItemPromise,
             getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
                 // Use a strong read consistency when backfilling. This guarantees the caller
@@ -3746,14 +3766,14 @@ export async function backfillDocumentComments(
                 {
                     documentId,
                     commentThreadId,
-                    getSpaceId: () => documentItemPromise.then(({spaceId}) => spaceId),
+                    getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
                     limit: newCommentLimit,
                     afterCommentIndex: clientCommentCount - 1,
                     beforeCommentIndex: null,
                 },
             ),
-            runAllPromises([documentItemPromise, commentThreadItemPromise]).then(
-                ([documentItem, commentThreadItem]) =>
+            runAllPromises([documentPreviewPromise, commentThreadItemPromise]).then(
+                ([documentPreview, commentThreadItem]) =>
                     queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(
                         // Use a strong read consistency when backfilling. This guarantees the caller
                         // will observe all realtime events before this function call. Realtime events
@@ -3761,13 +3781,12 @@ export async function backfillDocumentComments(
                         // to new realtime events before starting to backfill.
                         context.dynamo.setDefaultReadConsistency("Strong"),
                         {
-                            documentItem,
+                            spaceId: documentPreview.spaceId,
                             commentThreadItem,
                             lastCommentChangeTime: clientLastCommentChangeTime,
                         },
                     ),
             ),
-            documentItemPromise.then(({spaceId}) => authorizeSpaceAccess(context, spaceId)),
         ]);
 
     const lastCommentIndex = comments.length > 0 ? comments[comments.length - 1]!.index : -1;
@@ -3807,11 +3826,11 @@ export async function backfillDocumentComments(
 async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(
     context: ServerActionContext,
     {
-        documentItem,
+        spaceId,
         commentThreadItem,
         lastCommentChangeTime,
     }: {
-        documentItem: DocumentAttributesItem;
+        spaceId: SpaceId;
         commentThreadItem: DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem;
         lastCommentChangeTime: Date | null;
     },
@@ -3869,7 +3888,7 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
                             doc: item.change.content,
                             references: await getContentReferencesForNode(
                                 context,
-                                documentItem.spaceId,
+                                spaceId,
                                 item.change.content,
                             ),
                         },

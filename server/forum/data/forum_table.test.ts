@@ -7,6 +7,7 @@ import {
     createPostComment,
     deletePostComment,
     getChannel,
+    getChannelNameAndDescriptionContent,
     getChannelPosts,
     getPost,
     getPostCommentAuthors,
@@ -86,6 +87,9 @@ test("can not get a channel that does not exist", async () => {
     await expect(getChannel(context.action(otherSession), generateId())).rejects.toThrow(
         NotFoundError,
     );
+    await expect(
+        getChannelNameAndDescriptionContent(context.action(otherSession), generateId()),
+    ).rejects.toThrow(NotFoundError);
 });
 
 test("can not get a channel for a different space", async () => {
@@ -97,6 +101,9 @@ test("can not get a channel for a different space", async () => {
     await expect(getChannel(context.action(otherSession), channel.id)).rejects.toThrow(
         PermissionDeniedError,
     );
+    await expect(
+        getChannelNameAndDescriptionContent(context.action(otherSession), channel.id),
+    ).rejects.toThrow(PermissionDeniedError);
 });
 
 test("can get a channel", async () => {
@@ -105,7 +112,10 @@ test("can get a channel", async () => {
         name: "Test",
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.name).toEqual("Test");
+    expect((await getChannel(context.action(session1), channel.id)).name).toEqual("Test");
+    expect(
+        (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
+    ).toEqual("Test");
 });
 
 test("can update a channel's name", async () => {
@@ -114,14 +124,20 @@ test("can update a channel's name", async () => {
         name: "Test 1",
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.name).toEqual("Test 1");
+    expect((await getChannel(context.action(session1), channel.id)).name).toEqual("Test 1");
+    expect(
+        (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
+    ).toEqual("Test 1");
 
     await updateChannelName(context.action(session1), {
         channelId: channel.id,
         name: "Test 2",
     });
 
-    expect((await getChannel(context.action(session1), channel.id))?.name).toEqual("Test 2");
+    expect((await getChannel(context.action(session1), channel.id)).name).toEqual("Test 2");
+    expect(
+        (await getChannelNameAndDescriptionContent(context.action(session1), channel.id)).name,
+    ).toEqual("Test 2");
 });
 
 test("can not update a channel's name from a different space", async () => {

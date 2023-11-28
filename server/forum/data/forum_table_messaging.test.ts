@@ -7,6 +7,7 @@ import {
     deletePostComment,
     getPost,
     getPostComment,
+    getPostCommentPayload,
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
     updatePostCommentContent,
@@ -70,6 +71,9 @@ testMessagingImplementation<PostId>(context, {
     },
     async getMessage(context, {roomKey: postId, messageIndex: commentIndex}) {
         return getPostComment(context, {postId, commentIndex});
+    },
+    async getMessagePayload(context, {roomKey: postId, messageIndex: commentIndex}) {
+        return getPostCommentPayload(context, {postId, commentIndex});
     },
     async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
         return updatePostCommentContent(context, {
