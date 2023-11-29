@@ -29,13 +29,19 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * For example, you can depend on the `Authorization` trait on a `Task` entity.
  * That way if a task's title or notes change you don't need to re-index since
  * those aren't `Authorization` attributes.
+ *
+ * If `updatedTraits` is `Any` then any of the entity's traits could have been
+ * updated. `Any` is typically used either when everything is updated (the
+ * entity was just created) or we don't precisely know what updated.
  */
 export type SearchEntityUpdate = {
     [Type in keyof typeof searchEntityUpdateSchemaDescription]: MergeObjectIntersection<
         SchemaType<(typeof searchEntityUpdateSchemaDescription)[Type]["schema"]> & {
-            readonly updatedTraits: ReadonlyArray<
-                (typeof searchEntityUpdateSchemaDescription)[Type]["updatableTraits"][number]
-            >;
+            readonly updatedTraits:
+                | ReadonlyArray<
+                      (typeof searchEntityUpdateSchemaDescription)[Type]["updatableTraits"][number]
+                  >
+                | "Any";
         }
     >;
 }[keyof typeof searchEntityUpdateSchemaDescription];
@@ -142,13 +148,14 @@ export const SearchEntityUpdateSchema = Schema.union(
     mapObjectValues(searchEntityUpdateSchemaDescription, ({schema, updatableTraits}) => {
         return schema.merge(
             Schema.object({
-                updatedTraits: Schema.union({
-                    Any: Schema.object({type: Schema.value("Any")}),
-                    Specific: Schema.object({
-                        type: Schema.value("Specific"),
-                        attributes: Schema.array(Schema.enum(updatableTraits)),
+                updatedTraits: Schema.array(Schema.enum(updatableTraits))
+                    .nullable()
+                    .transform<ReadonlyArray<(typeof updatableTraits)[number]> | "Any">({
+                        serialize: updatedTraits =>
+                            updatedTraits === "Any" ? null : updatedTraits,
+                        deserialize: updatedTraits =>
+                            updatedTraits === null ? "Any" : updatedTraits,
                     }),
-                }),
             }),
         );
     }) as any,
@@ -166,8 +173,14 @@ export function getSearchEntityDependencyIdsAffectedByUpdate(
 
     ids.push(primaryId);
 
-    for (const trait of update.updatedTraits) {
-        ids.push(`${primaryId}:${trait}` as SearchEntityDependencyId);
+    if (update.updatedTraits === "Any") {
+        for (const trait of searchEntityUpdateSchemaDescription[update.type].updatableTraits) {
+            ids.push(`${primaryId}:${trait}` as SearchEntityDependencyId);
+        }
+    } else {
+        for (const trait of update.updatedTraits) {
+            ids.push(`${primaryId}:${trait}` as SearchEntityDependencyId);
+        }
     }
 
     return ids;
