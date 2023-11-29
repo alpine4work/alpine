@@ -5,12 +5,13 @@ import {
     DynamoKeyAttributeSchema,
     dynamoKeySeparator,
 } from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {
     intoDynamoAttributeValue,
     intoDynamoAttributeValueObject,
 } from "~/server/dynamo/core/internal/dynamo_attribute_value.js";
-import {DynamoClient, DynamoReadConsistency} from "~/server/dynamo/core/internal/dynamo_client.js";
+import {DynamoClient} from "~/server/dynamo/core/internal/dynamo_client.js";
 import {
     DynamoCondition,
     DynamoConditionExpression,
@@ -1138,7 +1139,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         context: DynamoContext,
         key: Key,
         {
-            consistency = context.dynamo.defaultReadConsistency,
+            consistency = "Eventual",
         }: {
             consistency?: DynamoReadConsistency;
         } = {},
@@ -1212,7 +1213,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         key: Key,
         {
             attributes,
-            consistency = context.dynamo.defaultReadConsistency,
+            consistency = "Eventual",
         }: {
             attributes: Array<Attributes>;
             consistency?: DynamoReadConsistency;
@@ -2667,7 +2668,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             isEndSortKeyExclusive,
             limit,
             descending,
-            consistency = context.dynamo.defaultReadConsistency,
+            consistency = "Eventual",
         }: {
             partitionKey: PartitionKey;
             startSortKey?: StartSortKey | undefined;
@@ -2753,7 +2754,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         context: DynamoContext,
         {
             limit,
-            consistency = context.dynamo.defaultReadConsistency,
+            consistency = "Eventual",
         }: {
             limit?: number;
             consistency?: DynamoReadConsistency;
@@ -2893,13 +2894,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     descending,
                 },
             ) {
-                // Error if trying to a query an index with strong consistency. You must design
-                // your code assuming eventually consistent reads when querying an index.
-                if (context.dynamo.defaultReadConsistency !== "Eventual")
-                    throw new InternalError(
-                        "Dynamo only supports eventually consistent queries on indexes",
-                    );
-
                 const client = await schema._getClient(context, false);
                 const serializedPartitionKey = schema._serializeIndexPartitionKey(
                     indexConfig,
@@ -3057,13 +3051,6 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     descending,
                 },
             ) {
-                // Error if trying to a query an index with strong consistency. You must design
-                // your code assuming eventually consistent reads when querying an index.
-                if (context.dynamo.defaultReadConsistency !== "Eventual")
-                    throw new InternalError(
-                        "Dynamo only supports eventually consistent queries on indexes",
-                    );
-
                 const client = await schema._getClient(context, false);
                 const serializedPartitionKey = schema._serializeIndexPartitionKey(
                     indexConfig,

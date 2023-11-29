@@ -10,6 +10,7 @@ import {
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
@@ -395,6 +396,7 @@ export function getAccountIfExists(
     // You may call this function `ContentMentionAccountId` since it does not throw
     // when the account does not exist in the space.
     accountId: AccountId | ContentMentionAccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<AccountModel | null> {
     const get = async () => {
         // Make sure we have access to the space being requested.
@@ -407,13 +409,15 @@ export function getAccountIfExists(
             context.actor.getAccountId() === accountId &&
             // If are reading with strong consistency then always read a new `AccountModel`
             // instead of returning the initial, cached, version.
-            context.dynamo.defaultReadConsistency !== "Strong"
+            consistency !== "Strong"
         ) {
             return context.actor.getAccount();
         }
 
         const [account, isMemberOfSpace] = await runAllPromises([
-            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId as AccountId),
+            dangerouslyGetAccountIfExistsWithoutCaching(context, accountId as AccountId, {
+                consistency,
+            }),
             isAccountMemberOfSpace(context, spaceId, accountId as AccountId),
         ]);
 
@@ -427,7 +431,7 @@ export function getAccountIfExists(
     // If we are reading with a strong DynamoDB read consistency then always
     // execute the read, don't consult the cache. Future reads with eventual
     // consistency may use the cached account from a strong read.
-    if (context.dynamo.defaultReadConsistency === "Strong") {
+    if (consistency === "Strong") {
         const getPromise = get();
         AccountContextCache.set(context, `${spaceId}:${accountId}`, getPromise);
         return getPromise;
@@ -456,8 +460,9 @@ export async function getAccount(
     }>,
     spaceId: SpaceId,
     accountId: AccountId,
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<AccountModel> {
-    const account = await getAccountIfExists(context, spaceId, accountId);
+    const account = await getAccountIfExists(context, spaceId, accountId, options);
     if (!account) throw new NotFoundError("Can not find account in space");
     return account;
 }

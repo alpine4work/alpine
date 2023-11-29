@@ -13,6 +13,7 @@ import {
     getDocumentPreview,
 } from "~/server/documents/data/documents_table.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {
     DynamoGeneralRealtimeTableSchema,
     DynamoGeneralRealtimeTableSchemaGetTypes,
@@ -906,17 +907,21 @@ export async function getInbox(
     context: Context<
         ServerSessionActionContextModules & {notifications: NotificationsContextModuleBase}
     >,
-    {spaceId}: {spaceId: SpaceId},
+    {spaceId, consistency = "Eventual"}: {spaceId: SpaceId; consistency?: DynamoReadConsistency},
 ): Promise<DynamoGeneralRealtimeItem<InboxModel>> {
     await authorizeSpaceAccess(context, spaceId);
 
     return context.dynamo.retryTransaction(async context => {
-        const inbox = await InboxTable.getRealtimeItemIfExists(context, {
-            partitionType: "Inbox",
-            sortRangeType: "Attributes",
-            spaceId,
-            accountId: context.actor.getAccountId(),
-        });
+        const inbox = await InboxTable.getRealtimeItemIfExists(
+            context,
+            {
+                partitionType: "Inbox",
+                sortRangeType: "Attributes",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+            },
+            {consistency},
+        );
         if (inbox) return inbox;
 
         // If the inbox item doesn't exist yet, let's create one.
@@ -1350,13 +1355,19 @@ function actuallyProcessNotificationEvent(
  * - Implements notification fan-out
  */
 function createNotificationEventProcessor<Event extends NotificationEvent, Info>({
-    getSubscribers,
+    getSubscribersWithStrongReadConsistency,
     updateInboxEntry,
 }: {
     /**
      * Get the accounts subscribed to notifications for this event.
+     *
+     * Named `getSubscribersWithStrongReadConsistency` to force implementors to make
+     * sure their reads are strongly consistent.
+     *
+     * We need to use strong read consistency when getting subscribers so we don't
+     * miss any subscribers added as a part of the notification event.
      */
-    getSubscribers: (
+    getSubscribersWithStrongReadConsistency: (
         context: Context<
             ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
         >,
@@ -1395,12 +1406,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                 },
             });
 
-            const {info, accounts} = await getSubscribers(
-                // Use a strong read consistency when getting subscribers so we don't miss
-                // any subscribers added as a part of the notification event.
-                context.dynamo.setDefaultReadConsistency("Strong"),
-                event,
-            );
+            const {info, accounts} = await getSubscribersWithStrongReadConsistency(context, event);
 
             await runAllPromises(
                 accounts.map(async account => {
@@ -1591,8 +1597,8 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
     NotificationCreateChatMessageEvent,
     ChatModel
 >({
-    getSubscribers: async (context, event) => {
-        const chat = await getChat(context, event.chatId);
+    getSubscribersWithStrongReadConsistency: async (context, event) => {
+        const chat = await getChat(context, event.chatId, {consistency: "Strong"});
         return {
             info: chat,
             accounts: chat.accounts,
@@ -1733,10 +1739,11 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
     NotificationCreatePostCommentEvent,
     {postCreatedTime: Date}
 >({
-    getSubscribers: async (context, event) => {
+    getSubscribersWithStrongReadConsistency: async (context, event) => {
         const {accounts, postCreatedTime} = await getPostNotificationSubscribers(
             context,
             event.postId,
+            {consistency: "Strong"},
         );
         return {
             info: {postCreatedTime},
@@ -1843,7 +1850,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
     NotificationCreatePostEvent,
     {}
 >({
-    getSubscribers: async (context, event) => {
+    getSubscribersWithStrongReadConsistency: async (context, event) => {
         // TODO(calebmer): For now, until we implement channel subscriptions, every
         // account gets a notification for any new post in every channel. When we have
         // channel subscriptions, a mention should deliver a notification regardless of
@@ -1940,11 +1947,12 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
     NotificationCreateDocumentCommentEvent,
     {}
 >({
-    getSubscribers: async (context, event) => {
+    getSubscribersWithStrongReadConsistency: async (context, event) => {
         const accounts = await getDocumentCommentThreadNotificationSubscribers(context, {
             documentId: event.documentId,
             commentThreadId: event.commentThreadId,
             isFirstComment: event.commentIndex === 0,
+            consistency: "Strong",
         });
 
         return {
@@ -2143,13 +2151,16 @@ export async function getInboxChannelPostsEntryPosts(
     if (afterPostId === null) {
         // If an inbox entry exists then the inbox attributes item should also exist.
         const inboxItem = await InboxTable.getItem(
-            // Use a strong read consistency to make sure we get the up-to-date generation.
-            context.dynamo.setDefaultReadConsistency("Strong"),
+            context,
             {
                 partitionType: "Inbox",
                 sortRangeType: "Attributes",
                 spaceId,
                 accountId: context.actor.getAccountId(),
+            },
+            {
+                // Use a strong read consistency to make sure we get the up-to-date generation.
+                consistency: "Strong",
             },
         );
 
@@ -2179,13 +2190,7 @@ export async function getInboxChannelPostsEntryPosts(
         }
 
         const inboxEntryItem = await InboxTable.getItem(
-            // Use a strong read consistency when reading the entry since we don't want to
-            // miss any posts.
-            //
-            // At this point the channel posts entry is frozen. So we don't subscribe to
-            // realtime changes for `postIds`. If we get a stale read that's missing a
-            // `PostId` the client will never see it.
-            context.dynamo.setDefaultReadConsistency("Strong"),
+            context,
             {
                 partitionType: "Inbox",
                 sortRangeType: "ChannelPostsEntry",
@@ -2193,6 +2198,15 @@ export async function getInboxChannelPostsEntryPosts(
                 accountId: context.actor.getAccountId(),
                 channelId,
                 bucketGeneration,
+            },
+            {
+                // Use a strong read consistency when reading the entry since we don't want to
+                // miss any posts.
+                //
+                // At this point the channel posts entry is frozen. So we don't subscribe to
+                // realtime changes for `postIds`. If we get a stale read that's missing a
+                // `PostId` the client will never see it.
+                consistency: "Strong",
             },
         );
 
@@ -2288,13 +2302,16 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
 
         // If an inbox entry exists then the inbox attributes item should also exist.
         const inboxItem = await InboxTable.getItem(
-            // Use a strong read consistency to make sure we get the up-to-date generation.
-            context.dynamo.setDefaultReadConsistency("Strong"),
+            context,
             {
                 partitionType: "Inbox",
                 sortRangeType: "Attributes",
                 spaceId,
                 accountId: context.actor.getAccountId(),
+            },
+            {
+                // Use a strong read consistency to make sure we get the up-to-date generation.
+                consistency: "Strong",
             },
         );
 
@@ -2324,12 +2341,7 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
         }
 
         const inboxEntryItem = await InboxTable.getItem(
-            // Use a strong read consistency when reading the entry since we don't want to
-            // miss any comment threads.
-            //
-            // At this point the comment threads entry is frozen. So we don't subscribe to
-            // realtime changes for `commentThreadIds`.
-            context.dynamo.setDefaultReadConsistency("Strong"),
+            context,
             {
                 partitionType: "Inbox",
                 sortRangeType: "DocumentNewCommentThreadsEntry",
@@ -2337,6 +2349,14 @@ export async function getInboxDocumentNewCommentThreadsEntryCommentThreads(
                 accountId: context.actor.getAccountId(),
                 documentId,
                 bucketGeneration,
+            },
+            {
+                // Use a strong read consistency when reading the entry since we don't want to
+                // miss any comment threads.
+                //
+                // At this point the comment threads entry is frozen. So we don't subscribe to
+                // realtime changes for `commentThreadIds`.
+                consistency: "Strong",
             },
         );
 

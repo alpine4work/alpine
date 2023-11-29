@@ -1,6 +1,7 @@
 import {addDays, subDays, subMinutes} from "date-fns";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {
     DynamoTableSchema,
     DynamoTableSchemaIndexConfig,
@@ -9,7 +10,6 @@ import {
     DynamoTableSchemaTypesBase,
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
-import {DynamoReadConsistency} from "~/server/dynamo/core/internal/dynamo_client.js";
 import {DynamoCondition} from "~/server/dynamo/core/internal/dynamo_condition.js";
 import {DynamoTableSchemaTypes} from "~/server/dynamo/core/internal/types/dynamo_table_schema_types.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
@@ -1191,21 +1191,19 @@ export class DynamoGeneralRealtimeTableSchema<
             {version: number; itemPromise: Promise<Types["Item"]>}
         >();
 
-        for await (const _item of this._table.query<any, any, any>(
-            // Use a strong read consistency when backfilling events!
-            context.dynamo.setDefaultReadConsistency("Strong"),
-            {
-                partitionKey: {
-                    partitionType: "Realtime",
-                    realtimeKey,
-                },
-                startSortKey: {
-                    sortRangeType: "Events",
-                    eventTime: readTime,
-                },
-                limit: "All",
+        for await (const _item of this._table.query<any, any, any>(context, {
+            partitionKey: {
+                partitionType: "Realtime",
+                realtimeKey,
             },
-        )) {
+            startSortKey: {
+                sortRangeType: "Events",
+                eventTime: readTime,
+            },
+            limit: "All",
+            // Use a strong read consistency when backfilling events!
+            consistency: "Strong",
+        })) {
             const item: DynamoGeneralRealtimePrivatePartitionItem = _item as any;
 
             for (const event of item.eventTransaction) {
@@ -1227,13 +1225,12 @@ export class DynamoGeneralRealtimeTableSchema<
 
                 const backfillItem = getOrSetDefaultMapValue(backfillItemByKey, event.key, () => ({
                     version: event.version,
-                    itemPromise: this.getItem(
+                    itemPromise: this.getItem(context, itemKey, {
                         // We can use an eventual read consistency here since we have a strongly
                         // consistent read of the version number. If the read item is stale and does
                         // not match the version number we will retry the read.
-                        context.dynamo.setDefaultReadConsistency("Eventual"),
-                        itemKey,
-                    ),
+                        consistency: "Eventual",
+                    }),
                 }));
 
                 // Expect the highest version number when backfilling.
@@ -1256,11 +1253,14 @@ export class DynamoGeneralRealtimeTableSchema<
                         const item: Types["Item"] = isInitialAttempt
                             ? await backfillItem.itemPromise
                             : await this.getItem(
-                                  // We use an eventual read consistency here since we have a strongly consistent
-                                  // read of the version number. If this item read does not match our version
-                                  // number we will retry until it does.
-                                  context.dynamo.setDefaultReadConsistency("Eventual"),
+                                  context,
                                   this._table.deserializeOpaqueItemKey(key),
+                                  {
+                                      // We use an eventual read consistency here since we have a strongly consistent
+                                      // read of the version number. If this item read does not match our version
+                                      // number we will retry until it does.
+                                      consistency: "Eventual",
+                                  },
                               );
 
                         const version = item.updateLockVersion ?? 0;

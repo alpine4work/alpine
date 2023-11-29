@@ -3162,14 +3162,20 @@ async function getTaskItemForAuthorization(
 
         if (taskItem) return taskItem;
 
-        // If we couldn't find the task, maybe it was just created. Try reading again
-        // with strong read consistency. Don't want to throw an error if the task
-        // actually exists.
-        return TaskTable.getItem(context.dynamo.setDefaultReadConsistency("Strong"), {
-            partitionType: "Task",
-            sortRangeType: "EssentialAttributes",
-            taskId,
-        });
+        return TaskTable.getItem(
+            context,
+            {
+                partitionType: "Task",
+                sortRangeType: "EssentialAttributes",
+                taskId,
+            },
+            {
+                // If we couldn't find the task, maybe it was just created. Try reading again
+                // with strong read consistency. Don't want to throw an error if the task
+                // actually exists.
+                consistency: "Strong",
+            },
+        );
     });
 }
 
@@ -3214,14 +3220,20 @@ async function getTaskCollectionItemForAuthorization(
 
         if (collectionItem) return collectionItem;
 
-        // If we couldn't find the collection, maybe it was just created. Try reading
-        // again with strong read consistency. Don't want to throw an error if the
-        // collection actually exists.
-        return TaskTable.getItem(context.dynamo.setDefaultReadConsistency("Strong"), {
-            partitionType: "TaskCollection",
-            sortRangeType: "EssentialAttributes",
-            collectionId,
-        });
+        return TaskTable.getItem(
+            context,
+            {
+                partitionType: "TaskCollection",
+                sortRangeType: "EssentialAttributes",
+                collectionId,
+            },
+            {
+                // If we couldn't find the collection, maybe it was just created. Try reading
+                // again with strong read consistency. Don't want to throw an error if the
+                // collection actually exists.
+                consistency: "Strong",
+            },
+        );
     });
 }
 

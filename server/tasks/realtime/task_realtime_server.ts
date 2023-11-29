@@ -306,7 +306,7 @@ export class TaskRealtimeServer {
 
                 const referencedAccounts = await runAllPromises(
                     Array.from(referencedAccountIds, accountId =>
-                        getAccount(
+                        getAccount(context, spaceId, accountId, {
                             // It's important that we read our referenced accounts with a strong read
                             // consistency to make sure our realtime server sees the correct account name.
                             //
@@ -316,10 +316,8 @@ export class TaskRealtimeServer {
                             // read consistency. This means we'll never miss an account name update. Actions
                             // applied after the update name task action will always see the correct
                             // account name.
-                            context.dynamo.setDefaultReadConsistency("Strong"),
-                            spaceId,
-                            accountId,
-                        ),
+                            consistency: "Strong",
+                        }),
                     ),
                 );
 
@@ -436,7 +434,7 @@ export class TaskRealtimeServer {
 
         const referencedAccounts = await runAllPromises(
             Array.from(referencedAccountIds, accountId =>
-                getAccount(
+                getAccount(context, actionTransaction.spaceId, accountId, {
                     // It's important that we read our referenced accounts with a strong read
                     // consistency to make sure our realtime server sees the correct account name.
                     //
@@ -446,10 +444,8 @@ export class TaskRealtimeServer {
                     // read consistency. This means we'll never miss an account name update. Actions
                     // applied after the update name task action will always see the correct
                     // account name.
-                    context.dynamo.setDefaultReadConsistency("Strong"),
-                    actionTransaction.spaceId,
-                    accountId,
-                ),
+                    consistency: "Strong",
+                }),
             ),
         );
 

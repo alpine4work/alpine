@@ -1,7 +1,6 @@
 import {
     DynamoClient,
     DynamoClientBatchContext,
-    DynamoReadConsistency,
 } from "~/server/dynamo/core/internal/dynamo_client.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {Context} from "~/shared/context/context.js";
@@ -23,21 +22,6 @@ export class DynamoContextModule<Modules extends {} = {}>
     private readonly _client!: DynamoClient;
 
     /**
-     * The default consistency for DynamoDB reads which use this context.
-     *
-     * Using `Eventual` consistency is much faster but it might give you slightly
-     * out of date data.
-     */
-    // TODO(calebmer): I now believe default read consistency is a bad design. Any
-    // function may make so many reads and make more reads in the future, setting
-    // default read consistency feels like controlling an implementation detail too
-    // high up where you shouldn't have to think about the implementation.
-    //
-    // Get rid of this and have individual reads ask for a read consistency
-    // parameter.
-    public readonly defaultReadConsistency: DynamoReadConsistency;
-
-    /**
      * If we are in a DynamoDB transaction then this will be set to a function
      * which when called will retry the transaction.
      */
@@ -46,10 +30,8 @@ export class DynamoContextModule<Modules extends {} = {}>
     private constructor(
         client: DynamoClient | null,
         {
-            defaultReadConsistency,
             retryTransaction,
         }: {
-            defaultReadConsistency: DynamoReadConsistency;
             retryTransaction: ((error?: unknown) => never) | null;
         },
     ) {
@@ -69,13 +51,11 @@ export class DynamoContextModule<Modules extends {} = {}>
             });
         }
 
-        this.defaultReadConsistency = defaultReadConsistency;
         this._retryTransaction = retryTransaction;
     }
 
     public static new(url: string, signer: AwsRequestSigner) {
         return new DynamoContextModule(new DynamoClient(url, signer), {
-            defaultReadConsistency: "Eventual",
             retryTransaction: null,
         });
     }
@@ -92,7 +72,6 @@ export class DynamoContextModule<Modules extends {} = {}>
         assert(process.env.NODE_ENV === "test");
 
         const contextModule = new DynamoContextModule(null, {
-            defaultReadConsistency: "Eventual",
             retryTransaction: null,
         });
 
@@ -117,23 +96,6 @@ export class DynamoContextModule<Modules extends {} = {}>
     }
 
     /**
-     * Clone the context and set a different default read consistency for DynamoDB.
-     * Use this if you want to execute some code with a strong read consistency
-     * instead of an eventual read consistency.
-     */
-    public setDefaultReadConsistency<Modules extends {}>(
-        this: DynamoContextModule<Modules>,
-        defaultReadConsistency: DynamoReadConsistency,
-    ): Context<Replace<Modules, {dynamo: DynamoContextModule}>> {
-        return this._context.clone({
-            dynamo: new DynamoContextModule(this._client, {
-                defaultReadConsistency,
-                retryTransaction: this._retryTransaction,
-            }),
-        });
-    }
-
-    /**
      * Creates a retry loop for expected transaction errors. You can not nest two
      * retry transaction loops.
      *
@@ -153,7 +115,6 @@ export class DynamoContextModule<Modules extends {} = {}>
             return this._context.with(
                 {
                     dynamo: new DynamoContextModule(this._client, {
-                        defaultReadConsistency: this.defaultReadConsistency,
                         retryTransaction: retry,
                     }),
                 },
@@ -164,8 +125,6 @@ export class DynamoContextModule<Modules extends {} = {}>
 
     public fork() {
         return new DynamoContextModule(this._client, {
-            // Reset read consistency in fork.
-            defaultReadConsistency: "Eventual",
             // Reset retry transaction in fork. Forked actions need their own `retryTransaction()`
             // call. The retry call from the action we forked from may have finished long ago.
             retryTransaction: null,

@@ -453,13 +453,12 @@ class TaskActionTransactionIndexState {
             {
                 const newReferencedAccountById = await runAllPromises(
                     Array.from(referencedAccountIds, accountId =>
-                        // Avoid our account cache to get the latest account model. Ok to get these
-                        // accounts without authorization since we call `getAccount()` for these same
-                        // accounts earlier which will perform authorization.
-                        dangerouslyGetAccountIfExistsWithoutCaching(
-                            context.dynamo.setDefaultReadConsistency("Strong"),
-                            accountId,
-                        ),
+                        dangerouslyGetAccountIfExistsWithoutCaching(context, accountId, {
+                            // Avoid our account cache to get the latest account model. Ok to get these
+                            // accounts without authorization since we call `getAccount()` for these same
+                            // accounts earlier which will perform authorization.
+                            consistency: "Strong",
+                        }),
                     ),
                 ).then(
                     referencedAccounts =>

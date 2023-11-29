@@ -21,7 +21,10 @@ implementRpc(
         // of inheriting strong consistency. We cache space authorization per request.
         await authorizeSpaceAccess(context, input.spaceId);
 
-        const inbox = await getInbox(context.dynamo.setDefaultReadConsistency("Strong"), input);
+        const inbox = await getInbox(context, {
+            ...input,
+            consistency: "Strong",
+        });
         return {inbox};
     },
 );

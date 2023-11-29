@@ -6,6 +6,7 @@ import {
 import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
@@ -908,12 +909,17 @@ export async function authorizeInternalAccess(context: Context<{actor: DynamoAct
 export async function dangerouslyGetAccountIfExistsWithoutCaching(
     context: DynamoContext,
     accountId: AccountId | ContentMentionAccountId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ) {
-    const accountItem = await AccountsTable.getItemIfExists(context, {
-        partitionType: "Account",
-        sortRangeType: "Attributes",
-        accountId: accountId as AccountId,
-    });
+    const accountItem = await AccountsTable.getItemIfExists(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "Attributes",
+            accountId: accountId as AccountId,
+        },
+        {consistency},
+    );
     if (!accountItem) return null;
 
     return createAccountModelFromItem(accountItem);

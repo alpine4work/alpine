@@ -9,6 +9,7 @@ import {
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {isDynamoIdempotentParameterMismatchError} from "~/server/dynamo/core/is_dynamo_idempotent_parameter_mismatch_error.js";
@@ -1014,7 +1015,11 @@ export function getSharedChatsForTest(
 /**
  * Get the provided chat by `ChatId`.
  */
-export async function getChat(context: ServerActionContext, chatId: ChatId): Promise<ChatModel> {
+export async function getChat(
+    context: ServerActionContext,
+    chatId: ChatId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<ChatModel> {
     let chatItem: ChatAttributesItem | undefined;
     const accountPromises: Array<Promise<AccountModel>> = [];
 
@@ -1031,6 +1036,7 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
             accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
         },
         limit: "All",
+        consistency,
     })) {
         switch (item.sortRangeType) {
             case "Attributes": {
@@ -1477,12 +1483,14 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
         limit,
         afterMessageIndex,
         beforeMessageIndex,
+        consistency = "Eventual",
     }: {
         chatId: ChatId;
         getSpaceId: () => Promise<SpaceId>;
         limit: number;
         afterMessageIndex: number | null;
         beforeMessageIndex: number | null;
+        consistency?: DynamoReadConsistency;
     },
 ): Promise<{
     messages: Array<ChatMessageModel>;
@@ -1508,6 +1516,7 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
                         : Number.MAX_SAFE_INTEGER,
             },
             limit,
+            consistency,
         }),
     );
 
@@ -1530,12 +1539,16 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
             otherReferencedMessagePromiseByIndex,
             messageIndex,
             async () => {
-                const item = await ChatTable.getItemIfExists(context, {
-                    partitionType: "Chat",
-                    sortRangeType: "Messages",
-                    chatId,
-                    messageIndex,
-                });
+                const item = await ChatTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Chat",
+                        sortRangeType: "Messages",
+                        chatId,
+                        messageIndex,
+                    },
+                    {consistency},
+                );
                 if (!item) throw new InternalError("Parent message not found");
 
                 // Recursively load any referenced parent messages...
@@ -1797,32 +1810,28 @@ export async function backfillChatMessages(
     const [chatItem, {messages, otherReferencedMessages}, messageChangesResult] =
         await runAllPromises([
             chatItemPromise,
-            getChatMessagesFromStartAssumingAuthorizedChat(
+            getChatMessagesFromStartAssumingAuthorizedChat(context, {
+                chatId,
+                getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
+                limit: newMessageLimit,
+                afterMessageIndex: clientMessageCount - 1,
+                beforeMessageIndex: null,
                 // Use a strong read consistency when backfilling. This guarantees the caller
                 // will observe all realtime events before this function call. Realtime events
                 // that happen during the function call may be missed. You should be subscribed
                 // to new realtime events before starting to backfill.
-                context.dynamo.setDefaultReadConsistency("Strong"),
-                {
-                    chatId,
-                    getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
-                    limit: newMessageLimit,
-                    afterMessageIndex: clientMessageCount - 1,
-                    beforeMessageIndex: null,
-                },
-            ),
+                consistency: "Strong",
+            }),
             chatItemPromise.then(chatItem =>
-                queryChatMessageChangeLogAssumingAuthorizedPost(
+                queryChatMessageChangeLogAssumingAuthorizedPost(context, {
+                    chatItem,
+                    lastMessageChangeTime: clientLastMessageChangeTime,
                     // Use a strong read consistency when backfilling. This guarantees the caller
                     // will observe all realtime events before this function call. Realtime events
                     // that happen during the function call may be missed. You should be subscribed
                     // to new realtime events before starting to backfill.
-                    context.dynamo.setDefaultReadConsistency("Strong"),
-                    {
-                        chatItem,
-                        lastMessageChangeTime: clientLastMessageChangeTime,
-                    },
-                ),
+                    consistency: "Strong",
+                }),
             ),
         ]);
 
@@ -1861,9 +1870,11 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
     {
         chatItem,
         lastMessageChangeTime,
+        consistency = "Eventual",
     }: {
         chatItem: ChatAttributesItem;
         lastMessageChangeTime: Date | null;
+        consistency?: DynamoReadConsistency;
     },
 ): Promise<ChatMessageChangesResult> {
     // No changes occurred during the backfill period, there is nothing we need
@@ -1901,6 +1912,7 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
                 changeTime: DynamoKeyAttributeSchema.date.maxValue,
             },
             limit: "All",
+            consistency,
         }),
         async (item): Promise<MessageChange> => {
             switch (item.change.type) {

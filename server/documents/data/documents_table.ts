@@ -14,6 +14,7 @@ import {
 } from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
@@ -1177,22 +1178,20 @@ export class DocumentContentCacheForUpdate {
                 // If we read a past version of the document that might be because we're using
                 // DynamoDB eventual consistency and we can't yet read the latest write. So try
                 // to load the document one more time but with strong consistency instead.
-                if (context.dynamo.defaultReadConsistency === "Eventual") {
-                    _attributes = await DocumentsTable.getItemIfExists(
-                        context,
-                        {
-                            partitionType: "Document",
-                            documentId: id,
-                            sortRangeType: "Attributes",
-                        },
-                        {consistency: "Strong"},
-                    );
+                _attributes = await DocumentsTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Document",
+                        documentId: id,
+                        sortRangeType: "Attributes",
+                    },
+                    {consistency: "Strong"},
+                );
 
-                    // The document was deleted from the database but not our cache.
-                    if (!_attributes) {
-                        this._entries.evictEntry(id);
-                        return null;
-                    }
+                // The document was deleted from the database but not our cache.
+                if (!_attributes) {
+                    this._entries.evictEntry(id);
+                    return null;
                 }
 
                 if (entry.version > _attributes.version) {
@@ -2635,6 +2634,7 @@ async function getDocumentCommentThreadItemIfExists(
         documentId,
         commentThreadId,
         shouldTryArchiveFirst = false,
+        consistency = "Eventual",
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
@@ -2644,6 +2644,7 @@ async function getDocumentCommentThreadItemIfExists(
          * range.
          */
         shouldTryArchiveFirst?: boolean;
+        consistency?: DynamoReadConsistency;
     },
 ): Promise<DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem | null> {
     {
@@ -2654,6 +2655,7 @@ async function getDocumentCommentThreadItemIfExists(
                 : "ArchivedCommentThread",
             documentId,
             commentThreadId,
+            consistency,
         });
         if (commentThreadItem) return commentThreadItem;
     }
@@ -2668,6 +2670,7 @@ async function getDocumentCommentThreadItemIfExists(
                 : "ReferencedCommentThread",
             documentId,
             commentThreadId,
+            consistency,
         });
         if (commentThreadItem) return commentThreadItem;
     }
@@ -2703,12 +2706,18 @@ async function getDocumentCommentThreadItem(
     {
         documentId,
         commentThreadId,
+        consistency = "Eventual",
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
+        consistency?: DynamoReadConsistency;
     },
 ) {
-    const item = await getDocumentCommentThreadItemIfExists(context, {documentId, commentThreadId});
+    const item = await getDocumentCommentThreadItemIfExists(context, {
+        documentId,
+        commentThreadId,
+        consistency,
+    });
     if (!item) throw new NotFoundError("Could not find document comment thread");
     return item;
 }
@@ -3407,6 +3416,7 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
         limit,
         afterCommentIndex,
         beforeCommentIndex,
+        consistency,
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
@@ -3414,6 +3424,7 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
         limit: number;
         afterCommentIndex: number | null;
         beforeCommentIndex: number | null;
+        consistency?: DynamoReadConsistency;
     },
 ): Promise<{
     comments: Array<DocumentCommentModel>;
@@ -3440,6 +3451,7 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
                         : Number.MAX_SAFE_INTEGER,
             },
             limit,
+            consistency,
         }),
     );
 
@@ -3462,13 +3474,17 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
             otherReferencedCommentPromiseByIndex,
             commentIndex,
             async () => {
-                const item = await DocumentsTable.getItemIfExists(context, {
-                    partitionType: "DocumentCommentThread",
-                    sortRangeType: "Comments",
-                    documentId,
-                    commentThreadId,
-                    commentIndex,
-                });
+                const item = await DocumentsTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "DocumentCommentThread",
+                        sortRangeType: "Comments",
+                        documentId,
+                        commentThreadId,
+                        commentIndex,
+                    },
+                    {consistency},
+                );
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
@@ -3755,35 +3771,31 @@ export async function backfillDocumentComments(
         await runAllPromises([
             documentPreviewPromise,
             commentThreadItemPromise,
-            getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
+            getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
+                documentId,
+                commentThreadId,
+                getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
+                limit: newCommentLimit,
+                afterCommentIndex: clientCommentCount - 1,
+                beforeCommentIndex: null,
                 // Use a strong read consistency when backfilling. This guarantees the caller
                 // will observe all realtime events before this function call. Realtime events
                 // that happen during the function call may be missed. You should be subscribed
                 // to new realtime events before starting to backfill.
-                context.dynamo.setDefaultReadConsistency("Strong"),
-                {
-                    documentId,
-                    commentThreadId,
-                    getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
-                    limit: newCommentLimit,
-                    afterCommentIndex: clientCommentCount - 1,
-                    beforeCommentIndex: null,
-                },
-            ),
+                consistency: "Strong",
+            }),
             runAllPromises([documentPreviewPromise, commentThreadItemPromise]).then(
                 ([documentPreview, commentThreadItem]) =>
-                    queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(
+                    queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(context, {
+                        spaceId: documentPreview.spaceId,
+                        commentThreadItem,
+                        lastCommentChangeTime: clientLastCommentChangeTime,
                         // Use a strong read consistency when backfilling. This guarantees the caller
                         // will observe all realtime events before this function call. Realtime events
                         // that happen during the function call may be missed. You should be subscribed
                         // to new realtime events before starting to backfill.
-                        context.dynamo.setDefaultReadConsistency("Strong"),
-                        {
-                            spaceId: documentPreview.spaceId,
-                            commentThreadItem,
-                            lastCommentChangeTime: clientLastCommentChangeTime,
-                        },
-                    ),
+                        consistency: "Strong",
+                    }),
             ),
         ]);
 
@@ -3827,10 +3839,12 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
         spaceId,
         commentThreadItem,
         lastCommentChangeTime,
+        consistency,
     }: {
         spaceId: SpaceId;
         commentThreadItem: DocumentReferencedCommentThreadItem | DocumentArchivedCommentThreadItem;
         lastCommentChangeTime: Date | null;
+        consistency?: DynamoReadConsistency;
     },
 ): Promise<DocumentCommentChangesResult> {
     // No changes occurred during the backfill period, there is nothing we need
@@ -3875,6 +3889,7 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
                 changeTime: DynamoKeyAttributeSchema.date.maxValue,
             },
             limit: "All",
+            consistency,
         }),
         async (item): Promise<MessageChange> => {
             switch (item.change.type) {
@@ -3920,10 +3935,12 @@ export async function getDocumentCommentThreadNotificationSubscribers(
         documentId,
         commentThreadId,
         isFirstComment,
+        consistency = "Eventual",
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         isFirstComment: boolean;
+        consistency?: DynamoReadConsistency;
     },
 ) {
     const [documentItem, commentThreadItem] = await runAllPromises([
@@ -3941,6 +3958,7 @@ export async function getDocumentCommentThreadNotificationSubscribers(
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
+            consistency,
         }),
     ]);
 

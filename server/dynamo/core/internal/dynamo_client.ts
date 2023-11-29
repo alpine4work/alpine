@@ -2,6 +2,7 @@
 // the `aws4fetch` module for executing any AWS commands.
 import type * as types from "@aws-sdk/client-dynamodb";
 import jsonStableStringify from "json-stable-stringify";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {
     fromDynamoAttributeValueObject,
@@ -24,8 +25,6 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {SchemaSerializedObjectValue, SchemaSerializedValue} from "~/shared/schema/schema.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
-
-export type DynamoReadConsistency = "Eventual" | "Strong";
 
 /**
  * Our client interface to DynamoDB.

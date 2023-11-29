@@ -12,6 +12,7 @@ import {
 } from "~/server/context/server_action_context.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
@@ -718,6 +719,7 @@ export async function getPostAuthorAndChannelPreview(context: ServerActionContex
 export async function getPostNotificationSubscribers(
     context: ServerSystemActionContext,
     id: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<{
     accounts: ReadonlyArray<AccountModel>;
     postCreatedTime: Date;
@@ -731,6 +733,7 @@ export async function getPostNotificationSubscribers(
         },
         {
             attributes: ["createdTime", "authorId", "spaceId", "channelId", "commentsSummary"],
+            consistency,
         },
     );
 
@@ -1444,12 +1447,14 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
         limit,
         afterCommentIndex,
         beforeCommentIndex,
+        consistency = "Eventual",
     }: {
         postId: PostId;
         getSpaceId: () => Promise<SpaceId>;
         limit: number;
         afterCommentIndex: number | null;
         beforeCommentIndex: number | null;
+        consistency?: DynamoReadConsistency;
     },
 ): Promise<{
     comments: Array<PostCommentModel>;
@@ -1475,6 +1480,7 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
                         : Number.MAX_SAFE_INTEGER,
             },
             limit,
+            consistency,
         }),
     );
 
@@ -1497,12 +1503,16 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
             otherReferencedCommentPromiseByIndex,
             commentIndex,
             async () => {
-                const item = await ForumTable.getItemIfExists(context, {
-                    partitionType: "Post",
-                    sortRangeType: "Comments",
-                    postId,
-                    commentIndex,
-                });
+                const item = await ForumTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Post",
+                        sortRangeType: "Comments",
+                        postId,
+                        commentIndex,
+                    },
+                    {consistency},
+                );
                 if (!item) throw new InternalError("Parent comment not found");
 
                 // Recursively load any referenced parent messages...
@@ -1797,32 +1807,28 @@ export async function backfillPostComments(
     const [postItem, {comments, otherReferencedComments}, commentChangesResult] =
         await runAllPromises([
             postItemPromise,
-            getPostCommentsFromStartAssumingAuthorizedPost(
+            getPostCommentsFromStartAssumingAuthorizedPost(context, {
+                postId,
+                getSpaceId: () => postItemPromise.then(({spaceId}) => spaceId),
+                limit: newCommentLimit,
+                afterCommentIndex: clientCommentCount - 1,
+                beforeCommentIndex: null,
                 // Use a strong read consistency when backfilling. This guarantees the caller
                 // will observe all realtime events before this function call. Realtime events
                 // that happen during the function call may be missed. You should be subscribed
                 // to new realtime events before starting to backfill.
-                context.dynamo.setDefaultReadConsistency("Strong"),
-                {
-                    postId,
-                    getSpaceId: () => postItemPromise.then(({spaceId}) => spaceId),
-                    limit: newCommentLimit,
-                    afterCommentIndex: clientCommentCount - 1,
-                    beforeCommentIndex: null,
-                },
-            ),
+                consistency: "Strong",
+            }),
             postItemPromise.then(postItem =>
-                queryPostCommentChangeLogAssumingAuthorizedPost(
+                queryPostCommentChangeLogAssumingAuthorizedPost(context, {
+                    postItem,
+                    lastCommentChangeTime: clientLastCommentChangeTime,
                     // Use a strong read consistency when backfilling. This guarantees the caller
                     // will observe all realtime events before this function call. Realtime events
                     // that happen during the function call may be missed. You should be subscribed
                     // to new realtime events before starting to backfill.
-                    context.dynamo.setDefaultReadConsistency("Strong"),
-                    {
-                        postItem,
-                        lastCommentChangeTime: clientLastCommentChangeTime,
-                    },
-                ),
+                    consistency: "Strong",
+                }),
             ),
             postItemPromise.then(({channelId}) => authorizeChannelAccess(context, channelId)),
         ]);
@@ -1866,12 +1872,14 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
     {
         postItem,
         lastCommentChangeTime,
+        consistency = "Eventual",
     }: {
         postItem: Pick<
             PostAttributesItem,
             "postId" | "spaceId" | "createdTime" | "commentsSummary"
         >;
         lastCommentChangeTime: Date | null;
+        consistency?: DynamoReadConsistency;
     },
 ): Promise<PostCommentChangesResult> {
     // No changes occurred during the backfill period, there is nothing we need
@@ -1909,6 +1917,7 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
                 changeTime: DynamoKeyAttributeSchema.date.maxValue,
             },
             limit: "All",
+            consistency,
         }),
         async (item): Promise<MessageChange> => {
             switch (item.change.type) {
