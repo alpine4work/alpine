@@ -156,8 +156,6 @@ const DocumentsTable = DynamoTableSchema.new({
                     sortKeyAttributes: {},
                     attributes: Schema.object({
                         createdTime: Schema.date,
-                        // TODO(calebmer): Could I make this a feature of `DynamoTableSchema` and force
-                        // us to always authorize space access when reading/writing this data?
                         spaceId: Schema.id<SpaceId>(),
 
                         /**

@@ -223,6 +223,13 @@ export type TracerEventData = {
 
             /** HTTP request headers. */
             readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string};
+
+            /**
+             * If this request had a `Cookie` header this is an obfuscated approximation of
+             * that header. Mainly we'll include the cookie names but not the cookie
+             * values.
+             */
+            readonly obfuscatedCookieHeader?: string;
         };
 
         readonly response?: {
@@ -241,6 +248,13 @@ export type TracerEventData = {
 
             /** HTTP response headers. */
             readonly header?: {readonly [K in TracerEventHttpHeaderName]?: string};
+
+            /**
+             * If this request had a `Set-Cookie` header this is an obfuscated
+             * approximation of that header. Mainly we'll include the cookie names but not
+             * the cookie values.
+             */
+            readonly obfuscatedSetCookieHeader?: string;
         };
 
         /** Full HTTP request URL. */

@@ -1,3 +1,5 @@
+import {parse as parseCookieHeader} from "cookie";
+import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
@@ -5,6 +7,18 @@ import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_h
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
+
+declare global {
+    interface Headers {
+        /**
+         * Available on the `Headers` object to allow proper interpretation of the
+         * `Set-Cookie` header.
+         *
+         * https://developer.mozilla.org/en-US/docs/Web/API/Headers/getSetCookie
+         */
+        getSetCookie?(): ReadonlyArray<string>;
+    }
+}
 
 const globalFetch = fetch;
 
@@ -125,6 +139,7 @@ export async function fetchWithTracer<ResponseData>(
                             tracerEventHttpHeaderNames.has(headerName),
                         ),
                     ),
+                    obfuscatedCookieHeader: obfuscateCookieHeader(requestHeaders),
                 },
             },
         });
@@ -179,6 +194,12 @@ export async function fetchWithTracer<ResponseData>(
                     response: {
                         contentLength: responseContentLengthHeaderNumber ?? undefined,
                         uncompressedContentLength: responseUncompressedContentLength,
+                        header: Object.fromEntries(
+                            filterIterable(response.headers, ([headerName]) =>
+                                tracerEventHttpHeaderNames.has(headerName),
+                            ),
+                        ),
+                        obfuscatedSetCookieHeader: obfuscateSetCookieHeaders(response.headers),
                     },
                 },
             });
@@ -191,4 +212,64 @@ export async function fetchWithTracer<ResponseData>(
         finishSpan();
         throw error;
     }
+}
+
+export function obfuscateCookieHeader(headers: Headers): string | undefined {
+    const cookieHeader = headers.get("cookie");
+    if (!cookieHeader) return undefined;
+
+    const parsedCookieHeader = parseCookieHeader(cookieHeader);
+    return Object.keys(parsedCookieHeader).join("; ");
+}
+
+export function obfuscateSetCookieHeaders(headers: Headers): string | undefined {
+    const setCookieHeaders: ReadonlyArray<string> =
+        typeof headers.getSetCookie === "function"
+            ? headers.getSetCookie()
+            : headers.has("set-cookie")
+            ? [headers.get("set-cookie")!]
+            : [];
+
+    if (setCookieHeaders.length === 0) return undefined;
+
+    const parsedSetCookieHeaders = parseSetCookieHeader(setCookieHeaders);
+
+    return parsedSetCookieHeaders
+        .map(setCookie => {
+            const parts = [setCookie.name];
+
+            if (setCookie.domain) {
+                parts.push(`Domain=${encodeURIComponent(setCookie.domain)}`);
+            }
+
+            if (setCookie.expires) {
+                // HTTP expects certain formatting for dates but it's long and annoying so
+                // using ISO 8601 format in the obfuscated string.
+                // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Date
+                parts.push(`Expires=${setCookie.expires.toISOString()}`);
+            }
+
+            if (setCookie.httpOnly) {
+                parts.push("HttpOnly");
+            }
+
+            if (setCookie.maxAge) {
+                parts.push(`Max-Age=${setCookie.maxAge}`);
+            }
+
+            if (setCookie.path) {
+                parts.push(`Path=${encodeURIComponent(setCookie.path)}`);
+            }
+
+            if (setCookie.sameSite) {
+                parts.push(`SameSite=${encodeURIComponent(setCookie.sameSite)}`);
+            }
+
+            if (setCookie.secure) {
+                parts.push("Secure");
+            }
+
+            return parts.join("; ");
+        })
+        .join(", ");
 }

@@ -101,6 +101,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
                     LabelStringSchema,
                 ]),
             ) as unknown as {[K in TracerEventHttpHeaderName]: Schema<string>},
+            obfuscatedCookieHeader: Schema.string,
         },
         response: {
             contentLength: Schema.float,
@@ -111,6 +112,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
                     LabelStringSchema,
                 ]),
             ) as unknown as {[K in TracerEventHttpHeaderName]: Schema<string>},
+            obfuscatedSetCookieHeader: Schema.string,
         },
         url: LabelStringSchema,
         resendCount: Schema.integer,

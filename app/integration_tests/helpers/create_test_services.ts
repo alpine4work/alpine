@@ -3,7 +3,7 @@ import {ChildProcessByStdio, spawn} from "child_process";
 import fs from "fs-extra";
 import getPort from "get-port";
 import {join as joinPath} from "path";
-import {parse as parseSetCookie} from "set-cookie-parser";
+import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {Readable} from "stream";
 import {
     devAppServicePrivateKeyPath,
@@ -234,7 +234,7 @@ export function createTestServices(context: TestContext): TestServer {
         });
 
         await browserContext.addCookies(
-            parseSetCookie(sessionCookieHeader).map(cookie => ({
+            parseSetCookieHeader(sessionCookieHeader).map(cookie => ({
                 // Playwright requires a `domain`/`path` pair but outside of production our
                 // cookie only has a `path`.
                 domain: "localhost",

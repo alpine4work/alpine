@@ -5,6 +5,10 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {isId} from "~/shared/id/id.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {
+    obfuscateCookieHeader,
+    obfuscateSetCookieHeaders,
+} from "~/shared/tracer/fetch_with_tracer.js";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 import {tracerPropagationContextHeaderName} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -60,6 +64,7 @@ export async function traceServerResponse(
                             tracerEventHttpHeaderNames.has(headerName),
                         ),
                     ),
+                    obfuscatedCookieHeader: obfuscateCookieHeader(request.headers),
                 },
             },
         });
@@ -127,6 +132,7 @@ export async function traceServerResponse(
                             tracerEventHttpHeaderNames.has(headerName),
                         ),
                     ),
+                    obfuscatedSetCookieHeader: obfuscateSetCookieHeaders(response.headers),
                 },
             },
         });
