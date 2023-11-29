@@ -343,6 +343,29 @@ runService({
 
         registerGracefulServerShutdown(server);
 
+        // TODO(calebmer): The way the Node.js `cluster` module works is when multiple
+        // workers listen to the same `port` it randomly picks the worker to send a
+        // request to. However, we've configured [AWS ALB sticky sessions][1] so we can
+        // take advantage of in-memory caches. While AWS ALB routes us to the same EC2
+        // instance, then Node.js takes over and puts us in a random process! So we
+        // can't actually take advantage of in-memory caches without many cache misses.
+        //
+        // We need to [implement sticky sessions ourselves][2] for a Node.js cluster.
+        // There are [modules like `sticky-session`][3] that do this but they route
+        // based on IP address. AWS ALB requests probably come from the same IPs and
+        // don't reflect the client's IP. That would destroy the benefits of clustering
+        // since all AWS ALB requests go to one process instead of distributed across
+        // multiple processes.
+        //
+        // Instead we should piggy-back off of AWS ALB sticky sessions to decide which
+        // worker to send a request to. AWS ALB has "application controlled" sticky
+        // sessions which is probably the feature we need to leverage to make this
+        // work. We can use the `sticky-session` module as inspiration of how to
+        // implement this on the Node.js side.
+        //
+        // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
+        // [2]: https://stackoverflow.com/questions/51301126/nodejs-clustering-with-sticky-session
+        // [3]: https://github.com/indutny/sticky-session
         server.listen(port, () => {
             // Log when ready in production to help when debugging container startup.
             if (process.env.NODE_ENV === "production") {

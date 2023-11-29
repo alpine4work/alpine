@@ -31,6 +31,7 @@ import {
 } from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {DurableObjectServiceName, TracerRoot} from "~/shared/tracer/tracer_root.js";
@@ -107,6 +108,7 @@ export function createDurableObject<
     return class DurableObjectWrapper {
         private readonly _state: DurableObjectState;
         private _tokenAgent: EdgeServiceFamilyTokenAgent | Promise<EdgeServiceFamilyTokenAgent>;
+        private readonly _cookieJar: CookieJar;
         private readonly _tracer: TracerRoot;
         private readonly _processContext: WorkerProcessContext;
         private _object: {
@@ -145,6 +147,10 @@ export function createDurableObject<
 
             // When the token agent has resolved, we don't need to await it anymore.
             void tokenAgentPromise.then(tokenAgent => (this._tokenAgent = tokenAgent));
+
+            // Cookie jar for sharing cookies across requests made from this Durable
+            // Object instance.
+            this._cookieJar = new CookieJar();
 
             this._tracer = createServerTracer({
                 serviceName,
@@ -234,6 +240,7 @@ export function createDurableObject<
                                 protocol: url.protocol,
                                 host: url.host,
                                 tokenAgent,
+                                cookieJar: this._cookieJar,
                             }),
                             fork: new ForkActionContextModule(),
                         },

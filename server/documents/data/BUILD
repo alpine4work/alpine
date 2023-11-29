@@ -6,6 +6,10 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/messaging/test_helpers",
     ],
+    tests = {
+        "documents_table_test": {"size": "medium"},
+        "documents_table_slow_test": {"size": "medium"},
+    },
     visibility = [
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",

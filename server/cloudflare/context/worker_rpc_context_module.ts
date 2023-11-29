@@ -3,6 +3,7 @@ import {TokenAgentBase, TokenPayload} from "~/server/tokens/token_agent.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {
     RpcHttpCallInputSchema,
     RpcHttpCallOutputSchema,
@@ -21,20 +22,24 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
     private readonly _protocol: string;
     private readonly _host: string;
     private readonly _tokenAgent: TokenAgentBase;
+    private readonly _cookieJar: CookieJar;
 
     constructor({
         protocol,
         host,
         tokenAgent,
+        cookieJar,
     }: {
         protocol: string;
         host: string;
         tokenAgent: TokenAgentBase;
+        cookieJar: CookieJar;
     }) {
         super();
         this._protocol = protocol;
         this._host = host;
         this._tokenAgent = tokenAgent;
+        this._cookieJar = cookieJar;
     }
 
     public execute<Input, Output>(
@@ -77,6 +82,13 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
                     new URL(`${this._protocol}//${this._host}/api/rpc/${definition.name}`),
                     {
                         spanRoute: "/api/rpc/:rpcName",
+                        // When communicating via RPC, share cookies across requests. Particularly we
+                        // care about the [AWS ALB sticky session cookies][1] which make sure requests
+                        // from our Durable Object go to the same underlying host in AWS. That way
+                        // caches in `AppService` work properly.
+                        //
+                        // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
+                        cookieJar: this._cookieJar,
                         method: "POST",
                         headers: {
                             authorization: `bearer ${token}`,
@@ -124,6 +136,7 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
             protocol: this._protocol,
             host: this._host,
             tokenAgent: this._tokenAgent,
+            cookieJar: this._cookieJar,
         });
     }
 }

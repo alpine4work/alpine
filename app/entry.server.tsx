@@ -73,6 +73,8 @@ export default async function handleRequest(
         // Don't cache 404 responses. During deploys we may try to access `.js` bundles
         // that don't currently exist. Cloudflare shouldn't cache a 404 response for
         // those bundles.
+        //
+        // https://developers.cloudflare.com/cache/concepts/default-cache-behavior
         if (responseStatusCode === 404 && !responseHeaders.has("cache-control")) {
             responseHeaders.set("cache-control", "no-store");
         }

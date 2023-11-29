@@ -1,24 +1,15 @@
 import {parse as parseCookieHeader} from "cookie";
 import {parse as parseSetCookieHeader} from "set-cookie-parser";
+import {formatDate as formatHttpDate} from "tough-cookie";
 import {UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
+import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
-
-declare global {
-    interface Headers {
-        /**
-         * Available on the `Headers` object to allow proper interpretation of the
-         * `Set-Cookie` header.
-         *
-         * https://developer.mozilla.org/en-US/docs/Web/API/Headers/getSetCookie
-         */
-        getSetCookie?(): ReadonlyArray<string>;
-    }
-}
 
 const globalFetch = fetch;
 
@@ -49,6 +40,7 @@ export async function fetchWithTracer<ResponseData>(
         spanRoute,
         fetch = globalFetch,
         sign,
+        cookieJar,
         ...requestInit
     }: RequestInit & {
         /**
@@ -86,6 +78,13 @@ export async function fetchWithTracer<ResponseData>(
          * [1]: https://www.npmjs.com/package/aws4fetch
          */
         sign?: (request: Request, span: TracerSpan) => Promise<Request>;
+
+        /**
+         * If you want to maintain a session across HTTP calls then provide a
+         * `CookieJar` which stores cookies from responses and sends previously
+         * assigned cookies with the response.
+         */
+        cookieJar?: CookieJar;
     },
     action: (response: Response, span: TracerSpan) => Promise<ResponseData>,
 ): Promise<ResponseData> {
@@ -115,6 +114,8 @@ export async function fetchWithTracer<ResponseData>(
             ...requestInit,
             headers: requestHeaders,
         });
+
+        cookieJar?.intoRequest(request);
 
         span.addData({
             net: {
@@ -153,6 +154,8 @@ export async function fetchWithTracer<ResponseData>(
             // Classify network errors as the `Unavailable` status code.
             throw UnavailableError.from(error);
         });
+
+        cookieJar?.fromResponse(response);
 
         span.addData({
             http: {
@@ -223,12 +226,7 @@ export function obfuscateCookieHeader(headers: Headers): string | undefined {
 }
 
 export function obfuscateSetCookieHeaders(headers: Headers): string | undefined {
-    const setCookieHeaders: ReadonlyArray<string> =
-        typeof headers.getSetCookie === "function"
-            ? headers.getSetCookie()
-            : headers.has("set-cookie")
-            ? [headers.get("set-cookie")!]
-            : [];
+    const setCookieHeaders = getSetCookieHeaders(headers);
 
     if (setCookieHeaders.length === 0) return undefined;
 
@@ -243,10 +241,7 @@ export function obfuscateSetCookieHeaders(headers: Headers): string | undefined 
             }
 
             if (setCookie.expires) {
-                // HTTP expects certain formatting for dates but it's long and annoying so
-                // using ISO 8601 format in the obfuscated string.
-                // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Date
-                parts.push(`Expires=${setCookie.expires.toISOString()}`);
+                parts.push(`Expires=${formatHttpDate(setCookie.expires)}`);
             }
 
             if (setCookie.httpOnly) {

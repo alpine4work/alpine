@@ -10,6 +10,7 @@ import {coupleWebSocket} from "~/server/web_socket/couple_web_socket.js";
 import {InternalError} from "~/shared/error/error.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -135,7 +136,16 @@ export function sendStandardizedResponse(res: ServerResponse, response: Response
     res.statusCode = response.status;
 
     for (const [key, value] of response.headers.entries()) {
-        res.setHeader(key, value);
+        // The [`Set-Cookie` header][1] can be sent multiple times however the
+        // `Headers` object acts as a simple key/value store. We need to use our
+        // `getSetCookieHeaders()` to get the right value for this header.
+        //
+        // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#see_also
+        if (/^set-cookie$/i.test(key)) {
+            res.setHeader(key, getSetCookieHeaders(response.headers));
+        } else {
+            res.setHeader(key, value);
+        }
     }
 
     if (response.body) {

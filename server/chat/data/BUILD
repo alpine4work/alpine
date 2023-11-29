@@ -7,6 +7,9 @@ ts_project(
         "//server/messaging/test_helpers",
         "//server/spaces/test_helpers",
     ],
+    tests = {
+        "chat_table_test": {"size": "medium"},
+    },
     visibility = [
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",

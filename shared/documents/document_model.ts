@@ -3,7 +3,6 @@ import {DocumentContentWithReferencesSchema} from "~/shared/documents/document_c
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId, DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {MessageModel, MessagePayloadModelSchema} from "~/shared/messaging/message_model.js";
