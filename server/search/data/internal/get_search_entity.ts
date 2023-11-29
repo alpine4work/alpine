@@ -1,5 +1,4 @@
 import {getChatAccountIds, getChatMessagePayload} from "~/server/chat/data/chat_table.js";
-import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {
     getDocumentCommentPayload,
     getDocumentContent,
@@ -12,7 +11,7 @@ import {
     getPostContentAndChannel,
 } from "~/server/forum/data/forum_table.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
-import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
+import {SearchEntityId, SearchEntityIdObject} from "~/server/search/core/search_entity_id.js";
 import {chunkSearchContent} from "~/server/search/data/internal/chunk_search_content.js";
 import {CohereEnglishLightLanguageModel} from "~/server/search/data/internal/cohere_english_light_language_model.js";
 import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
@@ -21,11 +20,10 @@ import {
     SearchEntityIndexDefaultGrantType,
 } from "~/server/search/data/internal/search_entity_index_doc.js";
 import {truncateTokens} from "~/server/search/data/internal/truncate_tokens.js";
+import {SearchEntityIndexSystemActionContext} from "~/server/search/data/search_entity_index_system_action_context.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
-import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {Context} from "~/shared/context/context.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
 import {NotFoundError} from "~/shared/error/error.js";
@@ -35,6 +33,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -80,10 +79,10 @@ type SearchEntity = {
  */
 const searchEntityEmbeddingPreambleTitleTokenCount = 16;
 
-class SearchEntityIndexer {
-    private readonly _context: Context<
-        ServerSystemActionContextModules & {tasks: TaskContextModule}
-    >;
+// NOCOMMIT: Document how all reads in this class need to be strongly
+// consistent. Mark it as important.
+class SearchEntityReadState {
+    private readonly _context: SearchEntityIndexSystemActionContext;
     public readonly model: LanguageModelBase;
 
     private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
@@ -92,31 +91,25 @@ class SearchEntityIndexer {
     // to load it multiple times. We can't use the built-in `getAccount()` cache
     // because we need to read with strong consistency.
     //
-    // It's ok to cache within the context of the indexer because we need strongly
-    // consistent reads after construction of the indexer. If we pick up an account
+    // It's ok to cache within the context of read state because we need strongly
+    // consistent reads after construction of read state. If we pick up an account
     // from the `getAccount()` cache we don't have that guarantee.
     private readonly _accountPromiseById = new Map<
         AccountId | ContentMentionAccountId,
         Promise<AccountModel | null>
     >();
 
-    private constructor(
-        context: Context<ServerSystemActionContextModules & {tasks: TaskContextModule}>,
-        model: LanguageModelBase,
-    ) {
+    constructor(context: SearchEntityIndexSystemActionContext, model: LanguageModelBase) {
         this._context = context;
         this.model = model;
     }
 
-    public static async new(
-        context: Context<ServerSystemActionContextModules & {tasks: TaskContextModule}>,
-    ) {
-        const model = await CohereEnglishLightLanguageModel.get();
-        return new SearchEntityIndexer(context, model);
+    public getDependencyIds(): ReadonlySet<SearchEntityDependencyId> {
+        return this._dependencyIds;
     }
 
     // Arrow function form so we can pass as a function parameter
-    // (e.g. `chunkSearchContent(content, {getAccountIfExists: indexer.getAccountIfExists}))`)
+    // (e.g. `chunkSearchContent(content, {getAccountIfExists: state.getAccountIfExists}))`)
     public readonly getAccountIfExists = (
         accountId: AccountId | ContentMentionAccountId,
     ): Promise<AccountModel | null> => {
@@ -281,15 +274,61 @@ class SearchEntityIndexer {
     }
 }
 
-export function indexSearchEntity() {
-    // NOCOMMIT
+// NOCOMMIT: Document
+export async function getSearchEntity(
+    context: SearchEntityIndexSystemActionContext,
+    idObject: SearchEntityIdObject,
+): Promise<{
+    dependencyIds: ReadonlySet<SearchEntityDependencyId>;
+    entity: SearchEntity;
+}> {
+    const model = await CohereEnglishLightLanguageModel.get();
+
+    const state = new SearchEntityReadState(context, model);
+
+    const entity = await actuallyGetSearchEntity(state, idObject);
+
+    return {
+        dependencyIds: state.getDependencyIds(),
+        entity,
+    };
 }
 
-async function indexAccountSearchEntity(
-    indexer: SearchEntityIndexer,
+async function actuallyGetSearchEntity(
+    state: SearchEntityReadState,
+    idObject: SearchEntityIdObject,
+) {
+    switch (idObject.type) {
+        case "Account":
+            return getAccountSearchEntity(state, idObject.accountId);
+        case "Document":
+            return getDocumentSearchEntity(state, idObject.documentId);
+        case "DocumentComment":
+            return getDocumentCommentSearchEntity(state, idObject);
+        case "Channel":
+            return getChannelSearchEntity(state, idObject.channelId);
+        case "Post":
+            return getPostSearchEntity(state, idObject.postId);
+        case "PostComment":
+            return getPostCommentSearchEntity(state, idObject);
+        case "Chat":
+            return getChatSearchEntity(state, idObject.chatId);
+        case "ChatMessage":
+            return getChatMessageSearchEntity(state, idObject);
+        case "Task":
+            return getTaskSearchEntity(state, idObject.taskId);
+        case "TaskCollection":
+            return getTaskCollectionSearchEntity(state, idObject.collectionId);
+        default:
+            throw exhaustive(idObject);
+    }
+}
+
+async function getAccountSearchEntity(
+    state: SearchEntityReadState,
     accountId: AccountId,
 ): Promise<SearchEntity> {
-    const account = await indexer.getAccount(accountId);
+    const account = await state.getAccount(accountId);
 
     return {
         id: `Account:${accountId}`,
@@ -306,16 +345,13 @@ async function indexAccountSearchEntity(
     };
 }
 
-async function indexDocumentSearchEntity(
-    indexer: SearchEntityIndexer,
+async function getDocumentSearchEntity(
+    state: SearchEntityReadState,
     documentId: DocumentId,
 ): Promise<SearchEntity> {
-    const content = await indexer.getDocumentContent(documentId);
+    const content = await state.getDocumentContent(documentId);
 
-    const {title, getFullText, embeddingChunks} = await chunkDocumentSearchContent(
-        content,
-        indexer,
-    );
+    const {title, getFullText, embeddingChunks} = await chunkDocumentSearchContent(content, state);
 
     return {
         id: `Document:${documentId}`,
@@ -385,13 +421,19 @@ export async function chunkDocumentSearchContent(
     return {title, getFullText, embeddingChunks};
 }
 
-async function indexDocumentCommentSearchEntity(
-    indexer: SearchEntityIndexer,
-    documentId: DocumentId,
-    commentThreadId: DocumentCommentThreadId,
-    commentIndex: number,
+async function getDocumentCommentSearchEntity(
+    state: SearchEntityReadState,
+    {
+        documentId,
+        commentThreadId,
+        commentIndex,
+    }: {
+        documentId: DocumentId;
+        commentThreadId: DocumentCommentThreadId;
+        commentIndex: number;
+    },
 ): Promise<SearchEntity> {
-    const commentPayload = await indexer.getDocumentCommentPayload(
+    const commentPayload = await state.getDocumentCommentPayload(
         documentId,
         commentThreadId,
         commentIndex,
@@ -400,8 +442,8 @@ async function indexDocumentCommentSearchEntity(
     const content =
         commentPayload.type === "Content"
             ? await chunkSearchContent(commentPayload.content, {
-                  model: indexer.model,
-                  getAccountIfExists: indexer.getAccountIfExists,
+                  model: state.model,
+                  getAccountIfExists: state.getAccountIfExists,
                   getChunkPreamble: ({isInitialChunk}) => {
                       return {
                           text: `This is${
@@ -432,19 +474,19 @@ async function indexDocumentCommentSearchEntity(
     };
 }
 
-async function indexChannelSearchEntity(
-    indexer: SearchEntityIndexer,
+async function getChannelSearchEntity(
+    state: SearchEntityReadState,
     channelId: ChannelId,
 ): Promise<SearchEntity> {
-    const channel = await indexer.getChannelNameAndDescriptionContent(channelId);
+    const channel = await state.getChannelNameAndDescriptionContent(channelId);
 
     const truncatedName = new Lazy(() =>
-        truncateTokens(indexer.model, channel.name, searchEntityEmbeddingPreambleTitleTokenCount),
+        truncateTokens(state.model, channel.name, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
     const {getFullText, embeddingChunks} = await chunkSearchContent(channel.description, {
-        model: indexer.model,
-        getAccountIfExists: indexer.getAccountIfExists,
+        model: state.model,
+        getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({isInitialChunk}) => {
             return {
                 text: `This is${
@@ -472,27 +514,27 @@ async function indexChannelSearchEntity(
     };
 }
 
-async function indexPostSearchEntity(
-    indexer: SearchEntityIndexer,
+async function getPostSearchEntity(
+    state: SearchEntityReadState,
     postId: PostId,
 ): Promise<SearchEntity> {
-    const post = await indexer.getPostContentAndChannel(postId);
+    const post = await state.getPostContentAndChannel(postId);
 
     const truncatedChannelName = new Lazy(() =>
         truncateTokens(
-            indexer.model,
+            state.model,
             post.channel.name,
             searchEntityEmbeddingPreambleTitleTokenCount,
         ),
     );
 
     const truncatedSectionHeading = new LazyMap((sectionHeading: string) =>
-        truncateTokens(indexer.model, sectionHeading, searchEntityEmbeddingPreambleTitleTokenCount),
+        truncateTokens(state.model, sectionHeading, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
     const {getFullText, embeddingChunks} = await chunkSearchContent(post.content, {
-        model: indexer.model,
-        getAccountIfExists: indexer.getAccountIfExists,
+        model: state.model,
+        getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
             return {
                 text: `This is${isInitialChunk ? " a " : " from a "}post ${
@@ -531,18 +573,17 @@ async function indexPostSearchEntity(
     };
 }
 
-async function indexPostCommentSearchEntity(
-    indexer: SearchEntityIndexer,
-    postId: PostId,
-    commentIndex: number,
+async function getPostCommentSearchEntity(
+    state: SearchEntityReadState,
+    {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<SearchEntity> {
-    const commentPayload = await indexer.getPostCommentPayload(postId, commentIndex);
+    const commentPayload = await state.getPostCommentPayload(postId, commentIndex);
 
     const content =
         commentPayload.type === "Content"
             ? await chunkSearchContent(commentPayload.content, {
-                  model: indexer.model,
-                  getAccountIfExists: indexer.getAccountIfExists,
+                  model: state.model,
+                  getAccountIfExists: state.getAccountIfExists,
                   getChunkPreamble: ({isInitialChunk}) => {
                       return {
                           text: `This is${isInitialChunk ? " a " : " from a "}comment on a post:`,
@@ -571,15 +612,13 @@ async function indexPostCommentSearchEntity(
     };
 }
 
-async function indexChatSearchEntity(
-    indexer: SearchEntityIndexer,
+async function getChatSearchEntity(
+    state: SearchEntityReadState,
     chatId: ChatId,
 ): Promise<SearchEntity> {
-    const {accountIds} = await indexer.getChatAccountIds(chatId);
+    const {accountIds} = await state.getChatAccountIds(chatId);
 
-    const accounts = await runAllPromises(
-        accountIds.map(accountId => indexer.getAccount(accountId)),
-    );
+    const accounts = await runAllPromises(accountIds.map(accountId => state.getAccount(accountId)));
 
     const accountNames = accounts.map(account => account.initialData.name);
 
@@ -623,21 +662,20 @@ const nameByNumber = new Map([
     [10, "ten"],
 ]);
 
-async function indexChatMessageSearchEntity(
-    indexer: SearchEntityIndexer,
-    chatId: ChatId,
-    messageIndex: number,
+async function getChatMessageSearchEntity(
+    state: SearchEntityReadState,
+    {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<SearchEntity> {
     const [{accountIds: chatAccountIds}, messagePayload] = await runAllPromises([
-        indexer.getChatAccountIds(chatId),
-        indexer.getChatMessagePayload(chatId, messageIndex),
+        state.getChatAccountIds(chatId),
+        state.getChatMessagePayload(chatId, messageIndex),
     ]);
 
     const content =
         messagePayload.type === "Content"
             ? await chunkSearchContent(messagePayload.content, {
-                  model: indexer.model,
-                  getAccountIfExists: indexer.getAccountIfExists,
+                  model: state.model,
+                  getAccountIfExists: state.getAccountIfExists,
                   getChunkPreamble: ({isInitialChunk}) => {
                       return {
                           text: `This is${isInitialChunk ? " a " : " from a "}message in a chat${
@@ -670,12 +708,13 @@ async function indexChatMessageSearchEntity(
     };
 }
 
-async function indexTaskSearchEntity(
-    indexer: SearchEntityIndexer,
+async function getTaskSearchEntity(
+    state: SearchEntityReadState,
     taskId: TaskId,
 ): Promise<SearchEntity> {
-    const {task, referencedTaskById, referencedCollectionById, notesContent} =
-        await indexer.getTask(taskId);
+    const {task, referencedTaskById, referencedCollectionById, notesContent} = await state.getTask(
+        taskId,
+    );
 
     let defaultGrantType: SearchEntityIndexDefaultGrantType | null = null;
     let accountGrantAccountIds = new Set<AccountId>();
@@ -734,21 +773,32 @@ async function indexTaskSearchEntity(
         accountGrantAccountIds = new Set();
     }
 
+    // Index no content for deleted tasks.
+    if (task.isDeleted()) {
+        return {
+            id: `Task:${taskId}`,
+            accessPolicy: {accountGrantAccountIds, defaultGrantType},
+            title: null,
+            body: null,
+            embeddingChunks: [],
+        };
+    }
+
     const truncatedTitle = new Lazy(() =>
         truncateTokens(
-            indexer.model,
+            state.model,
             task.getTitle().getText(),
             searchEntityEmbeddingPreambleTitleTokenCount,
         ),
     );
 
     const truncatedSectionHeading = new LazyMap((sectionHeading: string) =>
-        truncateTokens(indexer.model, sectionHeading, searchEntityEmbeddingPreambleTitleTokenCount),
+        truncateTokens(state.model, sectionHeading, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
     const {getFullText, embeddingChunks} = await chunkSearchContent(notesContent.content, {
-        model: indexer.model,
-        getAccountIfExists: indexer.getAccountIfExists,
+        model: state.model,
+        getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
             if (isInitialChunk)
                 return {text: `# ${task.getTitle().getText()}`, lineMarginBottom: 2};
@@ -778,11 +828,11 @@ async function indexTaskSearchEntity(
     };
 }
 
-async function indexTaskCollectionSearchEntity(
-    indexer: SearchEntityIndexer,
+async function getTaskCollectionSearchEntity(
+    state: SearchEntityReadState,
     collectionId: TaskCollectionId,
 ): Promise<SearchEntity> {
-    const collection = await indexer.getTaskCollection(collectionId);
+    const collection = await state.getTaskCollection(collectionId);
     const accessPolicy = collection.getAccessPolicy();
 
     const defaultGrantType: SearchEntityIndexDefaultGrantType | null =
@@ -794,6 +844,17 @@ async function indexTaskCollectionSearchEntity(
     if (defaultGrantType !== null) {
         cast<"Space">(defaultGrantType);
         accountGrantAccountIds = new Set();
+    }
+
+    // Index no content for deleted collections.
+    if (collection.isDeleted()) {
+        return {
+            id: `TaskCollection:${collectionId}`,
+            accessPolicy: {accountGrantAccountIds, defaultGrantType},
+            title: null,
+            body: null,
+            embeddingChunks: [],
+        };
     }
 
     return {
