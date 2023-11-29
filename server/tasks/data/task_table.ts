@@ -11,6 +11,7 @@ import {
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
+import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
@@ -4054,6 +4055,7 @@ export async function getTaskNotepadPageIds(
 export async function getTaskNotesContentWithoutReferences(
     context: ServerActionContext,
     taskId: TaskId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<{
     spaceId: SpaceId;
     version: number;
@@ -4061,11 +4063,15 @@ export async function getTaskNotesContentWithoutReferences(
 }> {
     const [{spaceId}, taskItem] = await runAllPromises([
         authorizeTaskAccess(context, taskId, "View", null),
-        TaskTable.getItemIfExists(context, {
-            partitionType: "Task",
-            sortRangeType: "Notes",
-            taskId,
-        }),
+        TaskTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Task",
+                sortRangeType: "Notes",
+                taskId,
+            },
+            {consistency},
+        ),
     ]);
 
     return {

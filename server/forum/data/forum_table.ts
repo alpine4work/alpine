@@ -22,11 +22,7 @@ import {
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {
-    authorizeSpaceAccess,
-    getAccount,
-    getAccountIfExists,
-} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -52,7 +48,6 @@ import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {sliceIterable} from "~/shared/helpers/iterable/slice_iterable.js";
@@ -346,19 +341,15 @@ export async function getChannel(
     });
 }
 
-const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel>();
+const ChannelPreviewCache = new ContextCache<ChannelId, ChannelPreviewModel | null>();
 
-/**
- * Gets a preview channel object with the provided ID. Returns null if the
- * channel doesn't exist and throws an error if the channel exists but you
- * don't have access to the channel.
- */
-export function getChannelPreview(
+export function getChannelPreviewIfExists(
     context: ServerActionContext,
     id: ChannelId,
-): Promise<ChannelPreviewModel> {
-    return ChannelPreviewCache.get(context, id, async () => {
-        const channelItem = await ForumTable.getPartialItem(
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
+): Promise<ChannelPreviewModel | null> {
+    const get = async () => {
+        const channelItem = await ForumTable.getPartialItemIfExists(
             context,
             {
                 partitionType: "Channel",
@@ -367,8 +358,10 @@ export function getChannelPreview(
             },
             {
                 attributes: ["spaceId", "createdTime", "name"],
+                consistency,
             },
         );
+        if (!channelItem) return null;
 
         await authorizeSpaceAccess(context, channelItem.spaceId);
 
@@ -378,7 +371,30 @@ export function getChannelPreview(
             createdTime: channelItem.createdTime,
             name: channelItem.name,
         });
-    });
+    };
+
+    if (consistency === "Strong") {
+        const getPromise = get();
+        ChannelPreviewCache.set(context, id, getPromise);
+        return getPromise;
+    } else {
+        return ChannelPreviewCache.get(context, id, get);
+    }
+}
+
+/**
+ * Gets a preview channel object with the provided ID. Returns null if the
+ * channel doesn't exist and throws an error if the channel exists but you
+ * don't have access to the channel.
+ */
+export async function getChannelPreview(
+    context: ServerActionContext,
+    id: ChannelId,
+    options?: {consistency?: DynamoReadConsistency},
+): Promise<ChannelPreviewModel> {
+    const channel = await getChannelPreviewIfExists(context, id, options);
+    if (!channel) throw new NotFoundError("Channel not found");
+    return channel;
 }
 
 /**
@@ -387,15 +403,20 @@ export function getChannelPreview(
 export async function getChannelNameAndDescriptionContent(
     context: ServerActionContext,
     id: ChannelId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<{
     name: string;
     description: MessageContent;
 }> {
-    const channelItem = await ForumTable.getItem(context, {
-        partitionType: "Channel",
-        sortRangeType: "Attributes",
-        channelId: id,
-    });
+    const channelItem = await ForumTable.getItem(
+        context,
+        {
+            partitionType: "Channel",
+            sortRangeType: "Attributes",
+            channelId: id,
+        },
+        {consistency},
+    );
 
     await authorizeSpaceAccess(context, channelItem.spaceId);
 
@@ -408,12 +429,28 @@ export async function getChannelNameAndDescriptionContent(
 /**
  * Authorize that the current user has access to a channel. Implicitly also authorizes
  * that the current user has access to the space the channel is in.
+ *
+ * This function is mostly strongly consistent. It's safe to use in strongly
+ * consistent contexts. If an account just got access this function will pass
+ * with strong consistency. If an account lost access we have to wait for
+ * DynamoDB's eventual consistency lag before this function will start
+ * throwing.
  */
 export async function authorizeChannelAccess(
     context: ServerActionContext,
     id: ChannelId,
-): Promise<ChannelPreviewModel> {
-    return getChannelPreview(context, id);
+): Promise<{spaceId: SpaceId}> {
+    let channel = await getChannelPreview(context, id);
+
+    if (!channel) {
+        channel = await getChannelPreview(context, id, {consistency: "Strong"});
+    }
+
+    if (!channel) {
+        throw new NotFoundError("Channel not found");
+    }
+
+    return {spaceId: channel.spaceId};
 }
 
 /**
@@ -507,7 +544,7 @@ export async function getChannelPosts(
     hasMorePosts: boolean;
     posts: ReadonlyArray<PostModel>;
 }> {
-    const channelPromise = authorizeChannelAccess(context, channelId);
+    const channelPromise = getChannelPreview(context, channelId);
 
     const [, queriedPosts] = await runAllPromises([
         channelPromise,
@@ -620,7 +657,7 @@ export async function getPost(context: ServerActionContext, id: PostId): Promise
 
     return createPostModelFromItem(
         context,
-        authorizeChannelAccess(context, postItem.channelId),
+        getChannelPreview(context, postItem.channelId),
         postItem,
     );
 }
@@ -628,14 +665,19 @@ export async function getPost(context: ServerActionContext, id: PostId): Promise
 export async function getPostContentAndChannel(
     context: ServerActionContext,
     id: PostId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<{content: PostContent; channel: ChannelPreviewModel}> {
-    const postItem = await ForumTable.getItem(context, {
-        partitionType: "Post",
-        sortRangeType: "Attributes",
-        postId: id,
-    });
+    const postItem = await ForumTable.getItem(
+        context,
+        {
+            partitionType: "Post",
+            sortRangeType: "Attributes",
+            postId: id,
+        },
+        {consistency},
+    );
 
-    const channel = await authorizeChannelAccess(context, postItem.channelId);
+    const channel = await getChannelPreview(context, postItem.channelId, {consistency});
 
     return {
         channel,
@@ -721,7 +763,7 @@ export async function getPostNotificationSubscribers(
     id: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<{
-    accounts: ReadonlyArray<AccountModel>;
+    accountIds: ReadonlySet<AccountId | ContentMentionAccountId>;
     postCreatedTime: Date;
 }> {
     const postItem = await ForumTable.getPartialItem(
@@ -745,16 +787,8 @@ export async function getPostNotificationSubscribers(
         ),
     );
 
-    const accounts = await runAllPromises(
-        // Use `getAccountIfExists()` since mentioned accounts may be copied from a
-        // different space and don't exist in this space.
-        mapIterable(accountIds, accountId =>
-            getAccountIfExists(context, postItem.spaceId, accountId),
-        ),
-    );
-
     return {
-        accounts: accounts.filter(isNonNullable),
+        accountIds,
         postCreatedTime: postItem.createdTime,
     };
 }
@@ -843,12 +877,18 @@ export async function getPostCommentAuthors(
  * Authorizes that the session user can access the provided post.
  * Implicitly also authorizes that the session user can access the channel the
  * post is in and the space the channel is in.
+ *
+ * This function is mostly strongly consistent. It's safe to use in strongly
+ * consistent contexts. If an account just got access this function will pass
+ * with strong consistency. If an account lost access we have to wait for
+ * DynamoDB's eventual consistency lag before this function will start
+ * throwing.
  */
 export async function authorizePostAccess(
     context: ServerActionContext,
     id: PostId,
 ): Promise<{spaceId: SpaceId}> {
-    const postItem = await ForumTable.getPartialItemIfExists(
+    let postItem = await ForumTable.getPartialItemIfExists(
         context,
         {
             partitionType: "Post",
@@ -859,6 +899,22 @@ export async function authorizePostAccess(
             attributes: ["spaceId", "channelId"],
         },
     );
+
+    if (!postItem) {
+        postItem = await ForumTable.getPartialItemIfExists(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Attributes",
+                postId: id,
+            },
+            {
+                attributes: ["spaceId", "channelId"],
+                consistency: "Strong",
+            },
+        );
+    }
+
     if (!postItem) throw new NotFoundError("Post not found");
 
     await authorizeChannelAccess(context, postItem.channelId);
@@ -1016,16 +1072,28 @@ export async function getPostComment(
  */
 export async function getPostCommentPayload(
     context: ServerActionContext,
-    {postId, commentIndex}: {postId: PostId; commentIndex: number},
+    {
+        postId,
+        commentIndex,
+        consistency = "Eventual",
+    }: {
+        postId: PostId;
+        commentIndex: number;
+        consistency?: DynamoReadConsistency;
+    },
 ): Promise<MessagePayload> {
     const [, item] = await runAllPromises([
         authorizePostAccess(context, postId),
-        ForumTable.getItem(context, {
-            partitionType: "Post",
-            sortRangeType: "Comments",
-            postId,
-            commentIndex,
-        }),
+        ForumTable.getItem(
+            context,
+            {
+                partitionType: "Post",
+                sortRangeType: "Comments",
+                postId,
+                commentIndex,
+            },
+            {consistency},
+        ),
     ]);
 
     return item.payload;
@@ -1304,7 +1372,7 @@ export async function getPostAndInitialComments(
                     spaceId: item.spaceId,
                     postPromise: createPostModelFromItem(
                         context,
-                        authorizeChannelAccess(context, item.channelId),
+                        getChannelPreview(context, item.channelId),
                         item,
                     ),
                     commentPromises: [],
@@ -1535,6 +1603,9 @@ async function getPostCommentsFromStartAssumingAuthorizedPost(
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedComment(item.payload.parentMessageIndex);
             }
+
+            // Don't propagate `consistency` when loading model references. We
+            // accept references can have eventual consistency.
             return createPostCommentModelFromItem(context, spaceId, item);
         }),
     );
@@ -1927,6 +1998,9 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
                         index: item.commentIndex,
                         content: {
                             doc: item.change.content,
+
+                            // Don't propagate `consistency` when loading content references. We
+                            // accept references can have eventual consistency.
                             references: await getContentReferencesForNode(
                                 context,
                                 postItem.spaceId,

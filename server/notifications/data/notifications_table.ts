@@ -1,5 +1,5 @@
 import {differenceInMinutes} from "date-fns";
-import {authorizeChatAccessForAccount, getChat} from "~/server/chat/data/chat_table.js";
+import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {
     ServerActionContextModules,
@@ -37,9 +37,8 @@ import {
     authorizeSpaceAccess,
     expensivelyGetAllSpaceAccounts,
     getAccount,
+    isAccountMemberOfSpace,
 } from "~/server/spaces/spaces_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
-import {ChatModel} from "~/shared/chat/chat_model.js";
 import {Context} from "~/shared/context/context.js";
 import {
     DocumentCommentModel,
@@ -69,6 +68,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -1374,7 +1374,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         event: Event,
     ) => Promise<{
         info: Info;
-        accounts: ReadonlyArray<AccountModel>;
+        accountIds: Iterable<AccountId | ContentMentionAccountId>;
     }>;
 
     /**
@@ -1387,7 +1387,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
         event: Event,
         options: {
             info: Info;
-            account: AccountModel;
+            accountId: AccountId;
         },
     ) => Promise<void>;
 }): (
@@ -1406,19 +1406,35 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                 },
             });
 
-            const {info, accounts} = await getSubscribersWithStrongReadConsistency(context, event);
+            const {info, accountIds} = await getSubscribersWithStrongReadConsistency(
+                context,
+                event,
+            );
 
             await runAllPromises(
-                accounts.map(async account => {
+                mapIterable(accountIds, async accountOrMentionId => {
+                    // Only update the inbox entry for accounts that are a member of the space the
+                    // event is a part of.
+                    if (
+                        !(await isAccountMemberOfSpace(context, event.spaceId, accountOrMentionId))
+                    ) {
+                        return;
+                    }
+
+                    // This is a verified `AccountId` after the `isAccountMemberOfSpace()`
+                    // check above.
+                    const accountId = accountOrMentionId as AccountId;
+
                     await context.tracer.withSpan("Updating inbox entry", async (context, span) => {
                         span.addData({
                             notifications: {
                                 eventType: event.type,
                                 eventId: event.id,
-                                inbox: {spaceId: event.spaceId, accountId: account.id},
+                                inbox: {spaceId: event.spaceId, accountId: accountId},
                             },
                         });
-                        return updateInboxEntry(context, event, {info, account});
+
+                        return updateInboxEntry(context, event, {info, accountId});
                     });
                 }),
             );
@@ -1595,24 +1611,30 @@ function getInboxEntryLatestUpdateTime(
 
 const processNotificationCreateChatMessageEvent = createNotificationEventProcessor<
     NotificationCreateChatMessageEvent,
-    ChatModel
+    {spaceId: SpaceId; accountIds: ReadonlyArray<AccountId>}
 >({
     getSubscribersWithStrongReadConsistency: async (context, event) => {
-        const chat = await getChat(context, event.chatId, {consistency: "Strong"});
+        const {spaceId, accountIds} = await getChatAccountIds(context, event.chatId, {
+            consistency: "Strong",
+        });
         return {
-            info: chat,
-            accounts: chat.accounts,
+            info: {spaceId, accountIds},
+            accountIds,
         };
     },
-    updateInboxEntry: async (context, event, {info: chat, account}) => {
+    updateInboxEntry: async (
+        context,
+        event,
+        {info: {spaceId, accountIds: chatAccountIds}, accountId},
+    ) => {
         await updateInboxEntry(
             context,
             event,
             {
                 partitionType: "Inbox",
                 sortRangeType: "ChatEntry",
-                spaceId: chat.spaceId,
-                accountId: account.id,
+                spaceId,
+                accountId,
                 chatId: event.chatId,
             },
             oldItem => {
@@ -1624,7 +1646,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                 // of the entry.
                 const isArchived =
                     !oldItem || event.messageIndex > oldItem.latestMessage.index
-                        ? account.id === event.authorId
+                        ? accountId === event.authorId
                         : oldItem.isArchived;
 
                 let loudNotificationCount;
@@ -1655,7 +1677,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                     // is the work involved to resolve your inbox entries is proportional to number
                     // of entries (vs number of messages within an entry).
                     const shouldIncrementLoudNotificationCount =
-                        event.mentionedAccountIds.has(account.id) ||
+                        event.mentionedAccountIds.has(accountId) ||
                         oldItem?.isArchived ||
                         !oldItem?.latestMessage ||
                         // Events might arrive out-of-order but if events 10min+ apart are arriving
@@ -1700,17 +1722,17 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                         // the user some diversity in other accounts they see as opposed to, say,
                         // always picking the user with the first name alphabetically.
                         const latestMessageAuthorId = latestMessage.authorId;
-                        const eligibleOtherAccounts = chat.accounts.filter(
-                            chatAccount =>
-                                chatAccount.id !== latestMessageAuthorId &&
-                                chatAccount.id !== account.id,
+                        const eligibleOtherAccountIds = chatAccountIds.filter(
+                            chatAccountId =>
+                                chatAccountId !== latestMessageAuthorId &&
+                                chatAccountId !== accountId,
                         );
 
                         otherAccountId =
-                            eligibleOtherAccounts.length > 0
-                                ? eligibleOtherAccounts[
-                                      randomInteger(0, eligibleOtherAccounts.length)
-                                  ]!.id
+                            eligibleOtherAccountIds.length > 0
+                                ? eligibleOtherAccountIds[
+                                      randomInteger(0, eligibleOtherAccountIds.length)
+                                  ]!
                                 : null;
                     } else {
                         // If the `latestMessage`'s author changed then move the old `latestMessage`
@@ -1718,7 +1740,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
                         // inbox's account as the author.
                         otherAccountId =
                             oldItem.latestMessage.authorId !== latestMessage.authorId &&
-                            oldItem.latestMessage.authorId !== account.id
+                            oldItem.latestMessage.authorId !== accountId
                                 ? oldItem.latestMessage.authorId
                                 : oldItem.otherAccountId;
                     }
@@ -1740,17 +1762,17 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
     {postCreatedTime: Date}
 >({
     getSubscribersWithStrongReadConsistency: async (context, event) => {
-        const {accounts, postCreatedTime} = await getPostNotificationSubscribers(
+        const {accountIds, postCreatedTime} = await getPostNotificationSubscribers(
             context,
             event.postId,
             {consistency: "Strong"},
         );
         return {
             info: {postCreatedTime},
-            accounts,
+            accountIds,
         };
     },
-    updateInboxEntry: async (context, event, {info: {postCreatedTime}, account}) => {
+    updateInboxEntry: async (context, event, {info: {postCreatedTime}, accountId}) => {
         await updateInboxEntry(
             context,
             event,
@@ -1758,7 +1780,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 partitionType: "Inbox",
                 sortRangeType: "PostCommentsEntry",
                 spaceId: event.spaceId,
-                accountId: account.id,
+                accountId,
                 postId: event.postId,
             },
             oldItem => {
@@ -1770,7 +1792,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                 // of the entry.
                 const isArchived =
                     !oldItem?.latestComment || event.commentIndex > oldItem.latestComment.index
-                        ? account.id === event.authorId
+                        ? accountId === event.authorId
                         : oldItem.isArchived;
 
                 let loudNotificationCount;
@@ -1780,9 +1802,8 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                     // We increment the loud notification count only if someone is explicitly
                     // trying to get your attention by mentioning your account. Otherwise, we
                     // expect users will respond to new post comments in their own time.
-                    const shouldIncrementLoudNotificationCount = event.mentionedAccountIds.has(
-                        account.id,
-                    );
+                    const shouldIncrementLoudNotificationCount =
+                        event.mentionedAccountIds.has(accountId);
 
                     loudNotificationCount =
                         (oldItem?.loudNotificationCount ?? 0) +
@@ -1820,7 +1841,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
                         otherCommentAuthorId =
                             oldItem.latestComment &&
                             oldItem.latestComment.authorId !== latestComment.authorId &&
-                            oldItem.latestComment.authorId !== account.id
+                            oldItem.latestComment.authorId !== accountId
                                 ? oldItem.latestComment.authorId
                                 : oldItem.otherCommentAuthorId;
                     }
@@ -1859,16 +1880,16 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
 
         return {
             info: {},
-            accounts,
+            accountIds: accounts.map(account => account.id),
         };
     },
-    updateInboxEntry: async (context, event, {info: {}, account}) => {
+    updateInboxEntry: async (context, event, {info: {}, accountId}) => {
         // Don't update an entry for the account who created the post.
-        if (event.authorId === account.id) return;
+        if (event.authorId === accountId) return;
 
         // If the account was mentioned in the post, we create a separate entry with a
         // loud notification instead of merging into one channel post summary entry.
-        if (event.mentionedAccountIds.has(account.id)) {
+        if (event.mentionedAccountIds.has(accountId)) {
             await updateInboxEntry(
                 context,
                 event,
@@ -1876,7 +1897,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
                     partitionType: "Inbox",
                     sortRangeType: "PostCommentsEntry",
                     spaceId: event.spaceId,
-                    accountId: account.id,
+                    accountId,
                     postId: event.postId,
                 },
                 oldItem => {
@@ -1908,7 +1929,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
             partitionType: "Inbox",
             sortRangeType: "Attributes",
             spaceId: event.spaceId,
-            accountId: account.id,
+            accountId,
         });
 
         await updateInboxEntry(
@@ -1918,7 +1939,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
                 partitionType: "Inbox",
                 sortRangeType: "ChannelPostsEntry",
                 spaceId: event.spaceId,
-                accountId: account.id,
+                accountId,
                 channelId: event.channelId,
                 bucketGeneration: inboxItem?.generation ?? initialInboxGeneration,
             },
@@ -1948,7 +1969,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
     {}
 >({
     getSubscribersWithStrongReadConsistency: async (context, event) => {
-        const accounts = await getDocumentCommentThreadNotificationSubscribers(context, {
+        const {accountIds} = await getDocumentCommentThreadNotificationSubscribers(context, {
             documentId: event.documentId,
             commentThreadId: event.commentThreadId,
             isFirstComment: event.commentIndex === 0,
@@ -1957,25 +1978,25 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
 
         return {
             info: {},
-            accounts,
+            accountIds,
         };
     },
-    updateInboxEntry: async (context, event, {info: {}, account}) => {
+    updateInboxEntry: async (context, event, {info: {}, accountId}) => {
         const isFirstComment = event.commentIndex === 0;
 
         // The first comment in a thread (if it doesn't contain a mention of our user)
         // is batched into a "new comments" inbox entry. This makes it easier for the
         // document owner to browse new comments.
-        if (isFirstComment && !event.mentionedAccountIds.has(account.id)) {
+        if (isFirstComment && !event.mentionedAccountIds.has(accountId)) {
             // Don't update a new comment threads entry for the account who authored
             // the comment.
-            if (event.authorId === account.id) return;
+            if (event.authorId === accountId) return;
 
             const inboxItem = await InboxTable.getItemIfExists(context, {
                 partitionType: "Inbox",
                 sortRangeType: "Attributes",
                 spaceId: event.spaceId,
-                accountId: account.id,
+                accountId,
             });
 
             await updateInboxEntry(
@@ -1985,7 +2006,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                     partitionType: "Inbox",
                     sortRangeType: "DocumentNewCommentThreadsEntry",
                     spaceId: event.spaceId,
-                    accountId: account.id,
+                    accountId,
                     documentId: event.documentId,
                     bucketGeneration: inboxItem?.generation ?? initialInboxGeneration,
                 },
@@ -2024,7 +2045,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 partitionType: "Inbox",
                 sortRangeType: "DocumentCommentThreadEntry",
                 spaceId: event.spaceId,
-                accountId: account.id,
+                accountId,
                 documentId: event.documentId,
                 commentThreadId: event.commentThreadId,
             },
@@ -2037,7 +2058,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                 // of the entry.
                 const isArchived =
                     !oldItem?.latestComment || event.commentIndex > oldItem.latestComment.index
-                        ? account.id === event.authorId
+                        ? accountId === event.authorId
                         : oldItem.isArchived;
 
                 let loudNotificationCount;
@@ -2047,9 +2068,8 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                     // We increment the loud notification count only if someone is explicitly
                     // trying to get your attention by mentioning your account. Otherwise, we
                     // expect users will respond to new post comments in their own time.
-                    const shouldIncrementLoudNotificationCount = event.mentionedAccountIds.has(
-                        account.id,
-                    );
+                    const shouldIncrementLoudNotificationCount =
+                        event.mentionedAccountIds.has(accountId);
 
                     loudNotificationCount =
                         (oldItem?.loudNotificationCount ?? 0) +
@@ -2087,7 +2107,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
                         otherCommentAuthorId =
                             oldItem.latestComment &&
                             oldItem.latestComment.authorId !== latestComment.authorId &&
-                            oldItem.latestComment.authorId !== account.id
+                            oldItem.latestComment.authorId !== accountId
                                 ? oldItem.latestComment.authorId
                                 : oldItem.otherCommentAuthorId;
                     }

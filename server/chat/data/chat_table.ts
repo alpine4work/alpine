@@ -752,6 +752,12 @@ export function sendChatMessage(
 
 /**
  * Authorize that the current account is allowed to access the chat.
+ *
+ * This function is mostly strongly consistent. It's safe to use in strongly
+ * consistent contexts. If an account just got access this function will pass
+ * with strong consistency. If an account lost access we have to wait for
+ * DynamoDB's eventual consistency lag before this function will start
+ * throwing.
  */
 export async function authorizeChatAccess(
     context: ServerActionContext,
@@ -764,11 +770,25 @@ export async function authorizeChatAccess(
 
         // If we have access to the space, we have access to the chat...
         case "System": {
-            const chatItem = await ChatTable.getItemIfExists(context, {
+            let chatItem = await ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
                 sortRangeType: "Attributes",
                 chatId,
             });
+
+            // If we can't find the chat with eventual consistency, it may have just been
+            // created so try again with strong consistency.
+            if (!chatItem) {
+                chatItem = await ChatTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Chat",
+                        sortRangeType: "Attributes",
+                        chatId,
+                    },
+                    {consistency: "Strong"},
+                );
+            }
 
             if (!chatItem) {
                 throw new PermissionDeniedError("Account does not have access to chat");
@@ -791,6 +811,12 @@ export async function authorizeChatAccess(
  *
  * Returns some data related to the chat that exists on the item's we
  * query for.
+ *
+ * This function is mostly strongly consistent. It's safe to use in strongly
+ * consistent contexts. If an account just got access this function will pass
+ * with strong consistency. If an account lost access we have to wait for
+ * DynamoDB's eventual consistency lag before this function will start
+ * throwing.
  */
 export async function authorizeChatAccessForAccount(
     context: ServerActionContext,
@@ -799,12 +825,27 @@ export async function authorizeChatAccessForAccount(
 ): Promise<{spaceId: SpaceId; chatAccountCount: number}> {
     const [chatAccountItem] = await runAllPromises([
         (async () => {
-            const chatAccountItem = await ChatTable.getItemIfExists(context, {
+            let chatAccountItem = await ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
                 sortRangeType: "Account",
                 chatId,
                 accountId,
             });
+
+            // If we couldn't find the item with eventual consistency, it may have just
+            // been created so try again with strong consistency.
+            if (!chatAccountItem) {
+                chatAccountItem = await ChatTable.getItemIfExists(
+                    context,
+                    {
+                        partitionType: "Chat",
+                        sortRangeType: "Account",
+                        chatId,
+                        accountId,
+                    },
+                    {consistency: "Strong"},
+                );
+            }
 
             if (!chatAccountItem) {
                 throw new PermissionDeniedError("Account does not have access to chat");
@@ -819,12 +860,27 @@ export async function authorizeChatAccessForAccount(
                     // We already are loading our session's chat account item above.
                     if (context.actor.getAccountId() === accountId) return;
 
-                    const chatAccountItem = await ChatTable.getItemIfExists(context, {
+                    let chatAccountItem = await ChatTable.getItemIfExists(context, {
                         partitionType: "Chat",
                         sortRangeType: "Account",
                         chatId,
                         accountId: context.actor.getAccountId(),
                     });
+
+                    // If we couldn't find the item with eventual consistency, it may have just
+                    // been created so try again with strong consistency.
+                    if (!chatAccountItem) {
+                        chatAccountItem = await ChatTable.getItemIfExists(
+                            context,
+                            {
+                                partitionType: "Chat",
+                                sortRangeType: "Account",
+                                chatId,
+                                accountId: context.actor.getAccountId(),
+                            },
+                            {consistency: "Strong"},
+                        );
+                    }
 
                     if (!chatAccountItem) {
                         throw new PermissionDeniedError(
@@ -1015,11 +1071,7 @@ export function getSharedChatsForTest(
 /**
  * Get the provided chat by `ChatId`.
  */
-export async function getChat(
-    context: ServerActionContext,
-    chatId: ChatId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
-): Promise<ChatModel> {
+export async function getChat(context: ServerActionContext, chatId: ChatId): Promise<ChatModel> {
     let chatItem: ChatAttributesItem | undefined;
     const accountPromises: Array<Promise<AccountModel>> = [];
 
@@ -1036,7 +1088,6 @@ export async function getChat(
             accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
         },
         limit: "All",
-        consistency,
     })) {
         switch (item.sortRangeType) {
             case "Attributes": {
@@ -1104,7 +1155,11 @@ export async function getChat(
 export async function getChatAccountIds(
     context: ServerActionContext,
     chatId: ChatId,
-): Promise<ReadonlyArray<AccountId>> {
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency},
+): Promise<{
+    spaceId: SpaceId;
+    accountIds: ReadonlyArray<AccountId>;
+}> {
     let chatItem: ChatAttributesItem | undefined;
     const accountIds: Array<AccountId> = [];
 
@@ -1121,6 +1176,7 @@ export async function getChatAccountIds(
             accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
         },
         limit: "All",
+        consistency,
     })) {
         switch (item.sortRangeType) {
             case "Attributes": {
@@ -1163,7 +1219,10 @@ export async function getChatAccountIds(
             throw exhaustive(context.actor);
     }
 
-    return accountIds;
+    return {
+        spaceId: chatItem.spaceId,
+        accountIds,
+    };
 }
 
 /**
@@ -1191,16 +1250,28 @@ export async function getChatMessage(
  */
 export async function getChatMessagePayload(
     context: ServerActionContext,
-    {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
+    {
+        chatId,
+        messageIndex,
+        consistency = "Eventual",
+    }: {
+        chatId: ChatId;
+        messageIndex: number;
+        consistency?: DynamoReadConsistency;
+    },
 ): Promise<MessagePayload> {
     const [, item] = await runAllPromises([
         authorizeChatAccess(context, chatId),
-        ChatTable.getItem(context, {
-            partitionType: "Chat",
-            sortRangeType: "Messages",
-            chatId,
-            messageIndex,
-        }),
+        ChatTable.getItem(
+            context,
+            {
+                partitionType: "Chat",
+                sortRangeType: "Messages",
+                chatId,
+                messageIndex,
+            },
+            {consistency},
+        ),
     ]);
 
     return item.payload;
@@ -1571,6 +1642,9 @@ async function getChatMessagesFromStartAssumingAuthorizedChat(
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedMessage(item.payload.parentMessageIndex);
             }
+
+            // Don't propagate `consistency` when loading model references. We
+            // accept references can have eventual consistency.
             return createChatMessageModelFromItem(context, spaceId, item);
         }),
     );
@@ -1922,6 +1996,8 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
                         index: item.messageIndex,
                         content: {
                             doc: item.change.content,
+                            // Don't propagate `consistency` when loading content references. We
+                            // accept references can have eventual consistency.
                             references: await getContentReferencesForNode(
                                 context,
                                 chatItem.spaceId,

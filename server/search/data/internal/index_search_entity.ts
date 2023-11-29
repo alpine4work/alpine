@@ -23,7 +23,7 @@ import {
 import {truncateTokens} from "~/server/search/data/internal/truncate_tokens.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
-import {getTaskNotesContent} from "~/server/tasks/data/task_table.js";
+import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
@@ -37,6 +37,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
     AccountId,
     ChannelId,
@@ -52,7 +53,7 @@ import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload} from "~/shared/messaging/message_model.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_schema.js";
+import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 // NOCOMMIT: Small messages like "Nice!" shouldn't be embedded at all?
 
@@ -87,6 +88,18 @@ class SearchEntityIndexer {
 
     private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
 
+    // Cache of accounts so if an account is mentioned multiple times we don't need
+    // to load it multiple times. We can't use the built-in `getAccount()` cache
+    // because we need to read with strong consistency.
+    //
+    // It's ok to cache within the context of the indexer because we need strongly
+    // consistent reads after construction of the indexer. If we pick up an account
+    // from the `getAccount()` cache we don't have that guarantee.
+    private readonly _accountPromiseById = new Map<
+        AccountId | ContentMentionAccountId,
+        Promise<AccountModel | null>
+    >();
+
     private constructor(
         context: Context<ServerSystemActionContextModules & {tasks: TaskContextModule}>,
         model: LanguageModelBase,
@@ -108,7 +121,12 @@ class SearchEntityIndexer {
         accountId: AccountId | ContentMentionAccountId,
     ): Promise<AccountModel | null> => {
         this._dependencyIds.add(`Account:${accountId}`);
-        return getAccountIfExists(this._context, this._context.actor.getSpaceId(), accountId);
+
+        return getOrSetDefaultMapValue(this._accountPromiseById, accountId, () =>
+            getAccountIfExists(this._context, this._context.actor.getSpaceId(), accountId, {
+                consistency: "Strong",
+            }),
+        );
     };
 
     public async getAccount(accountId: AccountId): Promise<AccountModel> {
@@ -119,12 +137,18 @@ class SearchEntityIndexer {
 
     public getDocumentContent(documentId: DocumentId): Promise<DocumentContent> {
         this._dependencyIds.add(`Document:${documentId}`);
-        return getDocumentContent(this._context, documentId);
+
+        return getDocumentContent(this._context, documentId, {
+            consistency: "Strong",
+        });
     }
 
     public getDocumentTitle(documentId: DocumentId): Promise<string> {
         this._dependencyIds.add(`Document:${documentId}:Title`);
-        return getDocumentTitle(this._context, documentId);
+
+        return getDocumentTitle(this._context, documentId, {
+            consistency: "Strong",
+        });
     }
 
     public getDocumentCommentPayload(
@@ -133,10 +157,12 @@ class SearchEntityIndexer {
         commentIndex: number,
     ): Promise<MessagePayload> {
         this._dependencyIds.add(`DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`);
+
         return getDocumentCommentPayload(this._context, {
             documentId,
             commentThreadId,
             commentIndex,
+            consistency: "Strong",
         });
     }
 
@@ -144,12 +170,18 @@ class SearchEntityIndexer {
         channelId: ChannelId,
     ): Promise<{name: string; description: MessageContent}> {
         this._dependencyIds.add(`Channel:${channelId}`);
-        return getChannelNameAndDescriptionContent(this._context, channelId);
+
+        return getChannelNameAndDescriptionContent(this._context, channelId, {
+            consistency: "Strong",
+        });
     }
 
     public getChannelPreview(channelId: ChannelId): Promise<ChannelPreviewModel> {
         this._dependencyIds.add(`Channel:${channelId}:Preview`);
-        return getChannelPreview(this._context, channelId);
+
+        return getChannelPreview(this._context, channelId, {
+            consistency: "Strong",
+        });
     }
 
     // NOCOMMIT: Channel should be added as an implicit dependency
@@ -157,24 +189,41 @@ class SearchEntityIndexer {
         postId: PostId,
     ): Promise<{content: PostContent; channel: ChannelPreviewModel}> {
         this._dependencyIds.add(`Post:${postId}`);
-        const contentAndChannel = await getPostContentAndChannel(this._context, postId);
+
+        const contentAndChannel = await getPostContentAndChannel(this._context, postId, {
+            consistency: "Strong",
+        });
+
         this._dependencyIds.add(`Channel:${contentAndChannel.channel.id}:Preview`);
         return contentAndChannel;
     }
 
     public getPostCommentPayload(postId: PostId, commentIndex: number): Promise<MessagePayload> {
         this._dependencyIds.add(`PostComment:${postId}-${commentIndex}`);
-        return getPostCommentPayload(this._context, {postId, commentIndex});
+
+        return getPostCommentPayload(this._context, {
+            postId,
+            commentIndex,
+            consistency: "Strong",
+        });
     }
 
-    public getChatAccountIds(chatId: ChatId): Promise<ReadonlyArray<AccountId>> {
+    public getChatAccountIds(chatId: ChatId): Promise<{accountIds: ReadonlyArray<AccountId>}> {
         this._dependencyIds.add(`Chat:${chatId}`);
-        return getChatAccountIds(this._context, chatId);
+
+        return getChatAccountIds(this._context, chatId, {
+            consistency: "Strong",
+        });
     }
 
     public getChatMessagePayload(chatId: ChatId, messageIndex: number): Promise<MessagePayload> {
         this._dependencyIds.add(`ChatMessage:${chatId}-${messageIndex}`);
-        return getChatMessagePayload(this._context, {chatId, messageIndex});
+
+        return getChatMessagePayload(this._context, {
+            chatId,
+            messageIndex,
+            consistency: "Strong",
+        });
     }
 
     public async getTask(taskId: TaskId): Promise<{
@@ -183,7 +232,7 @@ class SearchEntityIndexer {
         referencedCollectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModel>;
         notesContent: {
             version: number;
-            content: TaskNotesContentWithReferences;
+            content: TaskNotesContent;
         };
     }> {
         this._dependencyIds.add(`Task:${taskId}`);
@@ -191,7 +240,9 @@ class SearchEntityIndexer {
         const [{task, referencedTasks, referencedCollections}, notesContent] = await runAllPromises(
             [
                 this._context.tasks.getTask(this._context.actor.getSpaceId(), taskId),
-                getTaskNotesContent(this._context, taskId),
+                getTaskNotesContentWithoutReferences(this._context, taskId, {
+                    consistency: "Strong",
+                }),
             ],
         );
 
@@ -524,7 +575,7 @@ async function indexChatSearchEntity(
     indexer: SearchEntityIndexer,
     chatId: ChatId,
 ): Promise<SearchEntity> {
-    const accountIds = await indexer.getChatAccountIds(chatId);
+    const {accountIds} = await indexer.getChatAccountIds(chatId);
 
     const accounts = await runAllPromises(
         accountIds.map(accountId => indexer.getAccount(accountId)),
@@ -577,7 +628,7 @@ async function indexChatMessageSearchEntity(
     chatId: ChatId,
     messageIndex: number,
 ): Promise<SearchEntity> {
-    const [chatAccountIds, messagePayload] = await runAllPromises([
+    const [{accountIds: chatAccountIds}, messagePayload] = await runAllPromises([
         indexer.getChatAccountIds(chatId),
         indexer.getChatMessagePayload(chatId, messageIndex),
     ]);
@@ -695,7 +746,7 @@ async function indexTaskSearchEntity(
         truncateTokens(indexer.model, sectionHeading, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
-    const {getFullText, embeddingChunks} = await chunkSearchContent(notesContent.content.doc, {
+    const {getFullText, embeddingChunks} = await chunkSearchContent(notesContent.content, {
         model: indexer.model,
         getAccountIfExists: indexer.getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {

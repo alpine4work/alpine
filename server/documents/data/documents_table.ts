@@ -24,11 +24,7 @@ import {createMessagePayloadModel} from "~/server/messaging/helpers/create_messa
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {
-    authorizeSpaceAccess,
-    getAccount,
-    getAccountIfExists,
-} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -544,13 +540,18 @@ const DocumentPreviewContextCache = new ContextCache<DocumentId, DocumentPreview
 export function getDocumentPreviewIfExists(
     context: ServerActionContext,
     id: DocumentId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<DocumentPreviewModel | null> {
-    return DocumentPreviewContextCache.get(context, id, async () => {
-        const attributes = await DocumentsTable.getItemIfExists(context, {
-            partitionType: "Document",
-            documentId: id,
-            sortRangeType: "Attributes",
-        });
+    const get = async () => {
+        const attributes = await DocumentsTable.getItemIfExists(
+            context,
+            {
+                partitionType: "Document",
+                documentId: id,
+                sortRangeType: "Attributes",
+            },
+            {consistency},
+        );
 
         if (!attributes) return null;
 
@@ -563,7 +564,17 @@ export function getDocumentPreviewIfExists(
             version: attributes.version,
             titleWithoutFallback: attributes.titleWithoutFallback,
         });
-    });
+    };
+
+    // We can't use a cached value when reading with strong consistency but we can
+    // save the read value to the cache for later.
+    if (consistency === "Strong") {
+        const getPromise = get();
+        DocumentPreviewContextCache.set(context, id, getPromise);
+        return getPromise;
+    } else {
+        return DocumentPreviewContextCache.get(context, id, get);
+    }
 }
 
 /**
@@ -574,20 +585,34 @@ export function getDocumentPreviewIfExists(
 export async function getDocumentPreview(
     context: ServerActionContext,
     id: DocumentId,
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<DocumentPreviewModel> {
-    const document = await getDocumentPreviewIfExists(context, id);
+    const document = await getDocumentPreviewIfExists(context, id, options);
     if (!document) throw new NotFoundError("Document not found");
     return document;
 }
 
 /**
  * Authorizes that the current request can access the document.
+ *
+ * This function is mostly strongly consistent. It's safe to use in strongly
+ * consistent contexts. If an account just got access this function will pass
+ * with strong consistency. If an account lost access we have to wait for
+ * DynamoDB's eventual consistency lag before this function will start
+ * throwing.
  */
 export async function authorizeDocumentAccess(
     context: ServerActionContext,
     documentId: DocumentId,
 ): Promise<{spaceId: SpaceId}> {
-    const document = await getDocumentPreviewIfExists(context, documentId);
+    let document = await getDocumentPreviewIfExists(context, documentId);
+
+    // If we couldn't find the document with eventual consistency, try again with
+    // strong consistency in case it was just created.
+    if (!document) {
+        document = await getDocumentPreviewIfExists(context, documentId, {consistency: "Strong"});
+    }
+
     if (!document) throw new NotFoundError("Document not found");
     return {spaceId: document.spaceId};
 }
@@ -605,6 +630,7 @@ export const getInternalDocumentTestCounter = new TestCounter();
 async function getInternalDocumentIfExists(
     context: ServerActionContext,
     id: DocumentId,
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<InternalDocument | null> {
     getInternalDocumentTestCounter.incrementForTest(id);
 
@@ -624,6 +650,11 @@ async function getInternalDocumentIfExists(
             sortRangeType: "Snapshot",
         },
         limit: "All",
+        // NOTE(calebmer): An optimization may be to do a strong read on the
+        // `Attributes` item and if it disagrees with our eventually consistent
+        // read then do a strongly consistent read of missing steps. That way the
+        // entire query doesn't need to be strongly consistent.
+        consistency,
     })) {
         switch (item.sortRangeType) {
             case "Attributes":
@@ -965,8 +996,9 @@ export async function getDocumentAndCommentThreads(
 export async function getDocumentTitle(
     context: ServerActionContext,
     documentId: DocumentId,
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<string> {
-    const documentPreview = await getDocumentPreview(context, documentId);
+    const documentPreview = await getDocumentPreview(context, documentId, options);
     return documentPreview.getTitle();
 }
 
@@ -977,8 +1009,9 @@ export async function getDocumentTitle(
 export async function getDocumentContent(
     context: ServerActionContext,
     documentId: DocumentId,
+    options?: {consistency?: DynamoReadConsistency},
 ): Promise<DocumentContent> {
-    const internalDocument = await getInternalDocumentIfExists(context, documentId);
+    const internalDocument = await getInternalDocumentIfExists(context, documentId, options);
     if (!internalDocument) throw new NotFoundError("Document not found");
     return internalDocument.content;
 }
@@ -2867,16 +2900,19 @@ export async function getDocumentCommentPayload(
         documentId,
         commentThreadId,
         commentIndex,
+        consistency = "Eventual",
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         commentIndex: number;
+        consistency?: DynamoReadConsistency;
     },
 ): Promise<MessagePayload> {
     const {commentItem} = await getDocumentCommentItem(context, {
         documentId,
         commentThreadId,
         commentIndex,
+        consistency,
     });
 
     return commentItem.payload;
@@ -2912,31 +2948,39 @@ async function getDocumentCommentItem(
         documentId,
         commentThreadId,
         commentIndex,
+        consistency = "Eventual",
     }: {
         documentId: DocumentId;
         commentThreadId: DocumentCommentThreadId;
         commentIndex: number;
+        consistency?: DynamoReadConsistency;
     },
 ) {
-    const [documentPreview, , commentItem] = await runAllPromises([
-        // Authorizes access:
-        getDocumentPreview(context, documentId),
+    const [{spaceId}, , commentItem] = await runAllPromises([
+        authorizeDocumentAccess(context, documentId),
 
+        // Throws an error if the comment thread item doesn't exist.
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
+            consistency,
         }),
-        DocumentsTable.getItem(context, {
-            partitionType: "DocumentCommentThread",
-            sortRangeType: "Comments",
-            documentId,
-            commentThreadId,
-            commentIndex,
-        }),
+
+        DocumentsTable.getItem(
+            context,
+            {
+                partitionType: "DocumentCommentThread",
+                sortRangeType: "Comments",
+                documentId,
+                commentThreadId,
+                commentIndex,
+            },
+            {consistency},
+        ),
     ]);
 
     return {
-        spaceId: documentPreview.spaceId,
+        spaceId,
         commentItem,
     };
 }
@@ -2982,8 +3026,7 @@ export function updateDocumentCommentContent(
 }> {
     return context.dynamo.retryTransaction(async context => {
         const [, commentThreadItem, commentItem] = await runAllPromises([
-            // Authorizes access:
-            getDocumentPreview(context, documentId),
+            authorizeDocumentAccess(context, documentId),
 
             getDocumentCommentThreadItem(context, {
                 documentId,
@@ -3086,8 +3129,7 @@ export function deleteDocumentComment(
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
         const [, commentThreadItem, commentItem] = await runAllPromises([
-            // Authorizes access:
-            getDocumentPreview(context, documentId),
+            authorizeDocumentAccess(context, documentId),
 
             getDocumentCommentThreadItem(context, {
                 documentId,
@@ -3185,24 +3227,23 @@ export async function getDocumentCommentThreadAndInitialComments(
     initialComments: Array<DocumentCommentModel>;
     initialOtherReferencedComments: Array<DocumentCommentModel>;
 }> {
-    // Authorizes access:
-    const documentPreviewPromise = getDocumentPreview(context, documentId);
+    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId);
 
     const [, commentThread, {comments, otherReferencedComments}] = await runAllPromises([
-        documentPreviewPromise,
+        documentAuthorizationPromise,
         (async () => {
             const commentThreadItem = await getDocumentCommentThreadItem(context, {
                 documentId,
                 commentThreadId,
             });
 
-            const {spaceId} = await documentPreviewPromise;
+            const {spaceId} = await documentAuthorizationPromise;
             return createDocumentCommentThreadModelFromItem(context, spaceId, commentThreadItem);
         })(),
         getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
             documentId,
             commentThreadId,
-            getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => documentAuthorizationPromise.then(({spaceId}) => spaceId),
             limit,
             afterCommentIndex: null,
             beforeCommentIndex: null,
@@ -3369,11 +3410,10 @@ export async function getDocumentCommentsFromStart(
     otherReferencedComments: Array<DocumentCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    // Authorizes access:
-    const documentPreviewPromise = getDocumentPreview(context, documentId);
+    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId);
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
-        documentPreviewPromise,
+        documentAuthorizationPromise,
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
@@ -3381,7 +3421,7 @@ export async function getDocumentCommentsFromStart(
         getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
             documentId,
             commentThreadId,
-            getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => documentAuthorizationPromise.then(({spaceId}) => spaceId),
             limit,
             afterCommentIndex,
             beforeCommentIndex,
@@ -3507,6 +3547,9 @@ async function getDocumentCommentsFromStartAssumingAuthorizedCommentThread(
             if (item.payload.type === "Content" && item.payload.parentMessageIndex !== null) {
                 loadOtherReferencedComment(item.payload.parentMessageIndex);
             }
+
+            // Don't propagate `consistency` when loading model references. We
+            // accept references can have eventual consistency.
             return createDocumentCommentModelFromItem(context, spaceId, item);
         }),
     );
@@ -3551,11 +3594,10 @@ export async function getDocumentCommentsFromEnd(
     otherReferencedComments: Array<DocumentCommentModel>;
     lastCommentChangeTime: Date | null;
 }> {
-    // Authorizes access:
-    const documentPreviewPromise = getDocumentPreview(context, documentId);
+    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId);
 
     const [, commentThreadItem, {comments, otherReferencedComments}] = await runAllPromises([
-        documentPreviewPromise,
+        documentAuthorizationPromise,
         getDocumentCommentThreadItem(context, {
             documentId,
             commentThreadId,
@@ -3563,7 +3605,7 @@ export async function getDocumentCommentsFromEnd(
         getDocumentCommentsFromEndAssumingAuthorizedCommentThread(context, {
             documentId,
             commentThreadId,
-            getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => documentAuthorizationPromise.then(({spaceId}) => spaceId),
             limit,
             afterCommentIndex,
             beforeCommentIndex,
@@ -3759,8 +3801,7 @@ export async function backfillDocumentComments(
     newOtherReferencedComments: Array<DocumentCommentModel>;
     commentChangesResult: DocumentCommentChangesResult;
 }> {
-    // Authorizes access:
-    const documentPreviewPromise = getDocumentPreview(context, documentId);
+    const documentAuthorizationPromise = authorizeDocumentAccess(context, documentId);
 
     const commentThreadItemPromise = getDocumentCommentThreadItem(context, {
         documentId,
@@ -3769,12 +3810,12 @@ export async function backfillDocumentComments(
 
     const [, commentThreadItem, {comments, otherReferencedComments}, commentChangesResult] =
         await runAllPromises([
-            documentPreviewPromise,
+            documentAuthorizationPromise,
             commentThreadItemPromise,
             getDocumentCommentsFromStartAssumingAuthorizedCommentThread(context, {
                 documentId,
                 commentThreadId,
-                getSpaceId: () => documentPreviewPromise.then(({spaceId}) => spaceId),
+                getSpaceId: () => documentAuthorizationPromise.then(({spaceId}) => spaceId),
                 limit: newCommentLimit,
                 afterCommentIndex: clientCommentCount - 1,
                 beforeCommentIndex: null,
@@ -3784,7 +3825,7 @@ export async function backfillDocumentComments(
                 // to new realtime events before starting to backfill.
                 consistency: "Strong",
             }),
-            runAllPromises([documentPreviewPromise, commentThreadItemPromise]).then(
+            runAllPromises([documentAuthorizationPromise, commentThreadItemPromise]).then(
                 ([documentPreview, commentThreadItem]) =>
                     queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThread(context, {
                         spaceId: documentPreview.spaceId,
@@ -3899,6 +3940,8 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
                         index: item.commentIndex,
                         content: {
                             doc: item.change.content,
+                            // Don't propagate `consistency` when loading content references. We
+                            // accept references can have eventual consistency.
                             references: await getContentReferencesForNode(
                                 context,
                                 spaceId,
@@ -3942,14 +3985,20 @@ export async function getDocumentCommentThreadNotificationSubscribers(
         isFirstComment: boolean;
         consistency?: DynamoReadConsistency;
     },
-) {
+): Promise<{
+    accountIds: Set<AccountId | ContentMentionAccountId>;
+}> {
     const [documentItem, commentThreadItem] = await runAllPromises([
         (async () => {
-            const documentItem = await DocumentsTable.getItem(context, {
-                partitionType: "Document",
-                sortRangeType: "Attributes",
-                documentId,
-            });
+            const documentItem = await DocumentsTable.getItem(
+                context,
+                {
+                    partitionType: "Document",
+                    sortRangeType: "Attributes",
+                    documentId,
+                },
+                {consistency},
+            );
 
             await authorizeSpaceAccess(context, documentItem.spaceId);
 
@@ -3970,13 +4019,5 @@ export async function getDocumentCommentThreadNotificationSubscribers(
         ),
     );
 
-    const accounts = await runAllPromises(
-        // Use `getAccountIfExists()` since mentioned accounts may be copied from a
-        // different space and don't exist in this space.
-        mapIterable(accountIds, accountId =>
-            getAccountIfExists(context, documentItem.spaceId, accountId),
-        ),
-    );
-
-    return accounts.filter(isNonNullable);
+    return {accountIds};
 }

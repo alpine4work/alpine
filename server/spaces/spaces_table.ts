@@ -12,7 +12,7 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
-import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
@@ -122,8 +122,6 @@ const SpacesTable = DynamoTableSchema.new({
         },
     ],
 });
-
-type SpaceAccountItem = DynamoTableItemType<typeof SpacesTable, "Space", "Account">;
 
 /**
  * Create a space in a test environment.
@@ -303,8 +301,8 @@ export async function createSpaceAccountForAlphaTransactionEntries(
 }
 
 const SpaceAccountContextCache = new ContextCache<
-    `${SpaceId}:${AccountId}`,
-    SpaceAccountItem | null
+    `${SpaceId}:${AccountId | ContentMentionAccountId}`,
+    boolean
 >({
     // Allow sharing this cache because the results do not depend on anything in
     // the context (like the `actor`). Whether we're using a session actor or a
@@ -314,30 +312,58 @@ const SpaceAccountContextCache = new ContextCache<
 
 /**
  * Is the `accountId` a member of the provided `spaceId`?
+ *
+ * This function caches its result in `CacheContextModule` which is typically
+ * scoped to the duration of an action.
+ *
+ * This function is mostly strongly consistent so you can safely call it in a
+ * strongly consistent environment. It returns `true` with strong consistency
+ * but `false` with weak consistency. False positives are acceptable since it's
+ * ok if a user's access to a space lingers a bit after they've been removed
+ * from the space. But false negatives means the user gets an error when trying
+ * to access a space they just got access to which we want to avoid.
  */
-export async function isAccountMemberOfSpace(
+export function isAccountMemberOfSpace(
     context: Context<{
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
     }>,
     spaceId: SpaceId,
-    accountId: AccountId,
+    accountId: AccountId | ContentMentionAccountId,
 ): Promise<boolean> {
-    const item = await SpaceAccountContextCache.get(context, `${spaceId}:${accountId}`, () =>
-        SpacesTable.getItemIfExists(context, {
+    return SpaceAccountContextCache.get(context, `${spaceId}:${accountId}`, async () => {
+        let item = await SpacesTable.getItemIfExists(context, {
             partitionType: "Space",
             sortRangeType: "Account",
             spaceId,
-            accountId,
-        }),
-    );
-    return !!item;
+            accountId: accountId as AccountId,
+        });
+
+        if (!item) {
+            item = await SpacesTable.getItemIfExists(
+                context,
+                {
+                    partitionType: "Space",
+                    sortRangeType: "Account",
+                    spaceId,
+                    accountId: accountId as AccountId,
+                },
+                {consistency: "Strong"},
+            );
+        }
+
+        return !!item;
+    });
 }
 
 /**
  * Authorize that the authenticated account has access to the provided
  * `spaceId`. Throws if the account does not have access.
+ *
+ * This function is mostly strongly consistent so it's safe to call in a
+ * strongly consistent environment. See the documentation on
+ * `isAccountMemberOfSpace()` for details about consistency guarantees.
  */
 export async function authorizeSpaceAccess(
     context: Context<{
@@ -529,7 +555,7 @@ export async function expensivelyGetAllSpaceAccounts(
         item => {
             // Future calls to `isAccountMemberOfSpace()` should not need to load a space
             // account item and should instead see the one we've already loaded here.
-            SpaceAccountContextCache.set(context, `${item.spaceId}:${item.accountId}`, item);
+            SpaceAccountContextCache.set(context, `${item.spaceId}:${item.accountId}`, !!item);
             return getAccount(context, item.spaceId, item.accountId);
         },
     );
