@@ -12,7 +12,7 @@ overrides:
   '@vanilla-extract/integration@5.0.1>esbuild': 0.17.10
   '@vanilla-extract/integration@6.2.1>esbuild': 0.17.10
 
-packageExtensionsChecksum: d58e66b5abbb355b2ed328b16a30cdac
+packageExtensionsChecksum: fa441494a1dd62612e97d2e415bc0001
 
 patchedDependencies:
   '@cloudflare/workers-types@3.18.0':
@@ -99,6 +99,9 @@ patchedDependencies:
   prosemirror-view@1.27.2:
     hash: ep5td2fcl7fty7i23lgflvirku
     path: admin/patches/prosemirror-view@1.27.2.patch
+  psl@1.9.0:
+    hash: uwdiyrxrbk6jfhukrzmqvjpgvi
+    path: admin/patches/psl@1.9.0.patch
   react-dom@18.2.0:
     hash: 2vwzp7nbbzbgfr2az567j725ly
     path: admin/patches/react-dom@18.2.0.patch
@@ -13581,9 +13584,12 @@ packages:
     resolution: {integrity: sha512-b/YwNhb8lk1Zz2+bXXpS/LK9OisiZZ1SNsSLxN1x2OXVEhW2Ckr/7mWE5vrC1ZTiJlD9g19jWszTmJsB+oEpFQ==}
     dev: false
 
-  /psl@1.9.0:
+  /psl@1.9.0(patch_hash=uwdiyrxrbk6jfhukrzmqvjpgvi):
     resolution: {integrity: sha512-E/ZsdU4HLs/68gYzgGTkMicWTLPdAftJLfJFlLUAAKZGkStNU72sZjT66SnMDVOfOWY/YAoiD7Jxa9iHvngcag==}
+    dependencies:
+      punycode: 2.3.1
     dev: false
+    patched: true
 
   /pump@2.0.1:
     resolution: {integrity: sha512-ruPMNRkN3MHP1cWJc9OWr+T/xDP0jhXYCLfJcBuX54hhfIBnaQmAUMfDcG4DM5UMWByBbJY69QSphm3jtDKIkA==}
@@ -14867,7 +14873,7 @@ packages:
     resolution: {integrity: sha512-aX/y5pVRkfRnfmuX+OdbSdXvPe6ieKX/G2s7e98f4poJHnqH3281gDPm/metm6E/WRamfx7WC4HUqkWHfQHprw==}
     engines: {node: '>=6'}
     dependencies:
-      psl: 1.9.0
+      psl: 1.9.0(patch_hash=uwdiyrxrbk6jfhukrzmqvjpgvi)
       punycode: 2.3.1
       universalify: 0.2.0
       url-parse: 1.5.10

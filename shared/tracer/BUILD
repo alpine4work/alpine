@@ -9,7 +9,6 @@ ts_project(
         "//:node_modules/@types/set-cookie-parser",
         "//:node_modules/@types/tough-cookie",
         "//:node_modules/cookie",
-        "//:node_modules/punycode",  # Needed for `tough-cookie` since it used to be part of Node.js
         "//:node_modules/set-cookie-parser",
         "//:node_modules/tough-cookie",
         "//shared/error",

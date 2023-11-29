@@ -1,0 +1,21 @@
+diff --git a/index.js b/index.js
+index da7bc12136cbbe0c4b1794a31ab315b903a80a4d..f76bf6a2296dfb3dd607778a9b201c85bbc204ee 100644
+--- a/index.js
++++ b/index.js
+@@ -2,7 +2,15 @@
+ 'use strict';
+ 
+ 
+-var Punycode = require('punycode');
++// NOTE(calebmer): `punycode` used to be built into Node.js but has been
++// deprecated. So esbuild thinks `punycode` is external when using the `node`
++// platform but actually we need to include it in the bundle! Adding the `/`
++// "tricks" esbuild into doing file resolution instead of treating this import
++// as an external.
++//
++// Someone else on the internet who came up with this solution:
++// https://github.com/aws/aws-cdk/issues/14290#issuecomment-823974030
++var Punycode = require('punycode/');
+ 
+ 
+ var internals = {};

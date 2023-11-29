@@ -14,7 +14,6 @@ ts_project(
         "//:node_modules/escape-html",
         "//:node_modules/functional-red-black-tree",
         "//:node_modules/html-tags",
-        "//:node_modules/punycode",  # Needed for `tough-cookie` since it used to be part of Node.js
         "//:node_modules/tough-cookie",
         "//shared/error:error_core",
     ],
