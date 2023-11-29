@@ -133,14 +133,14 @@ export async function fetchWithTracer<ResponseData>(
                 route: spanRoute,
                 url: requestUrl.toString(),
                 method: requestMethod,
-                userAgent: requestHeaders.get("user-agent") ?? undefined,
+                userAgent: request.headers.get("user-agent") ?? undefined,
                 request: {
                     header: Object.fromEntries(
-                        filterIterable(requestHeaders, ([headerName]) =>
+                        filterIterable(request.headers, ([headerName]) =>
                             tracerEventHttpHeaderNames.has(headerName),
                         ),
                     ),
-                    obfuscatedCookieHeader: obfuscateCookieHeader(requestHeaders),
+                    obfuscatedCookieHeader: obfuscateCookieHeader(request.headers),
                 },
             },
         });
