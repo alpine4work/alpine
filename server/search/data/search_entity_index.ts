@@ -92,7 +92,6 @@ assertEqualTypes<
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntityIndexDocType>,
     {
         lastReadStartTime: Date;
-        lastReadEndTime: Date;
         "data.title": string;
         "data.body": string;
     }
@@ -143,14 +142,13 @@ export async function processIndexSearchEntityJob(
             SearchEntityIndex,
             job.spaceId,
             docId,
-            {storedFields: ["lastReadStartTime", "lastReadEndTime"]},
+            {storedFields: ["lastReadStartTime"]},
         );
 
         const oldDoc = actualOldDoc
             ? {
                   version: actualOldDoc.version,
                   lastReadStartTime: assertExists(actualOldDoc.fields.lastReadStartTime?.[0]),
-                  lastReadEndTime: assertExists(actualOldDoc.fields.lastReadEndTime?.[0]),
               }
             : null;
 
@@ -169,9 +167,6 @@ export async function processIndexSearchEntityJob(
 
         const readStartTime = new Date();
         const {dependencyIds, entity} = await getSearchEntity(context, job.update);
-        const readEndTime = new Date();
-
-        // NOCOMMIT: Delete entities with no content? Is that possible?
 
         const newDoc: OpensearchClientDocWithIdAndVersion<
             `${SearchEntityId}:${number}`,
@@ -182,7 +177,6 @@ export async function processIndexSearchEntityJob(
             spaceId: job.spaceId,
             type: job.update.type,
             lastReadStartTime: readStartTime,
-            lastReadEndTime: readEndTime,
             accessPolicy: entity.accessPolicy,
             data: {
                 type: "Content",
@@ -194,31 +188,16 @@ export async function processIndexSearchEntityJob(
             },
         };
 
-        // Is `newDoc` definitely newer than `oldDoc`?
-        //
-        // If two jobs are trying to update this entity concurrently and job A reads
-        // the entity's newest data and saves before job B we don't want job B to
-        // overwrite the new data.
-        //
-        // In order to know for certain that `newDoc` is indeed newer, we have to start
-        // reading `newDoc` AFTER `oldDoc` finished reading. Reading a search entity
-        // involves multiple underlying reads to different data sources. By comparing
-        // the `oldDoc` read end time to the `newDoc` read start time, we can be sure
-        // all underlying `newDoc` reads are indeed newer than `oldDoc`.
-        //
-        // If `newDoc` is not definitely newer than `oldDoc` we need to retry the job.
-        const isNewDocDefinitelyNewer =
-            !oldDoc ||
-            isDateLessThanWithUncertaintyWindow(oldDoc.lastReadEndTime, newDoc.lastReadStartTime);
-
-        if (!isNewDocDefinitelyNewer) retry();
-
-        await context.opensearch.client.bulk(
+        // If we get a version conflict then some other concurrent process wrote this
+        // search entity before us. We retry and completely re-read the entity. That
+        // way we guarantee we aren't overwriting new data (read by the other job) with
+        // old data (read by this job).
+        await context.opensearch.client.indexDocIfVersion(
             context.tracer.getTracer(),
             SearchEntityIndex,
             job.spaceId,
-            [{type: "IndexIfVersion", doc: newDoc}],
-            {retryPartialVersionConflictError: retry},
+            newDoc,
+            {retryVersionConflictError: retry},
         );
     });
 }

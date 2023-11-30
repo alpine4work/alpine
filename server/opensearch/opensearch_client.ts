@@ -23,7 +23,6 @@ import {
     FailedPreconditionError,
     InternalError,
     UnavailableError,
-    UnimplementedError,
     UnknownError,
 } from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -809,7 +808,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         }: {
             storedFields?: Array<StoredFieldKeys>;
             realtime?: boolean;
-        },
+        } = {},
     ): Promise<{
         readonly version: OpensearchClientDocVersion | null;
         readonly fields: {
@@ -991,7 +990,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             OpensearchIndexDocIdType<Index>,
             OpensearchIndexDocType<Index>
         >,
-        options?: OpensearchClientIndexDocIfVersionOptions,
+        {retryVersionConflictError}: OpensearchClientIndexDocIfVersionOptions = {},
     ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
@@ -1027,10 +1026,22 @@ export class OpensearchClient implements OpensearchClientInterface {
             async response => {
                 // NOTE(#opensearch-important-json-disclaimer): This response only contains
                 // errors and the error numbers fit in 64-bit floats.
-                const body: {} = await response.json();
+                const body:
+                    | {_seq_no: number; _primary_term: number; error?: undefined}
+                    | {error: OpensearchError} = await response.json();
 
-                // NOCOMMIT: Error response. Retry on version conflict.
-                if (!response.ok) throw new UnimplementedError("TODO: Handle errors");
+                if (body.error) {
+                    if (body.error.type === "version_conflict_engine_exception") {
+                        const error = new FailedPreconditionError("OpenSearch version conflict");
+                        retryVersionConflictError?.(error);
+                        throw error;
+                    }
+
+                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+                    throw new UnknownError(`OpenSearch indexing failed: ${errorType}`, {
+                        cause: body.error,
+                    });
+                }
 
                 return body;
             },
@@ -1133,14 +1144,14 @@ export class OpensearchClient implements OpensearchClientInterface {
             // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
             if (errors.length === 0 && versionConflictErrors.length > 0) {
                 const error = new FailedPreconditionError(
-                    `OpenSearch bulk write version conflicts in ${versionConflictErrors.length} operation(s) out of ${body.items.length} operation(s)`,
+                    `OpenSearch bulk version conflicts in ${versionConflictErrors.length} operation(s) out of ${body.items.length} operation(s)`,
                 );
                 retryPartialVersionConflictError?.(error);
                 throw error;
             }
 
             const error = new UnknownError(
-                `OpenSearch bulk write partially failed with ${errors.length} error(s) out of ${
+                `OpenSearch bulk partially failed with ${errors.length} error(s) out of ${
                     body.items.length
                 } operation(s)${
                     errors[0]

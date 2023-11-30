@@ -306,21 +306,8 @@ export const SearchEntityIndexDocType = OpensearchIndexObjectType.new({
 
         /**
          * The last time where we started the read that produced this search entity.
-         *
-         * We use this to resolve conflicts when we have two jobs trying to index the
-         * same entity at once. We only want to index a search entity if we absolutely
-         * know its data is newer than what's in our index.
          */
         lastReadStartTime: new OpensearchIndexDateType().store(),
-
-        /**
-         * The last time where we ended the read that produced this search entity.
-         *
-         * We use this to resolve conflicts when we have two jobs trying to index the
-         * same entity at once. We only want to index a search entity if we absolutely
-         * know its data is newer than what's in our index.
-         */
-        lastReadEndTime: new OpensearchIndexDateType().store(),
 
         accessPolicy: SearchEntityIndexAccessPolicyType,
 

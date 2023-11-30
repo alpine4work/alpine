@@ -10,6 +10,7 @@ import {
     getPostCommentPayload,
     getPostContentAndChannel,
 } from "~/server/forum/data/forum_table.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
 import {
     SearchEntityId,
@@ -358,11 +359,14 @@ async function getAccountSearchEntity(
     };
 }
 
+export const getDocumentSearchEntityTestCheckpoint = new TestCheckpoint<DocumentId>();
+
 async function getDocumentSearchEntity(
     state: SearchEntityReadState,
     documentId: DocumentId,
 ): Promise<SearchEntity> {
     const content = await state.getDocumentContent(documentId);
+    await getDocumentSearchEntityTestCheckpoint.waitForTest(documentId);
 
     const {title, getFullText, embeddingChunks} = await chunkDocumentSearchContent(content, state);
 
