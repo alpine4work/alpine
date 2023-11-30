@@ -19,7 +19,7 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError, UnknownError} from "~/shared/error/error.js";
+import {DataLossError, UnimplementedError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -34,6 +34,8 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 import {TaskAction, getTaskActionLabel} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 
 export abstract class TaskContextModuleBase extends ContextModuleBase<{
@@ -75,6 +77,34 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
     }): Promise<void>;
+
+    public abstract getTask(
+        this: TaskContextModuleBase &
+            ContextModuleBase<{
+                process: ProcessContextModule;
+                tracer: TracerContextModule;
+                actor: DynamoSystemActorContextModule;
+            }>,
+        spaceId: SpaceId,
+        taskId: TaskId,
+    ): Promise<{
+        task: TaskModel;
+        referencedTasks: ReadonlyArray<TaskModel>;
+        referencedCollections: ReadonlyArray<TaskCollectionModel>;
+    }>;
+
+    public abstract getCollection(
+        this: TaskContextModuleBase &
+            ContextModuleBase<{
+                process: ProcessContextModule;
+                tracer: TracerContextModule;
+                actor: DynamoSystemActorContextModule;
+            }>,
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+    ): Promise<{
+        collection: TaskCollectionModel;
+    }>;
 
     /**
      * Index an action transaction after its been committed. This function must be
@@ -336,7 +366,11 @@ export class TaskContextModule extends TaskContextModuleBase {
             }>,
         spaceId: SpaceId,
         taskId: TaskId,
-    ): Promise<SchemaType<typeof TaskRealtimeGetTaskSchema>> {
+    ): Promise<{
+        task: TaskModel;
+        referencedTasks: ReadonlyArray<TaskModel>;
+        referencedCollections: ReadonlyArray<TaskCollectionModel>;
+    }> {
         const [host, token] = await runAllPromises([
             // NOTE(calebmer, 2023-11-27): If this function ever supports session actors
             // (and not just system actors) then we should use `getStickySessionHost()`
@@ -392,7 +426,9 @@ export class TaskContextModule extends TaskContextModuleBase {
             }>,
         spaceId: SpaceId,
         collectionId: TaskCollectionId,
-    ): Promise<SchemaType<typeof TaskRealtimeGetCollectionSchema>> {
+    ): Promise<{
+        collection: TaskCollectionModel;
+    }> {
         const [host, token] = await runAllPromises([
             // NOTE(calebmer, 2023-11-27): If this function ever supports session actors
             // (and not just system actors) then we should use `getStickySessionHost()`
@@ -465,5 +501,45 @@ export class TestTaskContextModule extends TaskContextModuleBase {
         if (!this._shouldSkipIndexing) {
             await this._indexActionTransactionAssumingItsCommitted(actionTransaction);
         }
+    }
+
+    public getTask(
+        this: TestTaskContextModule &
+            ContextModuleBase<{
+                process: ProcessContextModule;
+                tracer: TracerContextModule;
+                actor: DynamoSystemActorContextModule;
+            }>,
+        spaceId: SpaceId,
+        taskId: TaskId,
+    ): Promise<{
+        task: TaskModel;
+        referencedTasks: ReadonlyArray<TaskModel>;
+        referencedCollections: ReadonlyArray<TaskCollectionModel>;
+    }> {
+        // TODO(calebmer): How you could implement this is:
+        //
+        // 1. Wait for all committed actions to be indexed
+        // 2. Read directly from `TaskIndex`
+        throw new UnimplementedError("Getting tasks is not implemented for tests");
+    }
+
+    public getCollection(
+        this: TestTaskContextModule &
+            ContextModuleBase<{
+                process: ProcessContextModule;
+                tracer: TracerContextModule;
+                actor: DynamoSystemActorContextModule;
+            }>,
+        spaceId: SpaceId,
+        collectionId: TaskCollectionId,
+    ): Promise<{
+        collection: TaskCollectionModel;
+    }> {
+        // TODO(calebmer): How you could implement this is:
+        //
+        // 1. Wait for all committed actions to be indexed
+        // 2. Read directly from `TaskIndex`
+        throw new UnimplementedError("Getting task collections is not implemented for tests");
     }
 }

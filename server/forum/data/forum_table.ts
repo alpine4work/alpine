@@ -45,6 +45,7 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
+import {isDateLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -1965,12 +1966,7 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
     // If our last change item has expired then other relevant changelog entries
     // may have also expired. The client will need to fully reset its state since
     // we don't have the data necessary to backfill.
-    //
-    // We subtract one day from the expiration time in this check in case our clock
-    // disagrees with DynamoDB's time-to-live clock (clock skew). If our clock is
-    // ahead and we believe an item exists that DynamoDB has in fact deleted that
-    // would be sad. One day feels like sufficient clock skew buffer.
-    if (lastCommentChangeExpirationTime.getTime() - 1000 * 60 * 60 * 24 < Date.now())
+    if (isDateLessThanWithUncertaintyWindow(lastCommentChangeExpirationTime, new Date()))
         return {type: "Unavailable"};
 
     const changes = await parallelMapAsyncIterableToArray(

@@ -1,7 +1,7 @@
 import {OpensearchClientInterface} from "~/server/opensearch/opensearch_client.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
-import {InternalError, UnavailableError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 export class OpensearchContextModule
@@ -73,50 +73,5 @@ export class OpensearchContextModule
 
     public fork() {
         return new OpensearchContextModule(this.client);
-    }
-}
-
-/**
- * If we have a test with OpenSearch disabled, we use this client which
- * throws whenever you try to access anything from OpenSearch.
- */
-export class TestDisabledOpensearchClient implements OpensearchClientInterface {
-    constructor() {
-        // Can only use this context module in tests.
-        assert(process.env.NODE_ENV === "test");
-    }
-
-    private _newUnavailableError() {
-        return new UnavailableError(
-            "OpenSearch is not enabled for this test, try setting `shouldStartOpensearch: true` in `createTestContext()`",
-        );
-    }
-
-    public getDocIfExists(): never {
-        throw this._newUnavailableError();
-    }
-
-    public multiGetDocsIfExist(): never {
-        throw this._newUnavailableError();
-    }
-
-    public bulkWrite(): never {
-        throw this._newUnavailableError();
-    }
-
-    public search(): never {
-        throw this._newUnavailableError();
-    }
-
-    public searchWithoutReturningDocs(): never {
-        throw this._newUnavailableError();
-    }
-
-    public refresh(): never {
-        throw this._newUnavailableError();
-    }
-
-    public updateByQuery(): never {
-        throw this._newUnavailableError();
     }
 }

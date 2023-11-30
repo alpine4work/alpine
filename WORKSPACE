@@ -243,7 +243,9 @@ filegroup(
 )
 """,
     patch_args = ["-p1"],
-    patch_cmds = ["rm -rf plugins"],
+    # Remove all plugins except the KNN plugin. This improves local OpenSearch
+    # startup time since we don't need to load plugins.
+    patch_cmds = ["cd plugins && ls | grep -v knn | xargs rm -rf"],
     patches = ["//admin/patches:bazel/opensearch_local.patch"],
     sha256 = "8fd6cdd3d1385629033eabe14542df3a301399ee4a8151ab76fd2b20f75de12c",
     strip_prefix = "opensearch-2.11.0",

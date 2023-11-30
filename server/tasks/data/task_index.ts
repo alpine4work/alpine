@@ -13,6 +13,7 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
     OpensearchIndexTypeFlattenedKeysType,
+    OpensearchIndexTypeStoredFieldsType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
@@ -68,7 +69,8 @@ const TaskIndex = new OpensearchIndex<
     SpaceId,
     TaskId,
     OpensearchIndexTypeType<typeof TaskIndexDocType>,
-    OpensearchIndexTypeFlattenedKeysType<typeof TaskIndexDocType>
+    OpensearchIndexTypeFlattenedKeysType<typeof TaskIndexDocType>,
+    OpensearchIndexTypeStoredFieldsType<typeof TaskIndexDocType>
 >(TaskIndexDocType, {
     name: "tasks",
     numberOfShards: 12,
@@ -97,7 +99,8 @@ const TaskCollectionIndex = new OpensearchIndex<
     SpaceId,
     TaskCollectionId,
     OpensearchIndexTypeType<typeof TaskCollectionIndexDocType>,
-    OpensearchIndexTypeFlattenedKeysType<typeof TaskCollectionIndexDocType>
+    OpensearchIndexTypeFlattenedKeysType<typeof TaskCollectionIndexDocType>,
+    OpensearchIndexTypeStoredFieldsType<typeof TaskCollectionIndexDocType>
 >(TaskCollectionIndexDocType, {
     name: "task_collections",
     numberOfShards: 3,
@@ -377,31 +380,35 @@ class TaskActionTransactionIndexState {
             }
 
             await runAllPromises([
-                state._context.opensearch.client.bulkWrite(
-                    context.tracer.getTracer(),
-                    TaskIndex,
-                    spaceId,
-                    Array.from(state._updatedTaskIndexDocById, ([taskId, task]) => ({
-                        type: "IndexIfVersion",
-                        id: taskId,
-                        doc: task,
-                    })),
-                    {retryVersionConflictError: retry},
-                ),
-                state._context.opensearch.client.bulkWrite(
-                    context.tracer.getTracer(),
-                    TaskCollectionIndex,
-                    spaceId,
-                    Array.from(
-                        state._updatedCollectionIndexDocById,
-                        ([collectionId, collection]) => ({
-                            type: "IndexIfVersion",
-                            id: collectionId,
-                            doc: collection,
-                        }),
-                    ),
-                    {retryVersionConflictError: retry},
-                ),
+                state._updatedTaskIndexDocById.size > 0
+                    ? state._context.opensearch.client.bulk(
+                          context.tracer.getTracer(),
+                          TaskIndex,
+                          spaceId,
+                          Array.from(state._updatedTaskIndexDocById, ([taskId, task]) => ({
+                              type: "IndexIfVersion",
+                              id: taskId,
+                              doc: task,
+                          })),
+                          {retryPartialVersionConflictError: retry},
+                      )
+                    : null,
+                state._updatedCollectionIndexDocById.size > 0
+                    ? state._context.opensearch.client.bulk(
+                          context.tracer.getTracer(),
+                          TaskCollectionIndex,
+                          spaceId,
+                          Array.from(
+                              state._updatedCollectionIndexDocById,
+                              ([collectionId, collection]) => ({
+                                  type: "IndexIfVersion",
+                                  id: collectionId,
+                                  doc: collection,
+                              }),
+                          ),
+                          {retryPartialVersionConflictError: retry},
+                      )
+                    : null,
             ]);
 
             // After we've indexed our data, read all our referenced accounts again but
@@ -817,6 +824,7 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
                     async context => {
                         await wait(
                             taskIndexRefreshIntervalMs +
+                                // 1000ms added to protect against clock skew.
                                 1000 -
                                 // If we are retrying then subtract the time it took to run our
                                 // `updateByQuery()`s. This does assume `updateByQuery()` reads the index at
@@ -1049,7 +1057,7 @@ export async function searchTaskCollections(
 ): Promise<Array<TaskCollectionModelSearchResult>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const collections = await context.opensearch.client.searchWithoutReturningDocs(
+    const collections = await context.opensearch.client.searchWithoutSource(
         context.tracer.getTracer(),
         TaskCollectionIndex,
         spaceId,

@@ -1,10 +1,23 @@
+import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
     OpensearchIndexTypeFlattenedKeysType,
+    OpensearchIndexTypeStoredFieldsType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
-import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
-import {SearchEntityIndexDocType} from "~/server/search/data/internal/search_entity_index_doc.js";
+import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search_entity_job_description.js";
+import {SearchEntityId, printSearchEntityId} from "~/server/search/core/search_entity_id.js";
+import {getSearchEntity} from "~/server/search/data/internal/get_search_entity.js";
+import {
+    SearchEntityIndexDoc,
+    SearchEntityIndexDocType,
+} from "~/server/search/data/internal/search_entity_index_doc.js";
+import {SearchEntityIndexSystemActionContext} from "~/server/search/data/search_entity_index_system_action_context.js";
+import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {assert} from "~/shared/helpers/control/assert.js";
+import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {isDateLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
@@ -16,7 +29,8 @@ const SearchEntityIndex = new OpensearchIndex<
     SpaceId,
     `${SearchEntityId}:${number}`,
     OpensearchIndexTypeType<typeof SearchEntityIndexDocType>,
-    OpensearchIndexTypeFlattenedKeysType<typeof SearchEntityIndexDocType>
+    OpensearchIndexTypeFlattenedKeysType<typeof SearchEntityIndexDocType>,
+    OpensearchIndexTypeStoredFieldsType<typeof SearchEntityIndexDocType>
 >(SearchEntityIndexDocType, {
     name: "search_entities",
     numberOfShards: 12,
@@ -41,7 +55,7 @@ const SearchEntityIndex = new OpensearchIndex<
     //
     // 1. The `update`, `update_by_query`, and `reindex` APIs.
     // 2. On the fly highlighting.
-    // 3. The ability to reindex from one Elasticsearch index to another, either
+    // 3. The ability to reindex from one ElasticSearch index to another, either
     //    to change mappings or analysis, or to upgrade an index to a new major
     //    version.
     // 4. The ability to debug queries or aggregations by viewing the original
@@ -71,3 +85,140 @@ const SearchEntityIndex = new OpensearchIndex<
     // NOCOMMIT: Test that we can still highlight with no source
     disableSourceField: true,
 });
+
+// Make sure only the fields we expect to be stored are stored and nothing else
+// is stored.
+assertEqualTypes<
+    OpensearchIndexTypeStoredFieldsType<typeof SearchEntityIndexDocType>,
+    {
+        lastReadStartTime: Date;
+        lastReadEndTime: Date;
+        "data.title": string;
+        "data.body": string;
+    }
+>();
+
+/**
+ * Allow using the `SearchEntityIndex` directly in Jest unit tests.
+ */
+export function getSearchEntityIndexForTest() {
+    assert(import.meta.jest);
+    return SearchEntityIndex;
+}
+
+// NOCOMMIT: Implement
+//
+// const affectedDependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
+//
+// // NOCOMMIT: Wait!
+// void context.opensearch.client.searchWithoutSource(
+//     context.tracer.getTracer(),
+//     SearchEntityIndex,
+//     job.spaceId,
+//     {
+//         // NOCOMMIT: Pagination
+//         size: 5,
+//         query: {
+//             bool: {
+//                 filter: {
+//                     terms: {
+//                         "data.dependencyIds": new OpensearchQueryValue(affectedDependencyIds),
+//                     },
+//                 },
+//             },
+//         },
+//     },
+// );
+
+export async function processIndexSearchEntityJob(
+    context: SearchEntityIndexSystemActionContext,
+    jobSendTime: Date,
+    job: IndexSearchEntityJobDescription,
+) {
+    const docId: `${SearchEntityId}:${number}` = `${printSearchEntityId(job.update)}:0`;
+
+    await retryWithExponentialBackoff(async retry => {
+        const actualOldDoc = await context.opensearch.client.getDocWithoutSourceIfExists(
+            context.tracer.getTracer(),
+            SearchEntityIndex,
+            job.spaceId,
+            docId,
+            {storedFields: ["lastReadStartTime", "lastReadEndTime"]},
+        );
+
+        const oldDoc = actualOldDoc
+            ? {
+                  version: actualOldDoc.version,
+                  lastReadStartTime: assertExists(actualOldDoc.fields.lastReadStartTime?.[0]),
+                  lastReadEndTime: assertExists(actualOldDoc.fields.lastReadEndTime?.[0]),
+              }
+            : null;
+
+        // Is the doc currently in the search index sufficient for this indexing job?
+        // If true we can end the job without needing to save `newDoc` to the index.
+        //
+        // It is sufficient if the data in the index was read AFTER the job was sent to
+        // our queue. That means `oldDoc` includes the update our job wants to index.
+        //
+        // Useful optimization when there are multiple updates to the same entity being
+        // processed in parallel. Or when jobs updating the same entity are delayed.
+        const isOldDocSufficient =
+            !!oldDoc && isDateLessThanWithUncertaintyWindow(jobSendTime, oldDoc.lastReadStartTime);
+
+        if (isOldDocSufficient) return;
+
+        const readStartTime = new Date();
+        const {dependencyIds, entity} = await getSearchEntity(context, job.update);
+        const readEndTime = new Date();
+
+        // NOCOMMIT: Delete entities with no content? Is that possible?
+
+        const newDoc: OpensearchClientDocWithIdAndVersion<
+            `${SearchEntityId}:${number}`,
+            SearchEntityIndexDoc
+        > = {
+            id: `${printSearchEntityId(job.update)}:0`,
+            version: oldDoc?.version ?? null,
+            spaceId: job.spaceId,
+            type: job.update.type,
+            lastReadStartTime: readStartTime,
+            lastReadEndTime: readEndTime,
+            accessPolicy: entity.accessPolicy,
+            data: {
+                type: "Content",
+                dependencyIds: Array.from(dependencyIds),
+                title: entity.title,
+                body: entity.body,
+                // NOCOMMIT: Embedding chunks!
+                embeddingChunk: null,
+            },
+        };
+
+        // Is `newDoc` definitely newer than `oldDoc`?
+        //
+        // If two jobs are trying to update this entity concurrently and job A reads
+        // the entity's newest data and saves before job B we don't want job B to
+        // overwrite the new data.
+        //
+        // In order to know for certain that `newDoc` is indeed newer, we have to start
+        // reading `newDoc` AFTER `oldDoc` finished reading. Reading a search entity
+        // involves multiple underlying reads to different data sources. By comparing
+        // the `oldDoc` read end time to the `newDoc` read start time, we can be sure
+        // all underlying `newDoc` reads are indeed newer than `oldDoc`.
+        //
+        // If `newDoc` is not definitely newer than `oldDoc` we need to retry the job.
+        const isNewDocDefinitelyNewer =
+            !oldDoc ||
+            isDateLessThanWithUncertaintyWindow(oldDoc.lastReadEndTime, newDoc.lastReadStartTime);
+
+        if (!isNewDocDefinitelyNewer) retry();
+
+        await context.opensearch.client.bulk(
+            context.tracer.getTracer(),
+            SearchEntityIndex,
+            job.spaceId,
+            [{type: "IndexIfVersion", doc: newDoc}],
+            {retryPartialVersionConflictError: retry},
+        );
+    });
+}

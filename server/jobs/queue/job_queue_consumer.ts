@@ -1,10 +1,14 @@
 import {
     ChangeMessageVisibilityBatchCommand,
     DeleteMessageBatchCommand,
+    Message,
     ReceiveMessageCommand,
     SQSClient,
 } from "@aws-sdk/client-sqs";
-import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
+import {
+    DynamoActorContextModule,
+    DynamoSystemActorContextModule,
+} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
 import {
     ServerProcessContext,
@@ -13,14 +17,23 @@ import {
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
+import {
+    JobQueueSystemActionContext,
+    JobQueueSystemActionContextModules,
+} from "~/server/jobs/queue/job_queue_system_action_context.js";
 import {processJob} from "~/server/jobs/queue/process_job.js";
+import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
+import {TokenAgentBase} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {CancelledError, UnknownError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export const receiveMessageTestCounter = new TestCounter<void>();
 export const deleteMessageBatchTestCounter = new TestCounter<void>();
@@ -85,6 +98,8 @@ const stopError = new CancelledError("Job queue consumer stopped");
  */
 export class JobQueueConsumer {
     private readonly _processContext: ServerProcessContext;
+    private readonly _tokenAgent: TokenAgentBase;
+    private readonly _taskRealtimeServiceRouter: TaskRealtimeServiceRouterBase;
     private readonly _queueUrl: string;
     private readonly _sqsClient: SQSClient;
 
@@ -93,8 +108,21 @@ export class JobQueueConsumer {
     private _runningConsumeCallCount = 0;
     private _hasPendingConsumeCall = false;
 
-    private constructor(context: ServerProcessContext, {queueUrl}: {queueUrl: string}) {
+    private constructor(
+        context: ServerProcessContext,
+        {
+            tokenAgent,
+            taskRealtimeServiceRouter,
+            queueUrl,
+        }: {
+            tokenAgent: TokenAgentBase;
+            taskRealtimeServiceRouter: TaskRealtimeServiceRouterBase;
+            queueUrl: string;
+        },
+    ) {
         this._processContext = context;
+        this._tokenAgent = tokenAgent;
+        this._taskRealtimeServiceRouter = taskRealtimeServiceRouter;
         this._queueUrl = queueUrl;
         this._sqsClient = new SQSClient({endpoint: new URL("/", queueUrl).toString()});
     }
@@ -102,6 +130,8 @@ export class JobQueueConsumer {
     public static start(
         context: ServerProcessContext,
         options: {
+            tokenAgent: TokenAgentBase;
+            taskRealtimeServiceRouter: TaskRealtimeServiceRouterBase;
             queueUrl: string;
             region: string;
         },
@@ -160,75 +190,11 @@ export class JobQueueConsumer {
             }> = messages.map(message => {
                 const receiptHandle = assertExists(message.ReceiptHandle);
 
-                const promise = (async () => {
-                    const messageBody = JobQueueMessageBodySchema.deserialize(
-                        JSON.parse(assertExists(message.Body)),
-                    );
-
-                    const {span, finishSpan} = this._processContext.tracer
-                        .getRoot()
-                        .startSpanFromPropagationContextAsLinked(
-                            `Process job ${messageBody.job.type}`,
-                            messageBody.tracerContext,
-                        );
-
-                    span.addData({
-                        aws: {sqs: {messageId: message.MessageId}},
-                        jobs: {
-                            type: messageBody.job.type,
-                            batchSize: messages.length,
-                            delaySeconds: messageBody.delaySeconds,
-                            queueDurationMs:
-                                currentTime -
-                                messageBody.sendTime.getTime() -
-                                // Don't include the delay in queue duration. The delay is intentional. We want
-                                // to measure overall queue health. Ideally the queue duration should be as
-                                // close to zero as possible.
-                                messageBody.delaySeconds * 1000,
-                        },
-                    });
-
-                    try {
-                        await this._processContext.with<
-                            | Omit<
-                                  ServerSystemActionContextModules,
-                                  keyof ServerProcessContextModules
-                              > & {tracer: TracerContextModule},
-                            void
-                        >(
-                            {
-                                tracer: new TracerContextModule(span),
-                                cache: new CacheContextModule(),
-                                dynamoBatchContext: new DynamoBatchContextModule(),
-                                // We're ok dangerously creating a space system actor here since we use AWS IAM
-                                // policies to only allow our services to send messages to our SQS queue. So we
-                                // can trust job objects to not be malicious.
-                                //
-                                // It's different for HTTP servers with routes to the public internet! For
-                                // those we need to be more careful and make sure we include a signed token to
-                                // correctly identify our services.
-                                actor: DynamoSystemActorContextModule.dangerouslyNew(
-                                    "JobQueueService",
-                                    messageBody.job.spaceId,
-                                ),
-                            },
-                            actionContext => processJob(actionContext, messageBody.job),
-                        );
-
-                        finishSpan();
-                    } catch (error) {
-                        // When there's an error processing a job in development, log an error so the
-                        // user can see it in the console since they might not see it in the UI.
-                        if (process.env.NODE_ENV !== "development") {
-                            // eslint-disable-next-line no-console
-                            console.error("Job processing failed:", error);
-                        }
-
-                        span.addException(error);
-                        finishSpan();
-                        throw error;
-                    }
-                })();
+                const promise = this._process({
+                    message,
+                    currentTime,
+                    messageBatchSize: messages.length,
+                });
 
                 return {
                     receiptHandle,
@@ -360,8 +326,8 @@ export class JobQueueConsumer {
                 // https://github.com/awslabs/smithy-typescript/blob/a4b58b32ac2ae778917e276ba381527f551c2d3d/packages/node-http-handler/src/node-http-handler.ts#L170-L179
                 (error instanceof Error && error.name === "AbortError")
             ) {
-                // Ignore stop errors. Cancelling receive message commands when `stop()` is
-                // called is expected.
+                // Ignore errors thrown by `AbortController` when `stop()` is called.
+                // Cancelling receive message commands when `stop()` is called is expected.
             } else {
                 throw error;
             }
@@ -380,6 +346,135 @@ export class JobQueueConsumer {
             if (!this._isStopped && this._runningConsumeCallCount === 0) {
                 this._processContext.process.waitUntil(this._consume());
             }
+        }
+    }
+
+    private async _process({
+        message,
+        currentTime,
+        messageBatchSize,
+    }: {
+        message: Message;
+        currentTime: number;
+        messageBatchSize: number;
+    }) {
+        const messageBody = JobQueueMessageBodySchema.deserialize(
+            JSON.parse(assertExists(message.Body)),
+        );
+
+        const {span, finishSpan} = this._processContext.tracer
+            .getRoot()
+            .startSpanFromPropagationContextAsLinked(
+                `Process job ${messageBody.job.type}`,
+                messageBody.tracerContext,
+            );
+
+        span.addData({
+            aws: {sqs: {messageId: message.MessageId}},
+            jobs: {
+                type: messageBody.job.type,
+                batchSize: messageBatchSize,
+                delaySeconds: messageBody.delaySeconds,
+                queueDurationMs:
+                    currentTime -
+                    messageBody.sendTime.getTime() -
+                    // Don't include the delay in queue duration. The delay is intentional. We want
+                    // to measure overall queue health. Ideally the queue duration should be as
+                    // close to zero as possible.
+                    messageBody.delaySeconds * 1000,
+            },
+        });
+
+        try {
+            // Jobs are already processed in a system context so this isn't actually an
+            // escalation but we still need it for compatibility.
+            //
+            // It's important we use new caches + batchers here. We don't want to load some
+            // data at a higher permission level then let the session context see it. So we
+            // derive our new context from the process context to help avoid reusing any
+            // request-level caches.
+            const dangerouslyEscalateToSystemContext = <Value>(
+                context: Context<{
+                    tracer: TracerContextModule;
+                    actor: DynamoActorContextModule;
+                    cache: CacheContextModule;
+                }>,
+                spaceId: SpaceId,
+                action: (context: JobQueueSystemActionContext) => Promise<Value>,
+            ): Promise<Value> => {
+                return this._processContext.with<
+                    Omit<
+                        ServerSystemActionContextModules,
+                        Exclude<keyof ServerProcessContextModules, "tracer">
+                    > & {
+                        tasks: TaskContextModule;
+                    },
+                    Value
+                >(
+                    {
+                        tracer: new TracerContextModule(context.tracer.getTracer()),
+                        // Optimization: Share some caches that opt-in to sharing with the session
+                        // context. This is dangerous since we don't want to let system data leak into
+                        // session actions and vice-versa. We trust the cache author to make the right
+                        // determination about their cache.
+                        cache: context.cache.dangerouslyForkWithSharedCaches(),
+                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        actor: DynamoSystemActorContextModule.dangerouslyNew(
+                            context.actor.serviceName,
+                            spaceId,
+                        ),
+                        tasks: new TaskContextModule({
+                            tokenAgent: this._tokenAgent,
+                            router: this._taskRealtimeServiceRouter,
+                            dangerouslyEscalateToSystemContext,
+                        }),
+                    },
+                    action,
+                );
+            };
+
+            await this._processContext.with<
+                Omit<JobQueueSystemActionContextModules, keyof ServerProcessContextModules> & {
+                    tracer: TracerContextModule;
+                },
+                void
+            >(
+                {
+                    tracer: new TracerContextModule(span),
+                    cache: new CacheContextModule(),
+                    dynamoBatchContext: new DynamoBatchContextModule(),
+                    // We're ok dangerously creating a space system actor here since we use AWS IAM
+                    // policies to only allow our services to send messages to our SQS queue. So we
+                    // can trust job objects to not be malicious.
+                    //
+                    // It's different for HTTP servers with routes to the public internet! For
+                    // those we need to be more careful and make sure we include a signed token to
+                    // correctly identify our services.
+                    actor: DynamoSystemActorContextModule.dangerouslyNew(
+                        "JobQueueService",
+                        messageBody.job.spaceId,
+                    ),
+                    tasks: new TaskContextModule({
+                        tokenAgent: this._tokenAgent,
+                        router: this._taskRealtimeServiceRouter,
+                        dangerouslyEscalateToSystemContext,
+                    }),
+                },
+                actionContext => processJob(actionContext, messageBody),
+            );
+
+            finishSpan();
+        } catch (error) {
+            // When there's an error processing a job in development, log an error so the
+            // user can see it in the console since they might not see it in the UI.
+            if (process.env.NODE_ENV !== "development") {
+                // eslint-disable-next-line no-console
+                console.error("Job processing failed:", error);
+            }
+
+            span.addException(error);
+            finishSpan();
+            throw error;
         }
     }
 }

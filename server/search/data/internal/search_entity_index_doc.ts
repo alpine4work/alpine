@@ -3,6 +3,7 @@ import {OpensearchIndexAnalysisCustomFilter} from "~/server/opensearch/opensearc
 import {
     OpensearchIndexArrayType,
     OpensearchIndexByteType,
+    OpensearchIndexDateType,
     OpensearchIndexIntegerType,
     OpensearchIndexKeywordType,
     OpensearchIndexKnnVectorType,
@@ -178,7 +179,7 @@ const SearchEntityIndexContentDataType = OpensearchIndexObjectType.new({
         dependencyIds: new OpensearchIndexArrayType(
             new OpensearchIndexKeywordType({
                 isFilterable: true,
-            }) as OpensearchIndexTypeBase<SearchEntityDependencyId, "this">,
+            }) as OpensearchIndexTypeBase<SearchEntityDependencyId, "this", {}>,
         ),
 
         /**
@@ -190,7 +191,16 @@ const SearchEntityIndexContentDataType = OpensearchIndexObjectType.new({
          */
         title: new OpensearchIndexSearchAsYouTypeType({
             analyzer: opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
-        }).nullable(),
+            // For efficient highlighting we need to include term offsets in the index.
+            // Otherwise the text needs to be reanalyzed at search time which increases the
+            // time a search takes.
+            //
+            // See: https://opensearch.org/docs/latest/search-plugins/searching-data/highlight/#methods-of-obtaining-offsets
+            indexOptions: "offsets",
+        })
+            .nullable()
+            // Store the title so we can highlight it.
+            .store(),
 
         /**
          * For body text analysis we manually recreate the [OpenSearch
@@ -209,6 +219,12 @@ const SearchEntityIndexContentDataType = OpensearchIndexObjectType.new({
          */
         body: new OpensearchIndexTextType({
             analyzer: opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
+            // For efficient highlighting we need to include term offsets in the index.
+            // Otherwise the text needs to be reanalyzed at search time which increases the
+            // time a search takes.
+            //
+            // See: https://opensearch.org/docs/latest/search-plugins/searching-data/highlight/#methods-of-obtaining-offsets
+            indexOptions: "offsets",
             fields: {
                 _2gram: new OpensearchIndexTextType({
                     analyzer: opensearchIndexEnglishWithWordDelimiterGraphAnalyzer.extend(
@@ -249,7 +265,10 @@ const SearchEntityIndexContentDataType = OpensearchIndexObjectType.new({
                     ),
                 }),
             },
-        }).nullable(),
+        })
+            .nullable()
+            // Store the body so we can highlight it.
+            .store(),
 
         /**
          * The first embedding chunk is included in the entity doc in our search index
@@ -264,15 +283,17 @@ export type SearchEntityIndexDoc = OpensearchIndexTypeType<typeof SearchEntityIn
 
 export const SearchEntityIndexDocType = OpensearchIndexObjectType.new({
     fields: {
-        // The space this entity is in. We also use the `SpaceId` as the routing value
-        // for `SearchIndex`. Why do we also need it here? For index sorting. We want to
-        // sort the OpenSearch index by space. So it's efficient to filter for entities
-        // in a space. The documentation is unclear on whether the routing field is
-        // included in index sorting so we manually have an identical `spaceId` field
-        // that's part of index sorting.
-        //
-        // We recommend filtering on both `spaceId` and the routing field to make sure
-        // index sorting optimizations kick in.
+        /**
+         * The space this entity is in. We also use the `SpaceId` as the routing value
+         * for `SearchIndex`. Why do we also need it here? For index sorting. We want to
+         * sort the OpenSearch index by space. So it's efficient to filter for entities
+         * in a space. The documentation is unclear on whether the routing field is
+         * included in index sorting so we manually have an identical `spaceId` field
+         * that's part of index sorting.
+         *
+         * We recommend filtering on both `spaceId` and the routing field to make sure
+         * index sorting optimizations kick in.
+         */
         spaceId: new OpensearchIndexKeywordType({
             isFilterable: true,
             isSortable: true,
@@ -282,6 +303,24 @@ export const SearchEntityIndexDocType = OpensearchIndexObjectType.new({
             isFilterable: true,
             isSortable: true,
         }),
+
+        /**
+         * The last time where we started the read that produced this search entity.
+         *
+         * We use this to resolve conflicts when we have two jobs trying to index the
+         * same entity at once. We only want to index a search entity if we absolutely
+         * know its data is newer than what's in our index.
+         */
+        lastReadStartTime: new OpensearchIndexDateType().store(),
+
+        /**
+         * The last time where we ended the read that produced this search entity.
+         *
+         * We use this to resolve conflicts when we have two jobs trying to index the
+         * same entity at once. We only want to index a search entity if we absolutely
+         * know its data is newer than what's in our index.
+         */
+        lastReadEndTime: new OpensearchIndexDateType().store(),
 
         accessPolicy: SearchEntityIndexAccessPolicyType,
 

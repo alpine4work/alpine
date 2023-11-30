@@ -4,9 +4,12 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "data",
     test_deps = [
+        "//server/documents/test_helpers",
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
+        "//server/tasks/test_helpers",
     ],
+    visibility = ["//server/job/queue:__pkg__"],
     deps = [
         ":data_data",
         "//:node_modules/@types/fs-extra",

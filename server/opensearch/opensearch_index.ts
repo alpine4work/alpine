@@ -9,6 +9,7 @@ import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
+import {isIdentifier} from "~/shared/helpers/string/is_identifier.js";
 import {JsonObjectValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 
 export type OpensearchIndexConfig<FlattenedKeys extends string> = {
@@ -78,17 +79,22 @@ export function omitOpensearchStaticIndexConfig(config: OpensearchIndexConfig<st
     };
 }
 
-export type OpensearchIndexRoutingType<Index extends OpensearchIndex<any, any, any, any>> =
-    Index extends OpensearchIndex<infer Routing, any, any, any> ? Routing : never;
+export type OpensearchIndexRoutingType<Index extends OpensearchIndex<any, any, any, any, any>> =
+    Index extends OpensearchIndex<infer Routing, any, any, any, any> ? Routing : never;
 
-export type OpensearchIndexDocIdType<Index extends OpensearchIndex<any, any, any, any>> =
-    Index extends OpensearchIndex<any, infer DocId, any, any> ? DocId : never;
+export type OpensearchIndexDocIdType<Index extends OpensearchIndex<any, any, any, any, any>> =
+    Index extends OpensearchIndex<any, infer DocId, any, any, any> ? DocId : never;
 
-export type OpensearchIndexDocType<Index extends OpensearchIndex<any, any, any, any>> =
-    Index extends OpensearchIndex<any, any, infer Doc, any> ? Doc : never;
+export type OpensearchIndexDocType<Index extends OpensearchIndex<any, any, any, any, any>> =
+    Index extends OpensearchIndex<any, any, infer Doc, any, any> ? Doc : never;
 
-export type OpensearchIndexFlattenedKeysType<Index extends OpensearchIndex<any, any, any, any>> =
-    Index extends OpensearchIndex<any, any, any, infer FlattenedKeys> ? FlattenedKeys : never;
+export type OpensearchIndexFlattenedKeysType<
+    Index extends OpensearchIndex<any, any, any, any, any>,
+> = Index extends OpensearchIndex<any, any, any, infer FlattenedKeys, any> ? FlattenedKeys : never;
+
+export type OpensearchIndexStoredFieldsType<
+    Index extends OpensearchIndex<any, any, any, any, any>,
+> = Index extends OpensearchIndex<any, any, any, any, infer StoredFields> ? StoredFields : never;
 
 export type OpensearchIndexConfigBuilder = {
     addCustomAnalyzer(analyzer: OpensearchIndexAnalysisCustomAnalyzer): void;
@@ -100,8 +106,9 @@ export class OpensearchIndex<
     DocId extends string,
     Doc,
     FlattenedKeys extends string,
+    StoredFields extends {[key: string]: unknown},
 > {
-    public readonly type: OpensearchIndexObjectType<Doc, FlattenedKeys>;
+    public readonly type: OpensearchIndexObjectType<Doc, FlattenedKeys, StoredFields>;
     public readonly name: string;
     public readonly config: OpensearchIndexConfig<FlattenedKeys>;
 
@@ -111,7 +118,7 @@ export class OpensearchIndex<
     private readonly _docId?: DocId;
 
     constructor(
-        type: OpensearchIndexObjectType<Doc, FlattenedKeys>,
+        type: OpensearchIndexObjectType<Doc, FlattenedKeys, StoredFields>,
         {
             name,
             numberOfShards,
@@ -234,6 +241,8 @@ export class OpensearchIndex<
             disableSourceField?: boolean;
         },
     ) {
+        assert(isIdentifier(name));
+
         this.type = type;
         this.name = name;
 
@@ -267,7 +276,15 @@ export class OpensearchIndex<
             },
         };
 
-        const typeConfig = omitObject(type.getConfig(builder), ["type"]);
+        const typeConfig = omitObject(
+            type.getConfig(
+                builder,
+                // Type combinators may modify this to store specific fields but by default no
+                // fields are stored.
+                {shouldStoreFields: false},
+            ),
+            ["type"],
+        );
 
         const customAnalyzerDefinitionByName = new Map<string, JsonValue>();
         const customFilterDefinitionByName = new Map<string, JsonValue>();

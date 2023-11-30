@@ -6,6 +6,7 @@ ts_project(
     deps = [
         "//server/jobs/core",
         "//server/node",
+        "//server/search/data",
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",

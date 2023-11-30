@@ -64,7 +64,7 @@ export type DynamoGeneralRealtimeIndexQueryResult<Model> = {
      * When did the read for this data start? When we connect to realtime on the
      * client we should load all changes between the `readTime` and the current
      * time in case the item updated while we were disconnected from realtime. In
-     * practice we read from `readTime - 10min` to the current time to handle clock
+     * practice we read from `readTime - 3min` to the current time to handle clock
      * skew and eventually consistent reads.
      */
     readonly readTime: Date;

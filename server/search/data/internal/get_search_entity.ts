@@ -11,7 +11,11 @@ import {
     getPostContentAndChannel,
 } from "~/server/forum/data/forum_table.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
-import {SearchEntityId, SearchEntityIdObject} from "~/server/search/core/search_entity_id.js";
+import {
+    SearchEntityId,
+    SearchEntityIdObject,
+    printSearchEntityId,
+} from "~/server/search/core/search_entity_id.js";
 import {chunkSearchContent} from "~/server/search/data/internal/chunk_search_content.js";
 import {CohereEnglishLightLanguageModel} from "~/server/search/data/internal/cohere_english_light_language_model.js";
 import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
@@ -36,6 +40,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {
     AccountId,
@@ -279,17 +284,25 @@ export async function getSearchEntity(
     context: SearchEntityIndexSystemActionContext,
     idObject: SearchEntityIdObject,
 ): Promise<{
-    dependencyIds: ReadonlySet<SearchEntityDependencyId>;
+    id: SearchEntityId;
+    dependencyIds: Iterable<SearchEntityDependencyId>;
     entity: SearchEntity;
 }> {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const id = printSearchEntityId(idObject);
 
+    const model = await CohereEnglishLightLanguageModel.get();
     const state = new SearchEntityReadState(context, model);
 
     const entity = await actuallyGetSearchEntity(state, idObject);
 
     return {
-        dependencyIds: state.getDependencyIds(),
+        id,
+        dependencyIds: filterIterable(
+            state.getDependencyIds(),
+            // The dependency on the entity we're reading is implicit. Exclude it from the
+            // `dependencyIds` we return.
+            dependencyId => !dependencyId.startsWith(id),
+        ),
         entity,
     };
 }

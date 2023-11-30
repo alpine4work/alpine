@@ -1,7 +1,7 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {getFullSearchContentChunk} from "~/server/search/data/internal/chunk_search_content.js";
 import {CohereEnglishLightLanguageModel} from "~/server/search/data/internal/cohere_english_light_language_model.js";
-import {chunkDocumentSearchContent} from "~/server/search/data/internal/index_search_entity.js";
+import {chunkDocumentSearchContent} from "~/server/search/data/internal/get_search_entity.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {

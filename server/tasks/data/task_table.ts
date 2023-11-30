@@ -1269,7 +1269,7 @@ class TaskActionTransactionCommitState {
      * point in the past (maybe they are syncing offline updates) but they may not
      * specify a change time too far in the future.
      *
-     * We provide some wiggle room to account for clock skew. It's recommended that
+     * We provide some wiggle room to account for clock skew. It's required that
      * clients use NTP to get a time (through our `/api/time` route implemented in
      * `EdgeService`) that's consistent with other clients instead of relying on
      * the device clock.

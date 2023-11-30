@@ -1,5 +1,4 @@
 import {createHash} from "crypto";
-import {subDays} from "date-fns";
 import murmurhash from "murmurhash";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
 import {getMentionedAccountIdsInContent} from "~/server/content/get_mentioned_account_ids_in_content.js";
@@ -34,6 +33,7 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDateLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {asyncIterableFromIterable} from "~/shared/helpers/iterable/async_iterable_from_iterable.js";
 import {parallelFilterMapLimitAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_filter_map_limit_async_iterable_to_array.js";
@@ -1963,12 +1963,7 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
     // If our last change item has expired then other relevant changelog entries
     // may have also expired. The client will need to fully reset its state since
     // we don't have the data necessary to backfill.
-    //
-    // We subtract one day from the expiration time in this check in case our clock
-    // disagrees with DynamoDB's time-to-live clock (clock skew). If our clock is
-    // ahead and we believe an item exists that DynamoDB has in fact deleted that
-    // would be sad. One day feels like sufficient clock skew buffer.
-    if (subDays(lastMessageChangeExpirationTime, 1).getTime() < Date.now())
+    if (isDateLessThanWithUncertaintyWindow(lastMessageChangeExpirationTime, new Date()))
         return {type: "Unavailable"};
 
     const changes = await parallelMapAsyncIterableToArray(

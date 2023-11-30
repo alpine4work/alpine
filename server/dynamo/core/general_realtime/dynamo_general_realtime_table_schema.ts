@@ -30,6 +30,7 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDateLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {parallelMapAsyncIterableToArray} from "~/shared/helpers/iterable/parallel_map_async_iterable_to_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -1169,16 +1170,14 @@ export class DynamoGeneralRealtimeTableSchema<
         // means we can't backfill reads that ocurred before this time.
         const expiredEventsTime = subDays(
             new Date(),
-            // Subtract one day to deal with clock skew between our process and DynamoDB.
-            // So for a day there will be events that are not eligible for expiration yet
-            // but also won't be used for backfilling.
-            dynamoGeneralRealtimePrivatePartitionEventExpirationDays - 1,
+            dynamoGeneralRealtimePrivatePartitionEventExpirationDays,
         );
 
         // If our read happened before the expiration time, we may be missing some
         // events that happened between the read and now. The client should fully
         // reload their query in response.
-        if (readTime.getTime() < expiredEventsTime.getTime()) return {type: "Unavailable"};
+        if (isDateLessThanWithUncertaintyWindow(readTime, expiredEventsTime))
+            return {type: "Unavailable"};
 
         // We backfill realtime updates to `newReadTime` so it should be before the
         // data is read from the database to avoid missing realtime updates.

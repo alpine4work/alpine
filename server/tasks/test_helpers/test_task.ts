@@ -103,6 +103,18 @@ export class TestTask {
         });
     }
 
+    /**
+     * Creates an action including an instance of `TaskContextModuleBase`.
+     */
+    public static systemAction(space: TestSpace) {
+        return space.systemAction().clone({
+            tasks: new TestTaskContextModule({
+                shouldSkipIndexing: !space.context.isOpensearchEnabled,
+                dangerouslyEscalateToSystemContext: space.context.escalateToSystemContext,
+            }),
+        });
+    }
+
     public getItem(): Promise<TaskEssentialAttributesItem> {
         return getTaskItemForTest(this.context, this.id);
     }

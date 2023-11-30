@@ -34,11 +34,11 @@ import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {NoopNotificationsContextModule} from "~/server/notifications/core/noop_notifications_context_module.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {
-    OpensearchContextModule,
+    OpensearchClient,
     TestDisabledOpensearchClient,
-} from "~/server/opensearch/opensearch_context_module.js";
+} from "~/server/opensearch/opensearch_client.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";

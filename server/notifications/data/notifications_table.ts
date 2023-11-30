@@ -1307,11 +1307,10 @@ export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint
  * Processes a notification generating event by fanning out to subscriber
  * inboxes and notification destinations (like email or mobile push
  * notifications).
- *
- * This function is idempotent. You can call it many times for the same
- * notification event. Important since the function is used in at-least-once
- * delivery queues.
  */
+// NOCOMMIT: Should I move notification event processing to the job queue? This
+// function is not idempotent. It would need some defenses to become
+// idempotent.
 export async function processNotificationEvent(
     context: Context<
         ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
@@ -1355,19 +1354,20 @@ function actuallyProcessNotificationEvent(
  * - Implements notification fan-out
  */
 function createNotificationEventProcessor<Event extends NotificationEvent, Info>({
-    getSubscribersWithStrongReadConsistency,
+    getSubscribers,
     updateInboxEntry,
 }: {
     /**
      * Get the accounts subscribed to notifications for this event.
      *
-     * Named `getSubscribersWithStrongReadConsistency` to force implementors to make
-     * sure their reads are strongly consistent.
+     * IMPORTANT: This function needs read-after-write consistency which means you
+     * can't make eventually consistent reads. If reading from DynamoDB, always
+     * make sure to explicitly use `Strong` consistency.
      *
-     * We need to use strong read consistency when getting subscribers so we don't
-     * miss any subscribers added as a part of the notification event.
+     * We need read-after-write consistency since the update which caused a
+     * notification event may have just itself added a subscriber.
      */
-    getSubscribersWithStrongReadConsistency: (
+    getSubscribers: (
         context: Context<
             ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}
         >,
@@ -1406,10 +1406,7 @@ function createNotificationEventProcessor<Event extends NotificationEvent, Info>
                 },
             });
 
-            const {info, accountIds} = await getSubscribersWithStrongReadConsistency(
-                context,
-                event,
-            );
+            const {info, accountIds} = await getSubscribers(context, event);
 
             await runAllPromises(
                 mapIterable(accountIds, async accountOrMentionId => {
@@ -1613,7 +1610,7 @@ const processNotificationCreateChatMessageEvent = createNotificationEventProcess
     NotificationCreateChatMessageEvent,
     {spaceId: SpaceId; accountIds: ReadonlyArray<AccountId>}
 >({
-    getSubscribersWithStrongReadConsistency: async (context, event) => {
+    getSubscribers: async (context, event) => {
         const {spaceId, accountIds} = await getChatAccountIds(context, event.chatId, {
             consistency: "Strong",
         });
@@ -1761,7 +1758,7 @@ const processNotificationCreatePostCommentEvent = createNotificationEventProcess
     NotificationCreatePostCommentEvent,
     {postCreatedTime: Date}
 >({
-    getSubscribersWithStrongReadConsistency: async (context, event) => {
+    getSubscribers: async (context, event) => {
         const {accountIds, postCreatedTime} = await getPostNotificationSubscribers(
             context,
             event.postId,
@@ -1871,7 +1868,7 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
     NotificationCreatePostEvent,
     {}
 >({
-    getSubscribersWithStrongReadConsistency: async (context, event) => {
+    getSubscribers: async (context, event) => {
         // TODO(calebmer): For now, until we implement channel subscriptions, every
         // account gets a notification for any new post in every channel. When we have
         // channel subscriptions, a mention should deliver a notification regardless of
@@ -1968,7 +1965,7 @@ const processNotificationCreateDocumentCommentEvent = createNotificationEventPro
     NotificationCreateDocumentCommentEvent,
     {}
 >({
-    getSubscribersWithStrongReadConsistency: async (context, event) => {
+    getSubscribers: async (context, event) => {
         const {accountIds} = await getDocumentCommentThreadNotificationSubscribers(context, {
             documentId: event.documentId,
             commentThreadId: event.commentThreadId,
