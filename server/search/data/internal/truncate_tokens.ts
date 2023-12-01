@@ -1,10 +1,14 @@
-import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
+import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
 
 /**
  * Truncate some text to the specified number of tokens. If the text was truncated
  * we include `…` at the end to signal truncation.
  */
-export function truncateTokens(model: LanguageModelBase, text: string, tokenCount: number): string {
+export function truncateTokens(
+    tokenizer: CohereEmbedEnglishV3Tokenizer,
+    text: string,
+    tokenCount: number,
+): string {
     // If we split between spaces, each part is one or more tokens. So slicing down
     // to `tokenCount` parts is an optimization that leaves us with the biggest
     // possible substring that fits in `tokenCount` tokens.
@@ -25,7 +29,7 @@ export function truncateTokens(model: LanguageModelBase, text: string, tokenCoun
         truncatedText =
             textParts.join(" ") + (originalTextParts.length > textParts.length ? "…" : "");
 
-        if (model.countTokens(truncatedText) <= tokenCount) {
+        if (tokenizer.countTokens(truncatedText) <= tokenCount) {
             break;
         }
 

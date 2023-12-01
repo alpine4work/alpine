@@ -267,16 +267,65 @@ http_file(
 #                                   Cohere                                    #
 # =========================================================================== #
 
+# NOTE(calebmer): It appears that Hugging Face only allows you to download
+# individual files from their URL. I'd love to download a full directory as a
+# `.tar.gz` but that doesn't seem like an option.
 http_file(
-    name = "cohere_embed_english_light_v3_0_tokenizer_config",
+    name = "cohere_embed_english_v3_tokenizer_config",
     downloaded_file_path = "tokenizer_config.json",
-    sha256 = "8add36e54b823757656aa9e216c9552cdbce9d7ddfffb45a35fa6d6dbf361370",
-    url = "https://huggingface.co/Cohere/Cohere-embed-english-light-v3.0/resolve/af99964c9f9b5356e7c690bec577743df457fcb2/tokenizer_config.json",
+    url = "https://huggingface.co/Cohere/Cohere-embed-english-v3.0/resolve/a73b09960122f77a78083ff79084162793ed9c39/tokenizer_config.json",
 )
 
 http_file(
-    name = "cohere_embed_english_light_v3_0_tokenizer",
+    name = "cohere_embed_english_v3_tokenizer",
     downloaded_file_path = "tokenizer.json",
-    sha256 = "243655762254d2a961c98b2b8b9d5783dfdb66ff0be4dee94207fb94b35938a0",
-    url = "https://huggingface.co/Cohere/Cohere-embed-english-light-v3.0/resolve/af99964c9f9b5356e7c690bec577743df457fcb2/tokenizer.json",
+    url = "https://huggingface.co/Cohere/Cohere-embed-english-v3.0/resolve/a73b09960122f77a78083ff79084162793ed9c39/tokenizer.json",
+)
+
+# =========================================================================== #
+#                              all-MiniLM-L6-v2                               #
+# =========================================================================== #
+
+# This is the language model we run locally in development and test
+# environments. It avoids charges from our production language model provider
+# (Cohere). We use `all-MiniLM-L6-v2` which is a small, locally runnable, model
+# that (as of 2023-11-30) is ranked 50 (out of 121) on the [MTEB Hugging Face
+# leaderboard][1].
+#
+# Specifically we use [`Xenova/all-MiniLM-L6-v2`][2] on Hugging Face which is a
+# fork of the original model with some extra data to be compatible with
+# Transformers.js (so we can run the model in JavaScript).
+#
+# [1]: https://huggingface.co/spaces/mteb/leaderboard
+# [2]: https://huggingface.co/Xenova/all-MiniLM-L6-v2
+
+# NOTE(calebmer): It appears that Hugging Face only allows you to download
+# individual files from their URL. I'd love to download a full directory as a
+# `.tar.gz` but that doesn't seem like an option.
+http_file(
+    name = "all_mini_lm_l6_v2_tokenizer_config",
+    downloaded_file_path = "tokenizer_config.json",
+    sha256 = "9261e7d79b44c8195c1cada2b453e55b00aeb81e907a6664974b4d7776172ab3",
+    url = "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/3f2acba6462e3d3b009664b530c4de07dd85b448/tokenizer_config.json",
+)
+
+http_file(
+    name = "all_mini_lm_l6_v2_tokenizer",
+    downloaded_file_path = "tokenizer.json",
+    sha256 = "da0e79933b9ed51798a3ae27893d3c5fa4a201126cef75586296df9b4d2c62a0",
+    url = "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/3f2acba6462e3d3b009664b530c4de07dd85b448/tokenizer.json",
+)
+
+http_file(
+    name = "all_mini_lm_l6_v2_config",
+    downloaded_file_path = "config.json",
+    sha256 = "7135149f7cffa1a573466c6e4d8423ed73b62fd2332c575bf738a0d033f70df7",
+    url = "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/3f2acba6462e3d3b009664b530c4de07dd85b448/config.json",
+)
+
+http_file(
+    name = "all_mini_lm_l6_v2_onnx_model_quantized",
+    downloaded_file_path = "onnx/model_quantized.onnx",
+    sha256 = "afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1",
+    url = "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/3f2acba6462e3d3b009664b530c4de07dd85b448/onnx/model_quantized.onnx",
 )

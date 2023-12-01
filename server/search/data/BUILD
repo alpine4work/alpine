@@ -21,6 +21,7 @@ ts_project(
         "//server/documents/data",
         "//server/forum/data",
         "//server/helpers/node",
+        "//server/language_models/cohere_embed_english_v3",
         "//server/opensearch",
         "//server/search/core",
         "//server/tasks/data",
@@ -34,11 +35,11 @@ ts_project(
 js_library(
     name = "data_data",
     data = [
-        "@cohere_embed_english_light_v3_0_tokenizer//file",
-        "@cohere_embed_english_light_v3_0_tokenizer_config//file",
+        "@cohere_embed_english_v3_tokenizer//file",
+        "@cohere_embed_english_v3_tokenizer_config//file",
     ],
     no_copy_to_bin = [
-        "@cohere_embed_english_light_v3_0_tokenizer//file",
-        "@cohere_embed_english_light_v3_0_tokenizer_config//file",
+        "@cohere_embed_english_v3_tokenizer//file",
+        "@cohere_embed_english_v3_tokenizer_config//file",
     ],
 )

@@ -1,6 +1,6 @@
 import natural from "natural";
 import {Fragment, Mark, Node} from "prosemirror-model";
-import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
+import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
@@ -59,11 +59,11 @@ function mapRecursiveIterable<Value, NewValue>(
 export async function chunkSearchContent(
     content: Node,
     {
-        model,
+        tokenizer,
         getAccountIfExists,
         getChunkPreamble = () => ({text: "", lineMarginBottom: 0}),
     }: {
-        model: LanguageModelBase;
+        tokenizer: CohereEmbedEnglishV3Tokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
@@ -80,10 +80,10 @@ export async function chunkSearchContent(
         text: string;
     }>;
 }> {
-    const chunk = await getFullSearchContentChunk(content, {model, getAccountIfExists});
+    const chunk = await getFullSearchContentChunk(content, {tokenizer, getAccountIfExists});
 
     const splitChunks = splitSearchContentChunk(chunk, {
-        model,
+        tokenizer,
         getChunkPreamble,
     });
 
@@ -132,10 +132,10 @@ export type SearchContentChunkContext = {
 export async function getFullSearchContentChunk(
     content: Node,
     {
-        model,
+        tokenizer,
         getAccountIfExists,
     }: {
-        model: LanguageModelBase;
+        tokenizer: CohereEmbedEnglishV3Tokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
@@ -211,7 +211,7 @@ export async function getFullSearchContentChunk(
                 let tokenCount2 = 0;
 
                 const sentenceChunks = chunk.sentenceChunks.map(sentenceChunk => {
-                    const tokenCount = model.countTokens(sentenceChunk);
+                    const tokenCount = tokenizer.countTokens(sentenceChunk);
                     tokenCount1 += tokenCount;
                     tokenCount2 += tokenCount;
                     return {text: sentenceChunk, tokenCount};
@@ -270,10 +270,10 @@ export async function getFullSearchContentChunk(
 function splitSearchContentChunk(
     chunk: SearchContentChunk,
     {
-        model,
+        tokenizer,
         getChunkPreamble: _getChunkPreamble,
     }: {
-        model: LanguageModelBase;
+        tokenizer: CohereEmbedEnglishV3Tokenizer;
         getChunkPreamble: (options: {
             context: SearchContentChunkContext;
             isInitialChunk: boolean;
@@ -294,7 +294,7 @@ function splitSearchContentChunk(
         return {
             text: preamble.text,
             lineMarginBottom: preamble.lineMarginBottom,
-            tokenCount: model.countTokens(preamble.text),
+            tokenCount: tokenizer.countTokens(preamble.text),
         };
     };
 
@@ -311,7 +311,7 @@ function splitSearchContentChunk(
     const split = (chunk: SearchContentChunk) => {
         nextChunkPreamble ??= getChunkPreamble(chunk.context);
 
-        if (chunk.tokenCount <= model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount) {
+        if (chunk.tokenCount <= tokenizer.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount) {
             splitChunks.push({preamble: nextChunkPreamble, body: chunk});
             nextChunkPreamble = null;
             return;
@@ -326,7 +326,7 @@ function splitSearchContentChunk(
 
                 if (
                     workingGroupTokenCount + sentenceChunk.tokenCount >
-                    model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
+                    tokenizer.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
                 ) {
                     splitChunks.push({
                         preamble: nextChunkPreamble,
@@ -384,7 +384,7 @@ function splitSearchContentChunk(
 
                 if (
                     workingGroupTokenCount + childChunk.tokenCount >
-                    model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
+                    tokenizer.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
                 ) {
                     splitChunks.push({
                         preamble: nextChunkPreamble,
@@ -407,7 +407,7 @@ function splitSearchContentChunk(
                 // split it into smaller chunks. Otherwise, add it to the chunk we're building.
                 if (
                     childChunk.tokenCount >
-                    model.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
+                    tokenizer.idealMaxEmbedTokenCount - nextChunkPreamble.tokenCount
                 ) {
                     split(childChunk);
                 } else {

@@ -1,55 +1,32 @@
 import {BertTokenizer} from "@xenova/transformers";
-import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
-import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {createTransformersTokenizer} from "~/server/language_models/core/create_transformers_tokenizer.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 
-const cohereEnglishLightTokenizerConfigPath = joinPath(
-    runfilesPath,
-    "cohere_embed_english_light_v3_0_tokenizer_config/file/tokenizer_config.json",
-);
-
-const cohereEnglishLightTokenizerJsonPath = joinPath(
-    runfilesPath,
-    "cohere_embed_english_light_v3_0_tokenizer/file/tokenizer.json",
-);
-
 /**
- * API for Cohere's `embed-english-light-v3.0` model. [Read more][1].
+ * Tokenizer for Cohere's `embed-english-v3.0` model. [Read more][1].
  *
  * [1]: https://txt.cohere.com/introducing-embed-v3/
  */
-export class CohereEnglishLightLanguageModel implements LanguageModelBase {
+export class CohereEmbedEnglishV3Tokenizer {
     private readonly _tokenizer: BertTokenizer;
 
     private constructor(tokenizer: BertTokenizer) {
         this._tokenizer = tokenizer;
     }
 
-    private static readonly _promise = new Lazy(async () => {
-        const [configContents, jsonContents] = await runAllPromises([
-            fs.readFile(cohereEnglishLightTokenizerConfigPath, "utf8"),
-            fs.readFile(cohereEnglishLightTokenizerJsonPath, "utf8"),
-        ]);
+    private static _instancePromise = new Lazy(async () => {
+        const tokenizer = await createTransformersTokenizer(
+            joinPath(runfilesPath, "cohere_embed_english_v3"),
+        );
 
-        const config = JSON.parse(configContents);
-        const json = JSON.parse(jsonContents);
-
-        // Used by `AutoTokenizer` to figure out the right tokenizer class. Since this
-        // is specifically for Cohere tokens, we hardcode `BertTokenizer`.
-        // https://github.com/xenova/transformers.js/blob/83dfa4718ec99c4566ec89954a0b0544a5a25d78/src/tokenizers.js#L3881-L3908
-        assert(config.tokenizer_class === "BertTokenizer");
-
-        const tokenizer = new BertTokenizer(json, config);
-
-        return new CohereEnglishLightLanguageModel(tokenizer);
+        return new CohereEmbedEnglishV3Tokenizer(tokenizer);
     });
 
     public static get() {
-        return this._promise.get();
+        return this._instancePromise.get();
     }
 
     /**

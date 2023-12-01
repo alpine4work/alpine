@@ -1,6 +1,6 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
 import {getFullSearchContentChunk} from "~/server/search/data/internal/chunk_search_content.js";
-import {CohereEnglishLightLanguageModel} from "~/server/search/data/internal/cohere_english_light_language_model.js";
 import {chunkDocumentSearchContent} from "~/server/search/data/internal/get_search_entity.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
@@ -16,7 +16,7 @@ const schema = DocumentWithoutTitleContentProsemirrorSchema;
 const context = createTestContext();
 
 test("discovers paragraph and sentence structure", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -38,7 +38,7 @@ test("discovers paragraph and sentence structure", async () => {
                     ),
                 ]),
             ]),
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         isGroup: true,
@@ -177,7 +177,7 @@ test("discovers paragraph and sentence structure", async () => {
 });
 
 test("discovers heading structure", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -215,7 +215,7 @@ test("discovers heading structure", async () => {
                     ),
                 ]),
             ]),
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         isGroup: true,
@@ -408,7 +408,7 @@ test("discovers heading structure", async () => {
 });
 
 test("discovers bullet list structure", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -508,7 +508,7 @@ test("discovers bullet list structure", async () => {
                     ]),
                 ]),
             ]),
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         isGroup: true,
@@ -806,7 +806,7 @@ test("discovers bullet list structure", async () => {
 });
 
 test("discovers paragraph introduction structure", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -827,7 +827,7 @@ test("discovers paragraph introduction structure", async () => {
                 ]),
                 schema.node("paragraph", {}, [schema.text("This is another paragraph.")]),
             ]),
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         isGroup: true,
@@ -906,7 +906,7 @@ test("discovers paragraph introduction structure", async () => {
 });
 
 test("discovers quote block structure", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -956,7 +956,7 @@ test("discovers quote block structure", async () => {
                     ]),
                 ]),
             ]),
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         isGroup: true,
@@ -1063,7 +1063,7 @@ test("discovers quote block structure", async () => {
 });
 
 test("discovers code block structure", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1078,7 +1078,7 @@ test("discovers code block structure", async () => {
                     schema.text("let a = 1;\nlet b = 1;\nlet c = a + b;\nconsole.log(c);\n"),
                 ]),
             ]),
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         isGroup: true,
@@ -1134,7 +1134,7 @@ test("discovers code block structure", async () => {
 });
 
 test("prints a list item with line breaks", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1152,7 +1152,7 @@ test("prints a list item with line breaks", async () => {
                     ]),
                 ]),
             ]),
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         isGroup: false,
@@ -1188,7 +1188,7 @@ test("prints a list item with line breaks", async () => {
 });
 
 test("prints a heading with line breaks", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1204,7 +1204,7 @@ test("prints a heading with line breaks", async () => {
                     ),
                 ]),
             ]),
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         isGroup: false,
@@ -1240,7 +1240,7 @@ test("prints a heading with line breaks", async () => {
 });
 
 test("prints chunk text with inline styles", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1266,7 +1266,7 @@ test("prints chunk text with inline styles", async () => {
                     schema.text(" *test10*"),
                 ]),
             ]),
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         isGroup: false,
@@ -1287,7 +1287,7 @@ test("prints mentions", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Caleb Meredith"});
 
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
 
     expect(
         await getFullSearchContentChunk(
@@ -1312,7 +1312,7 @@ test("prints mentions", async () => {
                 ]),
             ]),
             {
-                model,
+                tokenizer,
                 getAccountIfExists: accountId =>
                     getAccountIfExists(session.action(), space.id, accountId),
             },
@@ -1351,7 +1351,7 @@ test("prints mentions", async () => {
 });
 
 test("correctly chunks document content", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1966,7 +1966,7 @@ test("correctly chunks document content", async () => {
                     {
                         type: "paragraph",
                         content: [
-                            {type: "text", text: "Our pricing model will be "},
+                            {type: "text", text: "Our pricing tokenizer will be "},
                             {type: "text", marks: [{type: "bold"}], text: "usage based pricing"},
                             {type: "text", text: ". "},
                             {
@@ -2003,7 +2003,7 @@ test("correctly chunks document content", async () => {
                         content: [
                             {
                                 type: "text",
-                                text: "While this pricing model can get expensive when Cyberworlds is fully adopted in an organization, it will be less expensive than paying for each of these tools individually. So we can make a consolidation and cost saving argument to IT as the product gains adoption within an organization.",
+                                text: "While this pricing tokenizer can get expensive when Cyberworlds is fully adopted in an organization, it will be less expensive than paying for each of these tools individually. So we can make a consolidation and cost saving argument to IT as the product gains adoption within an organization.",
                             },
                         ],
                     },
@@ -2139,7 +2139,7 @@ test("correctly chunks document content", async () => {
                     },
                 ],
             }) as DocumentContent,
-            {model, getAccountIfExists},
+            {tokenizer, getAccountIfExists},
         ).then(({embeddingChunks}) => embeddingChunks),
     ).toEqual([
         // Chunk 1:
@@ -2250,7 +2250,7 @@ We want the product to feel well made and trustworthy. We recognize that people 
         // Chunk 6:
         {
             preambleEndIndex: 58,
-            tokenCountWithoutPreamble: 406,
+            tokenCountWithoutPreamble: 407,
             text: `\
 This is from the “Product vision and strategy” document:
 
@@ -2264,13 +2264,13 @@ Our product led growth motion will be: insist on email sign in using a company e
 
 We will give SSO away for free to start building good will with IT and encourage centralized IT management.
 
-Our pricing model will be **usage based pricing**. *Every single employee in an organization should be able to sign into their company workspace for $0*. Only as employees actually start to use the product do we start to charge. This also means as we launch new products and usage goes up—we make more revenue without new pricing models to learn.`,
+Our pricing tokenizer will be **usage based pricing**. *Every single employee in an organization should be able to sign into their company workspace for $0*. Only as employees actually start to use the product do we start to charge. This also means as we launch new products and usage goes up—we make more revenue without new pricing models to learn.`,
         },
 
         // Chunk 7:
         {
             preambleEndIndex: 118,
-            tokenCountWithoutPreamble: 177,
+            tokenCountWithoutPreamble: 178,
             text: `\
 This is from the “Product vision and strategy” document in the “Differentiation, go to market, and pricing” section:
 
@@ -2278,7 +2278,7 @@ Right now, the plan is to charge by hours using the product in increments of \\~
 
 Of course we can provide custom enterprise plans that lock in a price for stability.
 
-While this pricing model can get expensive when Cyberworlds is fully adopted in an organization, it will be less expensive than paying for each of these tools individually. So we can make a consolidation and cost saving argument to IT as the product gains adoption within an organization.`,
+While this pricing tokenizer can get expensive when Cyberworlds is fully adopted in an organization, it will be less expensive than paying for each of these tools individually. So we can make a consolidation and cost saving argument to IT as the product gains adoption within an organization.`,
         },
 
         // Chunk 8:

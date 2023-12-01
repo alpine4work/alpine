@@ -11,6 +11,7 @@ import {
     getPostContentAndChannel,
 } from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
 import {
     SearchEntityId,
@@ -18,8 +19,6 @@ import {
     printSearchEntityId,
 } from "~/server/search/core/search_entity_id.js";
 import {chunkSearchContent} from "~/server/search/data/internal/chunk_search_content.js";
-import {CohereEnglishLightLanguageModel} from "~/server/search/data/internal/cohere_english_light_language_model.js";
-import {LanguageModelBase} from "~/server/search/data/internal/language_model_base.js";
 import {
     SearchEntityIndexAccessPolicy,
     SearchEntityIndexDefaultGrantType,
@@ -89,7 +88,7 @@ const searchEntityEmbeddingPreambleTitleTokenCount = 16;
 // consistent. Mark it as important.
 class SearchEntityReadState {
     private readonly _context: SearchEntityIndexSystemActionContext;
-    public readonly model: LanguageModelBase;
+    public readonly tokenizer: CohereEmbedEnglishV3Tokenizer;
 
     private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
 
@@ -105,9 +104,12 @@ class SearchEntityReadState {
         Promise<AccountModel | null>
     >();
 
-    constructor(context: SearchEntityIndexSystemActionContext, model: LanguageModelBase) {
+    constructor(
+        context: SearchEntityIndexSystemActionContext,
+        tokenizer: CohereEmbedEnglishV3Tokenizer,
+    ) {
         this._context = context;
-        this.model = model;
+        this.tokenizer = tokenizer;
     }
 
     public getDependencyIds(): ReadonlySet<SearchEntityDependencyId> {
@@ -291,8 +293,14 @@ export async function getSearchEntity(
 }> {
     const id = printSearchEntityId(idObject);
 
-    const model = await CohereEnglishLightLanguageModel.get();
-    const state = new SearchEntityReadState(context, model);
+    // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
+    // content. That's because it's the main model we use in production. In develop
+    // we embed with a smaller model we can run locally (`all-MiniLM-L6-v2`) but it
+    // we standardize on Cohere's ideal chunk size to make debugging chunk
+    // generation easier.
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+
+    const state = new SearchEntityReadState(context, tokenizer);
 
     const entity = await actuallyGetSearchEntity(state, idObject);
 
@@ -390,10 +398,10 @@ async function getDocumentSearchEntity(
 export async function chunkDocumentSearchContent(
     content: DocumentContent,
     {
-        model,
+        tokenizer,
         getAccountIfExists,
     }: {
-        model: LanguageModelBase;
+        tokenizer: CohereEmbedEnglishV3Tokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
@@ -402,11 +410,11 @@ export async function chunkDocumentSearchContent(
     const title = getDocumentContentTitle(content);
 
     const truncatedTitle = new Lazy(() =>
-        truncateTokens(model, title, searchEntityEmbeddingPreambleTitleTokenCount),
+        truncateTokens(tokenizer, title, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
     const truncatedSectionHeading = new LazyMap((sectionHeading: string) =>
-        truncateTokens(model, sectionHeading, searchEntityEmbeddingPreambleTitleTokenCount),
+        truncateTokens(tokenizer, sectionHeading, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
     assert(content.firstChild?.type.name === "title");
@@ -419,7 +427,7 @@ export async function chunkDocumentSearchContent(
     );
 
     const {getFullText, embeddingChunks} = await chunkSearchContent(contentWithoutTitle, {
-        model,
+        tokenizer,
         getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
             if (isInitialChunk) return {text: `# ${title}`, lineMarginBottom: 2};
@@ -459,7 +467,7 @@ async function getDocumentCommentSearchEntity(
     const content =
         commentPayload.type === "Content"
             ? await chunkSearchContent(commentPayload.content, {
-                  model: state.model,
+                  tokenizer: state.tokenizer,
                   getAccountIfExists: state.getAccountIfExists,
                   getChunkPreamble: ({isInitialChunk}) => {
                       return {
@@ -498,11 +506,11 @@ async function getChannelSearchEntity(
     const channel = await state.getChannelNameAndDescriptionContent(channelId);
 
     const truncatedName = new Lazy(() =>
-        truncateTokens(state.model, channel.name, searchEntityEmbeddingPreambleTitleTokenCount),
+        truncateTokens(state.tokenizer, channel.name, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
     const {getFullText, embeddingChunks} = await chunkSearchContent(channel.description, {
-        model: state.model,
+        tokenizer: state.tokenizer,
         getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({isInitialChunk}) => {
             return {
@@ -539,18 +547,22 @@ async function getPostSearchEntity(
 
     const truncatedChannelName = new Lazy(() =>
         truncateTokens(
-            state.model,
+            state.tokenizer,
             post.channel.name,
             searchEntityEmbeddingPreambleTitleTokenCount,
         ),
     );
 
     const truncatedSectionHeading = new LazyMap((sectionHeading: string) =>
-        truncateTokens(state.model, sectionHeading, searchEntityEmbeddingPreambleTitleTokenCount),
+        truncateTokens(
+            state.tokenizer,
+            sectionHeading,
+            searchEntityEmbeddingPreambleTitleTokenCount,
+        ),
     );
 
     const {getFullText, embeddingChunks} = await chunkSearchContent(post.content, {
-        model: state.model,
+        tokenizer: state.tokenizer,
         getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
             return {
@@ -599,7 +611,7 @@ async function getPostCommentSearchEntity(
     const content =
         commentPayload.type === "Content"
             ? await chunkSearchContent(commentPayload.content, {
-                  model: state.model,
+                  tokenizer: state.tokenizer,
                   getAccountIfExists: state.getAccountIfExists,
                   getChunkPreamble: ({isInitialChunk}) => {
                       return {
@@ -691,7 +703,7 @@ async function getChatMessageSearchEntity(
     const content =
         messagePayload.type === "Content"
             ? await chunkSearchContent(messagePayload.content, {
-                  model: state.model,
+                  tokenizer: state.tokenizer,
                   getAccountIfExists: state.getAccountIfExists,
                   getChunkPreamble: ({isInitialChunk}) => {
                       return {
@@ -803,18 +815,22 @@ async function getTaskSearchEntity(
 
     const truncatedTitle = new Lazy(() =>
         truncateTokens(
-            state.model,
+            state.tokenizer,
             task.getTitle().getText(),
             searchEntityEmbeddingPreambleTitleTokenCount,
         ),
     );
 
     const truncatedSectionHeading = new LazyMap((sectionHeading: string) =>
-        truncateTokens(state.model, sectionHeading, searchEntityEmbeddingPreambleTitleTokenCount),
+        truncateTokens(
+            state.tokenizer,
+            sectionHeading,
+            searchEntityEmbeddingPreambleTitleTokenCount,
+        ),
     );
 
     const {getFullText, embeddingChunks} = await chunkSearchContent(notesContent.content, {
-        model: state.model,
+        tokenizer: state.tokenizer,
         getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
             if (isInitialChunk)

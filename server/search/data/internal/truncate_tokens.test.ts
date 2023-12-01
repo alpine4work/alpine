@@ -1,21 +1,21 @@
-import {CohereEnglishLightLanguageModel} from "~/server/search/data/internal/cohere_english_light_language_model.js";
+import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
 import {truncateTokens} from "~/server/search/data/internal/truncate_tokens.js";
 
 test("truncates document titles appropriately", async () => {
-    const model = await CohereEnglishLightLanguageModel.get();
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
 
-    expect(truncateTokens(model, "The quick brown fox jumps over the lazy dog", 16)).toEqual(
+    expect(truncateTokens(tokenizer, "The quick brown fox jumps over the lazy dog", 16)).toEqual(
         "The quick brown fox jumps over the lazy dog",
     );
 
     expect(
-        truncateTokens(model, "How we’re designing our personal task management product", 16),
+        truncateTokens(tokenizer, "How we’re designing our personal task management product", 16),
     ).toEqual("How we’re designing our personal task management product");
 
     // https://www.theverge.com/23966325/openai-sam-altman-fired-turmoil-chatgpt
     expect(
         truncateTokens(
-            model,
+            tokenizer,
             "Turmoil at OpenAI: after firing Sam Altman, what’s next for the creators of ChatGPT?",
             16,
         ),
