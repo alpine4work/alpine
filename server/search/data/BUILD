@@ -1,4 +1,3 @@
-load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
@@ -11,7 +10,6 @@ ts_project(
     ],
     visibility = ["//server/job/queue:__pkg__"],
     deps = [
-        ":data_data",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@xenova/transformers",
         "//:node_modules/fs-extra",
@@ -21,6 +19,7 @@ ts_project(
         "//server/documents/data",
         "//server/forum/data",
         "//server/helpers/node",
+        "//server/language_models/all_mini_lm_l6_v2",
         "//server/language_models/cohere_embed_english_v3",
         "//server/opensearch",
         "//server/search/core",
@@ -28,18 +27,5 @@ ts_project(
         "//shared/error",
         "//shared/helpers",
         "//shared/schema",
-    ],
-)
-
-# In a `js_library()` because `ts_project()` doesn't support `no_copy_to_bin`.
-js_library(
-    name = "data_data",
-    data = [
-        "@cohere_embed_english_v3_tokenizer//file",
-        "@cohere_embed_english_v3_tokenizer_config//file",
-    ],
-    no_copy_to_bin = [
-        "@cohere_embed_english_v3_tokenizer//file",
-        "@cohere_embed_english_v3_tokenizer_config//file",
     ],
 )

@@ -1,3 +1,4 @@
+import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
 import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
@@ -129,6 +130,31 @@ export function getSearchEntityIndexForTest() {
 //     },
 // );
 
+/**
+ * The minimum number of tokens a chunk needs for us to embed it.
+ *
+ * It's wasteful to embed small messages like "Nice!" or "Ok!". Embeddings of
+ * small content can also pollute search results as they may be a closer topic
+ * match to a search query but do not include detail the user wants to see.
+ * [Cohere's v3 embedding models][1] (which we use in production) defend
+ * against this by considering the content's quality, but it's still good for
+ * us to throw out chunks without important meaning.
+ *
+ * Small chunks can still be found with keyword search.
+ *
+ * How we pick 40: We want embedding chunks to have more than two sentences
+ * worth of content. Sentences are usually between 15-20 words ([source][2])
+ * and a word is typically 1-3 tokens ([source][3]). This means two sentences
+ * most of the time fall in the range of 15-60 tokens. 40 is a nice round
+ * number near the middle of this range.
+ *
+ * [1]: https://txt.cohere.com/introducing-embed-v3/
+ * [2]: https://languagetool.org/insights/post/sentence-length
+ * [3]: https://docs.cohere.com/docs/tokens
+ */
+const minEmbeddingChunkTokenCount = 40;
+
+// NOCOMMIT: Document how this works!
 export async function processIndexSearchEntityJob(
     context: SearchEntityIndexSystemActionContext,
     jobSendTime: Date,
@@ -165,8 +191,24 @@ export async function processIndexSearchEntityJob(
 
         if (isOldDocSufficient) return;
 
+        // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
+        // content. That's because it's the main model we use in production for
+        // embeddings. In development we embed with a smaller model we can run locally
+        // (`all-MiniLM-L6-v2`) but we standardize on Cohere's ideal chunk size to make
+        // debugging chunk generation easier.
+        const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+
         const readStartTime = new Date();
-        const {dependencyIds, entity} = await getSearchEntity(context, job.update);
+        const {dependencyIds, entity} = await getSearchEntity(context, job.update, tokenizer);
+
+        // We don't want to embed small messages like "Ok!" so filter out chunks
+        // without much content.
+        //
+        // When seeing if this chunk is too small for embedding, we ignore the preamble
+        // added for context. We only want to measure the content's tokens.
+        const embeddingChunks = entity.embeddingChunks.filter(embeddingChunk => {
+            return embeddingChunk.tokenCountWithoutPreamble >= minEmbeddingChunkTokenCount;
+        });
 
         const newDoc: OpensearchClientDocWithIdAndVersion<
             `${SearchEntityId}:${number}`,

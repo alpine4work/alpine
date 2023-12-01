@@ -757,6 +757,23 @@ export type TracerEventData = {
          */
         readonly queueDurationMs?: number;
     };
+
+    /**
+     * Information related to requests made to Cohere's API.
+     */
+    readonly cohere?: {
+        /** How many texts were passed into the Cohere embedding API? */
+        readonly textCount?: number;
+
+        /** What Cohere model did we use? */
+        readonly model?: string;
+
+        /** What input type did we use for the Cohere embedding? */
+        readonly inputType?: string;
+
+        /** How many tokens were we billed for this Cohere embedding API request? */
+        readonly tokenCount?: number;
+    };
 };
 
 /**

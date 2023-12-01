@@ -29,7 +29,7 @@ const globalFetch = fetch;
  *
  * Human readable phrases match our span name style which is why we do this.
  */
-export type ExternalServiceName = "Cloudflare 1.1.1.1" | "OpenSearch";
+export type ExternalServiceName = "Cloudflare 1.1.1.1" | "OpenSearch" | "Cohere";
 
 /**
  * Same as the global [`fetch()`][1] but we create a span for the HTTP request.

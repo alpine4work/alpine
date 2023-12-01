@@ -286,19 +286,13 @@ class SearchEntityReadState {
 export async function getSearchEntity(
     context: SearchEntityIndexSystemActionContext,
     idObject: SearchEntityIdObject,
+    tokenizer: CohereEmbedEnglishV3Tokenizer,
 ): Promise<{
     id: SearchEntityId;
     dependencyIds: Iterable<SearchEntityDependencyId>;
     entity: SearchEntity;
 }> {
     const id = printSearchEntityId(idObject);
-
-    // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
-    // content. That's because it's the main model we use in production. In develop
-    // we embed with a smaller model we can run locally (`all-MiniLM-L6-v2`) but it
-    // we standardize on Cohere's ideal chunk size to make debugging chunk
-    // generation easier.
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
 
     const state = new SearchEntityReadState(context, tokenizer);
 
