@@ -251,7 +251,8 @@ export class TaskContextModule extends TaskContextModuleBase {
                                     context.tracer.getTracer(),
                                     `http://${host}/${actionTransaction.spaceId}/applyActionTransaction`,
                                     {
-                                        spanRoute: `/:spaceId/applyActionTransaction`,
+                                        serviceName: "TaskRealtimeService",
+                                        route: `/:spaceId/applyActionTransaction`,
                                         method: "POST",
                                         headers: {
                                             authorization: `bearer ${token}`,
@@ -326,7 +327,8 @@ export class TaskContextModule extends TaskContextModuleBase {
             this._context.tracer.getTracer(),
             `http://${host}/${spaceId}/loadQueries`,
             {
-                spanRoute: `/:spaceId/loadQueries`,
+                serviceName: "TaskRealtimeService",
+                route: `/:spaceId/loadQueries`,
                 method: "POST",
                 headers: {
                     authorization: `bearer ${token}`,
@@ -387,7 +389,8 @@ export class TaskContextModule extends TaskContextModuleBase {
             this._context.tracer.getTracer(),
             `http://${host}/${spaceId}/getTask/${taskId}`,
             {
-                spanRoute: `/:spaceId/getTask/:taskId`,
+                serviceName: "TaskRealtimeService",
+                route: `/:spaceId/getTask/:taskId`,
                 method: "GET",
                 headers: {
                     authorization: `bearer ${token}`,
@@ -445,7 +448,8 @@ export class TaskContextModule extends TaskContextModuleBase {
             this._context.tracer.getTracer(),
             `http://${host}/${spaceId}/getCollection/${collectionId}`,
             {
-                spanRoute: `/:spaceId/getCollection/:collectionId`,
+                serviceName: "TaskRealtimeService",
+                route: `/:spaceId/getCollection/:collectionId`,
                 method: "GET",
                 headers: {
                     authorization: `bearer ${token}`,

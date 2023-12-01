@@ -40,7 +40,7 @@ export class TaskRealtimeServiceEdgeRouter extends TaskRealtimeServiceRouterBase
         return fetchWithTracer(
             context.tracer.getTracer(),
             `${this._protocol}//${this._host}/api/task-realtime-service-routes`,
-            {spanRoute: "/api/task-realtime-service-routes"},
+            {serviceName: "AppService", route: "/api/task-realtime-service-routes"},
             async response => {
                 if (response.status !== 200) {
                     const body = await response.json();

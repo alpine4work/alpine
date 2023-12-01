@@ -61,7 +61,8 @@ export async function validateEmailAddress(
         context.tracer.getTracer(),
         dnsQueryUrl,
         {
-            spanRoute: "/dns-query",
+            serviceName: "Cloudflare 1.1.1.1",
+            route: "/dns-query",
             headers: {Accept: "application/dns-json"},
         },
         async response => {

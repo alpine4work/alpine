@@ -451,7 +451,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 new URL("/_cluster/health?wait_for_status=yellow&timeout=60s", this._url),
                 {
                     sign: this._signer.sign,
-                    spanRoute: "/_cluster/health",
+                    serviceName: "OpenSearch",
+                    route: "/_cluster/health",
                     method: "GET",
                 },
                 async response => {
@@ -475,7 +476,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                     new URL(`/${index.name}/_settings`, this._url),
                     {
                         sign: this._signer.sign,
-                        spanRoute: `/${index.name}`,
+                        serviceName: "OpenSearch",
+                        route: `/${index.name}`,
                         method: "GET",
                     },
                     async response => {
@@ -509,7 +511,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                             new URL(`/${index.name}`, this._url),
                             {
                                 sign: this._signer.sign,
-                                spanRoute: `/${index.name}`,
+                                serviceName: "OpenSearch",
+                                route: `/${index.name}`,
                                 method: "PUT",
                                 headers: {"content-type": "application/json"},
                                 // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -610,7 +613,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                             ),
                             {
                                 sign: this._signer.sign,
-                                spanRoute: "/_cluster/state",
+                                serviceName: "OpenSearch",
+                                route: "/_cluster/state",
                             },
                             async response => {
                                 const numberOfRoutingShards: number = assertExists(
@@ -654,7 +658,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 new URL(`/${index.name}/_settings`, this._url),
                                 {
                                     sign: this._signer.sign,
-                                    spanRoute: `/${index.name}/_settings`,
+                                    serviceName: "OpenSearch",
+                                    route: `/${index.name}/_settings`,
                                     method: "PUT",
                                     headers: {"content-type": "application/json"},
                                     // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -688,7 +693,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                                 new URL(`/${index.name}/_mappings`, this._url),
                                 {
                                     sign: this._signer.sign,
-                                    spanRoute: `/${index.name}/_mappings`,
+                                    serviceName: "OpenSearch",
+                                    route: `/${index.name}/_mappings`,
                                     method: "PUT",
                                     headers: {"content-type": "application/json"},
                                     // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
@@ -751,7 +757,8 @@ export class OpensearchClient implements OpensearchClientInterface {
             url,
             {
                 sign: this._signer.sign,
-                spanRoute: `/${index.name}/_doc/:docId`,
+                serviceName: "OpenSearch",
+                route: `/${index.name}/_doc/:docId`,
             },
             async response => {
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
@@ -835,7 +842,8 @@ export class OpensearchClient implements OpensearchClientInterface {
             url,
             {
                 sign: this._signer.sign,
-                spanRoute: `/${index.name}/_doc/:docId`,
+                serviceName: "OpenSearch",
+                route: `/${index.name}/_doc/:docId`,
             },
             async response => {
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
@@ -910,7 +918,8 @@ export class OpensearchClient implements OpensearchClientInterface {
             url,
             {
                 sign: this._signer.sign,
-                spanRoute: `/${index.name}/_mget`,
+                serviceName: "OpenSearch",
+                route: `/${index.name}/_mget`,
                 method: "POST",
                 headers: {"content-type": "application/json"},
                 // NOTE(#opensearch-important-json-disclaimer): We only include IDs which are
@@ -1012,7 +1021,8 @@ export class OpensearchClient implements OpensearchClientInterface {
             url,
             {
                 sign: this._signer.sign,
-                spanRoute: !doc.version
+                serviceName: "OpenSearch",
+                route: !doc.version
                     ? `/${index.name}/_create/:docId`
                     : `/${index.name}/_doc/:docId`,
                 method: "PUT",
@@ -1103,7 +1113,8 @@ export class OpensearchClient implements OpensearchClientInterface {
             url,
             {
                 sign: this._signer.sign,
-                spanRoute: `/${index.name}/_bulk`,
+                serviceName: "OpenSearch",
+                route: `/${index.name}/_bulk`,
                 method: "POST",
                 headers: {"content-type": "application/x-ndjson"},
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
@@ -1223,7 +1234,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                     url,
                     {
                         sign: this._signer.sign,
-                        spanRoute: `/${index.name}/_search`,
+                        serviceName: "OpenSearch",
+                        route: `/${index.name}/_search`,
                         method: "POST",
                         headers: {"content-type": "application/json"},
                         // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
@@ -1447,7 +1459,8 @@ export class OpensearchClient implements OpensearchClientInterface {
             new URL(`/${index.name}/_refresh`, this._url),
             {
                 sign: this._signer.sign,
-                spanRoute: `/${index.name}/_refresh`,
+                serviceName: "OpenSearch",
+                route: `/${index.name}/_refresh`,
                 method: "POST",
             },
             async response => {
@@ -1516,7 +1529,8 @@ export class OpensearchClient implements OpensearchClientInterface {
             url,
             {
                 sign: this._signer.sign,
-                spanRoute: `/${index.name}/_update_by_query`,
+                serviceName: "OpenSearch",
+                route: `/${index.name}/_update_by_query`,
                 method: "POST",
                 headers: {"content-type": "application/json"},
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `query` must be

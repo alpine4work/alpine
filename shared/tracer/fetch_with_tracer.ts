@@ -9,9 +9,27 @@ import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {tracerEventHttpHeaderNames} from "~/shared/tracer/helpers/tracer_event_http_header_names.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
+import {TracerServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 const globalFetch = fetch;
+
+/**
+ * External service names are not PascalCase like our internal service names
+ * (in the `TracerServiceName` type) instead they are a human readable phrase,
+ * potentially including spaces.
+ *
+ * For example "OpenSearch" is an external service name instead of
+ * "Opensearch". "Opensearch" (without a capital "S") is how we refer to
+ * OpenSearch in PascalCase since we want to treat it like a single word. But
+ * OpenSearch is how you'd write the service name in a sentence.
+ *
+ * A simpler example is "Secrets Manager" instead of "SecretsManager" to refer
+ * to the AWS Secrets Manager service.
+ *
+ * Human readable phrases match our span name style which is why we do this.
+ */
+export type ExternalServiceName = "Cloudflare 1.1.1.1" | "OpenSearch";
 
 /**
  * Same as the global [`fetch()`][1] but we create a span for the HTTP request.
@@ -37,12 +55,19 @@ export async function fetchWithTracer<ResponseData>(
     tracer: TracerBase,
     url: URL | string,
     {
-        spanRoute,
+        serviceName,
+        route,
         fetch = globalFetch,
         sign,
         cookieJar,
         ...requestInit
     }: RequestInit & {
+        /**
+         * The name of the service we are making a request to. Will be included in the
+         * span name.
+         */
+        serviceName: TracerServiceName | ExternalServiceName;
+
         /**
          * A description of the path we'll include in the `TracerSpan`'s name.
          * This should be low cardinality for analysis.
@@ -60,7 +85,7 @@ export async function fetchWithTracer<ResponseData>(
          *
          * [1]: https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
          */
-        spanRoute: string;
+        route: string;
 
         /**
          * Provide a custom fetch function in case, for some reason, you can't use the
@@ -96,15 +121,15 @@ export async function fetchWithTracer<ResponseData>(
             : url;
 
     assert(
-        new RegExp(spanRoute.replaceAll(/(^|\/):[a-zA-Z0-9_]+(\/|$)/g, "$1[^/]+$2")).test(
+        new RegExp(route.replaceAll(/(^|\/):[a-zA-Z0-9_]+(\/|$)/g, "$1[^/]+$2")).test(
             requestUrl.pathname,
         ),
-        "`spanRoute` must match URL `pathname`",
+        "`route` must match URL `pathname`",
     );
 
     const requestMethod = requestInit?.method ?? "GET";
 
-    const {span, finishSpan} = tracer.startSpan(`HTTP client ${requestMethod} ${spanRoute}`);
+    const {span, finishSpan} = tracer.startSpan(`${serviceName} ${requestMethod} ${route}`);
 
     try {
         const requestHeaders = new Headers(requestInit?.headers);
@@ -130,7 +155,8 @@ export async function fetchWithTracer<ResponseData>(
                 },
             },
             http: {
-                route: spanRoute,
+                service: {name: serviceName},
+                route,
                 url: requestUrl.toString(),
                 method: requestMethod,
                 userAgent: request.headers.get("user-agent") ?? undefined,

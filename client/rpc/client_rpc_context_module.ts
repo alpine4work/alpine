@@ -113,7 +113,8 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
             firstCall.span,
             otherCalls.length === 0 ? `/api/rpc/${firstCall.name}` : "/api/rpc/_batch",
             {
-                spanRoute: otherCalls.length === 0 ? "/api/rpc/:rpcName" : "/api/rpc/_batch",
+                serviceName: "AppService",
+                route: otherCalls.length === 0 ? "/api/rpc/:rpcName" : "/api/rpc/_batch",
                 method: "POST",
                 headers: {
                     "content-type": "application/json",

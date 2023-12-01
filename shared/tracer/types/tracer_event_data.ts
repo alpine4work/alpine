@@ -283,6 +283,15 @@ export type TracerEventData = {
 
         /** The IP address of the original client behind all proxies. */
         readonly clientIp?: string;
+
+        readonly service?: {
+            /**
+             * The name of the service we're sending an HTTP request to. Will match
+             * `service.name` for our own services and will use some descriptive phrase for
+             * third-party services.
+             */
+            readonly name?: string;
+        };
     };
 
     /**

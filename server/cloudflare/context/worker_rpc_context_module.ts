@@ -81,7 +81,8 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
                     span,
                     new URL(`${this._protocol}//${this._host}/api/rpc/${definition.name}`),
                     {
-                        spanRoute: "/api/rpc/:rpcName",
+                        serviceName: "AppService",
+                        route: "/api/rpc/:rpcName",
                         // When communicating via RPC, share cookies across requests. Particularly we
                         // care about the [AWS ALB sticky session cookies][1] which make sure requests
                         // from our Durable Object go to the same underlying host in AWS. That way

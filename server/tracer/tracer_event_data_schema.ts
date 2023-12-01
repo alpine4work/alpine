@@ -120,6 +120,9 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         target: LabelStringSchema,
         route: LabelStringSchema,
         clientIp: LabelStringSchema,
+        service: {
+            name: Schema.string,
+        },
     },
     exception: {
         message: Schema.string,
