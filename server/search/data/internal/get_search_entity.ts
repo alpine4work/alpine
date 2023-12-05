@@ -12,7 +12,11 @@ import {
 } from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
-import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
+import {
+    SearchEntityDependencyId,
+    isSearchEntityDependencyIdAlsoEntityId,
+    isSearchEntityIdAlsoEntityDependencyId,
+} from "~/server/search/core/search_entity_dependency_id.js";
 import {
     SearchEntityId,
     SearchEntityIdObject,
@@ -30,7 +34,7 @@ import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/task_tab
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
-import {NotFoundError} from "~/shared/error/error.js";
+import {InternalError, NotFoundError} from "~/shared/error/error.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
 import {PostContent} from "~/shared/forum/post_content_schema.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -40,8 +44,8 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
-import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {
     AccountId,
     ChannelId,
@@ -91,6 +95,7 @@ const searchEntityEmbeddingPreambleTitleTokenCount = 16;
 class SearchEntityReadState {
     private readonly _context: SearchEntityIndexSystemActionContext;
     public readonly tokenizer: CohereEmbedEnglishV3Tokenizer;
+    private readonly _targetId: SearchEntityId;
 
     private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
 
@@ -109,9 +114,44 @@ class SearchEntityReadState {
     constructor(
         context: SearchEntityIndexSystemActionContext,
         tokenizer: CohereEmbedEnglishV3Tokenizer,
+        targetId: SearchEntityId,
     ) {
         this._context = context;
         this.tokenizer = tokenizer;
+        this._targetId = targetId;
+    }
+
+    /**
+     * Record a dependency of the target search entity. Must be called whenever we
+     * read data for this entity.
+     *
+     * You can't take a dependency on every entity type. Some entity types, as an
+     * optimization, we disallow taking as a dependency since it allows us to skip
+     * checking for dependent updates when that entity changes.
+     *
+     * For example, no entity depends on `ChatMessage`.
+     */
+    private _recordDependencyId(id: SearchEntityId | SearchEntityDependencyId) {
+        if (isSearchEntityDependencyIdAlsoEntityId(id)) {
+            // We implicitly depend on the target.
+            if (id === this._targetId) return;
+
+            if (!isSearchEntityIdAlsoEntityDependencyId(id)) {
+                throw new InternalError(
+                    quote`Search entity type is not currently supported as a dependency: ${id.slice(
+                        0,
+                        id.indexOf(":"),
+                    )}`,
+                );
+            }
+
+            this._dependencyIds.add(id);
+        } else {
+            // We implicitly depend on the target.
+            if (id.startsWith(this._targetId)) return;
+
+            this._dependencyIds.add(id);
+        }
     }
 
     public getDependencyIds(): ReadonlySet<SearchEntityDependencyId> {
@@ -123,7 +163,7 @@ class SearchEntityReadState {
     public readonly getAccountIfExists = (
         accountId: AccountId | ContentMentionAccountId,
     ): Promise<AccountModel | null> => {
-        this._dependencyIds.add(`Account:${accountId}`);
+        this._recordDependencyId(`Account:${accountId}`);
 
         return getOrSetDefaultMapValue(this._accountPromiseById, accountId, () =>
             getAccountIfExists(this._context, this._context.actor.getSpaceId(), accountId, {
@@ -139,7 +179,7 @@ class SearchEntityReadState {
     }
 
     public getDocumentContent(documentId: DocumentId): Promise<DocumentContent> {
-        this._dependencyIds.add(`Document:${documentId}`);
+        this._recordDependencyId(`Document:${documentId}`);
 
         return getDocumentContent(this._context, documentId, {
             consistency: "Strong",
@@ -147,7 +187,7 @@ class SearchEntityReadState {
     }
 
     public getDocumentTitle(documentId: DocumentId): Promise<string> {
-        this._dependencyIds.add(`Document:${documentId}:Title`);
+        this._recordDependencyId(`Document:${documentId}:Title`);
 
         return getDocumentTitle(this._context, documentId, {
             consistency: "Strong",
@@ -159,7 +199,9 @@ class SearchEntityReadState {
         commentThreadId: DocumentCommentThreadId,
         commentIndex: number,
     ): Promise<MessagePayload> {
-        this._dependencyIds.add(`DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`);
+        this._recordDependencyId(
+            `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`,
+        );
 
         return getDocumentCommentPayload(this._context, {
             documentId,
@@ -172,7 +214,7 @@ class SearchEntityReadState {
     public getChannelNameAndDescriptionContent(
         channelId: ChannelId,
     ): Promise<{name: string; description: MessageContent}> {
-        this._dependencyIds.add(`Channel:${channelId}`);
+        this._recordDependencyId(`Channel:${channelId}`);
 
         return getChannelNameAndDescriptionContent(this._context, channelId, {
             consistency: "Strong",
@@ -180,7 +222,7 @@ class SearchEntityReadState {
     }
 
     public getChannelPreview(channelId: ChannelId): Promise<ChannelPreviewModel> {
-        this._dependencyIds.add(`Channel:${channelId}:Preview`);
+        this._recordDependencyId(`Channel:${channelId}:Preview`);
 
         return getChannelPreview(this._context, channelId, {
             consistency: "Strong",
@@ -191,18 +233,18 @@ class SearchEntityReadState {
     public async getPostContentAndChannel(
         postId: PostId,
     ): Promise<{content: PostContent; channel: ChannelPreviewModel}> {
-        this._dependencyIds.add(`Post:${postId}`);
+        this._recordDependencyId(`Post:${postId}`);
 
         const contentAndChannel = await getPostContentAndChannel(this._context, postId, {
             consistency: "Strong",
         });
 
-        this._dependencyIds.add(`Channel:${contentAndChannel.channel.id}:Preview`);
+        this._recordDependencyId(`Channel:${contentAndChannel.channel.id}:Preview`);
         return contentAndChannel;
     }
 
     public getPostCommentPayload(postId: PostId, commentIndex: number): Promise<MessagePayload> {
-        this._dependencyIds.add(`PostComment:${postId}-${commentIndex}`);
+        this._recordDependencyId(`PostComment:${postId}-${commentIndex}`);
 
         return getPostCommentPayload(this._context, {
             postId,
@@ -212,7 +254,7 @@ class SearchEntityReadState {
     }
 
     public getChatAccountIds(chatId: ChatId): Promise<{accountIds: ReadonlyArray<AccountId>}> {
-        this._dependencyIds.add(`Chat:${chatId}`);
+        this._recordDependencyId(`Chat:${chatId}`);
 
         return getChatAccountIds(this._context, chatId, {
             consistency: "Strong",
@@ -220,7 +262,7 @@ class SearchEntityReadState {
     }
 
     public getChatMessagePayload(chatId: ChatId, messageIndex: number): Promise<MessagePayload> {
-        this._dependencyIds.add(`ChatMessage:${chatId}-${messageIndex}`);
+        this._recordDependencyId(`ChatMessage:${chatId}-${messageIndex}`);
 
         return getChatMessagePayload(this._context, {
             chatId,
@@ -238,7 +280,7 @@ class SearchEntityReadState {
             content: TaskNotesContent;
         };
     }> {
-        this._dependencyIds.add(`Task:${taskId}`);
+        this._recordDependencyId(`Task:${taskId}`);
 
         const [{task, referencedTasks, referencedCollections}, notesContent] = await runAllPromises(
             [
@@ -251,14 +293,14 @@ class SearchEntityReadState {
 
         const referencedTaskById = new Map<TaskId, TaskModel>(
             referencedTasks.map(task => {
-                this._dependencyIds.add(`Task:${task.id}:Authorization`);
+                this._recordDependencyId(`Task:${task.id}:Authorization`);
 
                 return [task.id, task];
             }),
         );
         const referencedCollectionById = new Map<TaskCollectionId, TaskCollectionModel>(
             referencedCollections.map(collection => {
-                this._dependencyIds.add(`TaskCollection:${collection.id}:Authorization`);
+                this._recordDependencyId(`TaskCollection:${collection.id}:Authorization`);
 
                 return [collection.id, collection];
             }),
@@ -273,7 +315,7 @@ class SearchEntityReadState {
     }
 
     public async getTaskCollection(collectionId: TaskCollectionId): Promise<TaskCollectionModel> {
-        this._dependencyIds.add(`TaskCollection:${collectionId}`);
+        this._recordDependencyId(`TaskCollection:${collectionId}`);
 
         const {collection} = await this._context.tasks.getCollection(
             this._context.actor.getSpaceId(),
@@ -296,18 +338,13 @@ export async function getSearchEntity(
 }> {
     const id = printSearchEntityId(idObject);
 
-    const state = new SearchEntityReadState(context, tokenizer);
+    const state = new SearchEntityReadState(context, tokenizer, id);
 
     const entity = await actuallyGetSearchEntity(state, idObject);
 
     return {
         id,
-        dependencyIds: filterIterable(
-            state.getDependencyIds(),
-            // The dependency on the entity we're reading is implicit. Exclude it from the
-            // `dependencyIds` we return.
-            dependencyId => !dependencyId.startsWith(id),
-        ),
+        dependencyIds: state.getDependencyIds(),
         entity,
     };
 }
@@ -562,7 +599,7 @@ async function getPostSearchEntity(
         getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
             return {
-                text: `This is${isInitialChunk ? " a " : " from a "}post ${
+                text: `This is${isInitialChunk ? " a " : " from a "}post${
                     context.sectionHeading !== null
                         ? ` in the “${truncatedSectionHeading.get(
                               context.sectionHeading,

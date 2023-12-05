@@ -63,8 +63,8 @@ import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
 import {TaskSortableAccount} from "~/shared/tasks/task_sortable_account.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
-const taskIndexRefreshIntervalSecs = 30;
-const taskIndexRefreshIntervalMs = taskIndexRefreshIntervalSecs * 1000;
+const taskIndexRefreshIntervalSeconds = 30;
+const taskIndexRefreshIntervalMs = taskIndexRefreshIntervalSeconds * 1000;
 
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
@@ -93,7 +93,7 @@ const TaskIndex = new OpensearchIndex<
     // Serving realtime task data is handled by a separate service. So we can
     // afford to slow down our task refresh interval for improved indexing
     // performance.
-    refreshInterval: `${taskIndexRefreshIntervalSecs}s`,
+    refreshInterval: `${taskIndexRefreshIntervalSeconds}s`,
 });
 
 // IMPORTANT: Don't export this. All access to the index should be exposed

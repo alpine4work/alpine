@@ -1,4 +1,5 @@
 import murmurhash from "murmurhash";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
 import {
     OpensearchClientDocWithIdAndVersion,
@@ -11,8 +12,14 @@ import {
     OpensearchIndexTypeStoredFieldsType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
+import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search_entity_job_description.js";
-import {SearchEntityId, printSearchEntityId} from "~/server/search/core/search_entity_id.js";
+import {
+    SearchEntityId,
+    parseSearchEntityId,
+    printSearchEntityId,
+} from "~/server/search/core/search_entity_id.js";
+import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
 import {getSearchEntity} from "~/server/search/data/internal/get_search_entity.js";
 import {
     SearchEntityKeywordIndexDoc,
@@ -25,10 +32,16 @@ import {SearchEntityIndexSystemActionContext} from "~/server/search/data/search_
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {isDateLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {
+    defaultUncertaintyWindowMs,
+    isDateLessThanWithUncertaintyWindow,
+} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
 /**
@@ -37,7 +50,7 @@ import {SpaceId} from "~/shared/id/types/id_types.js";
  * To improve indexing performance we can afford to slow down the refresh
  * interval a bit.
  */
-const searchEntityIndexRefreshIntervalSeconds = 5;
+const searchEntityIndexRefreshIntervalSeconds = 3;
 
 /**
  * Our "search entity index" is actually two OpenSearch indexes.
@@ -191,30 +204,6 @@ export function getSearchEntityIndexesForTest() {
     return {SearchEntityKeywordIndex, SearchEntitySemanticIndex};
 }
 
-// NOCOMMIT: Implement
-//
-// const affectedDependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
-//
-// // NOCOMMIT: Wait!
-// void context.opensearch.client.searchWithoutSource(
-//     context.tracer.getTracer(),
-//     SearchEntityIndex,
-//     job.spaceId,
-//     {
-//         // NOCOMMIT: Pagination
-//         size: 5,
-//         query: {
-//             bool: {
-//                 filter: {
-//                     terms: {
-//                         "data.dependencyIds": new OpensearchQueryValue(affectedDependencyIds),
-//                     },
-//                 },
-//             },
-//         },
-//     },
-// );
-
 /**
  * The minimum number of tokens a chunk needs for us to embed it.
  *
@@ -239,11 +228,26 @@ export function getSearchEntityIndexesForTest() {
  */
 const minEmbeddingChunkTokenCount = 35;
 
+export const processSearchEntityJobFinishedTestCheckpoint = new TestCheckpoint<SearchEntityId>();
+
 // NOCOMMIT: Document how this works!
 export async function processIndexSearchEntityJob(
     context: SearchEntityIndexSystemActionContext,
-    jobSendTime: Date,
     job: IndexSearchEntityJobDescription,
+    jobSendTime: Date,
+) {
+    const [entityId] = await runAllPromises([
+        actuallyProcessIndexSearchEntityJob(context, job, jobSendTime),
+        processIndexSearchEntityJobDependencies(context, job),
+    ]);
+
+    await processSearchEntityJobFinishedTestCheckpoint.waitForTest(entityId);
+}
+
+async function actuallyProcessIndexSearchEntityJob(
+    context: SearchEntityIndexSystemActionContext,
+    job: IndexSearchEntityJobDescription,
+    jobSendTime: Date,
 ) {
     const entityId = printSearchEntityId(job.update);
 
@@ -503,4 +507,89 @@ export async function processIndexSearchEntityJob(
             );
         }
     });
+
+    return entityId;
+}
+
+/**
+ * When a search entity changes, we also need to reindex all of its dependents
+ * since they might have changes. This function searches OpenSearch for all
+ * search entity dependents and queues jobs to update them.
+ */
+async function processIndexSearchEntityJobDependencies(
+    context: SearchEntityIndexSystemActionContext,
+    job: IndexSearchEntityJobDescription,
+) {
+    const dependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
+    if (dependencyIds.length === 0) return;
+
+    // Wait for the index to refresh before querying dependents. We want to capture
+    // ALL dependents created before the job started. There may be some dependents
+    // another job saved that won't appear in a query until after the index
+    // refreshes.
+    //
+    // In Jest tests, indexes need to be refreshed manually. Don't refresh manually
+    // in production.
+    if (import.meta.jest) {
+        await context.opensearch.client.refresh(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+        );
+    } else {
+        await wait(searchEntityIndexRefreshIntervalSeconds * 1000 + defaultUncertaintyWindowMs);
+    }
+
+    // Maximum search page size is 10k.
+    const searchSize = 10_000;
+    let searchAfter: ReadonlyArray<JsonValue> | null = null;
+
+    do {
+        const docs = await context.opensearch.client.searchWithoutSource(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+            job.spaceId,
+            {
+                size: searchSize,
+
+                query: {
+                    bool: {
+                        filter: {
+                            bool: {
+                                must: [
+                                    {term: {spaceId: new OpensearchQueryValue(job.spaceId)}},
+                                    {
+                                        terms: {
+                                            dependencyIds: new OpensearchQueryValue(dependencyIds),
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+                sort: ["_doc"],
+            },
+        );
+
+        await runAllPromises(
+            docs.map(doc =>
+                // Wait for confirmation the job was added to the queue. We don't care about
+                // performance as much when processing jobs.
+                context.jobs.sendAndWait({
+                    type: "IndexSearchEntity",
+                    spaceId: job.spaceId,
+                    update: {
+                        ...parseSearchEntityId(doc.id),
+                        updatedTraits: {type: "None"},
+                    },
+                }),
+            ),
+        );
+
+        searchAfter = docs.length > 0 ? assertExists(docs[docs.length - 1]!.sort) : null;
+
+        // If we did not reach the pagination limit then don't query again for the
+        // next page.
+        if (docs.length < searchSize) searchAfter = null;
+    } while (searchAfter !== null);
 }

@@ -5,35 +5,26 @@ import {
     ReceiveMessageCommand,
     SQSClient,
 } from "@aws-sdk/client-sqs";
+import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {
-    DynamoActorContextModule,
-    DynamoSystemActorContextModule,
-} from "~/server/accounts/dynamo_actor_context_module.js";
-import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
+    ServerSystemActionContext,
+    ServerSystemActionContextModules,
+} from "~/server/context/server_action_context.js";
 import {
     ServerProcessContext,
     ServerProcessContextModules,
 } from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
+import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
-import {
-    JobQueueSystemActionContext,
-    JobQueueSystemActionContextModules,
-} from "~/server/jobs/queue/job_queue_system_action_context.js";
-import {processJob} from "~/server/jobs/queue/process_job.js";
-import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
-import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
-import {TokenAgentBase} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
-import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {CancelledError, UnknownError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
 
 export const receiveMessageTestCounter = new TestCounter<void>();
 export const deleteMessageBatchTestCounter = new TestCounter<void>();
@@ -96,47 +87,54 @@ const stopError = new CancelledError("Job queue consumer stopped");
  *
  * [1]: https://go.dev/tour/concurrency/1
  */
-export class JobQueueConsumer {
+export class JobConsumer {
     private readonly _processContext: ServerProcessContext;
-    private readonly _tokenAgent: TokenAgentBase;
-    private readonly _taskRealtimeServiceRouter: TaskRealtimeServiceRouterBase;
     private readonly _queueUrl: string;
     private readonly _sqsClient: SQSClient;
+    private readonly _processJob: (
+        context: ServerSystemActionContext,
+        job: JobDescription,
+        jobSendTime: Date,
+    ) => Promise<void>;
 
     private _isStopped = false;
     private _abortController = new AbortController();
     private _runningConsumeCallCount = 0;
     private _hasPendingConsumeCall = false;
+    private _emptyQueueCallbacks: Array<() => void> = [];
 
     private constructor(
         context: ServerProcessContext,
         {
-            tokenAgent,
-            taskRealtimeServiceRouter,
             queueUrl,
+            processJob,
         }: {
-            tokenAgent: TokenAgentBase;
-            taskRealtimeServiceRouter: TaskRealtimeServiceRouterBase;
             queueUrl: string;
+            processJob: (
+                context: ServerSystemActionContext,
+                job: JobDescription,
+                jobSendTime: Date,
+            ) => Promise<void>;
         },
     ) {
         this._processContext = context;
-        this._tokenAgent = tokenAgent;
-        this._taskRealtimeServiceRouter = taskRealtimeServiceRouter;
         this._queueUrl = queueUrl;
         this._sqsClient = new SQSClient({endpoint: new URL("/", queueUrl).toString()});
+        this._processJob = processJob;
     }
 
     public static start(
         context: ServerProcessContext,
         options: {
-            tokenAgent: TokenAgentBase;
-            taskRealtimeServiceRouter: TaskRealtimeServiceRouterBase;
             queueUrl: string;
-            region: string;
+            processJob: (
+                context: ServerSystemActionContext,
+                job: JobDescription,
+                jobSendTime: Date,
+            ) => Promise<void>;
         },
     ) {
-        const consumer = new JobQueueConsumer(context, options);
+        const consumer = new JobConsumer(context, options);
 
         consumer._processContext.process.waitUntil(consumer._consume());
 
@@ -386,55 +384,8 @@ export class JobQueueConsumer {
         });
 
         try {
-            // Jobs are already processed in a system context so this isn't actually an
-            // escalation but we still need it for compatibility.
-            //
-            // It's important we use new caches + batchers here. We don't want to load some
-            // data at a higher permission level then let the session context see it. So we
-            // derive our new context from the process context to help avoid reusing any
-            // request-level caches.
-            const dangerouslyEscalateToSystemContext = <Value>(
-                context: Context<{
-                    tracer: TracerContextModule;
-                    actor: DynamoActorContextModule;
-                    cache: CacheContextModule;
-                }>,
-                spaceId: SpaceId,
-                action: (context: JobQueueSystemActionContext) => Promise<Value>,
-            ): Promise<Value> => {
-                return this._processContext.with<
-                    Omit<
-                        ServerSystemActionContextModules,
-                        Exclude<keyof ServerProcessContextModules, "tracer">
-                    > & {
-                        tasks: TaskContextModule;
-                    },
-                    Value
-                >(
-                    {
-                        tracer: new TracerContextModule(context.tracer.getTracer()),
-                        // Optimization: Share some caches that opt-in to sharing with the session
-                        // context. This is dangerous since we don't want to let system data leak into
-                        // session actions and vice-versa. We trust the cache author to make the right
-                        // determination about their cache.
-                        cache: context.cache.dangerouslyForkWithSharedCaches(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
-                        actor: DynamoSystemActorContextModule.dangerouslyNew(
-                            context.actor.serviceName,
-                            spaceId,
-                        ),
-                        tasks: new TaskContextModule({
-                            tokenAgent: this._tokenAgent,
-                            router: this._taskRealtimeServiceRouter,
-                            dangerouslyEscalateToSystemContext,
-                        }),
-                    },
-                    action,
-                );
-            };
-
             await this._processContext.with<
-                Omit<JobQueueSystemActionContextModules, keyof ServerProcessContextModules> & {
+                Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules> & {
                     tracer: TracerContextModule;
                 },
                 void
@@ -454,13 +405,9 @@ export class JobQueueConsumer {
                         "JobQueueService",
                         messageBody.job.spaceId,
                     ),
-                    tasks: new TaskContextModule({
-                        tokenAgent: this._tokenAgent,
-                        router: this._taskRealtimeServiceRouter,
-                        dangerouslyEscalateToSystemContext,
-                    }),
                 },
-                actionContext => processJob(actionContext, messageBody),
+                actionContext =>
+                    this._processJob(actionContext, messageBody.job, messageBody.sendTime),
             );
 
             finishSpan();

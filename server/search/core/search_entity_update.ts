@@ -1,6 +1,10 @@
-import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
+import {
+    SearchEntityDependencyId,
+    isSearchEntityIdAlsoEntityDependencyId,
+} from "~/server/search/core/search_entity_dependency_id.js";
 import {SearchEntityIdObject, printSearchEntityId} from "~/server/search/core/search_entity_id.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {DistributiveOmit} from "~/shared/helpers/types/distributive_omit.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
@@ -33,15 +37,23 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * If `updatedTraits` is `Any` then any of the entity's traits could have been
  * updated. `Any` is typically used either when everything is updated (the
  * entity was just created) or we don't precisely know what updated.
+ *
+ * If `updateTraits` is `None` then none of the entity's traits were updated.
+ * The update was a noop. We may use this when we need to reindex an entity
+ * because a dependency changed but the entity itself didn't change.
  */
 export type SearchEntityUpdate = {
     [Type in keyof typeof searchEntityUpdateSchemaDescription]: MergeObjectIntersection<
         SchemaType<(typeof searchEntityUpdateSchemaDescription)[Type]["schema"]> & {
             readonly updatedTraits:
-                | ReadonlyArray<
-                      (typeof searchEntityUpdateSchemaDescription)[Type]["updatableTraits"][number]
-                  >
-                | "Any";
+                | {readonly type: "None"}
+                | {readonly type: "Any"}
+                | {
+                      readonly type: "Some";
+                      readonly traits: ReadonlyArray<
+                          (typeof searchEntityUpdateSchemaDescription)[Type]["updatableTraits"][number]
+                      >;
+                  };
         }
     >;
 }[keyof typeof searchEntityUpdateSchemaDescription];
@@ -148,14 +160,14 @@ export const SearchEntityUpdateSchema = Schema.union(
     mapObjectValues(searchEntityUpdateSchemaDescription, ({schema, updatableTraits}) => {
         return schema.merge(
             Schema.object({
-                updatedTraits: Schema.array(Schema.enum(updatableTraits))
-                    .nullable()
-                    .transform<ReadonlyArray<(typeof updatableTraits)[number]> | "Any">({
-                        serialize: updatedTraits =>
-                            updatedTraits === "Any" ? null : updatedTraits,
-                        deserialize: updatedTraits =>
-                            updatedTraits === null ? "Any" : updatedTraits,
+                updatedTraits: Schema.union({
+                    None: Schema.object({type: Schema.value("None")}),
+                    Any: Schema.object({type: Schema.value("Any")}),
+                    Some: Schema.object({
+                        type: Schema.value("Some"),
+                        traits: Schema.array(Schema.enum(updatableTraits)),
                     }),
+                }),
             }),
         );
     }) as any,
@@ -169,18 +181,37 @@ export function getSearchEntityDependencyIdsAffectedByUpdate(
     update: SearchEntityUpdate,
 ): Array<SearchEntityDependencyId> {
     const ids: Array<SearchEntityDependencyId> = [];
-    const primaryId = printSearchEntityId(update);
 
-    ids.push(primaryId);
+    switch (update.updatedTraits.type) {
+        case "None": {
+            break;
+        }
+        case "Any": {
+            const primaryId = printSearchEntityId(update);
 
-    if (update.updatedTraits === "Any") {
-        for (const trait of searchEntityUpdateSchemaDescription[update.type].updatableTraits) {
-            ids.push(`${primaryId}:${trait}` as SearchEntityDependencyId);
+            if (isSearchEntityIdAlsoEntityDependencyId(primaryId)) {
+                ids.push(primaryId);
+            }
+
+            for (const trait of searchEntityUpdateSchemaDescription[update.type].updatableTraits) {
+                ids.push(`${primaryId}:${trait}` as SearchEntityDependencyId);
+            }
+            break;
         }
-    } else {
-        for (const trait of update.updatedTraits) {
-            ids.push(`${primaryId}:${trait}` as SearchEntityDependencyId);
+        case "Some": {
+            const primaryId = printSearchEntityId(update);
+
+            if (isSearchEntityIdAlsoEntityDependencyId(primaryId)) {
+                ids.push(primaryId);
+            }
+
+            for (const trait of update.updatedTraits.traits) {
+                ids.push(`${primaryId}:${trait}` as SearchEntityDependencyId);
+            }
+            break;
         }
+        default:
+            throw exhaustive(update.updatedTraits);
     }
 
     return ids;

@@ -1,25 +1,28 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {JobSender} from "~/server/jobs/core/job_sender.js";
+import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {
-    JobQueueConsumer,
+    JobConsumer,
     changeMessageVisibilityBatchTestCounter,
     deleteMessageBatchTestCounter,
     receiveMessageTestCounter,
-} from "~/server/jobs/queue/job_queue_consumer.js";
-import {processTestJobDescriptionTestCheckpoint} from "~/server/jobs/queue/process_job.js";
+} from "~/server/jobs/core/job_consumer.js";
+import {JobSender} from "~/server/jobs/core/job_sender.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {waitMacrotask} from "~/shared/helpers/async/wait_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {generateId} from "~/shared/id/id.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-let consumer: JobQueueConsumer | null = null;
+let consumer: JobConsumer | null = null;
 
 let receiveMessageRecorder: {getCount: () => number};
 let deleteMessageBatchRecorder: {getCount: () => number};
 let changeMessageVisibilityBatchRecorder: {getCount: () => number};
+
+const processTestJobDescriptionTestCheckpoint = new TestCheckpoint<Id>();
 
 beforeEach(async () => {
     // We have to restart our local SQS server between every test because our local
@@ -33,9 +36,18 @@ beforeEach(async () => {
     deleteMessageBatchRecorder = deleteMessageBatchTestCounter.recordForTest();
     changeMessageVisibilityBatchRecorder = changeMessageVisibilityBatchTestCounter.recordForTest();
 
-    consumer = JobQueueConsumer.start(context, {
+    consumer = JobConsumer.start(context, {
         queueUrl: `http://localhost:${context.getSqsLocalPort()}/local/JobQueue`,
-        region: "us-east-1",
+        processJob: async (context, job) => {
+            switch (job.type) {
+                case "Test": {
+                    await processTestJobDescriptionTestCheckpoint.waitForTest(job.checkpointId);
+                    return;
+                }
+                default:
+                    throw new UnimplementedError("Unimplemented job");
+            }
+        },
     });
 });
 

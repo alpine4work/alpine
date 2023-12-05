@@ -32,6 +32,7 @@ import {
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {NoopNotificationsContextModule} from "~/server/notifications/core/noop_notifications_context_module.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {
@@ -61,6 +62,7 @@ export type TestContext = ServerProcessContext & {
     getOpensearchLocalPort(): number;
     readonly isOpensearchEnabled: boolean;
     getSqsLocalPort(): number;
+    getSqsLocalJobQueueUrl(): string;
     restartSqsLocal(): Promise<void>;
 
     /**
@@ -156,6 +158,10 @@ export function createTestContext({
         return sqsLocal.port;
     };
 
+    const getSqsLocalJobQueueUrl = () => {
+        return `http://localhost:${getSqsLocalPort()}/local/JobQueue`;
+    };
+
     const restartSqsLocal = async () => {
         assert(sqsLocal, "SQS local must have been started before");
 
@@ -215,8 +221,8 @@ export function createTestContext({
         }
     > => {
         return processContext.clone({
-            dynamoBatchContext: new DynamoBatchContextModule(),
             cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
             actor: new DynamoUnknownActorContextModule(async () => null),
             notifications: createNotificationsContextModule(),
         });
@@ -233,8 +239,8 @@ export function createTestContext({
         }
     > => {
         return processContext.clone({
-            dynamoBatchContext: new DynamoBatchContextModule(),
             cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
             actor: DynamoSessionActorContextModule.dangerouslyNew("Test", Session.test(session)),
             notifications: createNotificationsContextModule(),
             fork: new ForkActionContextModule(),
@@ -249,8 +255,8 @@ export function createTestContext({
         }
     > => {
         return processContext.clone({
-            dynamoBatchContext: new DynamoBatchContextModule(),
             cache: new CacheContextModule(),
+            dynamoBatchContext: new DynamoBatchContextModule(),
             actor: DynamoSystemActorContextModule.dangerouslyNew("Test", spaceId),
             notifications: createNotificationsContextModule(),
         });
@@ -258,6 +264,7 @@ export function createTestContext({
 
     const dynamoContextModule = DynamoContextModule.test();
     const opensearchContextModule = OpensearchContextModule.test();
+    const jobsContextModule = JobsContextModule.test();
 
     const processContext = Context.new<ServerProcessContextModules>({
         process: ProcessContextModule.test(testSharedHooks),
@@ -265,6 +272,7 @@ export function createTestContext({
         dynamo: dynamoContextModule,
         email: new NoopEmailContextModule(),
         opensearch: opensearchContextModule,
+        jobs: jobsContextModule,
     });
 
     const context = Object.assign(processContext, {
@@ -272,6 +280,7 @@ export function createTestContext({
         getOpensearchLocalPort,
         isOpensearchEnabled: shouldStartOpensearch,
         getSqsLocalPort,
+        getSqsLocalJobQueueUrl,
         restartSqsLocal,
         unauthenticatedAction: createUnauthenticatedSessionContext,
         action: createSessionContext,
@@ -316,6 +325,8 @@ export function createTestContext({
         });
 
         dynamoContextModule.initialize(`http://localhost:${dynamoLocalPort}`, awsSigner);
+
+        jobsContextModule.initialize(`http://localhost:${sqsLocalPort}/local/JobQueue`);
 
         if (!opensearchLocal) {
             opensearchContextModule.initialize(new TestDisabledOpensearchClient());

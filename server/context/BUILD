@@ -15,7 +15,7 @@ ts_project(
         "//server/accounts",
         "//server/dynamo/core",
         "//server/emails",
-        "//server/notifications/core",
+        "//server/jobs/core",
         "//server/opensearch",
         "//shared/context",
         "//shared/helpers",

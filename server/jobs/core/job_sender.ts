@@ -62,7 +62,7 @@ export class JobSender {
      * Doesn't guarantee the job was delivered. If the process unexpectedly ends
      * you may return a successful result to the user without the job being saved
      * in our queue. If you want to guarantee message delivery call
-     * `sendImmediately()` and await.
+     * `sendAndWait()`.
      */
     public send(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
@@ -76,6 +76,25 @@ export class JobSender {
                 // alive until the job finishes sending though.
             }),
         );
+    }
+
+    /**
+     * Sends a job to our job queue for processing. Will be batched with other jobs
+     * sent from the same process in a short window of time.
+     *
+     * The first job in a batch will need to wait 200ms before it can be sent as we
+     * accumulate other jobs.
+     *
+     * Returns a promise that resolves only once the job has been sent to the
+     * queue. This means you may have to wait up to 200ms if this is the first job
+     * in a batch! Avoid this function if you need fast performance.
+     */
+    public sendAndWait(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        job: JobDescription,
+        options?: {delaySeconds?: number},
+    ): Promise<void> {
+        return this._send(context, job, options);
     }
 
     private _send(

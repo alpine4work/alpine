@@ -6,7 +6,7 @@ import {JsonObjectValue} from "~/shared/helpers/types/json_value.js";
  * https://opensearch.org/docs/latest/search-plugins/searching-data/sort/
  */
 export type OpensearchSortClause<FlattenedKeys extends string> = Array<
-    "_score" | OpensearchSortClauseItem<FlattenedKeys>
+    "_score" | "_doc" | OpensearchSortClauseItem<FlattenedKeys>
 >;
 
 export type OpensearchSortClauseItem<FlattenedKeys extends string> =

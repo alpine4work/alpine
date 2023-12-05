@@ -1,3 +1,5 @@
+export const defaultUncertaintyWindowMs = 500;
+
 /**
  * Returns true if `date1 < date2` within some uncertainty window.
  * This is a useful function for building backend distributed systems since we
@@ -32,7 +34,7 @@ export function isDateLessThanWithUncertaintyWindow(
     date2: Date,
     // We default to a 500ms uncertainty window, but in tests use a 0ms uncertainty
     // window since everything happens on the same machine.
-    uncertaintyWindowMs: number = process.env.NODE_ENV === "test" ? 0 : 500,
+    uncertaintyWindowMs: number = process.env.NODE_ENV === "test" ? 0 : defaultUncertaintyWindowMs,
 ): boolean {
     return date1.getTime() + uncertaintyWindowMs / 2 < date2.getTime() - uncertaintyWindowMs / 2;
 }

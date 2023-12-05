@@ -1,13 +1,12 @@
 import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {
     AccountId,
     ChannelId,
     ChatId,
     ContentMentionAccountId,
-    DocumentCommentThreadId,
     DocumentId,
-    PostId,
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
@@ -25,21 +24,22 @@ import {
  * attributes irrelevant to authorization (title, notes, priority, etc.).
  * Depending on just the authorization trait is an optimization that lets us
  * avoid re-indexing whenever unrelated attributes change.
+ *
+ * You can't take a dependency on every search entity. For example
+ * `ChatMessage:${ChatId}:${number}` is a `SearchEntityId` but not a
+ * `SearchEntityDependencyId`. That means we statically know that when a
+ * chat message changes it has no dependents so we can skip querying for
+ * dependents.
+ *
+ * In theory every `SearchEntityId` could be a `SearchEntityDependencyId`. We
+ * statically limit `SearchEntityDependencyId` as an optimization.
  */
 export type SearchEntityDependencyId =
     | `Account:${AccountId | ContentMentionAccountId}`
-    | `Document:${DocumentId}`
     | `Document:${DocumentId}:Title`
-    | `DocumentComment:${DocumentId}-${DocumentCommentThreadId}-${number}`
-    | `Channel:${ChannelId}`
     | `Channel:${ChannelId}:Preview`
-    | `Post:${PostId}`
-    | `PostComment:${PostId}-${number}`
     | `Chat:${ChatId}`
-    | `ChatMessage:${ChatId}-${number}`
-    | `Task:${TaskId}`
     | `Task:${TaskId}:Authorization`
-    | `TaskCollection:${TaskCollectionId}`
     | `TaskCollection:${TaskCollectionId}:Authorization`;
 
 type RemoveSearchEntityDependencyIdAttribute<Id> =
@@ -50,3 +50,50 @@ assertAssignableTypes<
     RemoveSearchEntityDependencyIdAttribute<SearchEntityDependencyId>,
     SearchEntityId
 >();
+
+type ExtractSearchEntityDependencyIdType<Id> = Id extends `${infer IdType}:${string}`
+    ? IdType
+    : never;
+
+const searchEntityIdTypesThatAreAlsoEntityDependencyIds: {
+    [Key in ExtractSearchEntityDependencyIdType<
+        Exclude<SearchEntityDependencyId, `${string}:${string}:${string}`>
+    >]: true;
+} = {
+    Account: true,
+    Chat: true,
+};
+
+/**
+ * Is the provided `SearchEntityDependencyId` also a valid `SearchEntityId`?
+ *
+ * For example, `Chat:${ChatId}` is both a `SearchEntityDependencyId` and
+ * `SearchEntityId`. We'd return true for `Chat:${ChatId}`. However
+ * `Document:${DocumentId}:Title` is a `SearchEntityDependencyId` but not a
+ * `SearchEntityId` so we'd return false.
+ */
+export function isSearchEntityDependencyIdAlsoEntityId(
+    entityId: SearchEntityId | SearchEntityDependencyId,
+): entityId is SearchEntityId {
+    return entityId.indexOf(":") === entityId.lastIndexOf(":");
+}
+
+/**
+ * Is the provided `SearchEntityId` also a valid `SearchEntityDependencyId`?
+ *
+ * For example, `Chat:${ChatId}` is both a `SearchEntityDependencyId` and
+ * `SearchEntityId`. We'd return true for `Chat:${ChatId}`. However
+ * `ChatMessage:${ChatId}:${number}` is a `SearchEntityId` but not a
+ * `SearchEntityDependencyId` so we'd return false.
+ */
+export function isSearchEntityIdAlsoEntityDependencyId(
+    entityId: SearchEntityId,
+): entityId is Exclude<SearchEntityDependencyId, `${string}:${string}:${string}`> {
+    const entityType = entityId.slice(0, entityId.indexOf(":"));
+
+    return (
+        cast<{[key: string]: boolean}>(searchEntityIdTypesThatAreAlsoEntityDependencyIds)[
+            entityType
+        ] ?? false
+    );
+}

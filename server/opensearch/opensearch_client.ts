@@ -228,8 +228,22 @@ export interface OpensearchClientInterface {
         },
     ): Promise<
         Array<{
-            score: number;
-            id: OpensearchIndexDocIdType<Index>;
+            readonly score: number;
+            readonly id: OpensearchIndexDocIdType<Index>;
+            readonly sort?: ReadonlyArray<JsonValue>;
+            readonly highlight?: {
+                readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
+            };
+            readonly innerHits?: {
+                readonly [key: string]: Array<{
+                    readonly offset: number;
+                    readonly fields: {
+                        readonly [Key in OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
+                            OpensearchIndexStoredFieldsType<Index>[Key]
+                        >;
+                    };
+                }>;
+            };
         }>
     >;
 
@@ -544,6 +558,7 @@ type OpensearchSearchHit = {
     _id: string;
     _score: number;
     _source?: JsonValue;
+    sort?: Array<JsonValue>;
     highlight?: {
         [key: string]: Array<string>;
     };
@@ -1712,6 +1727,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         Array<{
             readonly score: number;
             readonly id: OpensearchIndexDocIdType<Index>;
+            readonly sort?: ReadonlyArray<JsonValue>;
             readonly highlight?: {
                 readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
             };
@@ -1741,6 +1757,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             return {
                 id: hit._id as OpensearchIndexDocIdType<Index>,
                 score: hit._score,
+                sort: hit.sort,
                 highlight: hit.highlight as any,
                 innerHits: hit.inner_hits
                     ? mapObjectValues(hit.inner_hits, innerHits =>
