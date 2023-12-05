@@ -23,6 +23,7 @@ import {
     FailedPreconditionError,
     InternalError,
     UnavailableError,
+    UnimplementedError,
     UnknownError,
 } from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -34,6 +35,7 @@ import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {partitionArray} from "~/shared/helpers/iterable/partition_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
+import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonObjectValue, JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
@@ -123,7 +125,7 @@ export interface OpensearchClientInterface {
         readonly version: OpensearchClientDocVersion | null;
         readonly fields: {
             readonly [Key in StoredFieldKeys]?: ReadonlyArray<
-                OpensearchIndexStoredFieldsType<Index>[StoredFieldKeys]
+                OpensearchIndexStoredFieldsType<Index>[Key]
             >;
         };
     } | null>;
@@ -349,6 +351,29 @@ type OpensearchError = {
     readonly reason: string;
     readonly root_cause?: Array<{readonly type: string}>;
     readonly caused_by?: {readonly type: string; readonly reason: string};
+};
+
+type OpensearchSearchHit = {
+    _id: string;
+    _score: number;
+    _source?: JsonValue;
+    highlight?: {
+        [key: string]: Array<string>;
+    };
+    inner_hits?: {
+        [key: string]: {
+            hits: {
+                hits: Array<{
+                    _nested: {offset: number};
+                    _score: number;
+                    _source?: JsonValue;
+                    fields: {
+                        [key: string]: Array<JsonValue>;
+                    };
+                }>;
+            };
+        };
+    };
 };
 
 /**
@@ -820,7 +845,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         readonly version: OpensearchClientDocVersion | null;
         readonly fields: {
             readonly [Key in StoredFieldKeys]?: ReadonlyArray<
-                OpensearchIndexStoredFieldsType<Index>[StoredFieldKeys]
+                OpensearchIndexStoredFieldsType<Index>[Key]
             >;
         };
     } | null> {
@@ -1194,14 +1219,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
             withoutDocs?: boolean;
         },
-    ): Promise<
-        Array<{
-            _id: string;
-            _score: number;
-            _source?: JsonValue;
-            highlight?: {[key: string]: Array<string>};
-        }>
-    > {
+    ): Promise<Array<OpensearchSearchHit>> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -1270,14 +1288,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                         // `sort` values unless you parse with `json-bigint`.
                         const body:
                             | {
-                                  hits: {
-                                      hits: Array<{
-                                          _id: string;
-                                          _score: number;
-                                          _source?: JsonValue;
-                                          highlight?: {[key: string]: Array<string>};
-                                      }>;
-                                  };
+                                  hits: {hits: Array<OpensearchSearchHit>};
                                   error?: undefined;
                               }
                             | {error: OpensearchError; hits?: undefined} = await response.json();
@@ -1357,7 +1368,17 @@ export class OpensearchClient implements OpensearchClientInterface {
             OpensearchIndexDocType<Index> & {
                 readonly id: OpensearchIndexDocIdType<Index>;
                 readonly highlight?: {
-                    [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
+                    readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
+                };
+                readonly innerHits?: {
+                    readonly [key: string]: Array<{
+                        readonly offset: number;
+                        readonly fields: {
+                            readonly [Key in OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
+                                OpensearchIndexStoredFieldsType<Index>[Key]
+                            >;
+                        };
+                    }>;
                 };
             }
         >
@@ -1370,16 +1391,46 @@ export class OpensearchClient implements OpensearchClientInterface {
             highlight,
         });
 
-        const docs = hits.map(hit =>
-            hit.highlight
-                ? Object.assign(index.type.deserialize(hit._source!), {
-                      id: hit._id,
-                      highlight: hit.highlight,
-                  })
-                : Object.assign(index.type.deserialize(hit._source!), {
-                      id: hit._id,
-                  }),
-        );
+        const docs = hits.map(hit => {
+            const doc = Object.assign(index.type.deserialize(hit._source!), {
+                id: hit._id,
+            });
+
+            if (hit.highlight) {
+                doc.highlight = hit.highlight;
+            }
+
+            if (hit.inner_hits) {
+                doc.innerHits = mapObjectValues(hit.inner_hits, innerHits =>
+                    innerHits.hits.hits.map(innerHit => {
+                        if (innerHit._source) {
+                            throw new UnimplementedError(
+                                "`_source` not implemented for inner hits",
+                            );
+                        }
+
+                        const fields: {[key: string]: Array<any>} = {};
+
+                        for (const [key, values] of Object.entries(innerHit.fields ?? {})) {
+                            const storedFieldType = index.type.storedFields[key];
+                            if (!storedFieldType)
+                                throw new InternalError(
+                                    quote`Stored field type not found for ${key}`,
+                                );
+
+                            fields[key] = values.map(value => storedFieldType.deserialize(value));
+                        }
+
+                        return {
+                            offset: innerHit._nested.offset,
+                            fields: fields as any,
+                        };
+                    }),
+                );
+            }
+
+            return doc;
+        });
 
         return docs;
     }
@@ -1413,10 +1464,20 @@ export class OpensearchClient implements OpensearchClientInterface {
         },
     ): Promise<
         Array<{
-            score: number;
-            id: OpensearchIndexDocIdType<Index>;
-            highlight?: {
-                [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
+            readonly score: number;
+            readonly id: OpensearchIndexDocIdType<Index>;
+            readonly highlight?: {
+                readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
+            };
+            readonly innerHits?: {
+                readonly [key: string]: Array<{
+                    readonly offset: number;
+                    readonly fields: {
+                        readonly [Key in OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
+                            OpensearchIndexStoredFieldsType<Index>[Key]
+                        >;
+                    };
+                }>;
             };
         }>
     > {
@@ -1429,16 +1490,46 @@ export class OpensearchClient implements OpensearchClientInterface {
             withoutDocs: true,
         });
 
-        const docIds = hits.map(hit => {
+        const docs = hits.map(hit => {
             assert(!hit._source);
             return {
                 id: hit._id as OpensearchIndexDocIdType<Index>,
                 score: hit._score,
                 highlight: hit.highlight as any,
+                innerHits: hit.inner_hits
+                    ? mapObjectValues(hit.inner_hits, innerHits =>
+                          innerHits.hits.hits.map(innerHit => {
+                              if (innerHit._source) {
+                                  throw new UnimplementedError(
+                                      "`_source` not implemented for inner hits",
+                                  );
+                              }
+
+                              const fields: {[key: string]: Array<any>} = {};
+
+                              for (const [key, values] of Object.entries(innerHit.fields ?? {})) {
+                                  const storedFieldType = index.type.storedFields[key];
+                                  if (!storedFieldType)
+                                      throw new InternalError(
+                                          quote`Stored field type not found for ${key}`,
+                                      );
+
+                                  fields[key] = values.map(value =>
+                                      storedFieldType.deserialize(value),
+                                  );
+                              }
+
+                              return {
+                                  offset: innerHit._nested.offset,
+                                  fields: fields as any,
+                              };
+                          }),
+                      )
+                    : undefined,
             };
         });
 
-        return docIds;
+        return docs;
     }
 
     /**

@@ -8,7 +8,7 @@ export interface LanguageModelBaseClass {
     /**
      * An identifier for the language model in our codebase.
      */
-    readonly key: "AllMiniLmL6V2" | "CohereEmbedEnglishV3";
+    readonly key: "allMiniLmL6V2" | "cohereEmbedEnglishV3";
 
     /**
      * How many dimensions are in an embedding?
@@ -27,6 +27,8 @@ export interface LanguageModelBaseClass {
  * model implementations.
  */
 export interface LanguageModelBase {
+    readonly statics: LanguageModelBaseClass;
+
     /**
      * Embed some texts into vector representations with this model.
      *

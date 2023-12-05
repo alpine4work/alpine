@@ -38,6 +38,8 @@ export type OpensearchQueryClause<FlattenedKeys extends string> =
     | OpensearchMatchQueryClause<FlattenedKeys>
     | OpensearchMatchPhraseQueryClause<FlattenedKeys>
     | OpensearchMultiMatchQueryClause<FlattenedKeys>
+    | OpensearchKnnQueryClause<FlattenedKeys>
+    | OpensearchNestedQueryClause<FlattenedKeys>
     | OpensearchBooleanQueryClause<FlattenedKeys>;
 
 type OpensearchQueryClauseField<FlattenedKeys extends string, Value> = {
@@ -131,6 +133,52 @@ export type OpensearchMultiMatchQueryClause<FlattenedKeys extends string> = {
         query: OpensearchQueryValue<string>;
         type?: "phrase_prefix" | "bool_prefix";
         fields: Array<FlattenedKeys>;
+    };
+};
+
+/**
+ * Search an OpenSearch k-NN index.
+ *
+ * https://opensearch.org/docs/latest/search-plugins/knn/approximate-knn/
+ *
+ * Notes:
+ *
+ * - `k` is the number of neighbors the search of each graph will return
+ *   (there's a separate graph per shared per segment). Must also provide
+ *   `size` at the query level to determine how many results the entire query
+ *   should return.
+ *
+ * - Provide `filter` to perform [efficient k-NN filtering][1] during the
+ *   k-NN search request.
+ *
+ * [1]: https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
+ */
+export type OpensearchKnnQueryClause<FlattenedKeys extends string> = {
+    knn: OpensearchQueryClauseField<
+        FlattenedKeys,
+        {
+            vector: OpensearchQueryValue<ReadonlyArray<number>>;
+            k: number;
+            filter?: OpensearchQueryClause<FlattenedKeys>;
+        }
+    >;
+};
+
+/**
+ * Query objects in a `nested` field as if they are separate documents. (They
+ * are, indeed, stored as separate documents.)
+ *
+ * https://opensearch.org/docs/latest/field-types/supported-field-types/nested/
+ */
+export type OpensearchNestedQueryClause<FlattenedKeys extends string> = {
+    nested: {
+        path: string;
+        query: OpensearchQueryClause<FlattenedKeys>;
+        inner_hits?: {
+            size?: number;
+            _source?: boolean;
+            stored_fields?: Array<FlattenedKeys>;
+        };
     };
 };
 

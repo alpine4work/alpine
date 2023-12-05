@@ -5,17 +5,18 @@ import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/ope
 import {OpensearchIndexAnalysisCustomFilter} from "~/server/opensearch/opensearch_index_analysis.js";
 import {
     OpensearchIndexArrayType,
+    OpensearchIndexBinaryType,
     OpensearchIndexByteType,
     OpensearchIndexDateType,
     OpensearchIndexIntegerType,
     OpensearchIndexKeywordType,
     OpensearchIndexKnnVectorType,
+    OpensearchIndexNestedType,
     OpensearchIndexObjectType,
     OpensearchIndexSearchAsYouTypeType,
     OpensearchIndexTextType,
     OpensearchIndexTypeBase,
     OpensearchIndexTypeType,
-    OpensearchIndexUnionObjectType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -68,34 +69,45 @@ const SearchEntityIndexAccessPolicyType = OpensearchIndexObjectType.new({
  * - We use `AllMiniLmL6V2Model` (free) locally in development
  * - We use `CohereEmbedEnglishV3Model` (paid) in production
  */
-const SearchEntityIndexEmbeddingChunkLanguageModels = {
-    AllMiniLmL6V2: AllMiniLmL6V2Model,
-    CohereEmbedEnglishV3: CohereEmbedEnglishV3Model,
+const searchEntityIndexEmbeddingChunkLanguageModels = {
+    allMiniLmL6V2: AllMiniLmL6V2Model,
+    cohereEmbedEnglishV3: CohereEmbedEnglishV3Model,
 } satisfies {
     [key: string]: LanguageModelBaseClass;
 };
 
 for (const [key, languageModelClass] of Object.entries(
-    SearchEntityIndexEmbeddingChunkLanguageModels,
+    searchEntityIndexEmbeddingChunkLanguageModels,
 )) {
     assert(key === languageModelClass.key);
 }
 
+export type SearchEntityIndexEmbeddingChunk = OpensearchIndexTypeType<
+    typeof SearchEntityIndexEmbeddingChunkType
+>;
+
 const SearchEntityIndexEmbeddingChunkType = OpensearchIndexObjectType.new({
     fields: {
+        // NOCOMMIT: Document why these properties `accessPolicy` are copied here!
+        spaceId: new OpensearchIndexKeywordType({
+            isFilterable: true,
+        }).validate<SpaceId>(isId),
+
+        accessPolicy: SearchEntityIndexAccessPolicyType,
+
         /**
          * The chunk's text. Can be provided to a conversational LLM (like ChatGPT) to
          * implement a chat bot. Can also be used to show the user a preview of the
          * content they searched for.
          */
-        text: new OpensearchIndexKeywordType(),
+        text: new OpensearchIndexKeywordType().store(),
 
         /**
          * Index at which the preamble ends in `text`. The preamble contains context we
          * send to an LLM to help it interpret the chunk that a user doesn't need to
          * see. The preamble typically includes the document title and section title.
          */
-        preambleEndIndex: new OpensearchIndexIntegerType(),
+        preambleEndIndex: new OpensearchIndexIntegerType().store(),
 
         /**
          * The embedding vector returned by our language model. We may embed the same
@@ -103,14 +115,32 @@ const SearchEntityIndexEmbeddingChunkType = OpensearchIndexObjectType.new({
          */
         vector: OpensearchIndexObjectType.new({
             fields: mapObjectValues(
-                SearchEntityIndexEmbeddingChunkLanguageModels,
+                searchEntityIndexEmbeddingChunkLanguageModels,
                 languageModelClass => {
                     return new OpensearchIndexKnnVectorType({
                         dimensions: languageModelClass.dimensionCount,
 
-                        // `byte` provides better performance at scale with a minimal recall sacrifice.
-                        // (See documentation on this property for sources.)
-                        dataType: "byte",
+                        // NOTE(calebmer, 2023-12-04): I'd love to use the `byte` data type, but in
+                        // order to quantize you need to pick embedding bounds. [Qdrant recommends][1]
+                        // picking bounds at p95 or p99 of your embedding data, excluding outliers.
+                        // Cohere hasn't published p95/p99 bounds for their models on general datasets
+                        // (that I can find) and as of this writing I don't have enough representative
+                        // data to find p95/p99 bounds.
+                        //
+                        // I've asked for bounds in the [community Discord][2]. If I don't get an
+                        // answer we can't quantize for now and will have to reindex later when we get
+                        // reasonable bounds.
+                        //
+                        // One downside with quantization to consider is, right now, we'd lose the
+                        // original embedding. Unless we find some separate storage for the full
+                        // embedding.
+                        //
+                        // When we update this to `byte` we should also update our binary serialization
+                        // of `embeddingChunksVectorCache` to write bytes instead of floats as well.
+                        //
+                        // [1]: https://qdrant.tech/articles/scalar-quantization/
+                        // [2]: https://discord.com/channels/954421988141711382/1168411509542637578/1181270167393685585
+                        dataType: "float",
 
                         method: {
                             // NOTE(calebmer, 2023-11-21): I'm pretty unhappy that OpenSearch does not
@@ -185,17 +215,25 @@ const SearchEntityIndexEmbeddingChunkType = OpensearchIndexObjectType.new({
     },
 });
 
-type SearchEntityIndexDataType = IntegerMappingStringType<
-    typeof SearchEntityIndexDataTypeIntegerMapping
->;
+export type SearchEntityIndexDoc = OpensearchIndexTypeType<typeof SearchEntityIndexDocType>;
 
-const SearchEntityIndexDataTypeIntegerMapping = createEnumIntegerMapping({
-    Content: 1,
-    EmbeddingChunk: 2,
-});
-
-const SearchEntityIndexContentDataType = OpensearchIndexObjectType.new({
+export const SearchEntityIndexDocType = OpensearchIndexObjectType.new({
     fields: {
+        spaceId: new OpensearchIndexKeywordType({isFilterable: true}).validate<SpaceId>(isId),
+
+        type: new OpensearchIndexKeywordType({isFilterable: true}),
+
+        /**
+         * The last time where we started the read that produced this search entity.
+         */
+        lastReadStartTime: new OpensearchIndexDateType().store(),
+
+        /**
+         * Determines who is allowed to view this search entity. We filter against this
+         * property when we search.
+         */
+        accessPolicy: SearchEntityIndexAccessPolicyType,
+
         /**
          * Other entities that this search entity depends on.
          * `SearchEntityDependencyId`s are `SearchEntityId`s plus some extra
@@ -295,66 +333,87 @@ const SearchEntityIndexContentDataType = OpensearchIndexObjectType.new({
             // Store the body so we can highlight it.
             .store(),
 
-        /**
-         * The first embedding chunk is included in the entity doc in our search index
-         * to save on space. If we have more than one chunk, we create new OpenSearch
-         * docs.
-         */
-        embeddingChunk: SearchEntityIndexEmbeddingChunkType.nullable(),
-    },
-});
+        // NOCOMMIT: Document what this is and why nested type
+        embeddingChunks: new OpensearchIndexNestedType(SearchEntityIndexEmbeddingChunkType),
 
-export type SearchEntityIndexDoc = OpensearchIndexTypeType<typeof SearchEntityIndexDocType>;
-
-export const SearchEntityIndexDocType = OpensearchIndexObjectType.new({
-    fields: {
         /**
-         * The space this entity is in. We also use the `SpaceId` as the routing value
-         * for `SearchIndex`. Why do we also need it here? For index sorting. We want to
-         * sort the OpenSearch index by space. So it's efficient to filter for entities
-         * in a space. The documentation is unclear on whether the routing field is
-         * included in index sorting so we manually have an identical `spaceId` field
-         * that's part of index sorting.
+         * A cache of embedding chunk vectors. Cohere, and other API language model
+         * providers, charge by the token. To avoid getting charged for content we've
+         * previously embedded we have this vector cache.
          *
-         * We recommend filtering on both `spaceId` and the routing field to make sure
-         * index sorting optimizations kick in.
+         * The cache is keyed by a hash of an embedding chunk's text content and the
+         * value is the embedding vector for that content. We serialize the cache map
+         * to binary for OpenSearch to save space. Since the hash is a 32-bit unsigned
+         * integer (generated by murmurhash) and the embedding is an n-dimensional
+         * vector of bytes (we quantize the vector dimensions from float32 to uint8 for
+         * space efficiency with minimal recall loss).
+         *
+         * As with any hash, murmurhash has a chance of collision. In case of collision
+         * we'll use an embedding vector that doesn't match the text. This will impact
+         * recall (since we won't embed the actual text's meaning) but doesn't impact
+         * permissions or anything else critical. Since you have access to everything
+         * in the search entity. We're ok with a very very rare recall loss on hash
+         * collision.
          */
-        spaceId: new OpensearchIndexKeywordType({
-            isFilterable: true,
-            isSortable: true,
-        }).validate<SpaceId>(isId),
+        embeddingChunksVectorCache: OpensearchIndexObjectType.new({
+            fields: mapObjectValues(
+                searchEntityIndexEmbeddingChunkLanguageModels,
+                languageModelClass => {
+                    return new OpensearchIndexBinaryType()
+                        .transform<ReadonlyMap<number, ReadonlyArray<number>>>({
+                            serialize: vectorCache => {
+                                const buffer = new ArrayBuffer(
+                                    vectorCache.size * (4 + languageModelClass.dimensionCount * 4),
+                                );
 
-        type: new OpensearchIndexKeywordType({
-            isFilterable: true,
-            isSortable: true,
-        }),
+                                const view = new DataView(buffer);
+                                let byteOffset = 0;
 
-        /**
-         * The last time where we started the read that produced this search entity.
-         */
-        lastReadStartTime: new OpensearchIndexDateType().store(),
+                                for (const [textHash, vector] of vectorCache) {
+                                    view.setUint32(byteOffset, textHash);
+                                    byteOffset += 4;
 
-        accessPolicy: SearchEntityIndexAccessPolicyType,
+                                    for (let i = 0; i < languageModelClass.dimensionCount; i++) {
+                                        const dimension = vector[i]!;
+                                        view.setFloat32(byteOffset, dimension);
+                                        byteOffset += 4;
+                                    }
+                                }
 
-        data: OpensearchIndexUnionObjectType.new({
-            type: new OpensearchIndexByteType({
-                isFilterable: true,
-                isSortable: true,
-            }).transform<SearchEntityIndexDataType>({
-                serialize: status => SearchEntityIndexDataTypeIntegerMapping.into(status),
-                deserialize: status =>
-                    SearchEntityIndexDataTypeIntegerMapping.from(
-                        SearchEntityIndexDataTypeIntegerMapping.assert(status),
-                    ),
-            }),
-            variants: {
-                Content: SearchEntityIndexContentDataType,
-                EmbeddingChunk: OpensearchIndexObjectType.new({
-                    fields: {
-                        embeddingChunk: SearchEntityIndexEmbeddingChunkType,
-                    },
-                }),
-            },
+                                return new Uint8Array(buffer);
+                            },
+                            deserialize: bytes => {
+                                const vectorCache = new Map<number, Array<number>>();
+
+                                const view = new DataView(
+                                    bytes.buffer,
+                                    bytes.byteOffset,
+                                    bytes.byteLength,
+                                );
+                                let byteOffset = 0;
+
+                                while (byteOffset < bytes.byteLength) {
+                                    const textHash = view.getUint32(byteOffset);
+                                    byteOffset += 4;
+
+                                    const vector = [];
+                                    for (let i = 0; i < languageModelClass.dimensionCount; i++) {
+                                        const dimension = view.getFloat32(byteOffset);
+                                        byteOffset += 4;
+
+                                        vector.push(dimension);
+                                    }
+
+                                    vectorCache.set(textHash, vector);
+                                }
+
+                                return vectorCache;
+                            },
+                        })
+                        .nullable()
+                        .store();
+                },
+            ),
         }),
     },
 });

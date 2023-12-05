@@ -1,9 +1,9 @@
 import {createAdhocAwsRequestSigner} from "~/admin/adhoc/create_adhoc_aws_request_signer.js";
+import {createAdhocTracer} from "~/admin/adhoc/create_adhoc_tracer.js";
 import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
-import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -18,21 +18,7 @@ export async function createAdhocDynamoContext({
 }: {
     awsProfile?: string;
 } = {}): Promise<DynamoContext & {getAwsSigner: () => AwsRequestSigner}> {
-    const tracer = createServerTracer({
-        serviceName: "Adhoc",
-        jsHost: "Node",
-        // TODO(calebmer): If we are running an adhoc script against our production
-        // database then events should go to our production Honeycomb environment?
-        honeycombApiKey: env.HONEYCOMB_API_KEY,
-        // Node.js automatically waits for all promises to finish before exiting
-        // the process.
-        waitUntil: promise => {
-            promise.catch(error => {
-                // eslint-disable-next-line no-console
-                console.error(error);
-            });
-        },
-    });
+    const tracer = createAdhocTracer();
 
     const awsSigner = await createAdhocAwsRequestSigner({profile: awsProfile});
 

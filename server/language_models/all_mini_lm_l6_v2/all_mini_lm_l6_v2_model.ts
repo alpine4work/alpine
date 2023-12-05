@@ -2,6 +2,7 @@ import {FeatureExtractionPipeline} from "@xenova/transformers";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {createTransformersModel} from "~/server/language_models/core/create_transformers_model.js";
 import {createTransformersTokenizer} from "~/server/language_models/core/create_transformers_tokenizer.js";
 import {
@@ -14,6 +15,8 @@ import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 assertAssignableTypes<typeof AllMiniLmL6V2Model, LanguageModelBaseClass>();
+
+export const allMiniLmL6V2ModelEmbedTextTestCounter = new TestCounter();
 
 /**
  * Interface to the `all-MiniLM-L6-v2` model. It is not a very good model
@@ -30,7 +33,9 @@ assertAssignableTypes<typeof AllMiniLmL6V2Model, LanguageModelBaseClass>();
  * [3]: https://huggingface.co/Xenova/all-MiniLM-L6-v2
  */
 export class AllMiniLmL6V2Model implements LanguageModelBase {
-    public static readonly key = "AllMiniLmL6V2";
+    public readonly statics = AllMiniLmL6V2Model;
+
+    public static readonly key = "allMiniLmL6V2";
     public static readonly dimensionCount = 384;
 
     /**
@@ -85,6 +90,8 @@ export class AllMiniLmL6V2Model implements LanguageModelBase {
     public embed(tracer: TracerBase, texts: Iterable<string>): Promise<Iterable<Iterable<number>>> {
         return tracer.withSpan("all-MiniLM-L6-v2 embed", span => {
             const textArray = Array.isArray(texts) ? texts : Array.from(texts);
+
+            allMiniLmL6V2ModelEmbedTextTestCounter.incrementForTest(undefined, textArray.length);
 
             span.addData({
                 common: {count: textArray.length},

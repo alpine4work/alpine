@@ -8,10 +8,10 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import {maxLabelStringLength} from "~/shared/schema/helpers/label_string_schema.js";
 import {ObjectSchema} from "~/shared/schema/schema.js";
 
 export type OpensearchIndexTypeType<Type extends OpensearchIndexTypeBase<any, any, any>> =
@@ -97,7 +97,7 @@ export abstract class OpensearchIndexTypeBase<
     public store(
         this: OpensearchIndexTypeBase<Value, "this", {}>,
     ): OpensearchIndexTypeBase<Value, "this", {readonly this: NonNullableNonArrayType<Value>}> {
-        return new OpensearchIndexStoreType(this);
+        return new OpensearchIndexStoredType(this);
     }
 }
 
@@ -242,7 +242,7 @@ type NonNullableNonArrayType<Value> = Value extends null
     ? NonNullableNonArrayType<ItemValue>
     : Value;
 
-class OpensearchIndexStoreType<Value> extends OpensearchIndexTypeBase<
+class OpensearchIndexStoredType<Value> extends OpensearchIndexTypeBase<
     Value,
     "this",
     {readonly this: NonNullableNonArrayType<Value>}
@@ -559,13 +559,11 @@ export class OpensearchIndexKeywordType extends OpensearchIndexTypeBase<string, 
     ) {
         return {
             type: "keyword",
-            ignore_above: maxLabelStringLength,
             ...getOpensearchIndexTypeCapabilitiesConfig(this._capabilities, options),
         };
     }
 
     public override serialize(value: string): JsonValue {
-        assert(value.length <= maxLabelStringLength);
         return value;
     }
 
@@ -900,6 +898,8 @@ export class OpensearchIndexKnnVectorType extends OpensearchIndexTypeBase<
         builder: OpensearchIndexConfigBuilder,
         {shouldStoreFields}: {shouldStoreFields: boolean},
     ) {
+        builder.enableKnn();
+
         return {
             type: "knn_vector",
             index: true,
@@ -1321,5 +1321,52 @@ export class OpensearchIndexUnionObjectType<
         const deserializedValue = variant.deserialize(value);
         deserializedValue.type = type;
         return deserializedValue;
+    }
+}
+
+/**
+ * An OpenSearch [nested field type][1].
+ *
+ * Be careful when using nested fields! Their performance can be pretty bad.
+ * Internally nested objects are indexed as separate Lucene docs. Carefully
+ * review the performance characteristics of nested objects before using them.
+ *
+ * [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/nested/
+ */
+export class OpensearchIndexNestedType<
+    Value,
+    FlattenedKeys extends string,
+    StoredFields extends {[key: string]: unknown},
+> extends OpensearchIndexTypeBase<ReadonlyArray<Value>, FlattenedKeys, StoredFields> {
+    private readonly _sourceType: OpensearchIndexObjectType<Value, FlattenedKeys, StoredFields>;
+
+    constructor(sourceType: OpensearchIndexObjectType<Value, FlattenedKeys, StoredFields>) {
+        super();
+        this._sourceType = sourceType;
+    }
+
+    public get storedFields() {
+        return this._sourceType.storedFields;
+    }
+
+    public override getConfig(
+        builder: OpensearchIndexConfigBuilder,
+        options: {shouldStoreFields: boolean},
+    ) {
+        const config = this._sourceType.getConfig(builder, options);
+        assert(config.type === "object");
+        return {
+            type: "nested",
+            ...omitObject(config, ["type"]),
+        };
+    }
+
+    public override serialize(value: ReadonlyArray<Value>): JsonValue {
+        return value.map(item => this._sourceType.serialize(item));
+    }
+
+    public override deserialize(value: JsonValue): ReadonlyArray<Value> {
+        assert(Array.isArray(value));
+        return value.map(item => this._sourceType.deserialize(item));
     }
 }

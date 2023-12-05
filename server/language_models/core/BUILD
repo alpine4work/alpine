@@ -8,6 +8,7 @@ ts_project(
         "//:node_modules/@types/node",
         "//:node_modules/@xenova/transformers",
         "//:node_modules/fs-extra",
+        "//shared/context",
         "//shared/error",
         "//shared/helpers",
     ],

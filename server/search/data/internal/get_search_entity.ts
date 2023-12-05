@@ -61,16 +61,18 @@ import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 // NOCOMMIT: Small messages like "Nice!" shouldn't be embedded at all?
 
-type SearchEntity = {
+export type SearchEntity = {
     readonly id: SearchEntityId;
     readonly accessPolicy: SearchEntityIndexAccessPolicy;
     readonly title: string | null;
     readonly body: string | null;
-    readonly embeddingChunks: ReadonlyArray<{
-        readonly preambleEndIndex: number;
-        readonly tokenCountWithoutPreamble: number;
-        readonly text: string;
-    }>;
+    readonly embeddingChunks: ReadonlyArray<SearchEntityEmbeddingChunk>;
+};
+
+export type SearchEntityEmbeddingChunk = {
+    readonly preambleEndIndex: number;
+    readonly tokenCountWithoutPreamble: number;
+    readonly text: string;
 };
 
 /**

@@ -2318,3 +2318,45 @@ To learn how we plan to build this product read our 1–2 year execution plan. W
         },
     ]);
 });
+
+test("correctly chunks long document content by sentences", async () => {
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await chunkDocumentSearchContent(
+            DocumentContentProsemirrorSchema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {type: "title", content: [{type: "text", text: "Lorem Ipsum"}]},
+                    {
+                        type: "paragraph",
+                        content: [
+                            {
+                                type: "text",
+                                text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc tristique eleifend vulputate. Aliquam sed diam dictum, pharetra orci non, vehicula lacus. In velit diam, ullamcorper ut ultrices at, rutrum a mi. Aliquam placerat eget est eu iaculis. Cras orci sem, rhoncus vel diam et, imperdiet porta arcu. Praesent lobortis odio vitae nulla vehicula, vel vestibulum nunc ullamcorper. Nunc suscipit tristique dui, id ullamcorper risus interdum vel. Maecenas semper feugiat metus, lacinia auctor urna laoreet egestas. Pellentesque ut gravida eros. Pellentesque non nisi elementum, egestas sapien nec, dictum nulla. Pellentesque accumsan pretium velit eget convallis. Aenean tincidunt, elit vitae iaculis sagittis, arcu velit vestibulum ante, in porttitor massa sapien porta nibh. Aenean et magna in est maximus luctus. Sed ultrices finibus elit, ac viverra felis. Duis commodo justo et aliquet vehicula. Mauris ut ornare erat. Suspendisse imperdiet euismod eros non dapibus. In ut consectetur massa. Nunc maximus at odio nec porta. Nullam eget dolor ac ante scelerisque finibus vel eu dui. Mauris sed sapien at tellus pellentesque tincidunt nec luctus nulla. Nullam finibus mauris at sodales bibendum. Sed interdum, eros ac dictum auctor, odio mi venenatis tortor, vitae euismod arcu purus sit amet nunc. Vestibulum eleifend maximus magna, quis luctus elit scelerisque sit amet. Integer pretium augue non tortor tempus, dapibus fermentum mi egestas. Nullam aliquet, nibh semper aliquam ornare, quam mi vehicula felis, ac eleifend nisi metus sed lorem. Maecenas pellentesque orci nulla, vel tincidunt ipsum dignissim ac. Cras elementum venenatis ultricies. Sed efficitur interdum sem, ac vulputate nibh tincidunt non. Vivamus vitae euismod quam, nec vehicula massa. Sed tortor erat, dictum eget sem in, pretium placerat arcu. Mauris ut vulputate ipsum, quis porttitor lacus. Fusce consequat nulla in gravida ultricies. Morbi venenatis, odio a congue aliquam, arcu mi molestie quam, ac porttitor massa nibh ut velit. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed magna ligula, porttitor in augue ut, rutrum rutrum erat. Fusce vehicula augue tincidunt eleifend maximus. Curabitur vel ullamcorper ligula. Fusce velit nibh, posuere at suscipit venenatis, vehicula mattis mi. Integer at erat commodo, dictum nunc id, egestas ex. Maecenas aliquet lacus vel urna ornare condimentum. Nullam nec laoreet felis. Vestibulum eget tincidunt enim. Sed dictum mi tellus, ut efficitur nunc hendrerit ac. In a ipsum neque. Proin id nibh eu leo placerat sagittis. Vivamus vitae iaculis turpis. Sed vulputate quis sapien eu ornare. Donec eleifend semper est, malesuada tincidunt risus iaculis at. Aliquam ultricies vitae mauris nec malesuada. Curabitur dolor lectus, rhoncus eget lobortis et, ullamcorper vitae elit. Maecenas finibus tortor sed tincidunt lobortis. Phasellus facilisis est vitae neque porttitor, vitae blandit ipsum placerat. Nunc et tincidunt urna. Nunc aliquam odio ullamcorper justo suscipit sollicitudin. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Mauris ac lorem tempor, tempus magna euismod, convallis felis. Integer ac ex diam. Nunc lacinia vestibulum erat, sed placerat nisi molestie et.",
+                            },
+                        ],
+                    },
+                ],
+            }) as DocumentContent,
+            {tokenizer, getAccountIfExists},
+        ).then(({embeddingChunks}) => embeddingChunks),
+    ).toEqual([
+        {
+            preambleEndIndex: 15,
+            tokenCountWithoutPreamble: 502,
+            text: "# Lorem Ipsum\n\nLorem ipsum dolor sit amet, consectetur adipiscing elit. Nunc tristique eleifend vulputate. Aliquam sed diam dictum, pharetra orci non, vehicula lacus. In velit diam, ullamcorper ut ultrices at, rutrum a mi. Aliquam placerat eget est eu iaculis. Cras orci sem, rhoncus vel diam et, imperdiet porta arcu. Praesent lobortis odio vitae nulla vehicula, vel vestibulum nunc ullamcorper. Nunc suscipit tristique dui, id ullamcorper risus interdum vel. Maecenas semper feugiat metus, lacinia auctor urna laoreet egestas. Pellentesque ut gravida eros. Pellentesque non nisi elementum, egestas sapien nec, dictum nulla. Pellentesque accumsan pretium velit eget convallis. Aenean tincidunt, elit vitae iaculis sagittis, arcu velit vestibulum ante, in porttitor massa sapien porta nibh. Aenean et magna in est maximus luctus. Sed ultrices finibus elit, ac viverra felis. Duis commodo justo et aliquet vehicula. Mauris ut ornare erat. Suspendisse imperdiet euismod eros non dapibus. In ut consectetur massa. Nunc maximus at odio nec porta. Nullam eget dolor ac ante scelerisque finibus vel eu dui. Mauris sed sapien at tellus pellentesque tincidunt nec luctus nulla. Nullam finibus mauris at sodales bibendum. Sed interdum, eros ac dictum auctor, odio mi venenatis tortor, vitae euismod arcu purus sit amet nunc. Vestibulum eleifend maximus magna, quis luctus elit scelerisque sit amet.",
+        },
+        {
+            preambleEndIndex: 42,
+            tokenCountWithoutPreamble: 498,
+            text: "This is from the “Lorem Ipsum” document:\n\nInteger pretium augue non tortor tempus, dapibus fermentum mi egestas. Nullam aliquet, nibh semper aliquam ornare, quam mi vehicula felis, ac eleifend nisi metus sed lorem. Maecenas pellentesque orci nulla, vel tincidunt ipsum dignissim ac. Cras elementum venenatis ultricies. Sed efficitur interdum sem, ac vulputate nibh tincidunt non. Vivamus vitae euismod quam, nec vehicula massa. Sed tortor erat, dictum eget sem in, pretium placerat arcu. Mauris ut vulputate ipsum, quis porttitor lacus. Fusce consequat nulla in gravida ultricies. Morbi venenatis, odio a congue aliquam, arcu mi molestie quam, ac porttitor massa nibh ut velit. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Sed magna ligula, porttitor in augue ut, rutrum rutrum erat. Fusce vehicula augue tincidunt eleifend maximus. Curabitur vel ullamcorper ligula. Fusce velit nibh, posuere at suscipit venenatis, vehicula mattis mi. Integer at erat commodo, dictum nunc id, egestas ex. Maecenas aliquet lacus vel urna ornare condimentum. Nullam nec laoreet felis. Vestibulum eget tincidunt enim. Sed dictum mi tellus, ut efficitur nunc hendrerit ac. In a ipsum neque. Proin id nibh eu leo placerat sagittis. Vivamus vitae iaculis turpis. Sed vulputate quis sapien eu ornare. Donec eleifend semper est, malesuada tincidunt risus iaculis at.",
+        },
+        {
+            preambleEndIndex: 42,
+            tokenCountWithoutPreamble: 200,
+            text: "This is from the “Lorem Ipsum” document:\n\nAliquam ultricies vitae mauris nec malesuada. Curabitur dolor lectus, rhoncus eget lobortis et, ullamcorper vitae elit. Maecenas finibus tortor sed tincidunt lobortis. Phasellus facilisis est vitae neque porttitor, vitae blandit ipsum placerat. Nunc et tincidunt urna. Nunc aliquam odio ullamcorper justo suscipit sollicitudin. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Mauris ac lorem tempor, tempus magna euismod, convallis felis. Integer ac ex diam. Nunc lacinia vestibulum erat, sed placerat nisi molestie et.",
+        },
+    ]);
+});

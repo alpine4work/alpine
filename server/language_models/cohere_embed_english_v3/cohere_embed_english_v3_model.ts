@@ -24,7 +24,9 @@ assertAssignableTypes<typeof CohereEmbedEnglishV3Model, LanguageModelBaseClass>(
  * Interface to the Cohere `embed-english-v3.0` model.
  */
 export class CohereEmbedEnglishV3Model implements LanguageModelBase {
-    public static readonly key = "CohereEmbedEnglishV3";
+    public readonly statics = CohereEmbedEnglishV3Model;
+
+    public static readonly key = "cohereEmbedEnglishV3";
     public static readonly dimensionCount = 1024;
 
     /**

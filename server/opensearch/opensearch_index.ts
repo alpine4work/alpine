@@ -26,6 +26,9 @@ export type OpensearchIndexConfig<FlattenedKeys extends string> = {
             readonly number_of_replicas: number;
             readonly routing_partition_size: number;
             readonly codec: string;
+            // Provided by a plugin. Documentation here:
+            // https://opensearch.org/docs/latest/search-plugins/knn/knn-index/#index-settings
+            readonly knn: boolean;
         };
         readonly analysis: {
             readonly filter: JsonObjectValue;
@@ -47,6 +50,7 @@ const opensearchIndexStaticSettingsKeys = filterMapArray(
             routing_partition_size: true,
             refresh_interval: false,
             number_of_replicas: false,
+            knn: true,
         }),
     ),
     ([key, isStatic]) =>
@@ -97,6 +101,7 @@ export type OpensearchIndexStoredFieldsType<
 > = Index extends OpensearchIndex<any, any, any, any, infer StoredFields> ? StoredFields : never;
 
 export type OpensearchIndexConfigBuilder = {
+    enableKnn(): void;
     addCustomAnalyzer(analyzer: OpensearchIndexAnalysisCustomAnalyzer): void;
     addCustomFilter(filter: OpensearchIndexAnalysisCustomFilter): void;
 };
@@ -249,7 +254,12 @@ export class OpensearchIndex<
         const customAnalyzerByName = new Map<string, OpensearchIndexAnalysisCustomAnalyzer>();
         const customFilterByName = new Map<string, OpensearchIndexAnalysisCustomFilter>();
 
+        let shouldEnableKnn = false;
+
         const builder: OpensearchIndexConfigBuilder = {
+            enableKnn: () => {
+                shouldEnableKnn = true;
+            },
             addCustomAnalyzer: analyzer => {
                 const existingAnalyzer = getOrSetDefaultMapValue(
                     customAnalyzerByName,
@@ -340,6 +350,8 @@ export class OpensearchIndex<
                     // need to do a cross network search when searching within a `routing` value.
                     routing_partition_size: 1,
                     codec: "default",
+                    // If we have a `knn_vector` field then enable building KNN indexes.
+                    knn: shouldEnableKnn,
                 },
                 analysis: {
                     filter: Object.fromEntries(customFilterDefinitionByName),

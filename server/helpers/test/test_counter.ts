@@ -27,8 +27,10 @@ export class TestCounter<
      * Increment the count for the provided key. Will only increment
      * the count if we are recording with `recordForTest()`.
      */
-    public incrementForTest(key: Key): void {
+    public incrementForTest(key: Key, n: number = 1): void {
         if (!import.meta.jest) return;
+
+        assert(Number.isInteger(n) && n >= 1);
 
         const keyString = key !== undefined ? jsonStableStringify(key) : "undefined";
         const count = this._countByKey.get(keyString);
@@ -37,7 +39,7 @@ export class TestCounter<
         // set a count in our map since that will cause a memory leak in production.
         if (count === undefined) return;
 
-        this._countByKey.set(keyString, count + 1);
+        this._countByKey.set(keyString, count + n);
     }
 
     /**

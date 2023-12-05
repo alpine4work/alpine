@@ -43,3 +43,13 @@ js_library(
         "//admin/adhoc:__pkg__",
     ],
 )
+
+# Broader visibility if you're using the model data only for tests.
+alias(
+    name = "all_mini_lm_l6_v2_data_testonly",
+    testonly = True,
+    actual = ":all_mini_lm_l6_v2_data",
+    visibility = [
+        "//server/search:__subpackages__",
+    ],
+)
