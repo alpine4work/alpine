@@ -207,9 +207,10 @@ so you can think of this as our noun naming convention.
     generally communicate what part of the system a name is a part of.
 -   `subClass` and `superClass`: `subClass` is a kind of `superClass`. For a class declaration this
     naming convention may look like `class {subClass}{superClass} extends {superClass}`. Even if
-    your type is not a class, sometimes you will have an inheritance relationship between types. For
-    example a discriminated union will have a `superClass` (e.g. `Expression`) and a `subClass`
-    (e.g. `Variable` or `Function` which becomes `VariableExpression` and `FunctionExpression`).
+    your type is not a class, sometimes you will have some specialization relationship between
+    types. For example a discriminated union will have a `superClass` (e.g. `Expression`) and a
+    `subClass` (e.g. `Variable` or `Function` which becomes `VariableExpression` and
+    `FunctionExpression`).
 -   `member`: If your type "owns" another type (perhaps through a property) that other type is said
     to be a member. For example `type Foo = {bar: FooBar}`. Here `bar` is owned by `Foo` (it doesn't
     appear anywhere else) so we give it the name `FooBar`.
@@ -218,6 +219,32 @@ Each part of the name is optional.
 
 This naming convention is recursive. Say you have a `member` that itself has a `subClass` and
 `superClass`.
+
+Some examples:
+
+-   `SearchEntitySemanticIndexEmbeddingChunk`
+    -   Namespace: `SearchEntity`
+    -   Sub-class: `Semantic` (there’s also a `SearchEntityKeywordIndex` type)
+    -   Super-class: `Index`
+    -   Member: `EmbeddingChunk`
+-   `TaskQueryNormalizedFilters`:
+    -   Namespace: `TaskQuery`
+    -   Sub-class: `Normalized` (there’s also a `TaskQueryFilter` type. `TaskQueryNormalizedFilters`
+        is a refinement of `Array<TaskQueryFilter>`)
+    -   Super-class: `Filters`
+    -   Member: n/a
+-   `CollaborativeContentEditorReceiveStepsAction`:
+    -   Namespace: `CollaborativeContentEditor` (the naming scheme is applied recursively here,
+        `ContentEditor` is also a namespace in our codebase. `Collaborative` is a specialization,
+        aka sub-class, added to `ContentEditor`)
+    -   Sub-class: `ReceiveSteps`
+    -   Super-class: `Action`
+    -   Member: n/a
+
+**Why?** By using this naming convention, readers of your code can reliably predict the relationship
+between multiple types. We put a namespace first because 1) related types will be displayed together
+when sorted alphabetically, 2) auto-import is more powerful when your functions/types have unique
+names.
 
 ### Variable names and type names should mirror each other
 
