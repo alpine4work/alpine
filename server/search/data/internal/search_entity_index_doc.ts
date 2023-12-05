@@ -63,165 +63,21 @@ const SearchEntityIndexAccessPolicyType = OpensearchIndexObjectType.new({
     },
 });
 
-/**
- * Language models we embed search entity content with.
- *
- * - We use `AllMiniLmL6V2Model` (free) locally in development
- * - We use `CohereEmbedEnglishV3Model` (paid) in production
- */
-const searchEntityIndexEmbeddingChunkLanguageModels = {
-    allMiniLmL6V2: AllMiniLmL6V2Model,
-    cohereEmbedEnglishV3: CohereEmbedEnglishV3Model,
-} satisfies {
-    [key: string]: LanguageModelBaseClass;
-};
-
-for (const [key, languageModelClass] of Object.entries(
-    searchEntityIndexEmbeddingChunkLanguageModels,
-)) {
-    assert(key === languageModelClass.key);
-}
-
-export type SearchEntityIndexEmbeddingChunk = OpensearchIndexTypeType<
-    typeof SearchEntityIndexEmbeddingChunkType
+export type SearchEntityKeywordIndexDoc = OpensearchIndexTypeType<
+    typeof SearchEntityKeywordIndexDocType
 >;
 
-const SearchEntityIndexEmbeddingChunkType = OpensearchIndexObjectType.new({
+export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
     fields: {
-        // NOCOMMIT: Document why these properties `accessPolicy` are copied here!
         spaceId: new OpensearchIndexKeywordType({
             isFilterable: true,
+            isSortable: true,
         }).validate<SpaceId>(isId),
 
-        accessPolicy: SearchEntityIndexAccessPolicyType,
-
-        /**
-         * The chunk's text. Can be provided to a conversational LLM (like ChatGPT) to
-         * implement a chat bot. Can also be used to show the user a preview of the
-         * content they searched for.
-         */
-        text: new OpensearchIndexKeywordType().store(),
-
-        /**
-         * Index at which the preamble ends in `text`. The preamble contains context we
-         * send to an LLM to help it interpret the chunk that a user doesn't need to
-         * see. The preamble typically includes the document title and section title.
-         */
-        preambleEndIndex: new OpensearchIndexIntegerType().store(),
-
-        /**
-         * The embedding vector returned by our language model. We may embed the same
-         * content with different models which is why this is an object.
-         */
-        vector: OpensearchIndexObjectType.new({
-            fields: mapObjectValues(
-                searchEntityIndexEmbeddingChunkLanguageModels,
-                languageModelClass => {
-                    return new OpensearchIndexKnnVectorType({
-                        dimensions: languageModelClass.dimensionCount,
-
-                        // NOTE(calebmer, 2023-12-04): I'd love to use the `byte` data type, but in
-                        // order to quantize you need to pick embedding bounds. [Qdrant recommends][1]
-                        // picking bounds at p95 or p99 of your embedding data, excluding outliers.
-                        // Cohere hasn't published p95/p99 bounds for their models on general datasets
-                        // (that I can find) and as of this writing I don't have enough representative
-                        // data to find p95/p99 bounds.
-                        //
-                        // I've asked for bounds in the [community Discord][2]. If I don't get an
-                        // answer we can't quantize for now and will have to reindex later when we get
-                        // reasonable bounds.
-                        //
-                        // One downside with quantization to consider is, right now, we'd lose the
-                        // original embedding. Unless we find some separate storage for the full
-                        // embedding.
-                        //
-                        // When we update this to `byte` we should also update our binary serialization
-                        // of `embeddingChunksVectorCache` to write bytes instead of floats as well.
-                        //
-                        // [1]: https://qdrant.tech/articles/scalar-quantization/
-                        // [2]: https://discord.com/channels/954421988141711382/1168411509542637578/1181270167393685585
-                        dataType: "float",
-
-                        method: {
-                            // NOTE(calebmer, 2023-11-21): I'm pretty unhappy that OpenSearch does not
-                            // provide a way to partition HNSW graphs per-space. Given we never return
-                            // results cross spaces. Pinecone has this capability, they call it
-                            // [namespaces][1]. Maybe this is better for memory usage? Unclear. I hope that
-                            // when we set a `routing` value only the HNSW for the routing shard is
-                            // consulted. That's partitioning from an efficiency standpoint.
-                            //
-                            // I'm worried there are security vulnerabilities (specifically timing attacks)
-                            // that are possible when searching all vectors across all spaces. If you're
-                            // searching with some text that's confidential information in another space
-                            // and your search takes a while does that reveal the information exists? (e.g.
-                            // Searching for "company X acquisition".) Unclear whether this is a real
-                            // vulnerability.
-                            //
-                            // Maybe it's more memory efficient or something to have one big HNSW structure
-                            // per data shard. This [ElasticSearch forum thread][2] says it might actually
-                            // be more performant to do an exact k-NN search for <10M vectors. Given
-                            // `SpaceId` isn't the only thing we need to filter by (we need to test whether
-                            // the `AccountId` is in the access policy) we'll probably generally be
-                            // searching <10M vectors. Efficient lucene filtering will [fallback to exact
-                            // search][3] if the conditions are right for it.
-                            //
-                            // Going to proceed for now since it might be fine for everything to be in one
-                            // big HNSW index. The HNSW index might even be completely unnecessary! Gotta
-                            // see how this performs in production.
-                            //
-                            // [1]: https://docs.pinecone.io/docs/namespaces
-                            // [2]: https://discuss.elastic.co/t/partition-hnsw-graph-per-user-elastic-knn/346394
-                            // [3]: https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn/#lucene-k-nn-filter-implementation
-                            name: "hnsw",
-
-                            spaceType: languageModelClass.opensearchSpaceType,
-
-                            // Choosing the Lucene engine because it supports important functionality for
-                            // performance (byte vectors and efficient filter search).
-                            engine: "lucene",
-
-                            // We use the OpenSearch [default values][1] for these parameters. To learn the
-                            // performance tradeoff of various configurations, this is a [great blog
-                            // post][2]. To summarize:
-                            //
-                            // - `m` is the number of connections between nodes in the graph at each layer
-                            //   and large values have a big impact on memory usage. Larger values can also
-                            //   slow down search time. The tradeoff is higher `m` values are better for
-                            //   recall.
-                            //
-                            // - `ef_construction` determines the number of layers in the HNSW structure.
-                            //   It has little to no impact on search performance and memory usage but
-                            //   higher values do increase indexing time. Higher `ef_construction` values
-                            //   improve recall for lower `m` values.
-                            //
-                            // A combination of high `ef_construction`, low `m`, gives us good search
-                            // performance and recall while hurting indexing time. Given we care about
-                            // search performance upmost we're happy with this tradeoff and will use the
-                            // default OpenSearch values.
-                            //
-                            // If anything, we should experiment with lowering the `m` value to 8.
-                            //
-                            // [1]: https://opensearch.org/docs/latest/search-plugins/knn/knn-index#hnsw-parameters-2
-                            // [2]: https://www.pinecone.io/learn/series/faiss/hnsw/
-                            parameters: {
-                                ef_construction: 512,
-                                m: 16,
-                            },
-                        },
-                    }).nullable();
-                },
-            ),
+        type: new OpensearchIndexKeywordType({
+            isFilterable: true,
+            isSortable: true,
         }),
-    },
-});
-
-export type SearchEntityIndexDoc = OpensearchIndexTypeType<typeof SearchEntityIndexDocType>;
-
-export const SearchEntityIndexDocType = OpensearchIndexObjectType.new({
-    fields: {
-        spaceId: new OpensearchIndexKeywordType({isFilterable: true}).validate<SpaceId>(isId),
-
-        type: new OpensearchIndexKeywordType({isFilterable: true}),
 
         /**
          * The last time where we started the read that produced this search entity.
@@ -332,9 +188,167 @@ export const SearchEntityIndexDocType = OpensearchIndexObjectType.new({
             .nullable()
             // Store the body so we can highlight it.
             .store(),
+    },
+});
 
+/**
+ * Language models we embed search entity content with.
+ *
+ * - We use `AllMiniLmL6V2Model` (free) locally in development
+ * - We use `CohereEmbedEnglishV3Model` (paid) in production
+ */
+const searchEntitySemanticIndexEmbeddingChunkLanguageModels = {
+    allMiniLmL6V2: AllMiniLmL6V2Model,
+    cohereEmbedEnglishV3: CohereEmbedEnglishV3Model,
+} satisfies {
+    [key: string]: LanguageModelBaseClass;
+};
+
+for (const [key, languageModelClass] of Object.entries(
+    searchEntitySemanticIndexEmbeddingChunkLanguageModels,
+)) {
+    assert(key === languageModelClass.key);
+}
+
+export type SearchEntitySemanticIndexEmbeddingChunk = OpensearchIndexTypeType<
+    typeof SearchEntitySemanticIndexEmbeddingChunkType
+>;
+
+const SearchEntitySemanticIndexEmbeddingChunkType = OpensearchIndexObjectType.new({
+    fields: {
+        // NOCOMMIT: Document why these properties `accessPolicy` are copied here!
+        spaceId: new OpensearchIndexKeywordType({isFilterable: true}).validate<SpaceId>(isId),
+
+        accessPolicy: SearchEntityIndexAccessPolicyType,
+
+        /**
+         * The chunk's text. Can be provided to a conversational LLM (like ChatGPT) to
+         * implement a chat bot. Can also be used to show the user a preview of the
+         * content they searched for.
+         */
+        text: new OpensearchIndexKeywordType().store(),
+
+        /**
+         * Index at which the preamble ends in `text`. The preamble contains context we
+         * send to an LLM to help it interpret the chunk that a user doesn't need to
+         * see. The preamble typically includes the document title and section title.
+         */
+        preambleEndIndex: new OpensearchIndexIntegerType().store(),
+
+        /**
+         * The embedding vector returned by our language model. We may embed the same
+         * content with different models which is why this is an object.
+         */
+        vector: OpensearchIndexObjectType.new({
+            fields: mapObjectValues(
+                searchEntitySemanticIndexEmbeddingChunkLanguageModels,
+                languageModelClass => {
+                    return new OpensearchIndexKnnVectorType({
+                        dimensions: languageModelClass.dimensionCount,
+
+                        // NOTE(calebmer, 2023-12-04): I'd love to use the `byte` data type, but in
+                        // order to quantize you need to pick embedding bounds. [Qdrant recommends][1]
+                        // picking bounds at p95 or p99 of your embedding data, excluding outliers.
+                        // Cohere hasn't published p95/p99 bounds for their models on general datasets
+                        // (that I can find) and as of this writing I don't have enough representative
+                        // data to find p95/p99 bounds.
+                        //
+                        // I've asked for bounds in the [community Discord][2]. If I don't get an
+                        // answer we can't quantize for now and will have to reindex later when we get
+                        // reasonable bounds.
+                        //
+                        // One downside with quantization to consider is, right now, we'd lose the
+                        // original embedding. Unless we find some separate storage for the full
+                        // embedding.
+                        //
+                        // When we update this to `byte` we should also update our binary serialization
+                        // of `embeddingChunksVectorCache` to write bytes instead of floats as well.
+                        //
+                        // [1]: https://qdrant.tech/articles/scalar-quantization/
+                        // [2]: https://discord.com/channels/954421988141711382/1168411509542637578/1181270167393685585
+                        dataType: "float",
+
+                        method: {
+                            // NOTE(calebmer, 2023-11-21): I'm pretty unhappy that OpenSearch does not
+                            // provide a way to partition HNSW graphs per-space. Given we never return
+                            // results cross spaces. Pinecone has this capability, they call it
+                            // [namespaces][1]. Maybe this is better for memory usage? Unclear. I hope that
+                            // when we set a `routing` value only the HNSW for the routing shard is
+                            // consulted. That's partitioning from an efficiency standpoint.
+                            //
+                            // I'm worried there are security vulnerabilities (specifically timing attacks)
+                            // that are possible when searching all vectors across all spaces. If you're
+                            // searching with some text that's confidential information in another space
+                            // and your search takes a while does that reveal the information exists? (e.g.
+                            // Searching for "company X acquisition".) Unclear whether this is a real
+                            // vulnerability.
+                            //
+                            // Maybe it's more memory efficient or something to have one big HNSW structure
+                            // per data shard. This [ElasticSearch forum thread][2] says it might actually
+                            // be more performant to do an exact k-NN search for <10M vectors. Given
+                            // `SpaceId` isn't the only thing we need to filter by (we need to test whether
+                            // the `AccountId` is in the access policy) we'll probably generally be
+                            // searching <10M vectors. Efficient lucene filtering will [fallback to exact
+                            // search][3] if the conditions are right for it.
+                            //
+                            // Going to proceed for now since it might be fine for everything to be in one
+                            // big HNSW index. The HNSW index might even be completely unnecessary! Gotta
+                            // see how this performs in production.
+                            //
+                            // [1]: https://docs.pinecone.io/docs/namespaces
+                            // [2]: https://discuss.elastic.co/t/partition-hnsw-graph-per-user-elastic-knn/346394
+                            // [3]: https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn/#lucene-k-nn-filter-implementation
+                            name: "hnsw",
+
+                            spaceType: languageModelClass.opensearchSpaceType,
+
+                            // Choosing the Lucene engine because it supports important functionality for
+                            // performance (byte vectors and efficient filter search).
+                            engine: "lucene",
+
+                            // We use the OpenSearch [default values][1] for these parameters. To learn the
+                            // performance tradeoff of various configurations, this is a [great blog
+                            // post][2]. To summarize:
+                            //
+                            // - `m` is the number of connections between nodes in the graph at each layer
+                            //   and large values have a big impact on memory usage. Larger values can also
+                            //   slow down search time. The tradeoff is higher `m` values are better for
+                            //   recall.
+                            //
+                            // - `ef_construction` determines the number of layers in the HNSW structure.
+                            //   It has little to no impact on search performance and memory usage but
+                            //   higher values do increase indexing time. Higher `ef_construction` values
+                            //   improve recall for lower `m` values.
+                            //
+                            // A combination of high `ef_construction`, low `m`, gives us good search
+                            // performance and recall while hurting indexing time. Given we care about
+                            // search performance upmost we're happy with this tradeoff and will use the
+                            // default OpenSearch values.
+                            //
+                            // If anything, we should experiment with lowering the `m` value to 8.
+                            //
+                            // [1]: https://opensearch.org/docs/latest/search-plugins/knn/knn-index#hnsw-parameters-2
+                            // [2]: https://www.pinecone.io/learn/series/faiss/hnsw/
+                            parameters: {
+                                ef_construction: 512,
+                                m: 16,
+                            },
+                        },
+                    }).nullable();
+                },
+            ),
+        }),
+    },
+});
+
+export type SearchEntitySemanticIndexDoc = OpensearchIndexTypeType<
+    typeof SearchEntitySemanticIndexDocType
+>;
+
+export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
+    fields: {
         // NOCOMMIT: Document what this is and why nested type
-        embeddingChunks: new OpensearchIndexNestedType(SearchEntityIndexEmbeddingChunkType),
+        embeddingChunks: new OpensearchIndexNestedType(SearchEntitySemanticIndexEmbeddingChunkType),
 
         /**
          * A cache of embedding chunk vectors. Cohere, and other API language model
@@ -357,7 +371,7 @@ export const SearchEntityIndexDocType = OpensearchIndexObjectType.new({
          */
         embeddingChunksVectorCache: OpensearchIndexObjectType.new({
             fields: mapObjectValues(
-                searchEntityIndexEmbeddingChunkLanguageModels,
+                searchEntitySemanticIndexEmbeddingChunkLanguageModels,
                 languageModelClass => {
                     return new OpensearchIndexBinaryType()
                         .transform<ReadonlyMap<number, ReadonlyArray<number>>>({

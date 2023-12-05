@@ -1,6 +1,10 @@
 import murmurhash from "murmurhash";
 import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
-import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
+import {
+    OpensearchClientDocWithIdAndVersion,
+    OpensearchGetDocWithoutSourceCommand,
+    OpensearchIndexDocIfVersionCommand,
+} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
     OpensearchIndexTypeFlattenedKeysType,
@@ -11,9 +15,11 @@ import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search
 import {SearchEntityId, printSearchEntityId} from "~/server/search/core/search_entity_id.js";
 import {getSearchEntity} from "~/server/search/data/internal/get_search_entity.js";
 import {
-    SearchEntityIndexDoc,
-    SearchEntityIndexDocType,
-    SearchEntityIndexEmbeddingChunk,
+    SearchEntityKeywordIndexDoc,
+    SearchEntityKeywordIndexDocType,
+    SearchEntitySemanticIndexDoc,
+    SearchEntitySemanticIndexDocType,
+    SearchEntitySemanticIndexEmbeddingChunk,
 } from "~/server/search/data/internal/search_entity_index_doc.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/search_entity_index_system_action_context.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -25,34 +31,75 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDateLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
+/**
+ * The search index should be near realtime to serve search requests. However,
+ * there's already some delay because entities are indexed in a background job.
+ * To improve indexing performance we can afford to slow down the refresh
+ * interval a bit.
+ */
+const searchEntityIndexRefreshIntervalSeconds = 5;
+
+/**
+ * Our "search entity index" is actually two OpenSearch indexes.
+ * `SearchEntityKeywordIndex` and `SearchEntitySemanticIndex`.
+ *
+ * - `SearchEntityKeywordIndex` indexes the entity for keyword search. The
+ *   entire document body and title is put into a text reverse index so we can
+ *   quickly find the documents containing a word.
+ *
+ * - `SearchEntitySemanticIndex` indexes the entity for semantic search. The
+ *   document body is split into chunks and sent to our language model
+ *   ([Cohere][1] in production) for embedding. The returned embedding vectors
+ *   are stored in an HNSW graph.
+ *
+ * Why do we keep these two indexes separate? A search entity is represented by
+ * a single doc. The reason: isolation. Isolation makes sure the performance of
+ * one doesn't affect the other. We want keyword search to be really fast, we
+ * don't want embedding data slowing keyword search/indexing down. We're ok
+ * with semantic search being a little slower.
+ *
+ * Even if the data for both keyword search and semantic search were in the
+ * same index, we still need to issue two separate queries and merge the
+ * results out of OpenSearch. Since OpenSearch provides no means to merge the
+ * query results. Even if it did, because keyword search is faster we probably
+ * want to execute the queries separately anyway so we can return a response to
+ * the user faster. Isolation then feels useful in case semantic search is slow
+ * or failing then keyword search will be unaffected.
+ *
+ * Separating the two indexes also allows us to use [index sorting][2] for the
+ * keyword index. (The semantic index uses a `nested` field which doesn't work
+ * with index sorting.) Index sorting is an [important optimization][3] for
+ * queries that filter to a `SpaceId` since we can skip scanning entire Lucene
+ * internal segments that don't match the `SpaceId`.
+ *
+ * [1]: https://cohere.com
+ * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html
+ * [3]: https://www.elastic.co/blog/index-sorting-elasticsearch-6-0
+ */
 // IMPORTANT: Don't export this. All access to the index should be exposed
 // through functions in this file. Like how we organize DynamoDB tables. By
 // putting all the logic around this index in one file it allows developers to
 // carefully control how data is written to this index. Instead of updates
 // sprawling out around the codebase.
-const SearchEntityIndex = new OpensearchIndex<
+const SearchEntityKeywordIndex = new OpensearchIndex<
     SpaceId,
     SearchEntityId,
-    OpensearchIndexTypeType<typeof SearchEntityIndexDocType>,
-    OpensearchIndexTypeFlattenedKeysType<typeof SearchEntityIndexDocType>,
-    OpensearchIndexTypeStoredFieldsType<typeof SearchEntityIndexDocType>
->(SearchEntityIndexDocType, {
-    name: "search_entities",
+    OpensearchIndexTypeType<typeof SearchEntityKeywordIndexDocType>,
+    OpensearchIndexTypeFlattenedKeysType<typeof SearchEntityKeywordIndexDocType>,
+    OpensearchIndexTypeStoredFieldsType<typeof SearchEntityKeywordIndexDocType>
+>(SearchEntityKeywordIndexDocType, {
+    name: "search_entity_keywords",
     numberOfShards: 12,
     numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
+    refreshInterval: `${searchEntityIndexRefreshIntervalSeconds}s`,
 
-    // NOCOMMIT: Document that we can't have index sorting because of nested fields
-    // but we'd love index sorting on `spaceId` + `type`.
-    sort: [],
+    // Basically every query to this index will filter to a specific `SpaceId`. We
+    // may have specialized queries (e.g. account name auto-complete) that filter
+    // to a specific entity `type` as well.
+    sort: [{field: "spaceId"}, {field: "type"}],
 
-    // The search index should be near realtime to serve search requests. However,
-    // there's already some delay because entities are indexed in a background job.
-    // To improve indexing performance we can afford to slow down the refresh
-    // interval a bit.
-    refreshInterval: "5s",
-
-    // Disabling the source field is dangerous! It disables a lot of useful
-    // features. From the [ElasticSearch docs][1]:
+    // Disabling the source field is dangerous! It saves disk space but disables
+    // a lot of useful features. From the [ElasticSearch docs][1]:
     //
     // 1. The `update`, `update_by_query`, and `reindex` APIs.
     // 2. On the fly highlighting.
@@ -82,19 +129,50 @@ const SearchEntityIndex = new OpensearchIndex<
     // storing the `_source` field will be important for us.
     //
     // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-source-field.html#disable-source-field
-    //
-    // NOCOMMIT: Test that we can still highlight with no source
     disableSourceField: true,
 });
 
-// Make sure only the fields we expect to be stored are stored and nothing else
-// is stored.
+// IMPORTANT: Don't export this. All access to the index should be exposed
+// through functions in this file. Like how we organize DynamoDB tables. By
+// putting all the logic around this index in one file it allows developers to
+// carefully control how data is written to this index. Instead of updates
+// sprawling out around the codebase.
+const SearchEntitySemanticIndex = new OpensearchIndex<
+    SpaceId,
+    SearchEntityId,
+    OpensearchIndexTypeType<typeof SearchEntitySemanticIndexDocType>,
+    OpensearchIndexTypeFlattenedKeysType<typeof SearchEntitySemanticIndexDocType>,
+    OpensearchIndexTypeStoredFieldsType<typeof SearchEntitySemanticIndexDocType>
+>(SearchEntitySemanticIndexDocType, {
+    name: "search_entity_semantics",
+    numberOfShards: 12,
+    numberOfRoutingShards: 2 ** 5 * 3 ** 3 * 5,
+    refreshInterval: `${searchEntityIndexRefreshIntervalSeconds}s`,
+
+    // We use the `nested` mapping type and index sorting at the same time.
+    sort: [],
+
+    // We disable the source field here for the same reasoning as
+    // `SearchEntityKeywordIndex`. It's particularly important we disable the
+    // source field here since we duplicate the `accessPolicy` in every nested
+    // document. It would be inefficient to store the full source.
+    disableSourceField: true,
+});
+
+// Double check we've only stored fields we need.
 assertEqualTypes<
-    OpensearchIndexTypeStoredFieldsType<typeof SearchEntityIndexDocType>,
+    OpensearchIndexTypeStoredFieldsType<typeof SearchEntityKeywordIndexDocType>,
     {
         lastReadStartTime: Date;
         title: string;
         body: string;
+    }
+>();
+
+// Double check we've only stored fields we need.
+assertEqualTypes<
+    OpensearchIndexTypeStoredFieldsType<typeof SearchEntitySemanticIndexDocType>,
+    {
         "embeddingChunks.text": string;
         "embeddingChunks.preambleEndIndex": number;
         "embeddingChunksVectorCache.allMiniLmL6V2": ReadonlyMap<number, ReadonlyArray<number>>;
@@ -106,11 +184,11 @@ assertEqualTypes<
 >();
 
 /**
- * Allow using the `SearchEntityIndex` directly in Jest unit tests.
+ * Allow using the search entity indexes directly in Jest unit tests.
  */
-export function getSearchEntityIndexForTest() {
+export function getSearchEntityIndexesForTest() {
     assert(import.meta.jest);
-    return SearchEntityIndex;
+    return {SearchEntityKeywordIndex, SearchEntitySemanticIndex};
 }
 
 // NOCOMMIT: Implement
@@ -170,29 +248,44 @@ export async function processIndexSearchEntityJob(
     const entityId = printSearchEntityId(job.update);
 
     await retryWithExponentialBackoff(async retry => {
-        const actualOldDoc = await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
-            SearchEntityIndex,
-            job.spaceId,
-            entityId,
-            {
-                storedFields: [
-                    "lastReadStartTime",
-                    ...(context.languageModel
-                        ? [
-                              `embeddingChunksVectorCache.${context.languageModel.model.statics.key}` as const,
-                          ]
-                        : []),
-                ],
-            },
-        );
+        const [actualOldDocForKeywordIndex, actualOldDocForSemanticIndex] =
+            await context.opensearch.client.multiGetDocsIfExist(context.tracer.getTracer(), [
+                new OpensearchGetDocWithoutSourceCommand(
+                    SearchEntityKeywordIndex,
+                    job.spaceId,
+                    entityId,
+                    {storedFields: ["lastReadStartTime"]},
+                ),
+                new OpensearchGetDocWithoutSourceCommand(
+                    SearchEntitySemanticIndex,
+                    job.spaceId,
+                    entityId,
+                    {
+                        storedFields: [
+                            ...(context.languageModel
+                                ? [
+                                      `embeddingChunksVectorCache.${context.languageModel.model.statics.key}` as const,
+                                  ]
+                                : []),
+                        ],
+                    },
+                ),
+            ]);
 
-        const oldDoc = actualOldDoc
+        const oldDocForKeywordIndex = actualOldDocForKeywordIndex
             ? {
-                  version: actualOldDoc.version,
-                  lastReadStartTime: assertExists(actualOldDoc.fields.lastReadStartTime?.[0]),
+                  version: actualOldDocForKeywordIndex.version,
+                  lastReadStartTime: assertExists(
+                      actualOldDocForKeywordIndex.fields.lastReadStartTime?.[0],
+                  ),
+              }
+            : null;
+
+        const oldDocForSemanticIndex = actualOldDocForSemanticIndex
+            ? {
+                  version: actualOldDocForSemanticIndex.version,
                   embeddingChunksVectorCache: context.languageModel
-                      ? actualOldDoc.fields[
+                      ? actualOldDocForSemanticIndex.fields[
                             `embeddingChunksVectorCache.${context.languageModel.model.statics.key}`
                         ]?.[0] ?? null
                       : null,
@@ -207,8 +300,17 @@ export async function processIndexSearchEntityJob(
         //
         // Useful optimization when there are multiple updates to the same entity being
         // processed in parallel. Or when jobs updating the same entity are delayed.
+        //
+        // We only need to check the keyword doc. If the keyword doc is sufficient then
+        // the job which indexed it should have also indexed an embedding doc. If it
+        // did not index an embedding doc, either an embedding doc doesn't exist or
+        // there was an error and the job will be retried.
         const isOldDocSufficient =
-            !!oldDoc && isDateLessThanWithUncertaintyWindow(jobSendTime, oldDoc.lastReadStartTime);
+            !!oldDocForKeywordIndex &&
+            isDateLessThanWithUncertaintyWindow(
+                jobSendTime,
+                oldDocForKeywordIndex.lastReadStartTime,
+            );
 
         if (isOldDocSufficient) return;
 
@@ -231,7 +333,7 @@ export async function processIndexSearchEntityJob(
             return embeddingChunk.tokenCountWithoutPreamble >= minEmbeddingChunkTokenCount;
         });
 
-        let embeddingChunks: Array<SearchEntityIndexEmbeddingChunk>;
+        let embeddingChunks: Array<SearchEntitySemanticIndexEmbeddingChunk>;
         let embeddingChunksVectorCache: Map<number, ReadonlyArray<number>> | null;
 
         if (!context.languageModel) {
@@ -250,7 +352,10 @@ export async function processIndexSearchEntityJob(
             embeddingChunks = [];
             embeddingChunksVectorCache = null;
         } else {
-            const embeddingChunkByIndex = new Map<number, SearchEntityIndexEmbeddingChunk>();
+            const embeddingChunkByIndex = new Map<
+                number,
+                SearchEntitySemanticIndexEmbeddingChunk
+            >();
             const embeddingChunksNeedingNewVectors = [];
 
             embeddingChunks = [];
@@ -261,7 +366,7 @@ export async function processIndexSearchEntityJob(
                 const embeddingChunkTextHash = murmurhash.v3(embeddingChunk.text);
 
                 const cachedEmbeddingVector =
-                    oldDoc?.embeddingChunksVectorCache?.get(embeddingChunkTextHash);
+                    oldDocForSemanticIndex?.embeddingChunksVectorCache?.get(embeddingChunkTextHash);
 
                 if (!cachedEmbeddingVector) {
                     embeddingChunksNeedingNewVectors.push({
@@ -331,9 +436,12 @@ export async function processIndexSearchEntityJob(
             );
         }
 
-        const newDoc: OpensearchClientDocWithIdAndVersion<SearchEntityId, SearchEntityIndexDoc> = {
+        const newDocForKeywordIndex: OpensearchClientDocWithIdAndVersion<
+            SearchEntityId,
+            SearchEntityKeywordIndexDoc
+        > = {
             id: entityId,
-            version: oldDoc?.version ?? null,
+            version: oldDocForKeywordIndex?.version ?? null,
             spaceId: job.spaceId,
             type: job.update.type,
             lastReadStartTime: readStartTime,
@@ -341,6 +449,14 @@ export async function processIndexSearchEntityJob(
             dependencyIds: Array.from(dependencyIds),
             title: entity.title,
             body: entity.body,
+        };
+
+        const newDocForSemanticIndex: OpensearchClientDocWithIdAndVersion<
+            SearchEntityId,
+            SearchEntitySemanticIndexDoc
+        > = {
+            id: entityId,
+            version: oldDocForSemanticIndex?.version ?? null,
             embeddingChunks,
             embeddingChunksVectorCache: {
                 allMiniLmL6V2: null,
@@ -351,16 +467,40 @@ export async function processIndexSearchEntityJob(
             },
         };
 
+        // If the doc has never had embedding chunks and still doesn't have embedding
+        // chunks, we don't write the embedding doc to our index. Once the embedding
+        // doc is created the first time we don't delete it, instead updating it to an
+        // empty list of embedding chunks.
+        //
         // If we get a version conflict then some other concurrent process wrote this
         // search entity before us. We retry and completely re-read the entity. That
         // way we guarantee we aren't overwriting new data (read by the other job) with
         // old data (read by this job).
-        await context.opensearch.client.indexDocIfVersion(
-            context.tracer.getTracer(),
-            SearchEntityIndex,
-            job.spaceId,
-            newDoc,
-            {retryVersionConflictError: retry},
-        );
+        if (!oldDocForSemanticIndex && newDocForSemanticIndex.embeddingChunks.length === 0) {
+            await context.opensearch.client.indexDocIfVersion(
+                context.tracer.getTracer(),
+                SearchEntityKeywordIndex,
+                job.spaceId,
+                newDocForKeywordIndex,
+                {retryVersionConflictError: retry},
+            );
+        } else {
+            await context.opensearch.client.bulk(
+                context.tracer.getTracer(),
+                [
+                    new OpensearchIndexDocIfVersionCommand(
+                        SearchEntityKeywordIndex,
+                        job.spaceId,
+                        newDocForKeywordIndex,
+                    ),
+                    new OpensearchIndexDocIfVersionCommand(
+                        SearchEntitySemanticIndex,
+                        job.spaceId,
+                        newDocForSemanticIndex,
+                    ),
+                ],
+                {retryPartialVersionConflictError: retry},
+            );
+        }
     });
 }

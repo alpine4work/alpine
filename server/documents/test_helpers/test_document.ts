@@ -102,8 +102,8 @@ export class TestDocument {
      * new text.
      */
     public async type(session: TestSpaceSession, text: string) {
-        await this._state.withLock(async stateRef => {
-            await updateDocumentContent(session.action(), {
+        return this._state.withLock(async stateRef => {
+            const result = await updateDocumentContent(session.action(), {
                 id: this.id,
                 version: stateRef.current.lastVersion,
                 steps: [
@@ -120,6 +120,8 @@ export class TestDocument {
 
             stateRef.current.lastVersion += 1;
             stateRef.current.lastUpdatePos += text.length;
+
+            return result;
         });
     }
 
@@ -130,8 +132,8 @@ export class TestDocument {
      * state and does not update the cursor.
      */
     public async update(session: TestSpaceSession, steps: ReadonlyArray<Step>) {
-        await this._state.withLock(async stateRef => {
-            await updateDocumentContent(session.action(), {
+        return this._state.withLock(async stateRef => {
+            const result = await updateDocumentContent(session.action(), {
                 id: this.id,
                 version: stateRef.current.lastVersion,
                 steps,
@@ -139,6 +141,8 @@ export class TestDocument {
             });
 
             stateRef.current.lastVersion += steps.length;
+
+            return result;
         });
     }
 }

@@ -8,7 +8,12 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
-import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {
+    OpensearchClient,
+    OpensearchGetDocCommand,
+    OpensearchGetDocWithoutSourceCommand,
+    OpensearchIndexDocIfVersionCommand,
+} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
 import {
@@ -46,6 +51,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
@@ -151,9 +157,7 @@ export async function getTaskIndexDocsIfExist(
 
     return context.opensearch.client.multiGetDocsIfExist(
         context.tracer.getTracer(),
-        TaskIndex,
-        spaceId,
-        taskIds,
+        taskIds.map(taskId => new OpensearchGetDocCommand(TaskIndex, spaceId, taskId)),
     );
 }
 
@@ -179,9 +183,14 @@ export async function getTaskCollectionIndexDocsIfExist(
 
     return context.opensearch.client.multiGetDocsIfExist(
         context.tracer.getTracer(),
-        TaskCollectionIndex,
-        spaceId,
-        collectionIds,
+        collectionIds.map(
+            collectionId =>
+                new OpensearchGetDocWithoutSourceCommand(
+                    TaskCollectionIndex,
+                    spaceId,
+                    collectionId,
+                ),
+        ),
     );
 }
 
@@ -379,37 +388,26 @@ class TaskActionTransactionIndexState {
                 await actuallyIndexTaskAction(state, action, isInitialAttempt);
             }
 
-            await runAllPromises([
-                state._updatedTaskIndexDocById.size > 0
-                    ? state._context.opensearch.client.bulk(
-                          context.tracer.getTracer(),
-                          TaskIndex,
-                          spaceId,
-                          Array.from(state._updatedTaskIndexDocById, ([taskId, task]) => ({
-                              type: "IndexIfVersion",
-                              id: taskId,
-                              doc: task,
-                          })),
-                          {retryPartialVersionConflictError: retry},
-                      )
-                    : null,
-                state._updatedCollectionIndexDocById.size > 0
-                    ? state._context.opensearch.client.bulk(
-                          context.tracer.getTracer(),
-                          TaskCollectionIndex,
-                          spaceId,
-                          Array.from(
-                              state._updatedCollectionIndexDocById,
-                              ([collectionId, collection]) => ({
-                                  type: "IndexIfVersion",
-                                  id: collectionId,
-                                  doc: collection,
-                              }),
-                          ),
-                          {retryPartialVersionConflictError: retry},
-                      )
-                    : null,
-            ]);
+            await state._context.opensearch.client.bulk(
+                context.tracer.getTracer(),
+                [
+                    ...mapIterable(
+                        state._updatedTaskIndexDocById,
+                        ([taskId, task]) =>
+                            new OpensearchIndexDocIfVersionCommand(TaskIndex, spaceId, task),
+                    ),
+                    ...mapIterable(
+                        state._updatedCollectionIndexDocById,
+                        ([collectionId, collection]) =>
+                            new OpensearchIndexDocIfVersionCommand(
+                                TaskCollectionIndex,
+                                spaceId,
+                                collection,
+                            ),
+                    ),
+                ],
+                {retryPartialVersionConflictError: retry},
+            );
 
             // After we've indexed our data, read all our referenced accounts again but
             // with a strong read consistency. If any referenced account name changed while

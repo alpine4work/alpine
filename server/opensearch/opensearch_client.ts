@@ -27,11 +27,12 @@ import {
     UnknownError,
 } from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
-import {runAllPromiseThunks} from "~/shared/helpers/async/run_all_promises.js";
+import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {partitionArray} from "~/shared/helpers/iterable/partition_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
@@ -111,7 +112,7 @@ export interface OpensearchClientInterface {
      */
     getDocWithoutSourceIfExists<
         Index extends OpensearchIndex<any, any, any, any, any>,
-        StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index>,
+        StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index> & string,
     >(
         tracer: TracerBase,
         index: Index,
@@ -138,17 +139,12 @@ export interface OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
      */
-    multiGetDocsIfExist<Index extends OpensearchIndex<any, any, any, any, any>>(
+    multiGetDocsIfExist<
+        const Commands extends ReadonlyArray<OpensearchMultiGetDocCommandBase<any, any>>,
+    >(
         tracer: TracerBase,
-        index: Index,
-        routing: OpensearchIndexRoutingType<Index>,
-        ids: ReadonlyArray<OpensearchIndexDocIdType<Index>>,
-    ): Promise<
-        Array<OpensearchClientDocWithIdAndVersion<
-            OpensearchIndexDocIdType<Index>,
-            OpensearchIndexDocType<Index>
-        > | null>
-    >;
+        commands: Commands,
+    ): Promise<{-readonly [K in keyof Commands]: ReturnType<Commands[K]["deserialize"]> | null}>;
 
     /**
      * Indexes a single document using the [index document API][1].
@@ -182,16 +178,9 @@ export interface OpensearchClientInterface {
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
      * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
-    bulk<Index extends OpensearchIndex<any, any, any, any, any>>(
+    bulk<const Commands extends ReadonlyArray<OpensearchBulkCommandBase<any>>>(
         tracer: TracerBase,
-        index: Index,
-        routing: OpensearchIndexRoutingType<Index>,
-        operations: ReadonlyArray<
-            OpensearchClientBulkOperation<
-                OpensearchIndexDocIdType<Index>,
-                OpensearchIndexDocType<Index>
-            >
-        >,
+        commands: Commands,
         options?: OpensearchClientBulkOptions,
     ): Promise<void>;
 
@@ -343,6 +332,204 @@ export interface OpensearchClientInterface {
 // include a `// NOTE(#opensearch-important-json-disclaimer):` comment
 // explaining why your chose JSON stringify/parse methodology is safe. Or why
 // you need to use `json-bigint`.
+
+/**
+ * Description for a single document we fetch in a [multi-get documents
+ * operation][1].
+ *
+ * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
+ */
+abstract class OpensearchMultiGetDocCommandBase<
+    Index extends OpensearchIndex<any, any, any, any, any>,
+    Output,
+> {
+    public abstract readonly index: Index;
+    public abstract readonly routing: OpensearchIndexRoutingType<Index>;
+    public abstract readonly id: OpensearchIndexDocIdType<Index>;
+
+    public abstract serialize(): {
+        _source?: boolean;
+        stored_fields?: ReadonlyArray<string>;
+    };
+
+    public abstract deserialize(rawDoc: {
+        _id: string;
+        _seq_no: number;
+        _primary_term: number;
+        _source?: JsonValue;
+        fields?: {[key: string]: Array<JsonValue>};
+    }): Output;
+}
+
+export class OpensearchGetDocCommand<
+    Index extends OpensearchIndex<any, any, any, any, any>,
+> extends OpensearchMultiGetDocCommandBase<
+    Index,
+    OpensearchClientDocWithIdAndVersion<
+        OpensearchIndexDocIdType<Index>,
+        OpensearchIndexDocType<Index>
+    >
+> {
+    public readonly index: Index;
+    public readonly routing: OpensearchIndexRoutingType<Index>;
+    public readonly id: OpensearchIndexDocIdType<Index>;
+
+    constructor(
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        id: OpensearchIndexDocIdType<Index>,
+    ) {
+        super();
+        this.index = index;
+        this.routing = routing;
+        this.id = id;
+    }
+
+    public serialize() {
+        return {};
+    }
+
+    public deserialize(rawDoc: {
+        _id: string;
+        _seq_no: number;
+        _primary_term: number;
+        _source?: JsonValue;
+        fields?: {[key: string]: Array<JsonValue>};
+    }) {
+        assert(rawDoc._source);
+
+        const doc = this.index.type.deserialize(rawDoc._source);
+
+        // Add the version number to the doc so we can perform updates.
+        return Object.assign(doc, {
+            id: rawDoc._id,
+            version: {
+                sequenceNumber: rawDoc._seq_no,
+                primaryTerm: rawDoc._primary_term,
+            },
+        });
+    }
+}
+
+export class OpensearchGetDocWithoutSourceCommand<
+    Index extends OpensearchIndex<any, any, any, any, any>,
+    StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index> & string,
+> extends OpensearchMultiGetDocCommandBase<
+    Index,
+    {
+        readonly id: OpensearchIndexDocIdType<Index>;
+        readonly version: OpensearchClientDocVersion | null;
+        readonly fields: {
+            readonly [Key in StoredFieldKeys]?: ReadonlyArray<
+                OpensearchIndexStoredFieldsType<Index>[Key]
+            >;
+        };
+    }
+> {
+    public readonly index: Index;
+    public readonly routing: OpensearchIndexRoutingType<Index>;
+    public readonly id: OpensearchIndexDocIdType<Index>;
+    public readonly storedFields: ReadonlyArray<StoredFieldKeys>;
+
+    constructor(
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        id: OpensearchIndexDocIdType<Index>,
+        {storedFields = []}: {storedFields?: ReadonlyArray<StoredFieldKeys>} = {},
+    ) {
+        super();
+        this.index = index;
+        this.routing = routing;
+        this.id = id;
+        this.storedFields = storedFields;
+    }
+
+    public serialize() {
+        return {
+            _source: false,
+            stored_fields: this.storedFields.length > 0 ? this.storedFields : undefined,
+        };
+    }
+
+    public deserialize(rawDoc: {
+        _id: string;
+        _seq_no: number;
+        _primary_term: number;
+        _source?: JsonValue;
+        fields?: {[key: string]: Array<JsonValue>};
+    }) {
+        const fields: {[key: string]: Array<any>} = {};
+
+        if (rawDoc.fields) {
+            for (const [key, values] of Object.entries(rawDoc.fields)) {
+                const storedFieldType = this.index.type.storedFields[key];
+                if (!storedFieldType)
+                    throw new InternalError(quote`Stored field type not found for ${key}`);
+
+                fields[key] = values.map(value => storedFieldType.deserialize(value));
+            }
+        }
+
+        return {
+            id: rawDoc._id as any,
+            version: {
+                sequenceNumber: rawDoc._seq_no,
+                primaryTerm: rawDoc._primary_term,
+            },
+            fields: fields as any,
+        };
+    }
+}
+
+/**
+ * Description for a single write we make in a [bulk operation][1].
+ *
+ * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
+ */
+abstract class OpensearchBulkCommandBase<Index extends OpensearchIndex<any, any, any, any, any>> {
+    public abstract readonly index: Index;
+    public abstract readonly routing: OpensearchIndexRoutingType<Index>;
+    public abstract readonly id: OpensearchIndexDocIdType<Index>;
+
+    public abstract serialize(): {
+        action: "index" | "create" | "update" | "delete";
+        body: JsonValue;
+    };
+}
+
+export class OpensearchIndexDocIfVersionCommand<
+    Index extends OpensearchIndex<any, any, any, any, any>,
+> extends OpensearchBulkCommandBase<Index> {
+    public readonly index: Index;
+    public readonly routing: OpensearchIndexRoutingType<Index>;
+    public readonly id: OpensearchIndexDocIdType<Index>;
+    public readonly doc: OpensearchClientDocWithIdAndVersion<
+        OpensearchIndexDocIdType<Index>,
+        OpensearchIndexDocType<Index>
+    >;
+
+    constructor(
+        index: Index,
+        routing: OpensearchIndexRoutingType<Index>,
+        doc: OpensearchClientDocWithIdAndVersion<
+            OpensearchIndexDocIdType<Index>,
+            OpensearchIndexDocType<Index>
+        >,
+    ) {
+        super();
+        this.index = index;
+        this.routing = routing;
+        this.id = doc.id;
+        this.doc = doc;
+    }
+
+    public serialize() {
+        return {
+            action: !this.doc.version ? ("create" as const) : ("index" as const),
+            body: this.index.type.serialize(this.doc),
+        };
+    }
+}
 
 // NOTE(calebmer): We don't currently log `reason` from OpenSearch errors since
 // sometimes we've seen it contain user data.
@@ -790,17 +977,27 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON parser since `long`s
                 // will be strings and we know how to handle those strings.
-                const body: {
-                    _seq_no: number;
-                    _primary_term: number;
-                } & (
-                    | {found: false}
-                    | {
-                          found: true;
-                          _id: string;
-                          _source: JsonValue;
-                      }
-                ) = await response.json();
+                const body:
+                    | {error: OpensearchError}
+                    | ({
+                          error?: undefined;
+                          _seq_no: number;
+                          _primary_term: number;
+                      } & (
+                          | {found: false}
+                          | {
+                                found: true;
+                                _id: string;
+                                _source: JsonValue;
+                            }
+                      )) = await response.json();
+
+                if (body.error) {
+                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+                    throw new UnknownError(`OpenSearch get document failed: ${errorType}`, {
+                        cause: body.error,
+                    });
+                }
 
                 return body;
             },
@@ -808,16 +1005,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         if (!body.found) return null;
 
-        const doc = index.type.deserialize(body._source);
-
-        // Add the version number to the doc so we can perform updates.
-        return Object.assign(doc, {
-            id: body._id,
-            version: {
-                sequenceNumber: body._seq_no,
-                primaryTerm: body._primary_term,
-            },
-        });
+        return new OpensearchGetDocCommand(index, routing, id).deserialize(body);
     }
 
     /**
@@ -828,7 +1016,7 @@ export class OpensearchClient implements OpensearchClientInterface {
      */
     public async getDocWithoutSourceIfExists<
         Index extends OpensearchIndex<any, any, any, any, any>,
-        StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index>,
+        StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index> & string,
     >(
         tracer: TracerBase,
         index: Index,
@@ -842,6 +1030,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             realtime?: boolean;
         } = {},
     ): Promise<{
+        readonly id: OpensearchIndexDocIdType<Index>;
         readonly version: OpensearchClientDocVersion | null;
         readonly fields: {
             readonly [Key in StoredFieldKeys]?: ReadonlyArray<
@@ -875,17 +1064,27 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON parser since `long`s
                 // will be strings and we know how to handle those strings.
-                const body: {
-                    _seq_no: number;
-                    _primary_term: number;
-                } & (
-                    | {found: false}
-                    | {
-                          found: true;
-                          _id: string;
-                          fields?: {[key: string]: Array<JsonValue>};
-                      }
-                ) = await response.json();
+                const body:
+                    | {error: OpensearchError}
+                    | ({
+                          error?: undefined;
+                          _seq_no: number;
+                          _primary_term: number;
+                      } & (
+                          | {found: false}
+                          | {
+                                found: true;
+                                _id: string;
+                                fields?: {[key: string]: Array<JsonValue>};
+                            }
+                      )) = await response.json();
+
+                if (body.error) {
+                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+                    throw new UnknownError(`OpenSearch get document failed: ${errorType}`, {
+                        cause: body.error,
+                    });
+                }
 
                 return body;
             },
@@ -893,23 +1092,9 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         if (!body.found) return null;
 
-        const fields: {[key: string]: Array<any>} = {};
-
-        for (const [key, values] of Object.entries(body.fields ?? {})) {
-            const storedFieldType = index.type.storedFields[key];
-            if (!storedFieldType)
-                throw new InternalError(quote`Stored field type not found for ${key}`);
-
-            fields[key] = values.map(value => storedFieldType.deserialize(value));
-        }
-
-        return {
-            version: {
-                sequenceNumber: body._seq_no,
-                primaryTerm: body._primary_term,
-            },
-            fields: fields as any,
-        };
+        return new OpensearchGetDocWithoutSourceCommand(index, routing, id, {
+            storedFields,
+        }).deserialize(body);
     }
 
     /**
@@ -920,23 +1105,36 @@ export class OpensearchClient implements OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
      */
-    public async multiGetDocsIfExist<Index extends OpensearchIndex<any, any, any, any, any>>(
+    public async multiGetDocsIfExist<
+        const Commands extends ReadonlyArray<OpensearchMultiGetDocCommandBase<any, any>>,
+    >(
         tracer: TracerBase,
-        index: Index,
-        routing: OpensearchIndexRoutingType<Index>,
-        ids: ReadonlyArray<OpensearchIndexDocIdType<Index>>,
-    ): Promise<
-        Array<OpensearchClientDocWithIdAndVersion<
-            OpensearchIndexDocIdType<Index>,
-            OpensearchIndexDocType<Index>
-        > | null>
-    > {
-        if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
+        commands: Commands,
+    ): Promise<{-readonly [K in keyof Commands]: ReturnType<Commands[K]["deserialize"]> | null}> {
+        if (commands.length === 0) return [] as any;
+
+        const indexes = new Set<OpensearchIndex<any, any, any, any, any>>();
+        const routings = new Set<string>();
+        for (const command of commands) {
+            indexes.add(command.index);
+            routings.add(command.routing);
         }
 
-        const url = new URL(`/${index.name}/_mget`, this._url);
-        url.searchParams.set("routing", routing);
+        if (process.env.NODE_ENV !== "production") {
+            await runAllPromises(
+                mapIterable(indexes, index => this._ensureLocalIndex(tracer, index)),
+            );
+        }
+
+        const singularIndex = indexes.size === 1 ? Array.from(indexes)[0]! : null;
+        const singularRouting =
+            singularIndex && routings.size === 1 ? Array.from(routings)[0]! : null;
+
+        const url = new URL(singularIndex ? `/${singularIndex.name}/_mget` : "/_mget", this._url);
+
+        if (singularRouting) {
+            url.searchParams.set("routing", singularRouting);
+        }
 
         const body = await fetchWithTracer(
             tracer,
@@ -944,13 +1142,18 @@ export class OpensearchClient implements OpensearchClientInterface {
             {
                 sign: this._signer.sign,
                 serviceName: "OpenSearch",
-                route: `/${index.name}/_mget`,
+                route: singularIndex ? `/${singularIndex.name}/_mget` : "/_mget",
                 method: "POST",
                 headers: {"content-type": "application/json"},
                 // NOTE(#opensearch-important-json-disclaimer): We only include IDs which are
                 // strings and so JSON safe. Stringify is fine here.
                 body: JSON.stringify({
-                    docs: ids.map(id => ({_id: id})),
+                    docs: commands.map(command => ({
+                        _index: !singularIndex ? command.index.name : undefined,
+                        routing: !singularRouting ? command.routing : undefined,
+                        _id: command.id,
+                        ...command.serialize(),
+                    })),
                 }),
             },
             async response => {
@@ -958,52 +1161,72 @@ export class OpensearchClient implements OpensearchClientInterface {
                 // serialized/deserialized by `OpensearchIndexLongType` which converts `long`s
                 // to strings to maintain precision. Ok to use native JSON parser since `long`s
                 // will be strings and we know how to handle those strings.
-                const body: {
-                    docs: Array<
-                        {
-                            _id: string;
-                            _seq_no: number;
-                            _primary_term: number;
-                        } & (
-                            | {found: false}
-                            | {
-                                  found: true;
-                                  _source: JsonValue;
-                              }
-                        )
-                    >;
-                } = await response.json();
+                const body:
+                    | {error: OpensearchError}
+                    | {
+                          error?: undefined;
+                          docs: Array<
+                              {
+                                  _index: string;
+                                  _id: string;
+                                  _seq_no: number;
+                                  _primary_term: number;
+                              } & (
+                                  | {found: false}
+                                  | {
+                                        found: true;
+                                        _source?: JsonValue;
+                                        fields?: {[key: string]: Array<JsonValue>};
+                                    }
+                              )
+                          >;
+                      } = await response.json();
+
+                if (body.error) {
+                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+                    throw new UnknownError(`OpenSearch multi-get documents failed: ${errorType}`, {
+                        cause: body.error,
+                    });
+                }
 
                 return body;
             },
         );
 
-        const docById = new Map<
+        const docByIdByIndex = new Map<
             string,
-            OpensearchClientDocWithIdAndVersion<
-                OpensearchIndexDocIdType<Index>,
-                OpensearchIndexDocType<Index>
+            Map<
+                string,
+                {
+                    _index: string;
+                    _id: string;
+                    _seq_no: number;
+                    _primary_term: number;
+                } & (
+                    | {found: false}
+                    | {
+                          found: true;
+                          _source?: JsonValue;
+                          fields?: {[key: string]: Array<JsonValue>};
+                      }
+                )
             >
         >();
 
         for (const bodyDoc of body.docs) {
             if (!bodyDoc.found) continue;
-            const doc = index.type.deserialize(bodyDoc._source);
 
-            // Add the version number to the doc so we can perform updates.
-            docById.set(
+            getOrSetDefaultMapValue(docByIdByIndex, bodyDoc._index, () => new Map()).set(
                 bodyDoc._id,
-                Object.assign(doc, {
-                    id: bodyDoc._id,
-                    version: {
-                        sequenceNumber: bodyDoc._seq_no,
-                        primaryTerm: bodyDoc._primary_term,
-                    },
-                }),
+                bodyDoc,
             );
         }
 
-        return ids.map(id => docById.get(id) ?? null);
+        return commands.map(command => {
+            const doc = docByIdByIndex.get(command.index.name)?.get(command.id);
+            if (!doc) return null;
+            return command.deserialize(doc);
+        }) as any;
     }
 
     /**
@@ -1094,44 +1317,50 @@ export class OpensearchClient implements OpensearchClientInterface {
      * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
      * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/optimistic-concurrency-control.html
      */
-    public async bulk<Index extends OpensearchIndex<any, any, any, any, any>>(
+    public async bulk<const Commands extends ReadonlyArray<OpensearchBulkCommandBase<any>>>(
         tracer: TracerBase,
-        index: Index,
-        routing: OpensearchIndexRoutingType<Index>,
-        operations: ReadonlyArray<
-            OpensearchClientBulkOperation<
-                OpensearchIndexDocIdType<Index>,
-                OpensearchIndexDocType<Index>
-            >
-        >,
+        commands: Commands,
         {retryPartialVersionConflictError}: OpensearchClientBulkOptions = {},
     ): Promise<void> {
-        if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
+        if (commands.length === 0) return;
+
+        const indexes = new Set<OpensearchIndex<any, any, any, any, any>>();
+        const routings = new Set<string>();
+        for (const command of commands) {
+            indexes.add(command.index);
+            routings.add(command.routing);
         }
 
-        if (operations.length === 0) return;
+        if (process.env.NODE_ENV !== "production") {
+            await runAllPromises(
+                mapIterable(indexes, index => this._ensureLocalIndex(tracer, index)),
+            );
+        }
+
+        const singularIndex = indexes.size === 1 ? Array.from(indexes)[0]! : null;
+        const singularRouting =
+            singularIndex && routings.size === 1 ? Array.from(routings)[0]! : null;
+
+        const url = new URL(singularIndex ? `/${singularIndex.name}/_bulk` : "/_bulk", this._url);
+
+        if (singularRouting) {
+            url.searchParams.set("routing", singularRouting);
+        }
 
         const bulkBody: Array<JsonValue> = [];
 
-        for (const operation of operations) {
-            if (!operation.doc.version) {
-                bulkBody.push({create: {_id: operation.doc.id}});
-                bulkBody.push(index.type.serialize(operation.doc));
-            } else {
-                bulkBody.push({
-                    index: {
-                        _id: operation.doc.id,
-                        if_seq_no: operation.doc.version.sequenceNumber,
-                        if_primary_term: operation.doc.version.primaryTerm,
-                    },
-                });
-                bulkBody.push(index.type.serialize(operation.doc));
-            }
-        }
+        for (const command of commands) {
+            const {action, body} = command.serialize();
 
-        const url = new URL(`/${index.name}/_bulk`, this._url);
-        url.searchParams.set("routing", routing);
+            bulkBody.push({
+                [action]: {
+                    _index: !singularIndex ? command.index.name : undefined,
+                    routing: !singularRouting ? command.routing : undefined,
+                    _id: command.id,
+                },
+            });
+            bulkBody.push(body);
+        }
 
         const body = await fetchWithTracer(
             tracer,
@@ -1139,7 +1368,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             {
                 sign: this._signer.sign,
                 serviceName: "OpenSearch",
-                route: `/${index.name}/_bulk`,
+                route: singularIndex ? `/${singularIndex.name}/_bulk` : "/_bulk",
                 method: "POST",
                 headers: {"content-type": "application/x-ndjson"},
                 // NOTE(#opensearch-important-json-disclaimer): `long`s in `_source` are
@@ -1151,13 +1380,25 @@ export class OpensearchClient implements OpensearchClientInterface {
             async response => {
                 // NOTE(#opensearch-important-json-disclaimer): This response only contains
                 // errors and the error numbers fit in 64-bit floats.
-                const body: {
-                    errors: boolean;
-                    items: Array<{
-                        create?: {error?: OpensearchError};
-                        index?: {error?: OpensearchError};
-                    }>;
-                } = await response.json();
+                const body:
+                    | {error: OpensearchError}
+                    | {
+                          error?: undefined;
+                          errors: boolean;
+                          items: Array<{
+                              create?: {error?: OpensearchError};
+                              update?: {error?: OpensearchError};
+                              delete?: {error?: OpensearchError};
+                              index?: {error?: OpensearchError};
+                          }>;
+                      } = await response.json();
+
+                if (body.error) {
+                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+                    throw new UnknownError(`OpenSearch indexing failed: ${errorType}`, {
+                        cause: body.error,
+                    });
+                }
 
                 return body;
             },
@@ -1166,7 +1407,12 @@ export class OpensearchClient implements OpensearchClientInterface {
         if (body.errors) {
             const maybeRecoverableErrors = filterMapArray(
                 body.items,
-                item => item.create?.error ?? item.index?.error ?? null,
+                item =>
+                    item.create?.error ??
+                    item.update?.error ??
+                    item.delete?.error ??
+                    item.index?.error ??
+                    null,
             );
 
             const [versionConflictErrors, errors] = partitionArray(
@@ -1191,7 +1437,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     body.items.length
                 } operation(s)${
                     errors[0]
-                        ? `, first error: "${errors[0].root_cause?.[0]?.type ?? errors[0].type}"`
+                        ? `, first error: ${errors[0].root_cause?.[0]?.type ?? errors[0].type}`
                         : ""
                 }`,
             );
