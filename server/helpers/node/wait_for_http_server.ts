@@ -34,7 +34,7 @@ export async function waitForHttpServer(port: number) {
     // [2]: https://github.com/nodejs/node/issues/50479#issuecomment-1787152893
     const subprocess = spawn(
         joinPath(runfilesPath, "cyberworlds/server/helpers/node/wait_for_http_server.sh"),
-        [String(port)],
+        [String(port), process.platform],
         {stdio: ["ignore", "ignore", "ignore"]},
     );
 
