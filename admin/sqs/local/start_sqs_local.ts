@@ -64,7 +64,7 @@ export async function startSqsLocal({
     // For whatever reason you can't bind to IPv4 localhost in a MacOS sandbox but
     // you can bind to IPv6 localhost. See:
     // https://github.com/bazelbuild/bazel/issues/5206#issuecomment-402398624
-    const bindHostname = "[::1]";
+    const bindHostname = process.platform === "darwin" ? "[::1]" : "localhost";
 
     const configContents = `\
 include classpath("application.conf")

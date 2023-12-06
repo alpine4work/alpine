@@ -51,6 +51,7 @@ export async function startOpensearchLocal({
     ]);
 
     const hash = murmurhash.v3(dataPath).toString(16).padStart(8, "0");
+    const host = process.platform === "darwin" ? "[::1]" : "localhost";
 
     const subprocess = spawn(
         opensearchLocalBinPath,
@@ -60,7 +61,7 @@ export async function startOpensearchLocal({
             // For whatever reason you can't bind to IPv4 localhost in a MacOS sandbox but
             // you can bind to IPv6 localhost. See:
             // https://github.com/bazelbuild/bazel/issues/5206#issuecomment-402398624
-            "-Enetwork.host=[::1]",
+            `-Enetwork.host=${host}`,
             `-Ehttp.port=${port}`,
             `-Etransport.port=${transportPort}`,
             `-Epath.data=${dataPath}`,
