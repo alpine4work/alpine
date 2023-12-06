@@ -1,4 +1,4 @@
-import natural from "natural";
+import nlp from "compromise/one";
 import {Fragment, Mark, Node} from "prosemirror-model";
 import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -35,6 +35,15 @@ function mapRecursiveIterable<Value, NewValue>(
         return map(value as Value);
     });
 }
+
+/**
+ * Match different new-line formats. [Same newline regex that's in
+ * `compromise`][1].
+ *
+ * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
+ */
+const newLineRegExp = /((?:\r?\n|\r)+)/g;
+const newLineRegExpWithoutRepetition = /((?:\r?\n|\r))/g;
 
 /**
  * Take arbitrary content and divide it into `SearchContentChunk`s of the ideal
@@ -442,7 +451,7 @@ function splitSearchContentChunk(
  * Print a chunk to text. We put spaces in between sentences and add the
  * maximum line margin between two adjacent chunks.
  */
-function printSearchContentChunk(chunk: {
+export function printSearchContentChunk(chunk: {
     preamble: {text: string; lineMarginBottom: number};
     body: SearchContentChunk;
 }): {
@@ -482,7 +491,14 @@ function printSearchContentChunk(chunk: {
         for (let j = 0; j < chunk.sentenceChunks.length; j++) {
             const sentenceChunk = chunk.sentenceChunks[j]!;
 
-            if (j !== 0) text += " ";
+            if (
+                j !== 0 &&
+                /\S$/.test(chunk.sentenceChunks[j - 1]!.text) &&
+                /^\S/.test(sentenceChunk.text)
+            ) {
+                text += " ";
+            }
+
             text += sentenceChunk.text;
         }
 
@@ -809,14 +825,23 @@ async function chunkSearchContentBySentenceForBlockNode(
 
             const prefixedSentenceChunks = sentenceChunks.map((sentenceChunk, i) => {
                 return sentenceChunk
-                    .split("\n")
-                    .map((sentenceChunkLine, j) => {
-                        if (j > 0 || i === 0) {
+                    .split(newLineRegExpWithoutRepetition)
+                    .map((sentenceChunkLine, j, sentenceChunkLines) => {
+                        if (i === 0 && j === 0) {
                             return sentenceChunkLine.length > 0 ? `> ${sentenceChunkLine}` : ">";
+                        }
+                        if (j % 2 === 1) {
+                            const nextSentenceChunkLineLength =
+                                j < sentenceChunkLines.length
+                                    ? sentenceChunkLines[j + 1]!.length
+                                    : 0;
+                            return `${sentenceChunkLine}>${
+                                nextSentenceChunkLineLength > 0 ? " " : ""
+                            }`;
                         }
                         return sentenceChunkLine;
                     })
-                    .join("\n");
+                    .join("");
             });
 
             return {
@@ -838,12 +863,19 @@ async function chunkSearchContentBySentenceForBlockNode(
 
             let bullet;
             switch (typeName) {
-                case "unorderedListItem":
+                case "unorderedListItem": {
                     bullet = "-";
                     break;
-                case "checkListItem":
-                    bullet = node.attrs.checked ? "[x]" : "[ ]";
+                }
+                case "checkListItem": {
+                    // There's a non-standard markdown syntax for check list items where `[ ]`
+                    // represents an unchecked item and `[x]` represents a checked item. Given this
+                    // is not standard and may confuse text analysis (since `x` may be interpreted
+                    // as a word after dropping the brackets) we print check list items as regular
+                    // Markdown unordered list items.
+                    bullet = "-";
                     break;
+                }
                 case "orderedListItem": {
                     let listItemNumber = options.orderListItemNumberByNode.get(node);
 
@@ -864,25 +896,25 @@ async function chunkSearchContentBySentenceForBlockNode(
             }
 
             const firstLinePrefix = "  ".repeat(indent) + bullet;
-            const remainingLinePrefix = "  ".repeat(indent) + " ".repeat(bullet.length);
+            const remainingLinePrefix = "  ".repeat(indent) + " ".repeat(bullet.length + 1);
 
             const prefixedSentenceChunks = sentenceChunks.map((sentenceChunk, i) => {
                 return sentenceChunk
-                    .split("\n")
+                    .split(newLineRegExp)
                     .map((sentenceChunkLine, j) => {
                         if (i === 0 && j === 0) {
                             return sentenceChunkLine.length > 0
                                 ? `${firstLinePrefix} ${sentenceChunkLine}`
                                 : firstLinePrefix;
                         }
-                        if (j > 0) {
+                        if (j % 2 === 1) {
                             return sentenceChunkLine.length > 0
-                                ? `${remainingLinePrefix} ${sentenceChunkLine}`
+                                ? `${sentenceChunkLine}${remainingLinePrefix}`
                                 : "";
                         }
                         return sentenceChunkLine;
                     })
-                    .join("\n");
+                    .join("");
             });
 
             return {
@@ -897,6 +929,31 @@ async function chunkSearchContentBySentenceForBlockNode(
         default:
             throw exhaustive(typeName);
     }
+}
+
+/**
+ * Chunk text into sentences, preserving newlines. Out of the box `compromise`
+ * trims newlines at the start and end of strings.
+ */
+function chunkSearchContentBySentenceForText(text: string): Array<string> {
+    const textChunks: Array<string> = [];
+
+    const textLines = text.split(newLineRegExp);
+
+    for (let i = 0; i < textLines.length; i++) {
+        const textLine = textLines[i]!;
+
+        if (i % 2 === 1) {
+            textChunks.push(textLine);
+            continue;
+        }
+
+        nlp(textLine)
+            .fullSentences()
+            .forEach(sentence => textChunks.push(sentence.text()));
+    }
+
+    return textChunks;
 }
 
 /**
@@ -926,22 +983,23 @@ async function chunkSearchContentBySentenceForTextblockNode(
         case "paragraph": {
             const text = await printSearchTextForInlineFragment(node.content, options);
 
-            const tokenizer = new natural.SentenceTokenizer();
-            return tokenizer.tokenize(text);
+            return chunkSearchContentBySentenceForText(text);
         }
         // TODO(calebmer): Code blocks are in this weird kind of working kind of not
         // working state. Is this right? Who knows. Needs a test.
         case "codeBlock": {
             const text = await printSearchTextForInlineFragment(node.content, options);
 
-            const tokenizer = new natural.SentenceTokenizer();
-            const textChunks = tokenizer.tokenize(text);
+            const textChunks = chunkSearchContentBySentenceForText(text);
             if (textChunks.length === 0) {
                 return ["```\n```"];
             }
 
             textChunks[0] = "```\n" + textChunks[0]!;
-            textChunks[textChunks.length - 1] = textChunks[textChunks.length - 1]! + "\n```";
+            textChunks[textChunks.length - 1] =
+                textChunks[textChunks.length - 1]! +
+                (textChunks[textChunks.length - 1]!.endsWith("\n") ? "" : "\n") +
+                "```";
 
             return textChunks;
         }
@@ -952,22 +1010,24 @@ async function chunkSearchContentBySentenceForTextblockNode(
             const prefix =
                 typeName === "title" ? "#" : "#".repeat(1 + clampHeadingLevel(node.attrs.level));
 
-            const tokenizer = new natural.SentenceTokenizer();
-            const textChunks = tokenizer.tokenize(text);
+            const textChunks = chunkSearchContentBySentenceForText(text);
             if (textChunks.length === 0) {
                 return [prefix];
             }
 
             return textChunks.map((textChunk, i) => {
                 return textChunk
-                    .split("\n")
+                    .split(newLineRegExpWithoutRepetition)
                     .map((textChunkLine, j) => {
-                        if (j > 0 || i === 0) {
+                        if (i === 0 && j === 0) {
                             return textChunkLine.length > 0 ? `${prefix} ${textChunkLine}` : prefix;
+                        }
+                        if (j % 2 === 1) {
+                            return `${textChunkLine}${prefix}`;
                         }
                         return textChunkLine;
                     })
-                    .join("\n");
+                    .join("");
             });
         }
         default:
@@ -993,8 +1053,6 @@ async function printSearchTextForInlineFragment(
 const printSearchEmbeddingTextForMarkByTypeName: {
     [Key in ContentMarkTypeName]: (textContent: string, mark: Mark) => string;
 } = {
-    // NOCOMMIT: How does this work with the keyword search analyzer? Can we
-    // strip these marks?
     italic: textContent => `*${textContent}*`,
     bold: textContent => `**${textContent}**`,
     code: textContent => `\`${textContent}\``,
@@ -1104,5 +1162,9 @@ async function printSearchTextForInlineNode(
  * [1]: https://www.markdownguide.org/basic-syntax/#escaping-characters
  */
 function escapeMarkdown(textContent: string): string {
-    return textContent.replaceAll(/^\s*[>+-]|[\\`*_[\]#~]/gm, substring => `\\${substring}`);
+    return textContent.replaceAll(/^\s*[>+\-#]|^\s*\d+\.|[\\`*_~]|]\(/gm, substring => {
+        const match = substring.match(/^(\s*?)(\S.*)$/);
+        assert(match);
+        return `${match[1]!}\\${match[2]!}`;
+    });
 }

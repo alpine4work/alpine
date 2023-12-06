@@ -1,26 +1,52 @@
+import {Node} from "prosemirror-model";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
-import {getFullSearchContentChunk} from "~/server/search/data/internal/chunk_search_content.js";
+import {
+    getFullSearchContentChunk,
+    printSearchContentChunk,
+} from "~/server/search/data/internal/chunk_search_content.js";
 import {chunkDocumentSearchContent} from "~/server/search/data/internal/get_search_entity.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
     DocumentWithoutTitleContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
 import {generateId} from "~/shared/id/id.js";
+import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
 
 const schema = DocumentWithoutTitleContentProsemirrorSchema;
 
 const context = createTestContext();
+
+async function testGetFullSearchContentChunk(
+    content: Node,
+    options: {
+        tokenizer: CohereEmbedEnglishV3Tokenizer;
+        getAccountIfExists: (
+            accountId: AccountId | ContentMentionAccountId,
+        ) => Promise<AccountModel | null>;
+    },
+) {
+    const chunk = await getFullSearchContentChunk(content, options);
+
+    return {
+        text: printSearchContentChunk({
+            preamble: {text: "", lineMarginBottom: 0},
+            body: chunk,
+        }).text,
+        ...chunk,
+    };
+}
 
 test("discovers paragraph and sentence structure", async () => {
     const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text(
@@ -41,6 +67,12 @@ test("discovers paragraph and sentence structure", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
+        text: `\
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis consectetur felis, sed dapibus felis suscipit ac. Proin non condimentum orci, a consequat ex. In hac habitasse platea dictumst. In feugiat libero interdum dolor vestibulum, sit amet pulvinar sem commodo. Integer in tortor cursus, venenatis justo sed, euismod risus. Proin hendrerit facilisis mauris ut sollicitudin. Vivamus dapibus commodo urna, vitae cursus metus sodales sed. Nullam mollis imperdiet tincidunt. Nam at enim dui.
+
+Ut suscipit sit amet libero sit amet volutpat. Integer dignissim nec nisl sed faucibus. Duis faucibus porttitor justo a elementum. Etiam pellentesque ligula ac hendrerit elementum. Fusce vitae bibendum erat, vel tristique ante. Donec et lectus vitae lectus vestibulum vestibulum. Etiam arcu metus, placerat quis gravida commodo, ultricies eget enim. Praesent convallis neque id convallis dictum. Donec sodales varius malesuada. Sed at pellentesque tellus. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nulla ut turpis commodo, luctus mi malesuada, venenatis purus. Aliquam erat volutpat. Proin quis bibendum augue. Praesent in lacinia dui.
+
+Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis, eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
         isGroup: true,
         tokenCount: 603,
         context: {sectionHeading: null},
@@ -61,10 +93,9 @@ test("discovers paragraph and sentence structure", async () => {
                         tokenCount: 29,
                     },
                     {
-                        text: "Proin non condimentum orci, a consequat ex.",
-                        tokenCount: 16,
+                        text: "Proin non condimentum orci, a consequat ex. In hac habitasse platea dictumst.",
+                        tokenCount: 27,
                     },
-                    {text: "In hac habitasse platea dictumst.", tokenCount: 11},
                     {
                         text: "In feugiat libero interdum dolor vestibulum, sit amet pulvinar sem commodo.",
                         tokenCount: 30,
@@ -163,8 +194,7 @@ test("discovers paragraph and sentence structure", async () => {
                         tokenCount: 25,
                     },
                     {text: "In vel auctor eros.", tokenCount: 8},
-                    {text: "Nulla ac quam mi.", tokenCount: 7},
-                    {text: "Pellentesque a arcu eros.", tokenCount: 10},
+                    {text: "Nulla ac quam mi. Pellentesque a arcu eros.", tokenCount: 17},
                     {
                         text: "Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien.",
                         tokenCount: 29,
@@ -181,7 +211,7 @@ test("discovers heading structure", async () => {
     const getAccountIfExists = async () => null;
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             // C+ content generated by yours truly, ChatGPT.
             schema.node("doc", {}, [
                 schema.node("heading", {level: 1}, [
@@ -218,6 +248,22 @@ test("discovers heading structure", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
+        text: `\
+## The Importance of Renewable Energy for a Sustainable Future
+
+### Addressing Environmental Concerns
+
+The urgent need for renewable energy arises from the escalating environmental issues caused by conventional energy sources. Fossil fuels, the primary energy source for centuries, emit greenhouse gases, contributing significantly to climate change. Renewable energy, derived from natural resources like sunlight, wind, and water, offers a cleaner alternative, reducing carbon emissions and mitigating environmental degradation. Embracing renewables aligns with global initiatives to combat climate change, preserving ecosystems and safeguarding the planet for future generations.
+
+Transitioning to renewable energy sources is not just an environmental imperative but an economic opportunity. Investments in renewable technologies drive innovation and create job opportunities, fostering economic growth. Moreover, the renewable energy sector demonstrates resilience, providing a stable and diverse energy supply that isn't as vulnerable to geopolitical tensions or market fluctuations as traditional energy sources. By diversifying energy portfolios, nations can enhance energy security and reduce dependence on finite resources.
+
+### Advantages and Challenges of Renewable Energy Adoption
+
+The adoption of renewable energy brings forth numerous advantages, from reducing air and water pollution to improving public health by minimizing respiratory diseases associated with fossil fuel emissions. Additionally, renewable energy systems can be decentralized, allowing communities to generate their power, promoting energy independence. However, challenges exist, including intermittency issues with some renewable sources like solar and wind. Overcoming these challenges requires investments in energy storage technologies and grid modernization to ensure a consistent and reliable energy supply.
+
+---
+
+To realize a sustainable future, a collective effort is necessary. Governments, industries, and individuals must collaborate to accelerate the transition towards renewable energy. Policymakers can implement supportive regulations and incentives to encourage renewable energy adoption, such as tax credits and subsidies for renewable projects. Industries can invest in research and development to enhance renewable technologies' efficiency and affordability. Individuals can contribute by adopting energy-efficient practices and supporting renewable energy initiatives in their communities. Together, this collective action can pave the way for a sustainable energy future, mitigating environmental impact and ensuring a resilient and thriving planet for generations to come.`,
         isGroup: true,
         tokenCount: 431,
         context: {sectionHeading: null},
@@ -412,7 +458,7 @@ test("discovers bullet list structure", async () => {
     const getAccountIfExists = async () => null;
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             // C+ content generated by yours truly, ChatGPT.
             schema.node("doc", {}, [
                 schema.node("heading", {level: 1}, [
@@ -511,6 +557,27 @@ test("discovers bullet list structure", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
+        text: `\
+## Sustainable Agriculture: Nurturing the Earth and Communities
+
+1. Soil Health:
+  1. Preventing Erosion: Sustainable farming practices like crop rotation and cover cropping protect soil from erosion, preserving its fertility.
+  2. Enhancing Soil Quality: Practices such as composting and reduced tillage improve soil structure and nutrient content.
+  3. Water Conservation:
+    - Reduced Water Usage: Sustainable methods like drip irrigation and rainwater harvesting minimize water waste in agriculture.
+    - Preserving Water Quality: Practices like buffer zones prevent agricultural runoff, preserving water quality in surrounding ecosystems.
+2. Cost Reduction:
+  1. Lower Input Costs: Sustainable practices reduce the need for expensive fertilizers and pesticides, lowering production costs.
+  2. Long-Term Viability: By preserving soil fertility and biodiversity, sustainable agriculture ensures long-term productivity and economic stability for farmers.
+3. Consumer Demand: Growing consumer preference for sustainably produced goods creates market opportunities for farmers practicing sustainable agriculture.
+
+Sustainable agriculture significantly benefits the environment by promoting soil health, conserving water, and minimizing the negative impact of farming activities on surrounding ecosystems.
+
+Adopting sustainable agricultural methods not only reduces costs for farmers but also opens up market opportunities, aligning with consumer preferences and offering long-term economic viability.
+
+- Supporting Local Communities: Sustainable agriculture encourages local food production and distribution, supporting local economies and communities.
+- Food Security: Diverse and sustainable farming methods contribute to food security, ensuring a more resilient food system.
+- Knowledge Sharing: Sustainable farming practices involve education and knowledge sharing within communities, empowering farmers with valuable skills.`,
         isGroup: true,
         tokenCount: 314,
         context: {sectionHeading: null},
@@ -810,7 +877,7 @@ test("discovers paragraph introduction structure", async () => {
     const getAccountIfExists = async () => null;
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [schema.text("This is a paragraph.")]),
                 schema.node("paragraph", {}, [
@@ -830,6 +897,16 @@ test("discovers paragraph introduction structure", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
+        text: `\
+This is a paragraph.
+
+This is a paragraph introducing the next bulleted list:
+
+- Item 1
+- Item 2
+- Item 3
+
+This is another paragraph.`,
         isGroup: true,
         context: {sectionHeading: null},
         tokenCount: 30,
@@ -910,7 +987,7 @@ test("discovers quote block structure", async () => {
     const getAccountIfExists = async () => null;
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text(
@@ -959,6 +1036,19 @@ test("discovers quote block structure", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
+        text: `\
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis consectetur felis, sed dapibus felis suscipit ac. Proin non condimentum orci, a consequat ex. In hac habitasse platea dictumst. In feugiat libero interdum dolor vestibulum, sit amet pulvinar sem commodo. Integer in tortor cursus, venenatis justo sed, euismod risus. Proin hendrerit facilisis mauris ut sollicitudin. Vivamus dapibus commodo urna, vitae cursus metus sodales sed. Nullam mollis imperdiet tincidunt. Nam at enim dui.
+
+> Ut suscipit sit amet libero sit amet volutpat. Integer dignissim nec nisl sed faucibus. Duis faucibus porttitor justo a elementum. Etiam pellentesque ligula ac hendrerit elementum. Fusce vitae bibendum erat, vel tristique ante.
+>
+> 1. Donec et lectus vitae lectus vestibulum vestibulum.
+> 2. Etiam arcu metus, placerat quis gravida commodo, ultricies eget enim.
+> 3. Praesent convallis neque id convallis dictum.
+>
+> Donec sodales varius malesuada. Sed at pellentesque tellus. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nulla ut turpis commodo, luctus mi malesuada, venenatis purus. Aliquam erat volutpat. Proin quis bibendum augue. Praesent in lacinia dui.
+>
+> Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
+> eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
         isGroup: true,
         tokenCount: 619,
         context: {sectionHeading: null},
@@ -976,8 +1066,10 @@ test("discovers quote block structure", async () => {
                         text: "Pellentesque facilisis consectetur felis, sed dapibus felis suscipit ac.",
                         tokenCount: 29,
                     },
-                    {text: "Proin non condimentum orci, a consequat ex.", tokenCount: 16},
-                    {text: "In hac habitasse platea dictumst.", tokenCount: 11},
+                    {
+                        text: "Proin non condimentum orci, a consequat ex. In hac habitasse platea dictumst.",
+                        tokenCount: 27,
+                    },
                     {
                         text: "In feugiat libero interdum dolor vestibulum, sit amet pulvinar sem commodo.",
                         tokenCount: 30,
@@ -1040,15 +1132,15 @@ test("discovers quote block structure", async () => {
                         text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
                         tokenCount: 22,
                     },
-                    {text: "Praesent in dignissim turpis,\n> eget scelerisque", tokenCount: 20},
-                    {text: "massa.", tokenCount: 3},
+                    {text: "Praesent in dignissim turpis,", tokenCount: 13},
+                    {text: "\n>", tokenCount: 1},
+                    {text: "eget scelerisque massa.", tokenCount: 9},
                     {
                         text: "Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit.",
                         tokenCount: 25,
                     },
                     {text: "In vel auctor eros.", tokenCount: 8},
-                    {text: "Nulla ac quam mi.", tokenCount: 7},
-                    {text: "Pellentesque a arcu eros.", tokenCount: 10},
+                    {text: "Nulla ac quam mi. Pellentesque a arcu eros.", tokenCount: 17},
                     {
                         text: "Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien.",
                         tokenCount: 29,
@@ -1067,7 +1159,7 @@ test("discovers code block structure", async () => {
     const getAccountIfExists = async () => null;
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text(
@@ -1081,8 +1173,17 @@ test("discovers code block structure", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
+        text: `\
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis consectetur felis, sed dapibus felis suscipit ac. Proin non condimentum orci, a consequat ex. In hac habitasse platea dictumst. In feugiat libero interdum dolor vestibulum, sit amet pulvinar sem commodo. Integer in tortor cursus, venenatis justo sed, euismod risus. Proin hendrerit facilisis mauris ut sollicitudin. Vivamus dapibus commodo urna, vitae cursus metus sodales sed. Nullam mollis imperdiet tincidunt. Nam at enim dui.
+
+\`\`\`
+let a = 1;
+let b = 1;
+let c = a + b;
+console.log(c);
+\`\`\``,
         isGroup: true,
-        tokenCount: 215,
+        tokenCount: 222,
         context: {sectionHeading: null},
         childChunks: [
             {
@@ -1098,8 +1199,10 @@ test("discovers code block structure", async () => {
                         text: "Pellentesque facilisis consectetur felis, sed dapibus felis suscipit ac.",
                         tokenCount: 29,
                     },
-                    {text: "Proin non condimentum orci, a consequat ex.", tokenCount: 16},
-                    {text: "In hac habitasse platea dictumst.", tokenCount: 11},
+                    {
+                        text: "Proin non condimentum orci, a consequat ex. In hac habitasse platea dictumst.",
+                        tokenCount: 27,
+                    },
                     {
                         text: "In feugiat libero interdum dolor vestibulum, sit amet pulvinar sem commodo.",
                         tokenCount: 30,
@@ -1121,10 +1224,17 @@ test("discovers code block structure", async () => {
             },
             {
                 isGroup: false,
-                tokenCount: 23,
+                tokenCount: 30,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {text: "```\nlet a = 1;\nlet b = 1;\nlet c = a + b;\n```", tokenCount: 23},
+                    {text: "```\nlet a = 1;", tokenCount: 8},
+                    {text: "\n", tokenCount: 0},
+                    {text: "let b = 1;", tokenCount: 5},
+                    {text: "\n", tokenCount: 0},
+                    {text: "let c = a + b;", tokenCount: 7},
+                    {text: "\n", tokenCount: 0},
+                    {text: "console.log(c);", tokenCount: 7},
+                    {text: "\n```", tokenCount: 3},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -1138,7 +1248,7 @@ test("prints a list item with line breaks", async () => {
     const getAccountIfExists = async () => null;
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("checkListItem", {indent: 0, checked: true}, [
                     schema.node("paragraph", {}, [
@@ -1155,27 +1265,84 @@ test("prints a list item with line breaks", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
+        text: `\
+- Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
+  eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
         isGroup: false,
-        tokenCount: 167,
+        tokenCount: 165,
         context: {sectionHeading: null},
         sentenceChunks: [
             {
-                text: "[x] Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan.",
-                tokenCount: 31,
+                text: "- Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan.",
+                tokenCount: 29,
             },
             {
                 text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
                 tokenCount: 22,
             },
-            {text: "Praesent in dignissim turpis,\n    eget scelerisque", tokenCount: 19},
-            {text: "massa.", tokenCount: 3},
+            {text: "Praesent in dignissim turpis,", tokenCount: 13},
+            {text: "\n  ", tokenCount: 0},
+            {text: "eget scelerisque massa.", tokenCount: 9},
             {
                 text: "Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit.",
                 tokenCount: 25,
             },
             {text: "In vel auctor eros.", tokenCount: 8},
-            {text: "Nulla ac quam mi.", tokenCount: 7},
-            {text: "Pellentesque a arcu eros.", tokenCount: 10},
+            {text: "Nulla ac quam mi. Pellentesque a arcu eros.", tokenCount: 17},
+            {
+                text: "Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien.",
+                tokenCount: 29,
+            },
+            {text: "Etiam vestibulum id sem eget mollis.", tokenCount: 13},
+        ],
+        lineMarginTop: 1,
+        lineMarginBottom: 1,
+    });
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("checkListItem", {indent: 0, checked: true}, [
+                    schema.node("paragraph", {}, [
+                        schema.text(
+                            "Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,",
+                        ),
+                        schema.node("break"),
+                        schema.node("break"),
+                        schema.text(
+                            "eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.",
+                        ),
+                    ]),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+- Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
+
+  eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
+        isGroup: false,
+        tokenCount: 165,
+        context: {sectionHeading: null},
+        sentenceChunks: [
+            {
+                text: "- Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan.",
+                tokenCount: 29,
+            },
+            {
+                text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
+                tokenCount: 22,
+            },
+            {text: "Praesent in dignissim turpis,", tokenCount: 13},
+            {text: "\n\n  ", tokenCount: 0},
+            {text: "eget scelerisque massa.", tokenCount: 9},
+            {
+                text: "Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit.",
+                tokenCount: 25,
+            },
+            {text: "In vel auctor eros.", tokenCount: 8},
+            {text: "Nulla ac quam mi. Pellentesque a arcu eros.", tokenCount: 17},
             {
                 text: "Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien.",
                 tokenCount: 29,
@@ -1192,7 +1359,7 @@ test("prints a heading with line breaks", async () => {
     const getAccountIfExists = async () => null;
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("heading", {level: 3}, [
                     schema.text(
@@ -1207,6 +1374,9 @@ test("prints a heading with line breaks", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
+        text: `\
+#### Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
+#### eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
         isGroup: false,
         tokenCount: 172,
         context: {sectionHeading: null},
@@ -1219,15 +1389,67 @@ test("prints a heading with line breaks", async () => {
                 text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
                 tokenCount: 22,
             },
-            {text: "Praesent in dignissim turpis,\n#### eget scelerisque", tokenCount: 23},
-            {text: "massa.", tokenCount: 3},
+            {text: "Praesent in dignissim turpis,", tokenCount: 13},
+            {text: "\n####", tokenCount: 4},
+            {text: "eget scelerisque massa.", tokenCount: 9},
             {
                 text: "Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit.",
                 tokenCount: 25,
             },
             {text: "In vel auctor eros.", tokenCount: 8},
-            {text: "Nulla ac quam mi.", tokenCount: 7},
-            {text: "Pellentesque a arcu eros.", tokenCount: 10},
+            {text: "Nulla ac quam mi. Pellentesque a arcu eros.", tokenCount: 17},
+            {
+                text: "Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien.",
+                tokenCount: 29,
+            },
+            {text: "Etiam vestibulum id sem eget mollis.", tokenCount: 13},
+        ],
+        lineMarginTop: 2,
+        lineMarginBottom: 2,
+    });
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("heading", {level: 3}, [
+                    schema.text(
+                        "Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,",
+                    ),
+                    schema.node("break"),
+                    schema.node("break"),
+                    schema.text(
+                        "eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.",
+                    ),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+#### Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
+####
+#### eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
+        isGroup: false,
+        tokenCount: 176,
+        context: {sectionHeading: null},
+        sentenceChunks: [
+            {
+                text: "#### Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan.",
+                tokenCount: 32,
+            },
+            {
+                text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
+                tokenCount: 22,
+            },
+            {text: "Praesent in dignissim turpis,", tokenCount: 13},
+            {text: "\n####\n####", tokenCount: 8},
+            {text: "eget scelerisque massa.", tokenCount: 9},
+            {
+                text: "Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit.",
+                tokenCount: 25,
+            },
+            {text: "In vel auctor eros.", tokenCount: 8},
+            {text: "Nulla ac quam mi. Pellentesque a arcu eros.", tokenCount: 17},
             {
                 text: "Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien.",
                 tokenCount: 29,
@@ -1244,7 +1466,7 @@ test("prints chunk text with inline styles", async () => {
     const getAccountIfExists = async () => null;
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text("test1 "),
@@ -1269,6 +1491,7 @@ test("prints chunk text with inline styles", async () => {
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
+        text: "test1 **test2** *test3* ***test4*** `test5` `**test6**` `*test7*` ~~test8~~ **~~test9~~** \\*test10\\*",
         isGroup: false,
         tokenCount: 60,
         context: {sectionHeading: null},
@@ -1283,6 +1506,363 @@ test("prints chunk text with inline styles", async () => {
     });
 });
 
+test("escapes markdown characters", async () => {
+    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("This is a literal asterisk: *")]),
+                schema.node("paragraph", {}, [schema.text("This is a literal underscore: _")]),
+                schema.node("paragraph", {}, [schema.text("This is a literal dash: -")]),
+                schema.node("paragraph", {}, [schema.text("This is a literal pound: #")]),
+                schema.node("paragraph", {}, [schema.text("This is a literal squiggle: ~")]),
+                schema.node("paragraph", {}, [schema.text("This is a literal backtick: `")]),
+                schema.node("paragraph", {}, [schema.text("This is multiple backticks: ```")]),
+                schema.node("paragraph", {}, [
+                    schema.text("This is backticks surrounding text: `code?`"),
+                ]),
+                schema.node("paragraph", {}, [schema.text("Here's a math expression: 2 + 4 > 5")]),
+                schema.node("paragraph", {}, [schema.text("Here's some braces: [INTERNAL]")]),
+                schema.node("paragraph", {}, [
+                    schema.text("Here's some braces that look like a checkbox: [x]"),
+                ]),
+                schema.node("paragraph", {}, [
+                    schema.text(
+                        "Here's some braces that look like a link: [Google](https://google.com)",
+                    ),
+                ]),
+                schema.node("paragraph", {}, [
+                    schema.text("[x] this checked checkbox starts the line"),
+                ]),
+                schema.node("paragraph", {}, [
+                    schema.text("[ ] this unchecked checkbox starts the line"),
+                ]),
+                schema.node("paragraph", {}, [
+                    schema.text("1. this number item looks like it starts a line"),
+                ]),
+                schema.node("paragraph", {}, [
+                    schema.text("1. this number item also looks like it starts a line"),
+                ]),
+                schema.node("paragraph", {}, [schema.text("- this dash starts the line")]),
+                schema.node("paragraph", {}, [
+                    schema.text("  - this dash has some spaces before it starts the line"),
+                ]),
+                schema.node("paragraph", {}, [schema.text("* this asterisk starts the line")]),
+                schema.node("paragraph", {}, [schema.text("# this pound starts the line")]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+This is a literal asterisk: \\*
+
+This is a literal underscore: \\_
+
+This is a literal dash: -
+
+This is a literal pound: #
+
+This is a literal squiggle: \\~
+
+This is a literal backtick: \\\`
+
+This is multiple backticks: \\\`\\\`\\\`
+
+This is backticks surrounding text: \\\`code?\\\`
+
+Here's a math expression: 2 + 4 > 5
+
+Here's some braces: [INTERNAL]
+
+Here's some braces that look like a checkbox: [x]
+
+Here's some braces that look like a link: [Google\\](https://google.com)
+
+[x] this checked checkbox starts the line
+
+[ ] this unchecked checkbox starts the line
+
+\\1. this number item looks like it starts a line
+
+\\1. this number item also looks like it starts a line
+
+\\- this dash starts the line
+
+  \\- this dash has some spaces before it starts the line
+
+\\* this asterisk starts the line
+
+\\# this pound starts the line`,
+        isGroup: true,
+        context: {sectionHeading: null},
+        tokenCount: 224,
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 10,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "This is a literal asterisk: \\*",
+                        tokenCount: 10,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 10,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "This is a literal underscore: \\_",
+                        tokenCount: 10,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 7,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "This is a literal dash: -",
+                        tokenCount: 7,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 7,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "This is a literal pound: #",
+                        tokenCount: 7,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 10,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "This is a literal squiggle: \\~",
+                        tokenCount: 10,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 9,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "This is a literal backtick: \\`",
+                        tokenCount: 9,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 13,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "This is multiple backticks: \\`\\`\\`",
+                        tokenCount: 13,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 14,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "This is backticks surrounding text: \\`code?\\`",
+                        tokenCount: 14,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 12,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "Here's a math expression: 2 + 4 > 5",
+                        tokenCount: 12,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 10,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "Here's some braces: [INTERNAL]",
+                        tokenCount: 10,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 16,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "Here's some braces that look like a checkbox: [x]",
+                        tokenCount: 16,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 25,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "Here's some braces that look like a link: [Google\\](https://google.com)",
+                        tokenCount: 25,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 10,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "[x] this checked checkbox starts the line",
+                        tokenCount: 10,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 11,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "[ ] this unchecked checkbox starts the line",
+                        tokenCount: 11,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 12,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "\\1. this number item looks like it starts a line",
+                        tokenCount: 12,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 13,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "\\1. this number item also looks like it starts a line",
+                        tokenCount: 13,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 7,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "\\- this dash starts the line",
+                        tokenCount: 7,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 12,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "  \\- this dash has some spaces before it starts the line",
+                        tokenCount: 12,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 9,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "\\* this asterisk starts the line",
+                        tokenCount: 9,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 7,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {
+                        text: "\\# this pound starts the line",
+                        tokenCount: 7,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});
+
 test("prints mentions", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Caleb Meredith"});
@@ -1290,7 +1870,7 @@ test("prints mentions", async () => {
     const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
 
     expect(
-        await getFullSearchContentChunk(
+        await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
                 schema.node("paragraph", {}, [
                     schema.text("hello "),
@@ -1318,6 +1898,12 @@ test("prints mentions", async () => {
             },
         ),
     ).toEqual({
+        text: `\
+hello @Caleb Meredith
+
+hello @Caleb
+
+hello @Unknown`,
         isGroup: true,
         tokenCount: 10,
         context: {sectionHeading: null},
