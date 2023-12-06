@@ -13,6 +13,7 @@ import {
     omitOpensearchStaticIndexConfig,
     pickOpensearchStaticIndexConfig,
 } from "~/server/opensearch/opensearch_index.js";
+import {OpensearchIndexAnalysisAnalyzer} from "~/server/opensearch/opensearch_index_analysis.js";
 import {
     OpensearchQueryClause,
     getOpensearchQueryClauseDescription,
@@ -282,6 +283,26 @@ export interface OpensearchClientInterface {
             };
         },
     ): Promise<{versionConflictCount: number}>;
+
+    /**
+     * Analyze some text using the [analysis API][1].
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/analyze-apis/#apply-a-built-in-analyzer
+     */
+    analyze<Index extends OpensearchIndex<any, any, any, any, any>>(
+        tracer: TracerBase,
+        index: Index,
+        analyzer: OpensearchIndexAnalysisAnalyzer,
+        text: string,
+    ): Promise<
+        Array<{
+            token: string;
+            startOffset: number;
+            endOffset: number;
+            type: string;
+            position: number;
+        }>
+    >;
 }
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
@@ -1936,6 +1957,77 @@ export class OpensearchClient implements OpensearchClientInterface {
             },
         );
     }
+
+    /**
+     * Analyze some text using the [analysis API][1].
+     *
+     * [1]: https://opensearch.org/docs/latest/api-reference/analyze-apis/#apply-a-built-in-analyzer
+     */
+    public async analyze<Index extends OpensearchIndex<any, any, any, any, any>>(
+        tracer: TracerBase,
+        index: Index,
+        analyzer: OpensearchIndexAnalysisAnalyzer,
+        text: string,
+    ): Promise<
+        Array<{
+            token: string;
+            startOffset: number;
+            endOffset: number;
+            type: string;
+            position: number;
+        }>
+    > {
+        if (process.env.NODE_ENV !== "production") {
+            await this._ensureLocalIndex(tracer, index);
+        }
+
+        return fetchWithTracer(
+            tracer,
+            new URL(`/${index.name}/_analyze`, this._url),
+            {
+                sign: this._signer.sign,
+                serviceName: "OpenSearch",
+                route: `/${index.name}/_analyze`,
+                method: "POST",
+                headers: {"content-type": "application/json"},
+                // NOTE(#opensearch-important-json-disclaimer): No numbers in this body.
+                body: JSON.stringify({
+                    analyzer: typeof analyzer === "string" ? analyzer : analyzer.name,
+                    text,
+                }),
+            },
+            async response => {
+                // NOTE(#opensearch-important-json-disclaimer): All numbers in this response
+                // should safely fit into JavaScript float-64 numbers so we don't need to use
+                // bigint parsing.
+                const body:
+                    | {error: OpensearchError}
+                    | {
+                          error?: undefined;
+                          tokens: Array<{
+                              token: string;
+                              start_offset: number;
+                              end_offset: number;
+                              type: string;
+                              position: number;
+                          }>;
+                      } = await response.json();
+
+                if (body.error) {
+                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+                    throw new UnknownError(`OpenSearch analyze failed: ${errorType}`);
+                }
+
+                return body.tokens.map(token => ({
+                    token: token.token,
+                    startOffset: token.start_offset,
+                    endOffset: token.end_offset,
+                    type: token.type,
+                    position: token.position,
+                }));
+            },
+        );
+    }
 }
 
 /**
@@ -1987,6 +2079,10 @@ export class TestDisabledOpensearchClient implements OpensearchClientInterface {
     }
 
     public updateByQuery(): never {
+        throw this._newUnavailableError();
+    }
+
+    public analyze(): never {
         throw this._newUnavailableError();
     }
 }

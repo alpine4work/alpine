@@ -16,6 +16,7 @@ import {
 } from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_model.js";
 import {LanguageModelBase} from "~/server/language_models/core/language_model_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/internal/get_search_entity.js";
@@ -1600,7 +1601,7 @@ test("deleting a chat message will clear out its indexed content", async () => {
     });
 });
 
-test.only("tasks update their access policies appropriately after indexing", async () => {
+test("tasks update their access policies appropriately after indexing", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -2270,4 +2271,78 @@ test.only("tasks update their access policies appropriately after indexing", asy
     expect(await getSearchEntityIds(session2)).toEqual([]);
 
     expect(await getSearchEntityIds(session3)).toEqual([`TaskCollection:${sharedCollection.id}`]);
+});
+
+test("ignores formatting characters when analyzing text", async () => {
+    expect(
+        await context.opensearch.client
+            .analyze(
+                context.tracer.getTracer(),
+                SearchEntityKeywordIndex,
+                opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
+                "This is some **bold text**, wow",
+            )
+            .then(tokens => tokens.map(({token}) => token)),
+    ).toEqual(["some", "bold", "text", "wow"]);
+
+    expect(
+        await context.opensearch.client
+            .analyze(
+                context.tracer.getTracer(),
+                SearchEntityKeywordIndex,
+                opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
+                "This asterisk\\* is referring to some note\n\n\\* That would be here la la la",
+            )
+            .then(tokens => tokens.map(({token}) => token)),
+    ).toEqual(["asterisk", "refer", "some", "note", "would", "here", "la", "la", "la"]);
+
+    expect(
+        await context.opensearch.client
+            .analyze(
+                context.tracer.getTracer(),
+                SearchEntityKeywordIndex,
+                opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
+                `\
+# A header
+
+> A quote block by some wise person
+
+- Followed by a list
+- Of a couple items
+- Another one
+
+Or an ordered list?
+
+1. Do this first
+2. Then this second
+3. Maybe something else third
+`,
+            )
+            .then(tokens => tokens.map(({token}) => token)),
+    ).toEqual([
+        "header",
+        "quot",
+        "block",
+        "some",
+        "wise",
+        "person",
+        "follow",
+        "list",
+        "coupl",
+        "item",
+        "anoth",
+        "on",
+        "order",
+        "list",
+        "1",
+        "do",
+        "first",
+        "2",
+        "second",
+        "3",
+        "mayb",
+        "someth",
+        "els",
+        "third",
+    ]);
 });

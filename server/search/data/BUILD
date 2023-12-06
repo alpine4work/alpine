@@ -17,9 +17,9 @@ ts_project(
     deps = [
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@xenova/transformers",
+        "//:node_modules/compromise",
         "//:node_modules/fs-extra",
         "//:node_modules/murmurhash",
-        "//:node_modules/natural",
         "//:node_modules/prosemirror-model",
         "//server/chat/data",
         "//server/documents/data",
