@@ -18,7 +18,6 @@ import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messagin
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
-import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -219,8 +218,8 @@ export const sendChatMessageToAccountsBeforeCreateChatTestCheckpoint =
 
 /**
  * Create a new chat with the provided accounts and no messages but only in
- * test environments. In other the app we use `sendChatMessageToAccounts()`
- * to create chats.
+ * test environments. In the app we use `sendChatMessageToAccounts()` to create
+ * chats.
  */
 export async function createChatForTest(
     context: ServerSessionActionContext,
@@ -278,6 +277,16 @@ export async function createChatForTest(
         ),
     ]);
 
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Chat",
+            chatId: id,
+            updatedTraits: {type: "Any"},
+        },
+    });
+
     return {
         id,
         createdTime,
@@ -292,10 +301,10 @@ export async function createChatForTest(
  * If the chat does exist but has different members or is in a different space
  * then we need to create a new chat.
  */
-export async function getOptimisticChatId(
+export function getOptimisticChatId(
     spaceId: SpaceId,
     accountIds: ReadonlyArray<AccountId>,
-): Promise<ChatId> {
+): ChatId {
     assert(accountIds.length > 0);
 
     let isAlreadySorted = true;
@@ -339,7 +348,7 @@ function hashMd5(data: ArrayBuffer): ArrayBuffer {
  * This function is idempotent. You may call it multiple times in short
  * succession and get the same result.
  */
-export function getOrCreateChatForAccounts(
+export async function getOrCreateChatForAccounts(
     context: ServerSessionActionContext,
     {
         spaceId,
@@ -349,11 +358,13 @@ export function getOrCreateChatForAccounts(
         otherAccountIds: ReadonlyArray<AccountId>;
     },
 ): Promise<ChatId> {
-    return actuallyGetOrCreateChatForAccounts(context, {
+    const {chatId} = await actuallyGetOrCreateChatForAccounts(context, {
         spaceId,
         otherAccountIds,
         initialSharedChatsPromise: null,
     });
+
+    return chatId;
 }
 
 /**
@@ -405,14 +416,14 @@ export function selectChatForAccounts(
 
         const [selectedChat, suggestedChats] = await runAllPromises([
             (async () => {
-                const chatId = await actuallyGetOrCreateChatForAccounts(context, {
+                const result = await actuallyGetOrCreateChatForAccounts(context, {
                     spaceId,
                     otherAccountIds,
                     initialSharedChatsPromise: sharedChatsPromise,
                 });
 
-                return getChatAndInitialMessages(context, {
-                    chatId,
+                return actuallyGetChatAndInitialMessages(context, {
+                    result,
                     messagesLimit,
                 });
             })(),
@@ -452,6 +463,18 @@ export function selectChatForAccounts(
     });
 }
 
+type ChatForAccountsResult =
+    | {
+          type: "FoundIdOnly";
+          chatId: ChatId;
+      }
+    | {
+          type: "FoundItems";
+          chatId: ChatId;
+          chatItem: ChatAttributesItem;
+          chatAccountItems: Array<ChatAccountItem>;
+      };
+
 function actuallyGetOrCreateChatForAccounts(
     context: ServerSessionActionContext,
     {
@@ -463,11 +486,11 @@ function actuallyGetOrCreateChatForAccounts(
         otherAccountIds: ReadonlyArray<AccountId>;
         initialSharedChatsPromise: ReturnType<typeof getSharedChats> | null;
     },
-): Promise<ChatId> {
+): Promise<ChatForAccountsResult> {
     return context.tracer.withSpan("Get or create chat", async context => {
         let hasAlreadyAttempted = false;
 
-        return retryWithExponentialBackoff(async retry => {
+        return retryWithExponentialBackoff(async (retry): Promise<ChatForAccountsResult> => {
             const isInitialAttempt = !hasAlreadyAttempted;
             hasAlreadyAttempted = true;
 
@@ -526,7 +549,9 @@ function actuallyGetOrCreateChatForAccounts(
                 };
             };
 
-            const createChatForAccounts = async (chatId: ChatId) => {
+            const createChatForAccounts = async (
+                chatId: ChatId,
+            ): Promise<ChatForAccountsResult> => {
                 await sendChatMessageToAccountsBeforeCreateChatTestCheckpoint.waitForTest(
                     context.actor.getAccountId(),
                 );
@@ -547,20 +572,25 @@ function actuallyGetOrCreateChatForAccounts(
                         },
                     };
 
+                    const chatAccountItems = Array.from(
+                        allSortedAccountIds,
+                        (accountId): ChatAccountItem => ({
+                            partitionType: "Chat",
+                            sortRangeType: "Account",
+                            spaceId,
+                            chatId,
+                            accountId,
+                            joinedTime: createdTime,
+                            chatAccountCount: allSortedAccountIds.length,
+                        }),
+                    );
+
                     await DynamoTableSchema.executeTransaction(
                         context,
                         [
                             ChatTable.transactionCreateItem(chatItem),
-                            ...Array.from(allSortedAccountIds, accountId =>
-                                ChatTable.transactionCreateOrReplaceItem({
-                                    partitionType: "Chat",
-                                    sortRangeType: "Account",
-                                    spaceId,
-                                    chatId,
-                                    accountId,
-                                    joinedTime: createdTime,
-                                    chatAccountCount: allSortedAccountIds.length,
-                                }),
+                            ...chatAccountItems.map(chatAccountItem =>
+                                ChatTable.transactionCreateOrReplaceItem(chatAccountItem),
                             ),
                         ],
                         {
@@ -576,7 +606,22 @@ function actuallyGetOrCreateChatForAccounts(
                         },
                     );
 
-                    return chatItem;
+                    context.jobs.send({
+                        type: "IndexSearchEntity",
+                        spaceId,
+                        update: {
+                            type: "Chat",
+                            chatId,
+                            updatedTraits: {type: "Any"},
+                        },
+                    });
+
+                    return {
+                        type: "FoundItems",
+                        chatId: chatItem.chatId,
+                        chatItem,
+                        chatAccountItems,
+                    };
                 } catch (error) {
                     // If we have a race condition where some other process created this chat
                     // before us then retry our action. Retrying should load the chat created by
@@ -594,10 +639,7 @@ function actuallyGetOrCreateChatForAccounts(
 
             const [{optimisticChatId, optimisticChatAndAccounts}] = await runAllPromises([
                 (async () => {
-                    const optimisticChatId = await getOptimisticChatId(
-                        spaceId,
-                        allSortedAccountIds,
-                    );
+                    const optimisticChatId = getOptimisticChatId(spaceId, allSortedAccountIds);
                     const optimisticChatAndAccounts = await getChatAndAccounts(optimisticChatId);
                     return {optimisticChatId, optimisticChatAndAccounts};
                 })(),
@@ -617,8 +659,7 @@ function actuallyGetOrCreateChatForAccounts(
             // If the optimistic `ChatId` does not exist then create a new chat with the
             // optimistic `ChatId` and send a message there.
             if (!optimisticChatAndAccounts) {
-                const optimisticChatItem = await createChatForAccounts(optimisticChatId);
-                return optimisticChatItem.chatId;
+                return createChatForAccounts(optimisticChatId);
             }
 
             // If the optimistic `ChatId` exists then we need to double check it matches
@@ -632,7 +673,11 @@ function actuallyGetOrCreateChatForAccounts(
                     optimisticChatAndAccounts.chatAccountItems.map(item => item.accountId),
                 )
             ) {
-                return optimisticChatAndAccounts.chatItem.chatId;
+                return {
+                    type: "FoundItems",
+                    chatId: optimisticChatAndAccounts.chatItem.chatId,
+                    ...optimisticChatAndAccounts,
+                };
             }
 
             const sharedChats = await ((isInitialAttempt ? initialSharedChatsPromise : null) ??
@@ -643,11 +688,13 @@ function actuallyGetOrCreateChatForAccounts(
             // We found a chat that exactly matches the accounts we want to message! Send a
             // message to that chat.
             if (firstSharedChat?.accountCount === otherAccountIds.length + 1) {
-                return firstSharedChat.id;
+                return {
+                    type: "FoundIdOnly",
+                    chatId: firstSharedChat.id,
+                };
             }
 
-            const chatItem = await createChatForAccounts(generateId());
-            return chatItem.chatId;
+            return createChatForAccounts(generateId());
         });
     });
 }
@@ -740,6 +787,17 @@ export function sendChatMessage(
             authorId,
             mentionedAccountIds: getMentionedAccountIdsInContent(content),
             contentSnippet: getNotificationMessageContentSnippet(content),
+        });
+
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: chatItem.spaceId,
+            update: {
+                type: "ChatMessage",
+                chatId,
+                messageIndex,
+                updatedTraits: {type: "Any"},
+            },
         });
 
         return {
@@ -1073,7 +1131,7 @@ export function getSharedChatsForTest(
  */
 export async function getChat(context: ServerActionContext, chatId: ChatId): Promise<ChatModel> {
     let chatItem: ChatAttributesItem | undefined;
-    const accountPromises: Array<Promise<AccountModel>> = [];
+    const chatAccountItems: Array<ChatAccountItem> = [];
 
     for await (const item of ChatTable.query(context, {
         partitionKey: {
@@ -1097,13 +1155,7 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
             }
             case "Account": {
                 assert(chatItem);
-
-                if (item.spaceId !== chatItem.spaceId)
-                    throw new DataLossError(
-                        "Expected chat account item to have same space ID as chat item",
-                    );
-
-                accountPromises.push(getAccount(context, chatItem.spaceId, item.accountId));
+                chatAccountItems.push(item);
                 break;
             }
             default:
@@ -1113,8 +1165,25 @@ export async function getChat(context: ServerActionContext, chatId: ChatId): Pro
 
     if (!chatItem) throw new NotFoundError("Chat not found");
 
+    return createChatModelFromItems(context, chatItem, chatAccountItems);
+}
+
+async function createChatModelFromItems(
+    context: ServerActionContext,
+    chatItem: ChatAttributesItem,
+    chatAccountItems: ReadonlyArray<ChatAccountItem>,
+): Promise<ChatModel> {
     const [accounts] = await runAllPromises([
-        runAllPromises(accountPromises),
+        runAllPromises(
+            chatAccountItems.map(chatAccountItem => {
+                if (chatAccountItem.spaceId !== chatItem.spaceId)
+                    throw new DataLossError(
+                        "Expected chat account item to have same space ID as chat item",
+                    );
+
+                return getAccount(context, chatItem.spaceId, chatAccountItem.accountId);
+            }),
+        ),
         authorizeSpaceAccess(context, chatItem.spaceId),
     ]);
 
@@ -1379,6 +1448,17 @@ export function updateChatMessageContent(
             }),
         ]);
 
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: chatItem.spaceId,
+            update: {
+                type: "ChatMessage",
+                chatId,
+                messageIndex,
+                updatedTraits: {type: "Some", traits: []},
+            },
+        });
+
         return {contentUpdatedTime};
     });
 }
@@ -1452,6 +1532,17 @@ export function deleteChatMessage(
             }),
         ]);
 
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: chatItem.spaceId,
+            update: {
+                type: "ChatMessage",
+                chatId,
+                messageIndex,
+                updatedTraits: {type: "Some", traits: []},
+            },
+        });
+
         return {deletedTime};
     });
 }
@@ -1459,7 +1550,7 @@ export function deleteChatMessage(
 /**
  * Get our chat and initial messages that come with it efficiently at once.
  */
-export async function getChatAndInitialMessages(
+export function getChatAndInitialMessages(
     context: ServerSessionActionContext,
     {chatId, messagesLimit}: {chatId: ChatId; messagesLimit: number},
 ): Promise<{
@@ -1467,12 +1558,42 @@ export async function getChatAndInitialMessages(
     initialMessages: ReadonlyArray<ChatMessageModel>;
     initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
 }> {
-    const chatPromise = getChat(context, chatId);
+    return actuallyGetChatAndInitialMessages(context, {
+        result: {type: "FoundIdOnly", chatId},
+        messagesLimit,
+    });
+}
+
+async function actuallyGetChatAndInitialMessages(
+    context: ServerSessionActionContext,
+    {result, messagesLimit}: {result: ChatForAccountsResult; messagesLimit: number},
+): Promise<{
+    chat: ChatModel;
+    initialMessages: ReadonlyArray<ChatMessageModel>;
+    initialOtherReferencedMessages: ReadonlyArray<ChatMessageModel>;
+}> {
+    let chatPromise: Promise<ChatModel>;
+    switch (result.type) {
+        case "FoundIdOnly": {
+            chatPromise = getChat(context, result.chatId);
+            break;
+        }
+        case "FoundItems": {
+            chatPromise = createChatModelFromItems(
+                context,
+                result.chatItem,
+                result.chatAccountItems,
+            );
+            break;
+        }
+        default:
+            throw exhaustive(result);
+    }
 
     const [chat, {messages, otherReferencedMessages}] = await runAllPromises([
         chatPromise,
         getChatMessagesFromEndAssumingAuthorizedChat(context, {
-            chatId,
+            chatId: result.chatId,
             getSpaceId: () => chatPromise.then(({spaceId}) => spaceId),
             limit: messagesLimit,
             afterMessageIndex: null,

@@ -25,8 +25,8 @@ export type SearchEntityId =
     | `Channel:${ChannelId}`
     | `Post:${PostId}`
     | `PostComment:${PostId}-${number}`
-    | `Chat:${ChatId}` // NOCOMMIT: Index
-    | `ChatMessage:${ChatId}-${number}` // NOCOMMIT: Index
+    | `Chat:${ChatId}`
+    | `ChatMessage:${ChatId}-${number}`
     | `Task:${TaskId}` // NOCOMMIT: Index
     | `TaskCollection:${TaskCollectionId}`; // NOCOMMIT: Index
 

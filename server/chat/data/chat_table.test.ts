@@ -182,7 +182,7 @@ test("can send initial messages to other accounts", async () => {
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -217,7 +217,7 @@ test("can send initial messages to other accounts", async () => {
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -258,7 +258,7 @@ test("can send initial messages to same account", async () => {
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -293,7 +293,7 @@ test("can send initial messages to same account", async () => {
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -334,7 +334,7 @@ test("can send message to self", async () => {
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
+        getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
     );
 
     expect(
@@ -406,7 +406,7 @@ test("can not get messages in a chat you don't have access to", async () => {
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -429,7 +429,7 @@ test("can not get messages in a chat you don't have access to", async () => {
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -454,7 +454,7 @@ test("can not get messages in a chat you don't have access to", async () => {
     });
 
     expect(message3.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
+        getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
     );
 
     expect(message1.chatId).not.toEqual(message3.chatId);
@@ -480,7 +480,7 @@ test("can reply to message by sending to account", async () => {
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -515,7 +515,7 @@ test("can reply to message by sending to account", async () => {
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -624,7 +624,7 @@ test("can send message to account in multiple spaces", async () => {
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionX1.account.id,
         ]),
@@ -659,7 +659,7 @@ test("can send message to account in multiple spaces", async () => {
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceB.id, [
+        getOptimisticChatId(scenario.spaceB.id, [
             scenario.sessionB1.account.id,
             scenario.sessionX1.account.id,
         ]),
@@ -700,7 +700,7 @@ test("same accounts will have different chats in different spaces", async () => 
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ]),
@@ -735,7 +735,7 @@ test("same accounts will have different chats in different spaces", async () => 
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceB.id, [
+        getOptimisticChatId(scenario.spaceB.id, [
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ]),
@@ -780,7 +780,7 @@ test("can send messages to multiple accounts", async () => {
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -821,7 +821,7 @@ test("can send messages to multiple accounts", async () => {
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
             scenario.sessionX1.account.id,
@@ -868,7 +868,7 @@ test("anyone the message was sent to can read the message", async () => {
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -994,7 +994,7 @@ test("can reply to a message sent to multiple accounts", async () => {
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -1035,7 +1035,7 @@ test("can reply to a message sent to multiple accounts", async () => {
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -1097,7 +1097,7 @@ test("race condition where two accounts try to create the same chat at the same 
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1162,7 +1162,7 @@ test("can send initial messages to other accounts (when a chat already has the o
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1178,7 +1178,7 @@ test("can send initial messages to other accounts (when a chat already has the o
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1206,7 +1206,7 @@ test("can send initial messages to other accounts (when a chat already has the o
     });
 
     await createChatForTest(context.action(scenario.sessionA1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -1222,7 +1222,7 @@ test("can send initial messages to other accounts (when a chat already has the o
     });
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -1252,7 +1252,7 @@ test("can send initial messages to other accounts (when a chat already has the o
     });
 
     await createChatForTest(context.action(scenario.sessionA2), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionX1.account.id,
         ]),
@@ -1268,7 +1268,7 @@ test("can send initial messages to other accounts (when a chat already has the o
     });
 
     expect(message3.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionX1.account.id,
         ]),
@@ -1302,7 +1302,7 @@ test("can send initial messages to other accounts (reusing a chat already with t
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionA1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1318,7 +1318,7 @@ test("can send initial messages to other accounts (reusing a chat already with t
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1346,7 +1346,7 @@ test("can send initial messages to other accounts (reusing a chat already with t
     });
 
     await createChatForTest(context.action(scenario.sessionA1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -1362,7 +1362,7 @@ test("can send initial messages to other accounts (reusing a chat already with t
     });
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -1396,7 +1396,7 @@ test("can send initial messages to same account (when a chat already has the opt
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionA1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1412,7 +1412,7 @@ test("can send initial messages to same account (when a chat already has the opt
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1440,7 +1440,7 @@ test("can send initial messages to same account (when a chat already has the opt
     });
 
     await createChatForTest(context.action(scenario.sessionA1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -1456,7 +1456,7 @@ test("can send initial messages to same account (when a chat already has the opt
     });
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -1490,7 +1490,7 @@ test("can send message to self (when a chat already has the optimistic id)", asy
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
+        id: getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
         spaceId: scenario.spaceB.id,
         otherAccountIds: [],
     });
@@ -1503,7 +1503,7 @@ test("can send message to self (when a chat already has the optimistic id)", asy
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
+        getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
     );
 
     expect(
@@ -1568,7 +1568,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1584,7 +1584,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1600,7 +1600,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
     ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -1616,7 +1616,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
     });
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
         ]),
@@ -1634,7 +1634,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
     ).rejects.toThrow(new PermissionDeniedError("Account does not have access to chat"));
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
+        id: getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
         spaceId: scenario.spaceB.id,
         otherAccountIds: [],
     });
@@ -1647,7 +1647,7 @@ test("can not get messages in a chat you don't have access to (when a chat alrea
     });
 
     expect(message3.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
+        getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
     );
 
     expect(message1.chatId).not.toEqual(message3.chatId);
@@ -1666,7 +1666,7 @@ test("can reply to message by sending to account (when a chat already has the op
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1682,7 +1682,7 @@ test("can reply to message by sending to account (when a chat already has the op
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1717,7 +1717,7 @@ test("can reply to message by sending to account (when a chat already has the op
     });
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -1757,7 +1757,7 @@ test("can send message to account in multiple spaces (when a chat already has th
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionX1.account.id,
         ]),
@@ -1773,7 +1773,7 @@ test("can send message to account in multiple spaces (when a chat already has th
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionX1.account.id,
         ]),
@@ -1801,7 +1801,7 @@ test("can send message to account in multiple spaces (when a chat already has th
     });
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceB.id, [
+        id: getOptimisticChatId(scenario.spaceB.id, [
             scenario.sessionB1.account.id,
             scenario.sessionX1.account.id,
         ]),
@@ -1817,7 +1817,7 @@ test("can send message to account in multiple spaces (when a chat already has th
     });
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceB.id, [
+        getOptimisticChatId(scenario.spaceB.id, [
             scenario.sessionB1.account.id,
             scenario.sessionX1.account.id,
         ]),
@@ -1851,7 +1851,7 @@ test("same accounts will have different chats in different spaces (when a chat a
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ]),
@@ -1867,7 +1867,7 @@ test("same accounts will have different chats in different spaces (when a chat a
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ]),
@@ -1895,7 +1895,7 @@ test("same accounts will have different chats in different spaces (when a chat a
     });
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceB.id, [
+        id: getOptimisticChatId(scenario.spaceB.id, [
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ]),
@@ -1911,7 +1911,7 @@ test("same accounts will have different chats in different spaces (when a chat a
     });
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceB.id, [
+        getOptimisticChatId(scenario.spaceB.id, [
             scenario.sessionX1.account.id,
             scenario.sessionX2.account.id,
         ]),
@@ -1945,7 +1945,7 @@ test("can send messages to multiple accounts (when a chat already has the optimi
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -1967,7 +1967,7 @@ test("can send messages to multiple accounts (when a chat already has the optimi
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -1997,7 +1997,7 @@ test("can send messages to multiple accounts (when a chat already has the optimi
     });
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
             scenario.sessionX1.account.id,
@@ -2019,7 +2019,7 @@ test("can send messages to multiple accounts (when a chat already has the optimi
     });
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA3.account.id,
             scenario.sessionX1.account.id,
@@ -2055,7 +2055,7 @@ test("anyone the message was sent to can read the message (when a chat already h
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -2077,7 +2077,7 @@ test("anyone the message was sent to can read the message (when a chat already h
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -2192,7 +2192,7 @@ test("can reply to a message sent to multiple accounts (when a chat already has 
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -2214,7 +2214,7 @@ test("can reply to a message sent to multiple accounts (when a chat already has 
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -2255,7 +2255,7 @@ test("can reply to a message sent to multiple accounts (when a chat already has 
     });
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionX1.account.id,
@@ -2297,7 +2297,7 @@ test("race condition where two accounts try to create the same chat at the same 
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -2326,7 +2326,7 @@ test("race condition where two accounts try to create the same chat at the same 
     });
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -2509,25 +2509,25 @@ test("can find correct chat to send message to when account has a lot of chats",
     });
 
     expect(message1.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
+        getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
     );
 
     expect(message2.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
     );
 
     expect(message3.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionX1.account.id,
         ]),
     );
 
     expect(message4.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionA3.account.id,
@@ -2535,7 +2535,7 @@ test("can find correct chat to send message to when account has a lot of chats",
     );
 
     expect(message5.chatId).toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionA3.account.id,
@@ -2683,13 +2683,13 @@ test("can find correct chat to send message to when account has a lot of chats (
     const scenario = await createScenario();
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
+        id: getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
         spaceId: scenario.spaceB.id,
         otherAccountIds: [],
     });
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
@@ -2698,7 +2698,7 @@ test("can find correct chat to send message to when account has a lot of chats (
     });
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionX1.account.id,
         ]),
@@ -2707,7 +2707,7 @@ test("can find correct chat to send message to when account has a lot of chats (
     });
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionA3.account.id,
@@ -2717,7 +2717,7 @@ test("can find correct chat to send message to when account has a lot of chats (
     });
 
     await createChatForTest(context.action(scenario.sessionB1), {
-        id: await getOptimisticChatId(scenario.spaceA.id, [
+        id: getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionA3.account.id,
@@ -2846,25 +2846,25 @@ test("can find correct chat to send message to when account has a lot of chats (
     });
 
     expect(message1.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
+        getOptimisticChatId(scenario.spaceA.id, [scenario.sessionA1.account.id]),
     );
 
     expect(message2.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
         ]),
     );
 
     expect(message3.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionX1.account.id,
         ]),
     );
 
     expect(message4.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionA3.account.id,
@@ -2872,7 +2872,7 @@ test("can find correct chat to send message to when account has a lot of chats (
     );
 
     expect(message5.chatId).not.toEqual(
-        await getOptimisticChatId(scenario.spaceA.id, [
+        getOptimisticChatId(scenario.spaceA.id, [
             scenario.sessionA1.account.id,
             scenario.sessionA2.account.id,
             scenario.sessionA3.account.id,
