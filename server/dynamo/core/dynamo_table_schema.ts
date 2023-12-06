@@ -1361,12 +1361,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     public async createItemIfNoneExists<Item extends Types["Item"]>(
         context: DynamoContext,
         item: Item,
-    ): Promise<void> {
+    ): Promise<{wasCreated: boolean}> {
         try {
             await this.createItem(context, item);
+
+            return {wasCreated: true};
         } catch (error) {
             // If this item already exists, great! This is a noop.
-            if (isDynamoConditionCheckError(error)) return;
+            if (isDynamoConditionCheckError(error)) return {wasCreated: false};
 
             throw error;
         }

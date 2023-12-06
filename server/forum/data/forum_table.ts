@@ -10,11 +10,12 @@ import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {createMessagePayloadModel} from "~/server/messaging/helpers/create_message_payload_model.js";
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {
@@ -264,11 +265,13 @@ type ChannelAttributesItem = DynamoTableItemType<typeof ForumTable, "Channel", "
 type PostAttributesItem = DynamoTableItemType<typeof ForumTable, "Post", "Attributes">;
 type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
 
-export async function seedTestChannels(context: DynamoContext) {
+export async function seedTestChannels(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+) {
     assert(process.env.NODE_ENV !== "production");
     const {testChannelId, defaultSpaceId} = getDynamoSeedConstants();
 
-    await ForumTable.createItemIfNoneExists(context, {
+    const {wasCreated} = await ForumTable.createItemIfNoneExists(context, {
         partitionType: "Channel",
         sortRangeType: "Attributes",
         channelId: testChannelId,
@@ -277,6 +280,18 @@ export async function seedTestChannels(context: DynamoContext) {
         name: "Test",
         description: emptyMessageContent,
     });
+
+    if (wasCreated) {
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: defaultSpaceId,
+            update: {
+                type: "Channel",
+                channelId: testChannelId,
+                updatedTraits: {type: "Any"},
+            },
+        });
+    }
 }
 
 /**
@@ -302,6 +317,16 @@ export async function createChannel(
     };
 
     await ForumTable.createItem(context, channelItem);
+
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Channel",
+            channelId: channelItem.channelId,
+            updatedTraits: {type: "Any"},
+        },
+    });
 
     return {
         id: channelItem.channelId,
@@ -473,12 +498,15 @@ export async function updateChannelName(
         errorDisplayMessagePrefix: errorDisplayMessage`The name you typed`,
     });
 
+    let spaceId: SpaceId | null = null;
+
     await ForumTable.updateItem(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
             if (!channelItem) throw new NotFoundError("Channel not found");
-            await authorizeSpaceAccess(context, channelItem.spaceId);
+            spaceId = channelItem.spaceId;
+            await authorizeSpaceAccess(context, spaceId);
 
             return {
                 ...channelItem,
@@ -486,6 +514,18 @@ export async function updateChannelName(
             };
         },
     );
+
+    assert(spaceId);
+
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Channel",
+            channelId,
+            updatedTraits: {type: "Some", traits: ["Preview"]},
+        },
+    });
 }
 
 /**
@@ -501,12 +541,15 @@ export async function updateChannelDescription(
         description: MessageContent;
     },
 ) {
+    let spaceId: SpaceId | null = null;
+
     await ForumTable.updateItem(
         context,
         {partitionType: "Channel", sortRangeType: "Attributes", channelId},
         async channelItem => {
             if (!channelItem) throw new NotFoundError("Channel not found");
-            await authorizeSpaceAccess(context, channelItem.spaceId);
+            spaceId = channelItem.spaceId;
+            await authorizeSpaceAccess(context, spaceId);
 
             return {
                 ...channelItem,
@@ -514,6 +557,18 @@ export async function updateChannelDescription(
             };
         },
     );
+
+    assert(spaceId);
+
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Channel",
+            channelId,
+            updatedTraits: {type: "Some", traits: []},
+        },
+    });
 }
 
 /**
@@ -637,6 +692,16 @@ export async function createPost(
         authorId: postItem.authorId,
         mentionedAccountIds: getMentionedAccountIdsInContent(content),
         contentSnippet: getNotificationPostContentSnippet(content),
+    });
+
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId: channel.spaceId,
+        update: {
+            type: "Post",
+            postId: postItem.postId,
+            updatedTraits: {type: "Any"},
+        },
     });
 
     return {
@@ -801,6 +866,7 @@ export async function updatePostContent(
     context: ServerSessionActionContext,
     {postId, content}: {postId: PostId; content: PostContent},
 ): Promise<{contentUpdatedTime: Date}> {
+    let spaceId: SpaceId | null = null;
     let contentUpdatedTime: Date | null = null;
 
     await ForumTable.updateItem(
@@ -816,6 +882,8 @@ export async function updatePostContent(
 
             if (postItem.authorId !== context.actor.getAccountId())
                 throw new PermissionDeniedError("Can only update post comments you authored");
+
+            spaceId = postItem.spaceId;
 
             contentUpdatedTime = new Date(
                 postItem.contentUpdatedTime
@@ -840,7 +908,19 @@ export async function updatePostContent(
         },
     );
 
-    assert(contentUpdatedTime !== null);
+    assert(spaceId);
+    assert(contentUpdatedTime);
+
+    context.jobs.send({
+        type: "IndexSearchEntity",
+        spaceId,
+        update: {
+            type: "Post",
+            postId,
+            updatedTraits: {type: "Some", traits: []},
+        },
+    });
+
     return {contentUpdatedTime};
 }
 
@@ -1041,6 +1121,17 @@ export async function createPostComment(
             contentSnippet: getNotificationMessageContentSnippet(content),
         });
 
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: postItem.spaceId,
+            update: {
+                type: "PostComment",
+                postId,
+                commentIndex,
+                updatedTraits: {type: "Any"},
+            },
+        });
+
         return {
             index: commentIndex,
             createdTime,
@@ -1165,7 +1256,7 @@ export function updatePostCommentContent(
         if (!postItem) throw new NotFoundError("Post not found");
         if (!commentItem) throw new NotFoundError("Post comment not found");
 
-        await authorizeChannelAccess(context, postItem.channelId);
+        const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
 
         if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only update post comments you authored");
@@ -1229,6 +1320,17 @@ export function updatePostCommentContent(
             }),
         ]);
 
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId,
+            update: {
+                type: "PostComment",
+                postId,
+                commentIndex,
+                updatedTraits: {type: "Some", traits: []},
+            },
+        });
+
         return {contentUpdatedTime};
     });
 }
@@ -1258,7 +1360,7 @@ export function deletePostComment(
         if (!postItem) throw new NotFoundError("Post not found");
         if (!commentItem) throw new NotFoundError("Post comment not found");
 
-        await authorizeChannelAccess(context, postItem.channelId);
+        const {spaceId} = await authorizeChannelAccess(context, postItem.channelId);
 
         if (commentItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only delete post comments you authored");
@@ -1314,6 +1416,17 @@ export function deletePostComment(
                 expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(deletedTime),
             }),
         ]);
+
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId,
+            update: {
+                type: "PostComment",
+                postId,
+                commentIndex,
+                updatedTraits: {type: "Some", traits: []},
+            },
+        });
 
         return {deletedTime};
     });

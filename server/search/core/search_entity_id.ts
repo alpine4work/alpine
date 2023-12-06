@@ -22,9 +22,9 @@ export type SearchEntityId =
     | `Account:${AccountId | ContentMentionAccountId}`
     | `Document:${DocumentId}` // NOCOMMIT: Index
     | `DocumentComment:${DocumentId}-${DocumentCommentThreadId}-${number}` // NOCOMMIT: Index
-    | `Channel:${ChannelId}` // NOCOMMIT: Index
-    | `Post:${PostId}` // NOCOMMIT: Index
-    | `PostComment:${PostId}-${number}` // NOCOMMIT: Index
+    | `Channel:${ChannelId}`
+    | `Post:${PostId}`
+    | `PostComment:${PostId}-${number}`
     | `Chat:${ChatId}` // NOCOMMIT: Index
     | `ChatMessage:${ChatId}-${number}` // NOCOMMIT: Index
     | `Task:${TaskId}` // NOCOMMIT: Index
