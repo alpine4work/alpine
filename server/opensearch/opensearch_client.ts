@@ -865,7 +865,13 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                     const indexStaticConfig = pickOpensearchStaticIndexConfig(index.config);
 
-                    if (!isDeepEqual(previousIndexStaticConfig, indexStaticConfig)) {
+                    if (
+                        !isDeepEqual(
+                            previousIndexStaticConfig,
+                            // Feed through JSON stringify/parse so `undefined` properties are removed.
+                            JSON.parse(JSON.stringify(indexStaticConfig)),
+                        )
+                    ) {
                         throw new InternalError(
                             // NOTE(#opensearch-important-json-disclaimer): No integers grow beyond
                             // float-64 size in settings. Ok to use native JSON stringifier instead of

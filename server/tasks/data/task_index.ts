@@ -11,7 +11,6 @@ import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {
     OpensearchClient,
     OpensearchGetDocCommand,
-    OpensearchGetDocWithoutSourceCommand,
     OpensearchIndexDocIfVersionCommand,
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
@@ -33,10 +32,15 @@ import {
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
 import {
+    TaskCollectionIndexDoc,
     TaskCollectionIndexDocType,
     TaskCollectionIndexDocWithVersion,
 } from "~/server/tasks/data/task_collection_index_doc.js";
-import {TaskIndexDocType, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskIndexDoc,
+    TaskIndexDocType,
+    TaskIndexDocWithVersion,
+} from "~/server/tasks/data/task_index_doc.js";
 import {assembleTaskCollectionSearchResults} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
@@ -149,7 +153,7 @@ export async function getTaskIndexDocsIfExist(
     }>,
     spaceId: SpaceId,
     taskIds: ReadonlyArray<TaskId>,
-) {
+): Promise<ReadonlyArray<TaskIndexDoc>> {
     // We don't verify that the account is allowed to load these documents. We
     // require a system actor with access to the entire space.
     context.actor.authorizeSystem();
@@ -175,7 +179,7 @@ export async function getTaskCollectionIndexDocsIfExist(
     }>,
     spaceId: SpaceId,
     collectionIds: ReadonlyArray<TaskCollectionId>,
-) {
+): Promise<ReadonlyArray<TaskCollectionIndexDoc>> {
     // We don't verify that the account is allowed to load these documents. We
     // require a system actor with access to the entire space.
     context.actor.authorizeSystem();
@@ -184,12 +188,7 @@ export async function getTaskCollectionIndexDocsIfExist(
     return context.opensearch.client.multiGetDocsIfExist(
         context.tracer.getTracer(),
         collectionIds.map(
-            collectionId =>
-                new OpensearchGetDocWithoutSourceCommand(
-                    TaskCollectionIndex,
-                    spaceId,
-                    collectionId,
-                ),
+            collectionId => new OpensearchGetDocCommand(TaskCollectionIndex, spaceId, collectionId),
         ),
     );
 }

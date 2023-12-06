@@ -28,7 +28,7 @@ export type OpensearchIndexConfig<FlattenedKeys extends string> = {
             readonly codec: string;
             // Provided by a plugin. Documentation here:
             // https://opensearch.org/docs/latest/search-plugins/knn/knn-index/#index-settings
-            readonly knn: boolean;
+            readonly knn: boolean | undefined;
         };
         readonly analysis: {
             readonly filter: JsonObjectValue;
@@ -351,7 +351,7 @@ export class OpensearchIndex<
                     routing_partition_size: 1,
                     codec: "default",
                     // If we have a `knn_vector` field then enable building KNN indexes.
-                    knn: shouldEnableKnn,
+                    knn: shouldEnableKnn ? true : undefined,
                 },
                 analysis: {
                     filter: Object.fromEntries(customFilterDefinitionByName),
