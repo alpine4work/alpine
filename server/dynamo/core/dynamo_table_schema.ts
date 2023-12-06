@@ -1939,7 +1939,14 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * Use `DynamoTableSchema.executeTransaction()` to execute a transaction.
      */
-    public transactionCreateItem<Item extends Types["Item"]>(item: Item): DynamoTransactionEntry {
+    public transactionCreateItem<Item extends Types["Item"]>(
+        item: Item,
+        {
+            onAfterTransactionExecutedSuccessfully,
+        }: {
+            onAfterTransactionExecutedSuccessfully?: () => void;
+        } = {},
+    ): DynamoTransactionEntry {
         return this._transactionPutItem(item, {
             condition: DynamoConditionExpression._unsafeRaw(
                 "attribute_not_exists(partitionKey)",
@@ -1949,6 +1956,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             // create. It should not be used to implement upserts. Use
             // `createOrReplaceItem()` or `updateItem()` for that.
             isConditionCheckErrorRetriable: false,
+            onAfterTransactionExecutedSuccessfully,
         });
     }
 
@@ -2005,8 +2013,9 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      */
     public transactionCreateOrReplaceItem<Item extends Types["Item"]>(
         item: Item,
+        options?: {onAfterTransactionExecutedSuccessfully?: () => void},
     ): DynamoTransactionEntry {
-        return this._transactionPutItem(item);
+        return this._transactionPutItem(item, options);
     }
 
     /**
@@ -2067,9 +2076,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
     private _transactionPutItem<Item extends Types["Item"]>(
         item: Item,
         {
+            onAfterTransactionExecutedSuccessfully,
             condition,
             isConditionCheckErrorRetriable,
-        }:
+        }: {
+            onAfterTransactionExecutedSuccessfully?: () => void;
+        } & (
             | {
                   condition: DynamoCondition<Item>;
                   /**
@@ -2088,7 +2100,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             | {
                   condition?: undefined;
                   isConditionCheckErrorRetriable?: undefined;
-              } = {},
+              }
+        ) = {},
     ): DynamoTransactionEntry {
         // If our schema is write incompatible with the old schema then throw an error.
         // Do not allow writing to this table until the generated schema has been
@@ -2105,6 +2118,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             return DynamoClient.transactionPutItem({
                 tableName: this._name,
                 item: serializedItem,
+                onAfterTransactionExecutedSuccessfully,
             });
         } else {
             const conditionCompilationContext = DynamoConditionExpressionCompilationContext.new();
@@ -2123,6 +2137,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     conditionCompilationContext.iterateAttributeNames(),
                 ),
                 isConditionCheckErrorRetriable,
+                onAfterTransactionExecutedSuccessfully,
             });
         }
     }
@@ -2475,6 +2490,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
             isConditionCheckErrorRetriable: true,
+            onAfterTransactionExecutedSuccessfully: null,
         });
     }
 
@@ -2542,9 +2558,19 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
             isConditionCheckErrorRetriable: true,
+            onAfterTransactionExecutedSuccessfully: null,
         });
     }
 
+    /**
+     * Create a DynamoDB transaction entry with a custom update expression. Useful
+     * if you want to write a custom atomic update that doesn't require a condition
+     * check.
+     *
+     * However, using this method is dangerous! It doesn't update
+     * `updateLockVersion`. You usually want to update `updateLockVersion` or else
+     * a concurrent writer may write over your update.
+     */
     public dangerousTransactionUpdateItemWithCustomUpdateExpression(
         key: Types["ItemKey"],
         {
@@ -2568,6 +2594,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 },
             },
             isConditionCheckErrorRetriable: false,
+            onAfterTransactionExecutedSuccessfully: null,
         });
     }
 

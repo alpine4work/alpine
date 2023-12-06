@@ -7,7 +7,7 @@ import {
     ServerActionContext,
     ServerSessionActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
@@ -16,6 +16,7 @@ import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {DynamoTransactionEntry} from "~/server/dynamo/core/dynamo_transaction_entry.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {ActorContextModule} from "~/server/helpers/actor_context_module.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -181,7 +182,9 @@ export async function createSpaceAccountForTest(
     });
 }
 
-export async function seedTestSpaces(context: DynamoContext) {
+export async function seedTestSpaces(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+) {
     assert(process.env.NODE_ENV !== "production");
     const {defaultSpaceId, adminAccountId} = getDynamoSeedConstants();
 
@@ -204,35 +207,40 @@ export async function seedTestSpaces(context: DynamoContext) {
             const adminAccountSpaceIds: Set<SpaceId> = adminAccountSpacesItem
                 ? new Set(adminAccountSpacesItem.spaceIds)
                 : new Set();
-            const adminAccountAlreadyHadDefaultSpaceId = adminAccountSpaceIds.has(defaultSpaceId);
+            const doesAdminAccountAlreadyHaveDefaultSpaceId =
+                adminAccountSpaceIds.has(defaultSpaceId);
             adminAccountSpaceIds.add(defaultSpaceId);
 
-            if (adminAccountAlreadyHadDefaultSpaceId) {
-                await SpacesTable.createItem(context, {
+            if (doesAdminAccountAlreadyHaveDefaultSpaceId) return;
+
+            await DynamoTableSchema.executeTransaction(context, [
+                SpacesTable.transactionCreateItem({
                     partitionType: "Space",
                     sortRangeType: "Account",
                     spaceId: defaultSpaceId,
                     accountId: adminAccountId,
                     joinedTime: new Date(),
-                });
-            } else {
-                await DynamoTableSchema.executeTransaction(context, [
-                    SpacesTable.transactionCreateItem({
-                        partitionType: "Space",
-                        sortRangeType: "Account",
-                        spaceId: defaultSpaceId,
-                        accountId: adminAccountId,
-                        joinedTime: new Date(),
-                    }),
-                    SpacesTable.transactionDirectlyUpdateItem({
-                        ...adminAccountSpaceIds,
-                        partitionType: "Account",
-                        sortRangeType: "Spaces",
-                        accountId: adminAccountId,
-                        spaceIds: adminAccountSpaceIds,
-                    }),
-                ]);
-            }
+                }),
+                SpacesTable.transactionDirectlyUpdateItem({
+                    ...adminAccountSpaceIds,
+                    partitionType: "Account",
+                    sortRangeType: "Spaces",
+                    accountId: adminAccountId,
+                    spaceIds: adminAccountSpaceIds,
+                }),
+            ]);
+
+            // If we add the admin account to our default space we should also index the
+            // admin account in our default space.
+            context.jobs.send({
+                type: "IndexSearchEntity",
+                spaceId: defaultSpaceId,
+                update: {
+                    type: "Account",
+                    accountId: adminAccountId,
+                    updatedTraits: {type: "Any"},
+                },
+            });
         });
     } catch (error) {
         if (isDynamoConditionCheckError(error) && !(error instanceof DeadlineExceededError)) {
@@ -283,13 +291,6 @@ export async function createSpaceAccountForAlphaTransactionEntries(
             sortRangeType: "Attributes",
             spaceId,
         }),
-        SpacesTable.transactionCreateItem({
-            partitionType: "Space",
-            sortRangeType: "Account",
-            spaceId,
-            accountId,
-            joinedTime: new Date(),
-        }),
         SpacesTable.transactionDirectlyUpdateItem({
             ...spacesItem,
             partitionType: "Account",
@@ -297,6 +298,30 @@ export async function createSpaceAccountForAlphaTransactionEntries(
             accountId,
             spaceIds,
         }),
+        SpacesTable.transactionCreateItem(
+            {
+                partitionType: "Space",
+                sortRangeType: "Account",
+                spaceId,
+                accountId,
+                joinedTime: new Date(),
+            },
+            {
+                onAfterTransactionExecutedSuccessfully: () => {
+                    // When an account is added to a space, index the account in the space so it
+                    // can be searched.
+                    context.jobs.send({
+                        type: "IndexSearchEntity",
+                        spaceId,
+                        update: {
+                            type: "Account",
+                            accountId,
+                            updatedTraits: {type: "Any"},
+                        },
+                    });
+                },
+            },
+        ),
     ];
 }
 

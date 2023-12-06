@@ -18,11 +18,7 @@ import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
-import {
-    authorizeSpaceAccess,
-    getSessionActorAccountSpaces,
-    isAccountMemberOfSpace,
-} from "~/server/spaces/spaces_table.js";
+import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
@@ -3016,19 +3012,19 @@ export function deleteTaskAndAllChildren(
  * Commits an `UpdateAccountName` action to every space the account is in then
  * once the transaction has committed begins indexing the action.
  */
-export async function internalGetUpdateSessionActorAccountNameTaskTransactionEntries(
+export function internalGetUpdateSessionActorAccountNameTaskTransactionEntries(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
-    {name, nameVersion}: {name: string; nameVersion: number},
-): Promise<{
-    transactionEntries: Array<DynamoTransactionEntry>;
-    onAfterTransactionExecutedSuccessfully: () => void;
-}> {
+    {
+        spaceIds,
+        name,
+        nameVersion,
+    }: {
+        spaceIds: ReadonlySet<SpaceId>;
+        name: string;
+        nameVersion: number;
+    },
+): Array<DynamoTransactionEntry> {
     const currentTime = new Date();
-
-    // We commit an update account name task action in all the spaces an account is in.
-    const {spaceIds, getConditionCheckTransactionEntry} = await getSessionActorAccountSpaces(
-        context,
-    );
 
     const actionTransactionItems = Array.from(spaceIds, spaceId => {
         const actionTransactionItem: TaskActionTransactionItem = {
@@ -3053,21 +3049,13 @@ export async function internalGetUpdateSessionActorAccountNameTaskTransactionEnt
         return actionTransactionItem;
     });
 
-    return {
-        transactionEntries: [
-            // Don't commit if the account's space list changed.
-            getConditionCheckTransactionEntry(),
-
-            ...actionTransactionItems.map(actionTransactionItem =>
-                TaskActionTable.transactionCreateOrReplaceItem(actionTransactionItem),
-            ),
-        ],
-        onAfterTransactionExecutedSuccessfully: () => {
-            for (const actionTransactionItem of actionTransactionItems) {
+    return actionTransactionItems.map(actionTransactionItem =>
+        TaskActionTable.transactionCreateOrReplaceItem(actionTransactionItem, {
+            onAfterTransactionExecutedSuccessfully: () => {
                 afterCommitTaskActionTransaction(context, actionTransactionItem);
-            }
-        },
-    };
+            },
+        }),
+    );
 }
 
 export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<SpaceId>();

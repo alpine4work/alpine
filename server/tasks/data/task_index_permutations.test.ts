@@ -57,10 +57,7 @@ testTaskActionPermutations({
                     action.accountName,
                     {
                         nameVersionForTest: action.accountNameVersion,
-                        getTaskTransactionEntries: async () => ({
-                            transactionEntries: [],
-                            onAfterTransactionExecutedSuccessfully: () => {},
-                        }),
+                        getTaskTransactionEntries: async () => [],
                     },
                 );
             }

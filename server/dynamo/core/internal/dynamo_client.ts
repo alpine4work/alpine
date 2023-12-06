@@ -12,6 +12,7 @@ import {
 import {DynamoClientInternal} from "~/server/dynamo/core/internal/dynamo_client_internal.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {DeadlineExceededError, InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -318,6 +319,30 @@ export class DynamoClient {
 
             throw error;
         }
+
+        // Run all after transaction callbacks even if one of them has an error.
+        //
+        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+        // just the first one. Probably by using an `AggregateError`.
+        {
+            let hasError = false;
+            let error: unknown = null;
+
+            for (const entry of entries) {
+                try {
+                    entry._onAfterTransactionExecutedSuccessfully(DynamoClient);
+                } catch (entryError) {
+                    if (!hasError) {
+                        hasError = true;
+                        error = entryError;
+                    } else if (isSystemError(entryError) && !isSystemError(error)) {
+                        error = entryError;
+                    }
+                }
+            }
+
+            if (hasError) throw error;
+        }
     }
 
     /**
@@ -334,6 +359,7 @@ export class DynamoClient {
         expressionAttributeValues,
         expressionAttributeNames,
         isConditionCheckErrorRetriable = false,
+        onAfterTransactionExecutedSuccessfully = null,
     }: {
         tableName: string;
         item: SchemaSerializedObjectValue;
@@ -341,6 +367,7 @@ export class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
+        onAfterTransactionExecutedSuccessfully?: (() => void) | null;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
             transactItem: {
@@ -368,6 +395,7 @@ export class DynamoClient {
                 },
             },
             isConditionCheckErrorRetriable,
+            onAfterTransactionExecutedSuccessfully,
         });
     }
 
@@ -385,6 +413,7 @@ export class DynamoClient {
         expressionAttributeValues,
         expressionAttributeNames,
         isConditionCheckErrorRetriable = false,
+        onAfterTransactionExecutedSuccessfully = null,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
@@ -392,6 +421,7 @@ export class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
+        onAfterTransactionExecutedSuccessfully?: (() => void) | null;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
             transactItem: {
@@ -419,6 +449,7 @@ export class DynamoClient {
                 },
             },
             isConditionCheckErrorRetriable,
+            onAfterTransactionExecutedSuccessfully,
         });
     }
 
@@ -436,6 +467,7 @@ export class DynamoClient {
         expressionAttributeValues,
         expressionAttributeNames,
         isConditionCheckErrorRetriable = false,
+        onAfterTransactionExecutedSuccessfully = null,
     }: {
         tableName: string;
         key: SchemaSerializedObjectValue;
@@ -443,6 +475,7 @@ export class DynamoClient {
         expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
         expressionAttributeNames?: ReadonlyMap<string, string>;
         isConditionCheckErrorRetriable?: boolean;
+        onAfterTransactionExecutedSuccessfully?: (() => void) | null;
     }): DynamoTransactionEntry {
         return DynamoTransactionEntry._newFromClient(DynamoClient, {
             transactItem: {
@@ -470,6 +503,7 @@ export class DynamoClient {
                 },
             },
             isConditionCheckErrorRetriable,
+            onAfterTransactionExecutedSuccessfully,
         });
     }
 

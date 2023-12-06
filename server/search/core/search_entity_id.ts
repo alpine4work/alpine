@@ -20,15 +20,15 @@ import {
  */
 export type SearchEntityId =
     | `Account:${AccountId | ContentMentionAccountId}`
-    | `Document:${DocumentId}`
-    | `DocumentComment:${DocumentId}-${DocumentCommentThreadId}-${number}`
-    | `Channel:${ChannelId}`
-    | `Post:${PostId}`
-    | `PostComment:${PostId}-${number}`
-    | `Chat:${ChatId}`
-    | `ChatMessage:${ChatId}-${number}`
-    | `Task:${TaskId}`
-    | `TaskCollection:${TaskCollectionId}`;
+    | `Document:${DocumentId}` // NOCOMMIT: Index
+    | `DocumentComment:${DocumentId}-${DocumentCommentThreadId}-${number}` // NOCOMMIT: Index
+    | `Channel:${ChannelId}` // NOCOMMIT: Index
+    | `Post:${PostId}` // NOCOMMIT: Index
+    | `PostComment:${PostId}-${number}` // NOCOMMIT: Index
+    | `Chat:${ChatId}` // NOCOMMIT: Index
+    | `ChatMessage:${ChatId}-${number}` // NOCOMMIT: Index
+    | `Task:${TaskId}` // NOCOMMIT: Index
+    | `TaskCollection:${TaskCollectionId}`; // NOCOMMIT: Index
 
 /**
  * Parsed representation of a `SearchEntityId` string for easier manipulation.

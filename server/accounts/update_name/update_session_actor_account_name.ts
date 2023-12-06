@@ -1,5 +1,6 @@
 import {internalUpdateSessionActorAccountNameWithoutUpdatingTasks} from "~/server/accounts/accounts_table.js";
 import {ServerSessionActionContextModules} from "~/server/context/server_action_context.js";
+import {getSessionActorAccountSpaces} from "~/server/spaces/spaces_table.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {internalGetUpdateSessionActorAccountNameTaskTransactionEntries} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -19,6 +20,7 @@ export async function updateSessionActorAccountName(
     name: string,
 ): Promise<AccountModel> {
     const account = await internalUpdateSessionActorAccountNameWithoutUpdatingTasks(context, name, {
+        getSessionActorAccountSpaces,
         getTaskTransactionEntries: internalGetUpdateSessionActorAccountNameTaskTransactionEntries,
     });
 

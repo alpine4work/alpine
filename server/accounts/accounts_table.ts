@@ -14,6 +14,7 @@ import {EmailAddress} from "~/server/emails/email_address.js";
 import {EmailContextModuleBase} from "~/server/emails/email_context_module_base.js";
 import {FromEmailAddress} from "~/server/emails/from_email_address.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -30,7 +31,12 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {generateId} from "~/shared/id/id.js";
-import {AccountId, ContentMentionAccountId, SessionId} from "~/shared/id/types/id_types.js";
+import {
+    AccountId,
+    ContentMentionAccountId,
+    SessionId,
+    SpaceId,
+} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 
@@ -930,32 +936,44 @@ export const updateSessionActorAccountNameBeforeExecuteTestCheckpoint =
 
 /**
  * Updates an account's name. When we update an account's name we also need to
- * update our task index since the account name is inlined in the task index.
- * This Bazel package does not have access to `//server/tasks/data` (this would
- * create a circular dependency) so instead we export a low level update
- * function that requires you to inject some logic for updating tasks.
+ * update our search index and task index since the account name is present in
+ * both indexes. This Bazel package does not have access to `//server/spaces`
+ * or `//server/tasks/data` (this would create a circular dependency) so
+ * instead we export a low level update function that requires you to inject
+ * some logic for updating tasks.
  *
  * You should call `updateSessionActorAccountName()` in
  * `//server/accounts/update_name` which brings together the account table
  * update with the task table update.
  */
 export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
-    Modules extends DynamoContextModules & {actor: DynamoSessionActorContextModule},
+    Modules extends DynamoContextModules & {
+        actor: DynamoSessionActorContextModule;
+        jobs: JobsContextModule;
+    },
 >(
     context: Context<Modules>,
     name: string,
     {
         nameVersionForTest,
+        getSessionActorAccountSpaces,
         getTaskTransactionEntries,
     }: {
         nameVersionForTest?: number;
+        getSessionActorAccountSpaces: (
+            context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
+        ) => Promise<{
+            spaceIds: ReadonlySet<SpaceId>;
+            getConditionCheckTransactionEntry: () => DynamoTransactionEntry;
+        }>;
         getTaskTransactionEntries: (
             context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
-            options: {name: string; nameVersion: number},
-        ) => Promise<{
-            transactionEntries: Array<DynamoTransactionEntry>;
-            onAfterTransactionExecutedSuccessfully: () => void;
-        }>;
+            options: {
+                spaceIds: ReadonlySet<SpaceId>;
+                name: string;
+                nameVersion: number;
+            },
+        ) => Array<DynamoTransactionEntry>;
     },
 ): Promise<AccountModel> {
     return context.dynamo.retryTransaction(async context => {
@@ -973,8 +991,16 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
 
         const nameVersion = nameVersionForTest ?? accountItem.nameVersion + 1;
 
-        const {transactionEntries: taskTransactionEntries, onAfterTransactionExecutedSuccessfully} =
-            await getTaskTransactionEntries(context, {name, nameVersion});
+        // We commit an update account name task action in all the spaces an account is in.
+        const {spaceIds, getConditionCheckTransactionEntry} = await getSessionActorAccountSpaces(
+            context,
+        );
+
+        const taskTransactionEntries = getTaskTransactionEntries(context, {
+            spaceIds,
+            name,
+            nameVersion,
+        });
 
         await updateSessionActorAccountNameBeforeExecuteTestCheckpoint.waitForTest(
             context.actor.getAccountId(),
@@ -988,11 +1014,26 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
 
         await DynamoTableSchema.executeTransaction(context, [
             AccountsTable.transactionDirectlyUpdateItem(newAccountItem),
+
+            // Don't commit if the account's spaces changed without us knowing.
+            getConditionCheckTransactionEntry(),
+
             ...taskTransactionEntries,
         ]);
 
-        // After we've committed our transaction, we need to update the task index.
-        onAfterTransactionExecutedSuccessfully();
+        // Reindex the account in all space search indexes where it appears. This may
+        // recursively update any search entities where the account is mentioned.
+        for (const spaceId of spaceIds) {
+            context.jobs.send({
+                type: "IndexSearchEntity",
+                spaceId,
+                update: {
+                    type: "Account",
+                    accountId: newAccountItem.accountId,
+                    updatedTraits: {type: "Any"},
+                },
+            });
+        }
 
         return createAccountModelFromItem(newAccountItem);
     });
