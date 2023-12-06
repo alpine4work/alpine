@@ -3,12 +3,12 @@ import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
+import {waitForProcessTaskActionTransactionsForTest} from "~/server/tasks/data/task_context_module.js";
 import {refreshTaskIndexForTest} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
-import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -28,48 +28,14 @@ import {
 } from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 
-const processTaskActionTransactionPromises = new Set<Promise<void>>();
-
-assertExists(afterCommitTaskActionTransactionEventEmitterForTest).subscribe(({processPromise}) => {
-    processTaskActionTransactionPromises.add(processPromise);
-    processPromise.finally(() => {
-        processTaskActionTransactionPromises.delete(processPromise);
-    });
-});
-
 /**
  * Wait for OpenSearch to have indexed all our action transactions.
  */
 export async function waitForIndexActionTransactionsWithoutClearingActionHistory(
     context: TestContext,
 ) {
-    await waitForProcessTaskActionTransactions();
+    await waitForProcessTaskActionTransactionsForTest();
     await refreshTaskIndexForTest(context);
-}
-
-async function waitForProcessTaskActionTransactions() {
-    let hasError = false;
-    let error: unknown;
-
-    // Wait for all promises to resolve. If there's an error, don't throw it until
-    // all promises have resolved.
-    while (processTaskActionTransactionPromises.size > 0) {
-        try {
-            await runAllPromises(processTaskActionTransactionPromises);
-        } catch (newError) {
-            if (!hasError) {
-                hasError = true;
-                error = newError;
-            }
-            // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-            // just the first one. Probably by using an `AggregateError`.
-            else if (!isSystemError(error) && isSystemError(newError)) {
-                error = newError;
-            }
-        }
-    }
-
-    if (hasError) throw error;
 }
 
 export class TestTaskRealtimeServer {

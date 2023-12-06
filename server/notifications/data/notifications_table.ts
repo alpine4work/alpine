@@ -1308,9 +1308,6 @@ export const notificationEventAfterProcessingTestCheckpoint = new TestCheckpoint
  * inboxes and notification destinations (like email or mobile push
  * notifications).
  */
-// NOCOMMIT: Should I move notification event processing to the job queue? This
-// function is not idempotent. It would need some defenses to become
-// idempotent.
 export async function processNotificationEvent(
     context: Context<
         ServerSystemActionContextModules & {notifications: NotificationsContextModuleBase}

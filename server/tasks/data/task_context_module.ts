@@ -4,7 +4,17 @@ import {
     DynamoSystemActorContextModule,
 } from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
-import {indexTaskActionTransactionAssumingItsCommitted} from "~/server/tasks/data/task_index.js";
+import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
+import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {assembleTaskAndReferences} from "~/server/tasks/data/assemble_task_and_references.js";
+import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
+import {
+    getTaskCollectionIndexDocIfExistsForTest,
+    getTaskIndexDocIfExistsForTest,
+    indexTaskActionTransactionAssumingItsCommitted,
+} from "~/server/tasks/data/task_index.js";
+import {afterCommitTaskActionTransactionEventEmitterForTest} from "~/server/tasks/data/task_table.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
     TaskRealtimeGetCollectionSchema,
@@ -19,7 +29,7 @@ import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {DataLossError, UnimplementedError, UnknownError} from "~/shared/error/error.js";
+import {DataLossError, NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -470,6 +480,49 @@ export class TaskContextModule extends TaskContextModuleBase {
     }
 }
 
+const processTaskActionTransactionPromisesForTest =
+    afterCommitTaskActionTransactionEventEmitterForTest ? new Set<Promise<void>>() : null;
+
+afterCommitTaskActionTransactionEventEmitterForTest?.subscribe(({processPromise}) => {
+    assert(processTaskActionTransactionPromisesForTest);
+
+    processTaskActionTransactionPromisesForTest.add(processPromise);
+    processPromise.finally(() => {
+        processTaskActionTransactionPromisesForTest.delete(processPromise);
+    });
+});
+
+/**
+ * Wait for any task action processing promises to resolve. Useful if you don't
+ * want to wait for all `ProcessContextModule` `waitUntil()` tasks to resolve.
+ */
+export async function waitForProcessTaskActionTransactionsForTest() {
+    assert(processTaskActionTransactionPromisesForTest);
+
+    let hasError = false;
+    let error: unknown;
+
+    // Wait for all promises to resolve. If there's an error, don't throw it until
+    // all promises have resolved.
+    while (processTaskActionTransactionPromisesForTest.size > 0) {
+        try {
+            await runAllPromises(processTaskActionTransactionPromisesForTest);
+        } catch (newError) {
+            if (!hasError) {
+                hasError = true;
+                error = newError;
+            }
+            // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
+            // just the first one. Probably by using an `AggregateError`.
+            else if (!isSystemError(error) && isSystemError(newError)) {
+                error = newError;
+            }
+        }
+    }
+
+    if (hasError) throw error;
+}
+
 export class TestTaskContextModule extends TaskContextModuleBase {
     private readonly _shouldSkipIndexing: boolean;
 
@@ -507,11 +560,14 @@ export class TestTaskContextModule extends TaskContextModuleBase {
         }
     }
 
-    public getTask(
+    public async getTask(
         this: TestTaskContextModule &
             ContextModuleBase<{
                 process: ProcessContextModule;
                 tracer: TracerContextModule;
+                cache: CacheContextModule;
+                dynamo: DynamoContextModule;
+                opensearch: OpensearchContextModule;
                 actor: DynamoSystemActorContextModule;
             }>,
         spaceId: SpaceId,
@@ -521,18 +577,39 @@ export class TestTaskContextModule extends TaskContextModuleBase {
         referencedTasks: ReadonlyArray<TaskModel>;
         referencedCollections: ReadonlyArray<TaskCollectionModel>;
     }> {
-        // TODO(calebmer): How you could implement this is:
-        //
-        // 1. Wait for all committed actions to be indexed
-        // 2. Read directly from `TaskIndex`
-        throw new UnimplementedError("Getting tasks is not implemented for tests");
+        // As a system actor, if you have access to the space you have access to all
+        // tasks inside the space.
+        this._context.actor.authorizeSystem();
+        await authorizeSpaceAccess(this._context, spaceId);
+
+        await waitForProcessTaskActionTransactionsForTest();
+
+        return assembleTaskAndReferences(taskId, {
+            getTaskIndexDoc: async taskId => {
+                const task = await getTaskIndexDocIfExistsForTest(this._context, spaceId, taskId);
+                if (!task) throw new NotFoundError("Task not found");
+                return task;
+            },
+            getCollectionIndexDoc: async collectionId => {
+                const collection = await getTaskCollectionIndexDocIfExistsForTest(
+                    this._context,
+                    spaceId,
+                    collectionId,
+                );
+                if (!collection) throw new NotFoundError("Task collection not found");
+                return collection;
+            },
+        });
     }
 
-    public getCollection(
+    public async getCollection(
         this: TestTaskContextModule &
             ContextModuleBase<{
                 process: ProcessContextModule;
                 tracer: TracerContextModule;
+                cache: CacheContextModule;
+                dynamo: DynamoContextModule;
+                opensearch: OpensearchContextModule;
                 actor: DynamoSystemActorContextModule;
             }>,
         spaceId: SpaceId,
@@ -540,10 +617,21 @@ export class TestTaskContextModule extends TaskContextModuleBase {
     ): Promise<{
         collection: TaskCollectionModel;
     }> {
-        // TODO(calebmer): How you could implement this is:
-        //
-        // 1. Wait for all committed actions to be indexed
-        // 2. Read directly from `TaskIndex`
-        throw new UnimplementedError("Getting task collections is not implemented for tests");
+        // As a system actor, if you have access to the space you have access to all
+        // tasks inside the space.
+        this._context.actor.authorizeSystem();
+        await authorizeSpaceAccess(this._context, spaceId);
+
+        await waitForProcessTaskActionTransactionsForTest();
+
+        const collection = await getTaskCollectionIndexDocIfExistsForTest(
+            this._context,
+            spaceId,
+            collectionId,
+        );
+
+        if (!collection) throw new NotFoundError("Task collection not found");
+
+        return {collection: prepareTaskCollectionForClient(collection)};
     }
 }

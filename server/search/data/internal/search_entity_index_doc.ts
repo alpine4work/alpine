@@ -35,7 +35,7 @@ export type SearchEntityIndexDefaultGrantType = IntegerMappingStringType<
     typeof SearchEntityIndexDefaultGrantTypeIntegerMapping
 >;
 
-const SearchEntityIndexDefaultGrantTypeIntegerMapping = createEnumIntegerMapping({
+export const SearchEntityIndexDefaultGrantTypeIntegerMapping = createEnumIntegerMapping({
     Space: 1,
 });
 
@@ -216,9 +216,27 @@ export type SearchEntitySemanticIndexEmbeddingChunk = OpensearchIndexTypeType<
 
 const SearchEntitySemanticIndexEmbeddingChunkType = OpensearchIndexObjectType.new({
     fields: {
-        // NOCOMMIT: Document why these properties `accessPolicy` are copied here!
         spaceId: new OpensearchIndexKeywordType({isFilterable: true}).validate<SpaceId>(isId),
 
+        /**
+         * `spaceId` and `accessPolicy` are copied to every nested embedding chunk
+         * object. They are the same across all objects. Why is this? It's quite
+         * inefficient from a JSON point of view. Why not store the `accessPolicy` at
+         * the root document level if it doesn't change across chunks? Instead of
+         * copying the `accessPolicy` (which can get big) across all chunks.
+         *
+         * The reason we add the `accessPolicy` to every chunk is to make searching
+         * chunks more efficient. Otherwise if we were searching nested chunks that
+         * match an `accessPolicy` on the root doc, OpenSearch would need to do a bunch
+         * of expensive joins.
+         *
+         * Furthermore, [efficient k-NN filtering][1] structurally MUST be on the
+         * nested doc. There's no syntax for filtering on a parent property with k-NN
+         * efficient filtering. (See the `filter` property on
+         * `OpensearchKnnQueryClause`.)
+         *
+         * [1]: opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
+         */
         accessPolicy: SearchEntityIndexAccessPolicyType,
 
         /**
@@ -266,6 +284,12 @@ const SearchEntitySemanticIndexEmbeddingChunkType = OpensearchIndexObjectType.ne
                         //
                         // [1]: https://qdrant.tech/articles/scalar-quantization/
                         // [2]: https://discord.com/channels/954421988141711382/1168411509542637578/1181270167393685585
+                        //
+                        // NOCOMMIT: Get this to be a `byte` data type. If Cohere doesn't respond to my
+                        // question I have options:
+                        //
+                        // 1. Use key to embed their Wikipedia dataset and get bounds myself
+                        // 2. Switch to a different provider which does have an answer to this question
                         dataType: "float",
 
                         method: {
@@ -347,7 +371,28 @@ export type SearchEntitySemanticIndexDoc = OpensearchIndexTypeType<
 
 export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
     fields: {
-        // NOCOMMIT: Document what this is and why nested type
+        /**
+         * Embedding chunks are represented as a nested OpenSearch fields. Nested
+         * OpenSearch fields index each object as a separate internal doc
+         * under-the-hood. What's really nice about a nested field is we can update all
+         * the child docs atomically.
+         *
+         * There are certainly performance dangers to OpenSearch nested fields ([good
+         * blog post on one company's journey][1]). Since OpenSearch has to perform
+         * joins at query time.
+         *
+         * However, state-of-the-art vector search chunking strategies on
+         * OpenSearch/ElasticSearch appear to [recommend using nested docs][2].
+         * Furthermore, it would appear like Lucene understands this is an important
+         * use case and is building optimizations for it ([PR optimizing joins with
+         * k-NN in Lucene][3] which OpenSearch/ElasticSearch use under-the-hood, [blog
+         * post explaining the PR][4]).
+         *
+         * [1]: https://www.gojek.io/blog/elasticsearch-the-trouble-with-nested-documents
+         * [2]: https://www.elastic.co/search-labs/blog/articles/chunking-via-ingest-pipelines
+         * [3]: https://github.com/apache/lucene/pull/12434
+         * [4]: https://www.elastic.co/search-labs/blog/articles/adding-passage-vector-search-to-lucene
+         */
         embeddingChunks: new OpensearchIndexNestedType(SearchEntitySemanticIndexEmbeddingChunkType),
 
         /**

@@ -1,5 +1,7 @@
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
+import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {
@@ -9,8 +11,11 @@ import {
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {generateId} from "~/shared/id/id.js";
-import {TaskCollectionId} from "~/shared/id/types/id_types.js";
-import {TaskCollectionAccessPolicy} from "~/shared/tasks/task_collection_access_policy.js";
+import {AccountId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {
+    TaskCollectionAccessLevel,
+    TaskCollectionAccessPolicy,
+} from "~/shared/tasks/task_collection_access_policy.js";
 
 let testTaskCollectionCount = 1;
 
@@ -31,7 +36,13 @@ export class TestTaskCollection {
 
     public static async createPrivate(
         session: TestSpaceSession,
-        {name = TestTaskCollection.getNewName()}: {name?: string} = {},
+        {
+            name = TestTaskCollection.getNewName(),
+            otherGrantedAccounts = [],
+        }: {
+            name?: string;
+            otherGrantedAccounts?: ReadonlyArray<TestSession | TestAccount>;
+        } = {},
     ) {
         const id = generateId<TaskCollectionId>();
 
@@ -44,7 +55,18 @@ export class TestTaskCollection {
                     type: "Create",
                     name,
                     accessPolicy: {
-                        accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+                            [session.account.id, {level: "Manage"}],
+                            ...otherGrantedAccounts.map(
+                                account =>
+                                    [
+                                        account instanceof TestSession
+                                            ? account.account.id
+                                            : account.id,
+                                        {level: "Edit"},
+                                    ] as const,
+                            ),
+                        ]),
                         defaultGrant: null,
                     },
                 },
@@ -140,7 +162,14 @@ export class TestTaskCollection {
         ]);
     }
 
-    public async setPrivateAccessPolicy(session: TestSpaceSession) {
+    public async setPrivateAccessPolicy(
+        session: TestSpaceSession,
+        {
+            otherGrantedAccounts = [],
+        }: {
+            otherGrantedAccounts?: ReadonlyArray<TestSession | TestAccount>;
+        } = {},
+    ) {
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
             {
                 type: "UpdateCollection",
@@ -149,7 +178,18 @@ export class TestTaskCollection {
                 collectionAction: {
                     type: "UpdateAccessPolicy",
                     accessPolicy: {
-                        accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),
+                        accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
+                            [session.account.id, {level: "Manage"}],
+                            ...otherGrantedAccounts.map(
+                                account =>
+                                    [
+                                        account instanceof TestSession
+                                            ? account.account.id
+                                            : account.id,
+                                        {level: "Edit"},
+                                    ] as const,
+                            ),
+                        ]),
                         defaultGrant: null,
                     },
                 },

@@ -993,6 +993,8 @@ async function printSearchTextForInlineFragment(
 const printSearchEmbeddingTextForMarkByTypeName: {
     [Key in ContentMarkTypeName]: (textContent: string, mark: Mark) => string;
 } = {
+    // NOCOMMIT: How does this work with the keyword search analyzer? Can we
+    // strip these marks?
     italic: textContent => `*${textContent}*`,
     bold: textContent => `**${textContent}**`,
     code: textContent => `\`${textContent}\``,

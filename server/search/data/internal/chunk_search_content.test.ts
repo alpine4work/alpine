@@ -2213,9 +2213,6 @@ We won’t start with one product. Instead we will start with:
 We hope to make each product 10–20% higher quality than competitive solutions in core workflows and will fill out feature gaps over time.`,
         },
 
-        // NOCOMMIT: Test the query "Why is our product different?" It should match
-        // this chunk thanks to semantic search.
-
         // Chunk 4:
         {
             preambleEndIndex: 84,

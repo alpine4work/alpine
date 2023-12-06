@@ -63,8 +63,6 @@ import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
-// NOCOMMIT: Small messages like "Nice!" shouldn't be embedded at all?
-
 export type SearchEntity = {
     readonly id: SearchEntityId;
     readonly accessPolicy: SearchEntityIndexAccessPolicy;
@@ -90,8 +88,28 @@ export type SearchEntityEmbeddingChunk = {
  */
 const searchEntityEmbeddingPreambleTitleTokenCount = 16;
 
-// NOCOMMIT: Document how all reads in this class need to be strongly
-// consistent. Mark it as important.
+/**
+ * Object that controls reading of a search entity. The implementations of
+ * `getSearchEntity()` for each entity type (e.g. `getDocumentSearchEntity()`)
+ * do not have access to a full context object! Instead, all reads must go
+ * through this class which:
+ *
+ * 1. Tracks all dependencies read by the `getSearchEntity()` function
+ * 2. Makes sure all reads use strong consistency
+ *
+ * It's really important that all reads use strong consistency. Or else we
+ * might miss an update while executing our search indexing job. For example,
+ * say you just updated your chat message. We queue an indexing job which reads
+ * the chat message back. If we read the chat message with eventual consistency
+ * we might get the chat message's data from before your update.
+ */
+// TODO(calebmer): It would be nice someday to have some developer tool to make
+// sure essential DynamoDB reads have strong consistency. Maybe we have an
+// eventual consistency read logger? Or even throw in development?
+//
+// We could also use this tool in `notifications_table.ts` since it's important
+// the `getSubscribers()` function has strong read consistency for similar
+// reasons.
 class SearchEntityReadState {
     private readonly _context: SearchEntityIndexSystemActionContext;
     public readonly tokenizer: CohereEmbedEnglishV3Tokenizer;
@@ -229,7 +247,13 @@ class SearchEntityReadState {
         });
     }
 
-    // NOCOMMIT: Channel should be added as an implicit dependency
+    /**
+     * When we load a post, we also load the channel the post is in. This marks the
+     * channel as a dependency of our search entity.
+     *
+     * A post inherits permissions from its channel. We also use the channel name
+     * to provide context in the post's embedding chunk.
+     */
     public async getPostContentAndChannel(
         postId: PostId,
     ): Promise<{content: PostContent; channel: ChannelPreviewModel}> {
@@ -326,7 +350,12 @@ class SearchEntityReadState {
     }
 }
 
-// NOCOMMIT: Document
+/**
+ * Gets a `SearchEntity` object for any searchable thing in our system. This
+ * function guarantees read-after-write consistency. If you've waited for a
+ * write to commit then this function will read it (this means all DynamoDB
+ * reads are made with strong consistency).
+ */
 export async function getSearchEntity(
     context: SearchEntityIndexSystemActionContext,
     idObject: SearchEntityIdObject,
@@ -524,8 +553,6 @@ async function getDocumentCommentSearchEntity(
             defaultGrantType: "Space",
         },
 
-        // NOCOMMIT: How does deleted stuff work? If `title` is null and `body` is null
-        // and `embeddingChunks` is empty we should probably delete from the index?
         title: null,
         body: content?.getFullText() ?? null,
         embeddingChunks: content?.embeddingChunks ?? [],
@@ -666,8 +693,6 @@ async function getPostCommentSearchEntity(
             defaultGrantType: "Space",
         },
 
-        // NOCOMMIT: How does deleted stuff work? If `title` is null and `body` is null
-        // and `embeddingChunks` is empty we should probably delete from the index?
         title: null,
         body: content?.getFullText() ?? null,
         embeddingChunks: content?.embeddingChunks ?? [],
@@ -762,8 +787,6 @@ async function getChatMessageSearchEntity(
             defaultGrantType: null,
         },
 
-        // NOCOMMIT: How does deleted stuff work? If `title` is null and `body` is null
-        // and `embeddingChunks` is empty we should probably delete from the index?
         title: null,
         body: content?.getFullText() ?? null,
         embeddingChunks: content?.embeddingChunks ?? [],
@@ -807,10 +830,10 @@ async function getTaskSearchEntity(
                     cast<"Space">(defaultGrantType);
                     cast<"Space">(accessPolicy.defaultGrant.type);
                 }
+            }
 
-                for (const accountId of accessPolicy.accountGrantById.keys()) {
-                    accountGrantAccountIds.add(accountId);
-                }
+            for (const accountId of accessPolicy.accountGrantById.keys()) {
+                accountGrantAccountIds.add(accountId);
             }
         }
 
@@ -839,7 +862,7 @@ async function getTaskSearchEntity(
     if (task.isDeleted()) {
         return {
             id: `Task:${taskId}`,
-            accessPolicy: {accountGrantAccountIds, defaultGrantType},
+            accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: null},
             title: null,
             body: null,
             embeddingChunks: [],
@@ -882,12 +905,7 @@ async function getTaskSearchEntity(
 
     return {
         id: `Task:${taskId}`,
-
-        accessPolicy: {
-            accountGrantAccountIds,
-            defaultGrantType,
-        },
-
+        accessPolicy: {accountGrantAccountIds, defaultGrantType},
         title: task.getTitle().getText(),
         body: getFullText(),
         embeddingChunks,
@@ -916,7 +934,7 @@ async function getTaskCollectionSearchEntity(
     if (collection.isDeleted()) {
         return {
             id: `TaskCollection:${collectionId}`,
-            accessPolicy: {accountGrantAccountIds, defaultGrantType},
+            accessPolicy: {accountGrantAccountIds: new Set(), defaultGrantType: null},
             title: null,
             body: null,
             embeddingChunks: [],
@@ -925,12 +943,7 @@ async function getTaskCollectionSearchEntity(
 
     return {
         id: `TaskCollection:${collectionId}`,
-
-        accessPolicy: {
-            accountGrantAccountIds,
-            defaultGrantType,
-        },
-
+        accessPolicy: {accountGrantAccountIds, defaultGrantType},
         title: collection.getName(),
         body: null,
         embeddingChunks: [],

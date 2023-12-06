@@ -1,17 +1,8 @@
-// This file contains helper functions for converting data structures in our
-// internal format to data structures expected by `TaskRealtimeProtocol`. For
-// instance converting `TaskIndexDoc` to `TaskModel`.
-
-import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {maxHybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {cast} from "~/shared/helpers/control/cast.js";
-import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
-import {TaskAction} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskTitleModel} from "~/shared/tasks/model/task_title_model.js";
 import {TaskAssigneeActivePositionRegister} from "~/shared/tasks/task_assignee_active_position.js";
@@ -121,91 +112,4 @@ export function prepareTaskForClient(accountId: AccountId | null, task: TaskInde
         dueDate: task.dueDate,
         priority: task.priority,
     });
-}
-
-export function prepareTaskCollectionForClient(
-    collection: TaskCollectionIndexDoc,
-): TaskCollectionModel {
-    return new TaskCollectionModel({
-        id: collection.id,
-        spaceId: collection.spaceId,
-        createdTime: collection.createdTime,
-        deletedTime: collection.rawDeletedTime,
-        undeletedTime: collection.rawUndeletedTime,
-        name: collection.name,
-        color: collection.color,
-        accessPolicy: collection.accessPolicy,
-    });
-}
-
-/**
- * Prepares a task action before we send it to the client. When we call this
- * function we've already authorized that the `TaskAction` is against an entity
- * the account has access to. However, the action may still contain some data
- * the account is not allowed to see. So filter out that data before sending an
- * event.
- *
- * If this function returns null then we shouldn't send the action to the
- * client.
- */
-export function prepareTaskActionForClient(
-    accountId: AccountId,
-    action: TaskAction,
-): TaskAction | null {
-    switch (action.type) {
-        case "UpdateTask": {
-            switch (action.taskAction.type) {
-                case "Create":
-                case "Delete":
-                case "Undelete":
-                case "UpdateParentTaskId":
-                case "UpdateParentPosition":
-                case "UpdateChildrenCounts":
-                case "AddCollection":
-                case "RemoveCollection":
-                case "UpdateCollectionPosition":
-                case "UpdateStatus":
-                case "UpdateAssignee":
-                case "UpdateTitle":
-                case "UpdateDueDate":
-                case "UpdatePriority":
-                case "UpdateAssigneeStatus":
-                    return action;
-                case "UpdateNotepadPagePosition": {
-                    if (action.taskAction.accountId !== accountId) return null;
-                    return action;
-                }
-                case "UpdateAssigneeActivePosition": {
-                    if (action.taskAction.accountId !== accountId) return null;
-                    return action;
-                }
-                default:
-                    throw exhaustive(action.taskAction);
-            }
-        }
-        case "UpdateCollection": {
-            switch (action.collectionAction.type) {
-                case "Create":
-                case "Delete":
-                case "Undelete":
-                case "UpdateName":
-                case "UpdateColor":
-                case "UpdateAccessPolicy":
-                    return action;
-                default:
-                    throw exhaustive(action.collectionAction);
-            }
-        }
-        case "UpdateNotepadPage": {
-            if (action.accountId !== accountId) return null;
-
-            cast<"Create">(action.notepadPageAction.type);
-            return action;
-        }
-        case "UpdateAccountName": {
-            return action;
-        }
-        default:
-            throw exhaustive(action);
-    }
 }

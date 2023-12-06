@@ -1,5 +1,10 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
+import {
+    deleteChatMessage,
+    getOrCreateChatForAccounts,
+    sendChatMessage,
+} from "~/server/chat/data/chat_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -12,15 +17,19 @@ import {
 import {LanguageModelBase} from "~/server/language_models/core/language_model_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
+import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/internal/get_search_entity.js";
+import {SearchEntityIndexDefaultGrantTypeIntegerMapping} from "~/server/search/data/internal/search_entity_index_doc.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
     processSearchEntityJobFinishedTestCheckpoint,
 } from "~/server/search/data/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
+import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -34,6 +43,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
+import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const schema = DocumentContentProsemirrorSchema;
 const {SearchEntityKeywordIndex, SearchEntitySemanticIndex} = getSearchEntityIndexesForTest();
@@ -1502,4 +1512,762 @@ Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat s
             },
         },
     ]);
+});
+
+test("deleting a chat message will clear out its indexed content", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+
+    const chatId = await getOrCreateChatForAccounts(session1.action(), {
+        spaceId: space.id,
+        otherAccountIds: [session2.account.id],
+    });
+
+    await sendChatMessage(session1.action(), {
+        chatId,
+        parentMessageIndex: null,
+        content: createSimpleMessageContent(
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id.",
+        ),
+    });
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "ChatMessage",
+                chatId,
+                messageIndex: 0,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+    );
+
+    expect(
+        await context.opensearch.client.getDocWithoutSourceIfExists(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chatId}-0`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `ChatMessage:${chatId}-0`,
+        version: expect.any(Object),
+        fields: {
+            body: [
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id.",
+            ],
+        },
+    });
+
+    await deleteChatMessage(session1.action(), {
+        chatId,
+        messageIndex: 0,
+    });
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "ChatMessage",
+                chatId,
+                messageIndex: 0,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+    );
+
+    expect(
+        await context.opensearch.client.getDocWithoutSourceIfExists(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+            space.id,
+            `ChatMessage:${chatId}-0`,
+            {storedFields: ["body"]},
+        ),
+    ).toEqual({
+        id: `ChatMessage:${chatId}-0`,
+        version: expect.any(Object),
+        fields: {},
+    });
+});
+
+test.only("tasks update their access policies appropriately after indexing", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
+
+    const [
+        task,
+        parentTask1,
+        parentTask2a,
+        parentTask2b,
+        parentTask2c,
+        privateCollection,
+        publicCollection,
+        sharedCollection,
+    ] = await runAllPromises([
+        TestTask.create(session1),
+        TestTask.create(session1, {title: "foobar"}),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTask.create(session1),
+        TestTaskCollection.createPrivate(session1),
+        TestTaskCollection.createPublic(session1, {name: "buzqux"}),
+        TestTaskCollection.createPrivate(session1, {otherGrantedAccounts: [session3.account]}),
+    ]);
+
+    await runAllPromises([
+        parentTask2a.addCollection(session1, privateCollection),
+        parentTask2b.addCollection(session1, publicCollection),
+        parentTask2c.addCollection(session1, sharedCollection),
+        task.updateParentTask(session1, parentTask1),
+        parentTask1.updateParentTask(session1, parentTask2a),
+    ]);
+
+    const taskSearchEntityIdOrder: Array<SearchEntityId> = [
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ];
+
+    const getSearchEntityIds = async (session: TestSpaceSession) => {
+        await context.opensearch.client.refresh(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+        );
+
+        const docs = await context.opensearch.client.searchWithoutSource(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+            space.id,
+            {
+                size: 100,
+                query: {
+                    bool: {
+                        filter: {
+                            bool: {
+                                must: [{term: {spaceId: new OpensearchQueryValue(space.id)}}],
+                                minimum_should_match: 1,
+                                should: [
+                                    {
+                                        term: {
+                                            "accessPolicy.accountGrantAccountIds":
+                                                new OpensearchQueryValue(session.account.id),
+                                        },
+                                    },
+                                    {
+                                        term: {
+                                            "accessPolicy.defaultGrantType":
+                                                new OpensearchQueryValue(
+                                                    SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
+                                                        "Space",
+                                                    ),
+                                                ),
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+        );
+
+        return docs
+            .map(doc => doc.id)
+            .sort(
+                (id1, id2) =>
+                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id1)) -
+                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id2)),
+            );
+    };
+
+    await runAllPromises([
+        processIndexSearchEntityJob(
+            TestTask.systemAction(space),
+            {
+                type: "IndexSearchEntity",
+                spaceId: space.id,
+                update: {
+                    type: "Task",
+                    taskId: task.id,
+                    updatedTraits: {type: "Any"},
+                },
+            },
+            new Date(),
+        ),
+        processIndexSearchEntityJob(
+            TestTask.systemAction(space),
+            {
+                type: "IndexSearchEntity",
+                spaceId: space.id,
+                update: {
+                    type: "Task",
+                    taskId: parentTask1.id,
+                    updatedTraits: {type: "Any"},
+                },
+            },
+            new Date(),
+        ),
+        processIndexSearchEntityJob(
+            TestTask.systemAction(space),
+            {
+                type: "IndexSearchEntity",
+                spaceId: space.id,
+                update: {
+                    type: "Task",
+                    taskId: parentTask2a.id,
+                    updatedTraits: {type: "Any"},
+                },
+            },
+            new Date(),
+        ),
+        processIndexSearchEntityJob(
+            TestTask.systemAction(space),
+            {
+                type: "IndexSearchEntity",
+                spaceId: space.id,
+                update: {
+                    type: "Task",
+                    taskId: parentTask2b.id,
+                    updatedTraits: {type: "Any"},
+                },
+            },
+            new Date(),
+        ),
+        processIndexSearchEntityJob(
+            TestTask.systemAction(space),
+            {
+                type: "IndexSearchEntity",
+                spaceId: space.id,
+                update: {
+                    type: "Task",
+                    taskId: parentTask2c.id,
+                    updatedTraits: {type: "Any"},
+                },
+            },
+            new Date(),
+        ),
+        processIndexSearchEntityJob(
+            TestTask.systemAction(space),
+            {
+                type: "IndexSearchEntity",
+                spaceId: space.id,
+                update: {
+                    type: "TaskCollection",
+                    collectionId: publicCollection.id,
+                    updatedTraits: {type: "Any"},
+                },
+            },
+            new Date(),
+        ),
+        processIndexSearchEntityJob(
+            TestTask.systemAction(space),
+            {
+                type: "IndexSearchEntity",
+                spaceId: space.id,
+                update: {
+                    type: "TaskCollection",
+                    collectionId: privateCollection.id,
+                    updatedTraits: {type: "Any"},
+                },
+            },
+            new Date(),
+        ),
+        processIndexSearchEntityJob(
+            TestTask.systemAction(space),
+            {
+                type: "IndexSearchEntity",
+                spaceId: space.id,
+                update: {
+                    type: "TaskCollection",
+                    collectionId: sharedCollection.id,
+                    updatedTraits: {type: "Any"},
+                },
+            },
+            new Date(),
+        ),
+    ]);
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    await parentTask1.updateParentTask(session1, parentTask2b);
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "Task",
+                taskId: parentTask1.id,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+        {shouldImmediatelyProcessDependentsForTest: true},
+    );
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    await parentTask1.updateParentTask(session1, parentTask2c);
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "Task",
+                taskId: parentTask1.id,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+        {shouldImmediatelyProcessDependentsForTest: true},
+    );
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    await sharedCollection.setPublicAccessPolicy(session1);
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "TaskCollection",
+                collectionId: sharedCollection.id,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+        {shouldImmediatelyProcessDependentsForTest: true},
+    );
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    await parentTask2c.removeCollection(session1, sharedCollection);
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "Task",
+                taskId: parentTask2c.id,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+        {shouldImmediatelyProcessDependentsForTest: true},
+    );
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    await sharedCollection.setPrivateAccessPolicy(session1, {
+        otherGrantedAccounts: [session3.account],
+    });
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "TaskCollection",
+                collectionId: sharedCollection.id,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+        {shouldImmediatelyProcessDependentsForTest: true},
+    );
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    await parentTask1.addCollection(session1, publicCollection);
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "Task",
+                taskId: parentTask1.id,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+        {shouldImmediatelyProcessDependentsForTest: true},
+    );
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(
+        await context.opensearch.client.getDocWithoutSourceIfExists(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+            space.id,
+            `Task:${parentTask1.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Task:${parentTask1.id}`,
+        version: expect.any(Object),
+        fields: {
+            title: ["foobar"],
+        },
+    });
+
+    await parentTask1.delete(session1);
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "Task",
+                taskId: parentTask1.id,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+        {shouldImmediatelyProcessDependentsForTest: true},
+    );
+
+    expect(
+        await context.opensearch.client.getDocWithoutSourceIfExists(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+            space.id,
+            `Task:${parentTask1.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Task:${parentTask1.id}`,
+        version: expect.any(Object),
+        fields: {},
+    });
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    await parentTask1.undelete(session1);
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "Task",
+                taskId: parentTask1.id,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+        {shouldImmediatelyProcessDependentsForTest: true},
+    );
+
+    expect(
+        await context.opensearch.client.getDocWithoutSourceIfExists(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+            space.id,
+            `Task:${parentTask1.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `Task:${parentTask1.id}`,
+        version: expect.any(Object),
+        fields: {
+            title: ["foobar"],
+        },
+    });
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2b.id}`,
+        `TaskCollection:${publicCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(
+        await context.opensearch.client.getDocWithoutSourceIfExists(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+            space.id,
+            `TaskCollection:${publicCollection.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `TaskCollection:${publicCollection.id}`,
+        version: expect.any(Object),
+        fields: {
+            title: ["buzqux"],
+        },
+    });
+
+    await publicCollection.delete(session1);
+
+    await processIndexSearchEntityJob(
+        TestTask.systemAction(space),
+        {
+            type: "IndexSearchEntity",
+            spaceId: space.id,
+            update: {
+                type: "TaskCollection",
+                collectionId: publicCollection.id,
+                updatedTraits: {type: "Any"},
+            },
+        },
+        new Date(),
+        {shouldImmediatelyProcessDependentsForTest: true},
+    );
+
+    expect(
+        await context.opensearch.client.getDocWithoutSourceIfExists(
+            context.tracer.getTracer(),
+            SearchEntityKeywordIndex,
+            space.id,
+            `TaskCollection:${publicCollection.id}`,
+            {storedFields: ["title"]},
+        ),
+    ).toEqual({
+        id: `TaskCollection:${publicCollection.id}`,
+        version: expect.any(Object),
+        fields: {},
+    });
+
+    expect(await getSearchEntityIds(session1)).toEqual([
+        `Task:${task.id}`,
+        `Task:${parentTask1.id}`,
+        `Task:${parentTask2a.id}`,
+        `Task:${parentTask2b.id}`,
+        `Task:${parentTask2c.id}`,
+        `TaskCollection:${privateCollection.id}`,
+        `TaskCollection:${sharedCollection.id}`,
+    ]);
+
+    expect(await getSearchEntityIds(session2)).toEqual([]);
+
+    expect(await getSearchEntityIds(session3)).toEqual([`TaskCollection:${sharedCollection.id}`]);
 });

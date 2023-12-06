@@ -24,11 +24,8 @@ import {createStandardizedServerWithWebSockets} from "~/server/node/create_stand
 import {runService} from "~/server/node/run_service.js";
 import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
-import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
-import {
-    prepareTaskCollectionForClient,
-    prepareTaskForClient,
-} from "~/server/tasks/data/task_realtime_protocol_helpers.js";
+import {assembleTaskAndReferences} from "~/server/tasks/data/assemble_task_and_references.js";
+import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
@@ -65,8 +62,6 @@ import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
-import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
-import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
@@ -437,104 +432,21 @@ runService({
                     return baseContext.with(
                         {actor: actorContextModule},
                         async (context: TaskRealtimeSystemActionContext) => {
-                            const task = await server.getTask(context, spaceId, taskId);
-
-                            // NOTE(calebmer): Passing in null will wipe all private data from the task.
-                            // Given this is a system context a better approach may be to include all
-                            // private data. Wiping is the safer option and nothing downstream needs the
-                            // data at the moment.
-                            const taskModel = prepareTaskForClient(null, task);
-
-                            let promises: Array<Promise<void>> = [];
-                            const loadingTaskIds = new Set<TaskId>();
-                            const loadingCollectionIds = new Set<TaskCollectionId>();
-
-                            const rootTaskId = taskId;
-                            const referencedTaskModels: Array<TaskModel> = [];
-                            const referencedCollectionModels: Array<TaskCollectionModel> = [];
-
-                            const trackTaskDependencies = (task: TaskIndexDoc) => {
-                                const parentTaskId = task.id;
-                                if (
-                                    parentTaskId &&
-                                    parentTaskId !== rootTaskId &&
-                                    !loadingTaskIds.has(parentTaskId)
-                                ) {
-                                    loadingTaskIds.add(parentTaskId);
-                                    promises.push(
-                                        server
-                                            .getTask(context, spaceId, parentTaskId)
-                                            .then(parentTask => {
-                                                referencedTaskModels.push(
-                                                    // NOTE(calebmer): Passing in null will wipe all private data from the task.
-                                                    // Given this is a system context a better approach may be to include all
-                                                    // private data. Wiping is the safer option and nothing downstream needs the
-                                                    // data at the moment.
-                                                    prepareTaskForClient(null, parentTask),
-                                                );
-                                                trackTaskDependencies(parentTask);
-                                            }),
-                                    );
-                                }
-
-                                for (const {
-                                    collectionId,
-                                } of task.collections.raw.collections.getArray()) {
-                                    if (loadingCollectionIds.has(collectionId)) continue;
-
-                                    loadingCollectionIds.add(collectionId);
-                                    promises.push(
-                                        server
-                                            .getCollection(context, spaceId, collectionId)
-                                            .then(collection => {
-                                                referencedCollectionModels.push(
-                                                    prepareTaskCollectionForClient(collection),
-                                                );
-                                            }),
-                                    );
-                                }
-                            };
-
-                            trackTaskDependencies(task);
-
-                            // Wait for all the promises in the `promises` array. We may add new `promises`
-                            // while waiting so we need to loop until `promises` is empty.
-                            {
-                                let hasError = false;
-                                let error: unknown;
-
-                                // Wait for all discovered promises to resolve before returning.
-                                //
-                                // Even if there's an error. Only throw our error at the very end.
-                                while (promises.length > 0) {
-                                    const currentPromises = promises;
-                                    promises = [];
-
-                                    try {
-                                        await runAllPromises(currentPromises);
-                                    } catch (newError) {
-                                        if (!hasError) {
-                                            hasError = true;
-                                            error = newError;
-                                        }
-                                        // TODO(calebmer, #aggregate-error): Log all rejections in our telemetry, not
-                                        // just the first one. Probably by using an `AggregateError`.
-                                        else if (!isSystemError(error) && isSystemError(newError)) {
-                                            error = newError;
-                                        }
-                                    }
-                                }
-
-                                if (hasError) throw error;
-                            }
+                            const {task, referencedTasks, referencedCollections} =
+                                await assembleTaskAndReferences(taskId, {
+                                    getTaskIndexDoc: taskId =>
+                                        server.getTask(context, spaceId, taskId),
+                                    getCollectionIndexDoc: collectionId =>
+                                        server.getCollection(context, spaceId, collectionId),
+                                });
 
                             return new Response(
                                 JSON.stringify(
                                     TaskRealtimeGetTaskSchema.serialize({
                                         ok: true,
-                                        task: taskModel,
-                                        referencedTasks: referencedTaskModels,
-                                        referencedCollections: referencedCollectionModels,
+                                        task,
+                                        referencedTasks,
+                                        referencedCollections,
                                     }),
                                 ),
                                 {
