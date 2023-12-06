@@ -263,34 +263,7 @@ const SearchEntitySemanticIndexEmbeddingChunkType = OpensearchIndexObjectType.ne
                 languageModelClass => {
                     return new OpensearchIndexKnnVectorType({
                         dimensions: languageModelClass.dimensionCount,
-
-                        // NOTE(calebmer, 2023-12-04): I'd love to use the `byte` data type, but in
-                        // order to quantize you need to pick embedding bounds. [Qdrant recommends][1]
-                        // picking bounds at p95 or p99 of your embedding data, excluding outliers.
-                        // Cohere hasn't published p95/p99 bounds for their models on general datasets
-                        // (that I can find) and as of this writing I don't have enough representative
-                        // data to find p95/p99 bounds.
-                        //
-                        // I've asked for bounds in the [community Discord][2]. If I don't get an
-                        // answer we can't quantize for now and will have to reindex later when we get
-                        // reasonable bounds.
-                        //
-                        // One downside with quantization to consider is, right now, we'd lose the
-                        // original embedding. Unless we find some separate storage for the full
-                        // embedding.
-                        //
-                        // When we update this to `byte` we should also update our binary serialization
-                        // of `embeddingChunksVectorCache` to write bytes instead of floats as well.
-                        //
-                        // [1]: https://qdrant.tech/articles/scalar-quantization/
-                        // [2]: https://discord.com/channels/954421988141711382/1168411509542637578/1181270167393685585
-                        //
-                        // NOCOMMIT: Get this to be a `byte` data type. If Cohere doesn't respond to my
-                        // question I have options:
-                        //
-                        // 1. Use key to embed their Wikipedia dataset and get bounds myself
-                        // 2. Switch to a different provider which does have an answer to this question
-                        dataType: "float",
+                        dataType: languageModelClass.dimensionDataType,
 
                         method: {
                             // NOTE(calebmer, 2023-11-21): I'm pretty unhappy that OpenSearch does not
@@ -418,11 +391,16 @@ export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
             fields: mapObjectValues(
                 searchEntitySemanticIndexEmbeddingChunkLanguageModels,
                 languageModelClass => {
+                    const isByteDimensionDataType = languageModelClass.dimensionDataType;
+
                     return new OpensearchIndexBinaryType()
                         .transform<ReadonlyMap<number, ReadonlyArray<number>>>({
                             serialize: vectorCache => {
                                 const buffer = new ArrayBuffer(
-                                    vectorCache.size * (4 + languageModelClass.dimensionCount * 4),
+                                    vectorCache.size *
+                                        (4 +
+                                            languageModelClass.dimensionCount *
+                                                (isByteDimensionDataType ? 1 : 4)),
                                 );
 
                                 const view = new DataView(buffer);
@@ -434,8 +412,14 @@ export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
 
                                     for (let i = 0; i < languageModelClass.dimensionCount; i++) {
                                         const dimension = vector[i]!;
-                                        view.setFloat32(byteOffset, dimension);
-                                        byteOffset += 4;
+
+                                        if (isByteDimensionDataType) {
+                                            view.setUint8(byteOffset, dimension);
+                                            byteOffset += 1;
+                                        } else {
+                                            view.setFloat32(byteOffset, dimension);
+                                            byteOffset += 4;
+                                        }
                                     }
                                 }
 
@@ -457,10 +441,17 @@ export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
 
                                     const vector = [];
                                     for (let i = 0; i < languageModelClass.dimensionCount; i++) {
-                                        const dimension = view.getFloat32(byteOffset);
-                                        byteOffset += 4;
+                                        if (isByteDimensionDataType) {
+                                            const dimension = view.getUint8(byteOffset);
+                                            byteOffset += 1;
 
-                                        vector.push(dimension);
+                                            vector.push(dimension);
+                                        } else {
+                                            const dimension = view.getFloat32(byteOffset);
+                                            byteOffset += 4;
+
+                                            vector.push(dimension);
+                                        }
                                     }
 
                                     vectorCache.set(textHash, vector);

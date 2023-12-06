@@ -20,6 +20,10 @@ const maxCohereEmbedBatchTextCount = 96;
 
 assertAssignableTypes<typeof CohereEmbedEnglishV3Model, LanguageModelBaseClass>();
 
+// NOCOMMIT: Actual values
+const cohereEmbeddingVectorDimensionLowerBound = -1;
+const cohereEmbeddingVectorDimensionUpperBound = 1;
+
 /**
  * Interface to the Cohere `embed-english-v3.0` model.
  */
@@ -28,6 +32,7 @@ export class CohereEmbedEnglishV3Model implements LanguageModelBase {
 
     public static readonly key = "cohereEmbedEnglishV3";
     public static readonly dimensionCount = 1024;
+    public static readonly dimensionDataType = "byte";
 
     /**
      * `l2` stands for Euclidean distance and is OpenSearch's default distance
@@ -86,7 +91,7 @@ export class CohereEmbedEnglishV3Model implements LanguageModelBase {
         tracer: TracerBase,
         texts: ReadonlyArray<string>,
         {inputType}: {inputType: "SearchDocument" | "SearchQuery"},
-    ): Promise<Iterable<Iterable<number>>> {
+    ): Promise<Array<Array<number>>> {
         return fetchWithTracer(
             tracer,
             "https://api.cohere.ai/v1/embed",
@@ -110,7 +115,11 @@ export class CohereEmbedEnglishV3Model implements LanguageModelBase {
                 }),
             },
             async (response, span) => {
-                const body = await response.json();
+                const body: {
+                    message?: string;
+                    embeddings: Array<Array<number>>;
+                    meta: {billed_units: {input_tokens: number}};
+                } = await response.json();
 
                 if (!response.ok) {
                     throw new UnknownError(
@@ -127,8 +136,21 @@ export class CohereEmbedEnglishV3Model implements LanguageModelBase {
                     },
                 });
 
-                return body.embeddings;
+                return body.embeddings.map(vector => {
+                    this._quantize(vector);
+                    return vector;
+                });
             },
         );
+    }
+
+    private _quantize(vector: Array<number>) {
+        for (let i = 0; i < vector.length; i++) {
+            let dimension = vector[i]!;
+
+            dimension -= cohereEmbeddingVectorDimensionLowerBound;
+
+            vector[i] = dimension;
+        }
     }
 }

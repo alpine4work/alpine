@@ -38,6 +38,16 @@ export class AllMiniLmL6V2Model implements LanguageModelBase {
     public static readonly key = "allMiniLmL6V2";
     public static readonly dimensionCount = 384;
 
+    // This model is only used in development/test environments and has a small
+    // dimension count. Don't bother quantizing like we do for production models.
+    //
+    // Another reason we don't quantize is we haven't found or produced a dataset
+    // to compute dimension bounds from. [Qdrant][1] recommends using p99 or p95
+    // bounds.
+    //
+    // [1]: https://qdrant.tech/articles/scalar-quantization/
+    public static readonly dimensionDataType = "float";
+
     /**
      * > The all-MiniLM-L6-v2 model was trained using cosine similarity-so using
      * > cosine similarity for the index will produce the most accurate result.
