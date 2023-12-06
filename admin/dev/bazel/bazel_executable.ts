@@ -37,12 +37,17 @@ const bazelRunfilesExecutablePath = path.join(
 
 const bazeliskWorkspaceVendorPath = path.join(workspacePath, "admin/vendor/bazelisk");
 
+const bazeliskArchMappings = new Map()
+bazeliskArchMappings.set("amd64", "amd64")
+bazeliskArchMappings.set("arm64", "arm64")
+bazeliskArchMappings.set("x64", "amd64")
+
 /**
  * The path to the Bazel executable in our workspace (no symlinks).
  */
 const bazelWorkspaceExecutablePath = path.join(
     bazeliskWorkspaceVendorPath,
-    `bazelisk-${process.platform}-${process.arch}`,
+    `bazelisk-${process.platform}-${bazeliskArchMappings.get(process.arch)}`,
 );
 
 /**
