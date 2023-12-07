@@ -20,8 +20,8 @@ import {
  */
 export type SearchEntityId =
     | `Account:${AccountId | ContentMentionAccountId}`
-    | `Document:${DocumentId}` // NOCOMMIT: Index
-    | `DocumentComment:${DocumentId}-${DocumentCommentThreadId}-${number}` // NOCOMMIT: Index
+    | `Document:${DocumentId}`
+    | `DocumentComment:${DocumentId}-${DocumentCommentThreadId}-${number}`
     | `Channel:${ChannelId}`
     | `Post:${PostId}`
     | `PostComment:${PostId}-${number}`
