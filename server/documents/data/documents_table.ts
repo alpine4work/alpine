@@ -55,7 +55,7 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {isDateLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
@@ -82,7 +82,7 @@ import {
     visitProsemirrorNode,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const DocumentCommentThreadAttributesSchema = Schema.object({
     /** The time at which the thread was created. */
@@ -134,6 +134,19 @@ const DocumentCommentThreadAttributesSchema = Schema.object({
     }),
 });
 
+type DocumentIndexSearchEntityJob = SchemaType<typeof DocumentIndexSearchEntityJobSchema>;
+
+const DocumentIndexSearchEntityJobSchema = Schema.object({
+    sendTime: Schema.date,
+    updatedTraits: Schema.union({
+        Any: Schema.object({type: Schema.value("Any")}),
+        Some: Schema.object({
+            type: Schema.value("Some"),
+            traits: Schema.array(Schema.enum(["Title"])),
+        }),
+    }),
+});
+
 const DocumentsTable = DynamoTableSchema.new({
     name: "Documents",
     partitions: [
@@ -178,6 +191,20 @@ const DocumentsTable = DynamoTableSchema.new({
                          * the snapshot and apply any new steps to get the title.
                          */
                         titleWithoutFallback: Schema.string,
+
+                        /**
+                         * Information about the last time we sent an `IndexSearchEntity` job for this
+                         * document. Since a document may be updated many times in quick succession we
+                         * want to throttle how often we reindex the document to capture many changes
+                         * at once.
+                         */
+                        lastIndexSearchEntityJob: DocumentIndexSearchEntityJobSchema.default({
+                            // NOTE(calebmer): Documents created/updated before this date did not have this
+                            // property. This default should cause us to always schedule new indexing jobs
+                            // when updating those documents.
+                            sendTime: new Date("2023-12-07T16:35:04.622Z"),
+                            updatedTraits: {type: "Any"},
+                        }),
                     }),
                 },
 
@@ -475,6 +502,24 @@ type DocumentCommentItem = DynamoTableItemType<
 >;
 
 /**
+ * The throttle interval for document indexing jobs in seconds. Indexing a
+ * document requires reading the entire thing and saving it to OpenSearch which
+ * can be expensive. Given how frequently users updating documents, we throttle
+ * how frequently a document is indexed.
+ *
+ * When the user first makes an edit to a document we queue an indexing job
+ * with this delay. If the user makes an update to the document before the
+ * delay has passed then we don't index again. Since when the indexing job
+ * finally runs the update will be picked up. If the user makes an update after
+ * the delay has passed then we schedule another indexing job with a new delay.
+ *
+ * We pick a minute since we're ok with it taking a bit for new document
+ * changes to be indexed. Reindexing can be expensive so we want to capture as
+ * many updates as possible when we reindex.
+ */
+const documentIndexSearchEntityJobDelaySeconds = 60;
+
+/**
  * Creates a new document with no history using the initial content provided.
  */
 export async function createDocument(
@@ -498,6 +543,8 @@ export async function createDocument(
     const createdTime = new Date();
     const version = 0;
 
+    const updatedTraits: DocumentIndexSearchEntityJob["updatedTraits"] = {type: "Any"};
+
     await DynamoTableSchema.executeTransaction(
         context,
         [
@@ -510,6 +557,10 @@ export async function createDocument(
                 ownerId: context.actor.getAccountId(),
                 version,
                 titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
+                lastIndexSearchEntityJob: {
+                    sendTime: createdTime,
+                    updatedTraits,
+                },
             }),
             DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "Document",
@@ -521,6 +572,21 @@ export async function createDocument(
         ],
         {
             clientRequestToken: id,
+        },
+    );
+
+    context.jobs.send(
+        {
+            type: "IndexSearchEntity",
+            spaceId,
+            update: {
+                type: "Document",
+                documentId: id,
+                updatedTraits,
+            },
+        },
+        {
+            delaySeconds: documentIndexSearchEntityJobDelaySeconds,
         },
     );
 
@@ -1128,6 +1194,7 @@ export class DocumentContentCacheForUpdate {
         readonly createdTime: Date;
         readonly spaceId: SpaceId;
         readonly ownerId: AccountId | null;
+        readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
         readonly version: number;
         readonly content: DocumentContent;
 
@@ -1152,6 +1219,7 @@ export class DocumentContentCacheForUpdate {
             newContent: DocumentContent;
             newSteps: ReadonlyArray<Step>;
             newInvertedSteps: ReadonlyArray<Step>;
+            newLastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
             clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
@@ -1167,6 +1235,7 @@ export class DocumentContentCacheForUpdate {
                 createdTime: internalDocument.attributes.createdTime,
                 spaceId: internalDocument.attributes.spaceId,
                 ownerId: internalDocument.attributes.ownerId,
+                lastIndexSearchEntityJob: internalDocument.attributes.lastIndexSearchEntityJob,
                 version: internalDocument.version,
                 content: internalDocument.content,
                 stepsAfterInitialSnapshot: new PushOnlyArray(
@@ -1273,6 +1342,7 @@ export class DocumentContentCacheForUpdate {
                         createdTime: entry.createdTime,
                         spaceId: entry.spaceId,
                         ownerId: entry.ownerId,
+                        lastIndexSearchEntityJob: attributes.lastIndexSearchEntityJob,
                         version: attributes.version,
                         content,
                         stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -1288,6 +1358,7 @@ export class DocumentContentCacheForUpdate {
             createdTime: entry.createdTime,
             spaceId: entry.spaceId,
             ownerId: entry.ownerId,
+            lastIndexSearchEntityJob: entry.lastIndexSearchEntityJob,
             version: entry.version,
             content: entry.content,
             // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
@@ -1295,7 +1366,13 @@ export class DocumentContentCacheForUpdate {
             // won't see the new values.
             stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot.slice(),
 
-            updateCache: async ({newContent, newSteps, newInvertedSteps, clientId}) => {
+            updateCache: async ({
+                newContent,
+                newSteps,
+                newInvertedSteps,
+                newLastIndexSearchEntityJob,
+                clientId,
+            }) => {
                 const updatedEntry = entry;
 
                 await this._entries.updateEntry(id, async entry => {
@@ -1314,6 +1391,7 @@ export class DocumentContentCacheForUpdate {
                         createdTime: entry.createdTime,
                         spaceId: entry.spaceId,
                         ownerId: entry.ownerId,
+                        lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                         version: entry.version + newSteps.length,
                         content: newContent,
                         stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -1328,6 +1406,7 @@ type DocumentContentCacheForUpdateEntry = {
     readonly createdTime: Date;
     readonly spaceId: SpaceId;
     readonly ownerId: AccountId | null;
+    readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
     readonly version: number;
     readonly content: DocumentContent;
     /**
@@ -1777,7 +1856,56 @@ export async function updateDocumentContent(
 
         const transaction: Array<DynamoTransactionEntry> = [];
 
+        let newLastIndexSearchEntityJob = internalDocument.lastIndexSearchEntityJob;
+
         if (steps.length > 0) {
+            const newTitleWithoutFallback = getDocumentContentTitleWithoutFallback(newContent);
+
+            const updatedTraits: Array<"Title"> = [];
+
+            if (
+                getDocumentContentTitleWithoutFallback(internalDocument.content) !==
+                newTitleWithoutFallback
+            ) {
+                updatedTraits.push("Title");
+            }
+
+            const areUpdatedTraitsInLastIndexSearchEntityJob =
+                internalDocument.lastIndexSearchEntityJob.updatedTraits.type === "Any" ||
+                (internalDocument.lastIndexSearchEntityJob.updatedTraits.type === "Some" &&
+                    updatedTraits.every(
+                        trait =>
+                            internalDocument.lastIndexSearchEntityJob.updatedTraits.type ===
+                                "Some" &&
+                            internalDocument.lastIndexSearchEntityJob.updatedTraits.traits.includes(
+                                trait,
+                            ),
+                    ));
+
+            let shouldSendIndexSearchEntityJob = false;
+
+            // Don't add another document index job until after the first one's delay has
+            // finished. When the delayed indexing job runs it will pick up this update.
+            //
+            // Or add another document index job if a trait changed which isn't covered by
+            // the last index job.
+            if (
+                !areUpdatedTraitsInLastIndexSearchEntityJob ||
+                isDatePossiblyLessThanWithUncertaintyWindow(
+                    new Date(
+                        internalDocument.lastIndexSearchEntityJob.sendTime.getTime() +
+                            documentIndexSearchEntityJobDelaySeconds * 1000,
+                    ),
+                    currentTime,
+                )
+            ) {
+                shouldSendIndexSearchEntityJob = true;
+                newLastIndexSearchEntityJob = {
+                    sendTime: currentTime,
+                    updatedTraits: {type: "Some", traits: updatedTraits},
+                };
+            }
+
             transaction.push(
                 DocumentsTable.transactionReplaceItem(
                     {
@@ -1788,12 +1916,31 @@ export async function updateDocumentContent(
                         spaceId: internalDocument.spaceId,
                         ownerId: internalDocument.ownerId,
                         version: internalDocument.version + steps.length,
-                        titleWithoutFallback: getDocumentContentTitleWithoutFallback(newContent),
+                        titleWithoutFallback: newTitleWithoutFallback,
+                        lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
                     },
                     {
                         condition: {
                             // Make sure a concurrent writer hasn't updated the document version before us.
                             version: internalDocument.version,
+                        },
+                        onAfterTransactionExecutedSuccessfully: () => {
+                            if (shouldSendIndexSearchEntityJob) {
+                                context.jobs.send(
+                                    {
+                                        type: "IndexSearchEntity",
+                                        spaceId: internalDocument.spaceId,
+                                        update: {
+                                            type: "Document",
+                                            documentId: id,
+                                            updatedTraits: {type: "Some", traits: updatedTraits},
+                                        },
+                                    },
+                                    {
+                                        delaySeconds: documentIndexSearchEntityJobDelaySeconds,
+                                    },
+                                );
+                            }
                         },
                     },
                 ),
@@ -1850,21 +1997,55 @@ export async function updateDocumentContent(
                     documentId: id,
                     commentThreadId: createCommentThread.commentThreadId,
                 }),
-                DocumentsTable.transactionCreateOrReplaceItem({
-                    partitionType: "DocumentCommentThread",
-                    sortRangeType: "Comments",
-                    documentId: id,
-                    commentThreadId: createCommentThread.commentThreadId,
-                    commentIndex: 0,
-                    authorId: context.actor.getAccountId(),
-                    createdTime,
-                    payload: {
-                        type: "Content",
-                        parentMessageIndex: null,
-                        content: createCommentThread.initialCommentContent,
-                        contentUpdatedTime: null,
+                DocumentsTable.transactionCreateOrReplaceItem(
+                    {
+                        partitionType: "DocumentCommentThread",
+                        sortRangeType: "Comments",
+                        documentId: id,
+                        commentThreadId: createCommentThread.commentThreadId,
+                        commentIndex: 0,
+                        authorId: context.actor.getAccountId(),
+                        createdTime,
+                        payload: {
+                            type: "Content",
+                            parentMessageIndex: null,
+                            content: createCommentThread.initialCommentContent,
+                            contentUpdatedTime: null,
+                        },
                     },
-                }),
+                    {
+                        onAfterTransactionExecutedSuccessfully: () => {
+                            context.notifications.sendNotificationEvent({
+                                type: "CreateDocumentComment",
+                                id: generateId(),
+                                spaceId: internalDocument.spaceId,
+                                documentId: id,
+                                commentThreadId: createCommentThread.commentThreadId,
+                                commentIndex: 0,
+                                createdTime: createCommentThread.createdTime ?? currentTime,
+                                authorId: context.actor.getAccountId(),
+                                mentionedAccountIds: getMentionedAccountIdsInContent(
+                                    createCommentThread.initialCommentContent,
+                                ),
+                                contentSnippet: getNotificationMessageContentSnippet(
+                                    createCommentThread.initialCommentContent,
+                                ),
+                            });
+
+                            context.jobs.send({
+                                type: "IndexSearchEntity",
+                                spaceId: internalDocument.spaceId,
+                                update: {
+                                    type: "DocumentComment",
+                                    documentId: id,
+                                    commentThreadId: createCommentThread.commentThreadId,
+                                    commentIndex: 0,
+                                    updatedTraits: {type: "Any"},
+                                },
+                            });
+                        },
+                    },
+                ),
             );
         }
 
@@ -1879,26 +2060,8 @@ export async function updateDocumentContent(
                 newContent,
                 newSteps: steps,
                 newInvertedSteps: invertedSteps,
+                newLastIndexSearchEntityJob,
                 clientId,
-            });
-        }
-
-        for (const createCommentThread of createCommentThreads) {
-            context.notifications.sendNotificationEvent({
-                type: "CreateDocumentComment",
-                id: generateId(),
-                spaceId: internalDocument.spaceId,
-                documentId: id,
-                commentThreadId: createCommentThread.commentThreadId,
-                commentIndex: 0,
-                createdTime: createCommentThread.createdTime ?? currentTime,
-                authorId: context.actor.getAccountId(),
-                mentionedAccountIds: getMentionedAccountIdsInContent(
-                    createCommentThread.initialCommentContent,
-                ),
-                contentSnippet: getNotificationMessageContentSnippet(
-                    createCommentThread.initialCommentContent,
-                ),
             });
         }
 
@@ -2861,6 +3024,18 @@ export async function createDocumentComment(
             contentSnippet: getNotificationMessageContentSnippet(content),
         });
 
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId: documentItem.spaceId,
+            update: {
+                type: "DocumentComment",
+                documentId,
+                commentThreadId,
+                commentIndex,
+                updatedTraits: {type: "Any"},
+            },
+        });
+
         return {
             index: commentIndex,
             createdTime,
@@ -3026,7 +3201,7 @@ export function updateDocumentCommentContent(
     contentUpdatedTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [, commentThreadItem, commentItem] = await runAllPromises([
+        const [{spaceId}, commentThreadItem, commentItem] = await runAllPromises([
             authorizeDocumentAccess(context, documentId),
 
             getDocumentCommentThreadItem(context, {
@@ -3109,6 +3284,18 @@ export function updateDocumentCommentContent(
             }),
         ]);
 
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId,
+            update: {
+                type: "DocumentComment",
+                documentId,
+                commentThreadId,
+                commentIndex,
+                updatedTraits: {type: "Some", traits: []},
+            },
+        });
+
         return {contentUpdatedTime};
     });
 }
@@ -3129,7 +3316,7 @@ export function deleteDocumentComment(
     },
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
-        const [, commentThreadItem, commentItem] = await runAllPromises([
+        const [{spaceId}, commentThreadItem, commentItem] = await runAllPromises([
             authorizeDocumentAccess(context, documentId),
 
             getDocumentCommentThreadItem(context, {
@@ -3204,6 +3391,18 @@ export function deleteDocumentComment(
                 expirationTime: getMessageChangeLogExpirationTimeFromChangeTime(deletedTime),
             }),
         ]);
+
+        context.jobs.send({
+            type: "IndexSearchEntity",
+            spaceId,
+            update: {
+                type: "DocumentComment",
+                documentId,
+                commentThreadId,
+                commentIndex,
+                updatedTraits: {type: "Some", traits: []},
+            },
+        });
 
         return {deletedTime};
     });
@@ -3902,10 +4101,10 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
         lastCommentChangeTime ?? commentThreadItem.createdTime,
     );
 
-    // If our last change item has expired then other relevant changelog entries
+    // If our last change item may have expired then other relevant changelog entries
     // may have also expired. The client will need to fully reset its state since
     // we don't have the data necessary to backfill.
-    if (isDateLessThanWithUncertaintyWindow(lastCommentChangeExpirationTime, new Date()))
+    if (isDatePossiblyLessThanWithUncertaintyWindow(lastCommentChangeExpirationTime, new Date()))
         return {type: "Unavailable"};
 
     const changes = await parallelMapAsyncIterableToArray(

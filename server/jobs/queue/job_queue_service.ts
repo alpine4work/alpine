@@ -39,7 +39,7 @@ runService({
         const consumer = JobConsumer.start(processContext, {
             // @ts-expect-error: NOCOMMIT
             queueUrl,
-            processJob: (_actionContext, job, jobSendTime) => {
+            processJob: (_actionContext, job, jobStartTime) => {
                 // Jobs are already processed in a system context so this isn't actually an
                 // escalation but we still need it for compatibility.
                 //
@@ -99,7 +99,7 @@ runService({
                     }),
                 });
 
-                return processJob(actionContext, job, jobSendTime);
+                return processJob(actionContext, job, jobStartTime);
             },
         });
 

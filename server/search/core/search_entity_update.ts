@@ -46,8 +46,13 @@ export type SearchEntityUpdate = {
     [Type in keyof typeof searchEntityUpdateSchemaDescription]: MergeObjectIntersection<
         SchemaType<(typeof searchEntityUpdateSchemaDescription)[Type]["schema"]> & {
             readonly updatedTraits:
-                | {readonly type: "None"}
-                | {readonly type: "Any"}
+                | {
+                      readonly type: "None";
+                      readonly parentJobStartTime: Date;
+                  }
+                | {
+                      readonly type: "Any";
+                  }
                 | {
                       readonly type: "Some";
                       readonly traits: ReadonlyArray<
@@ -161,8 +166,13 @@ export const SearchEntityUpdateSchema = Schema.union(
         return schema.merge(
             Schema.object({
                 updatedTraits: Schema.union({
-                    None: Schema.object({type: Schema.value("None")}),
-                    Any: Schema.object({type: Schema.value("Any")}),
+                    None: Schema.object({
+                        type: Schema.value("None"),
+                        parentJobStartTime: Schema.date,
+                    }),
+                    Any: Schema.object({
+                        type: Schema.value("Any"),
+                    }),
                     Some: Schema.object({
                         type: Schema.value("Some"),
                         traits: Schema.array(Schema.enum(updatableTraits)),

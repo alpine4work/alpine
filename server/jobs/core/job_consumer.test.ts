@@ -6,7 +6,6 @@ import {
     deleteMessageBatchTestCounter,
     receiveMessageTestCounter,
 } from "~/server/jobs/core/job_consumer.js";
-import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -60,13 +59,7 @@ afterEach(() => {
 
 // Important for this to come after the `afterEach()` above. Since we want to
 // stop our consumer before waiting on `ProcessContextModule` tasks.
-const context = createTestContext();
-
-function createSender() {
-    return new JobSender({
-        queueUrl: `http://localhost:${context.getSqsLocalPort()}/local/JobQueue`,
-    });
-}
+const context = createTestContext({shouldSendJobsToSqs: true});
 
 test("starts processing new jobs immediately after receiving first batch", async () => {
     const spaceId = generateId<SpaceId>();
@@ -103,25 +96,23 @@ test("starts processing new jobs immediately after receiving first batch", async
     const pause14Promise = processTestJobDescriptionTestCheckpoint.pauseForTest(job14Id);
     const pause15Promise = processTestJobDescriptionTestCheckpoint.pauseForTest(job15Id);
 
-    const sender = createSender();
-
-    sender.send(context, {type: "Test", spaceId, checkpointId: job1Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job2Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job3Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job4Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job5Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job6Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job7Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job8Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job9Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job10Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job11Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job12Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job13Id});
-    sender.send(context, {type: "Test", spaceId, checkpointId: job14Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job1Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job2Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job3Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job4Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job5Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job6Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job7Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job8Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job9Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job10Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job11Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job12Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job13Id});
+    context.jobs.send({type: "Test", spaceId, checkpointId: job14Id});
 
     // Also flushes any batched jobs instead of waiting 200ms.
-    await sender.sendImmediately(context, {type: "Test", spaceId, checkpointId: job15Id});
+    await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: job15Id});
 
     // The consumer sees job 15 even before job 1 resolves.
     await pause1Promise;
@@ -167,8 +158,6 @@ test("starts processing new jobs immediately after receiving first batch", async
 test("will max out at 10 receive message calls at a time then scale back down to 1 at a time", async () => {
     const spaceId = generateId<SpaceId>();
 
-    const sender = createSender();
-
     const pausePromises: Array<PromiseImmediate<{unpause: () => void}>> = [];
 
     for (let i = 0; i < 202; i++) {
@@ -177,9 +166,9 @@ test("will max out at 10 receive message calls at a time then scale back down to
             PromiseImmediate.resolve(processTestJobDescriptionTestCheckpoint.pauseForTest(jobId)),
         );
         if (i < 201) {
-            sender.send(context, {type: "Test", spaceId, checkpointId: jobId});
+            context.jobs.send({type: "Test", spaceId, checkpointId: jobId});
         } else {
-            await sender.sendImmediately(context, {type: "Test", spaceId, checkpointId: jobId});
+            await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
         }
     }
 
@@ -244,7 +233,7 @@ test("will max out at 10 receive message calls at a time then scale back down to
 
     const jobId = generateId();
     const pausePromise = processTestJobDescriptionTestCheckpoint.pauseForTest(jobId);
-    await sender.sendImmediately(context, {type: "Test", spaceId, checkpointId: jobId});
+    await context.jobs.sendImmediately({type: "Test", spaceId, checkpointId: jobId});
 
     await pausePromise;
 

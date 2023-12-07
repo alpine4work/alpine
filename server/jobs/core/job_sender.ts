@@ -37,21 +37,7 @@ type JobSenderMessageBatch = {
     }>;
 };
 
-/**
- * Sends background jobs to our job queue for processing. Will batch jobs sent
- * within a short window of time.
- */
-export class JobSender {
-    private readonly _queueUrl: string;
-    private readonly _sqsClient: SQSClient;
-
-    private _messageBatch: JobSenderMessageBatch | null = null;
-
-    constructor({queueUrl}: {queueUrl: string}) {
-        this._queueUrl = queueUrl;
-        this._sqsClient = new SQSClient({endpoint: new URL("/", queueUrl).toString()});
-    }
-
+export abstract class JobSenderBase {
     /**
      * Sends a job to our job queue for processing. Will be batched with other jobs
      * sent from the same process in a short window of time.
@@ -62,9 +48,69 @@ export class JobSender {
      * Doesn't guarantee the job was delivered. If the process unexpectedly ends
      * you may return a successful result to the user without the job being saved
      * in our queue. If you want to guarantee message delivery call
-     * `sendAndWait()`.
+     * `sendImmediately()` and await.
      */
-    public send(
+    public abstract send(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        job: JobDescription,
+        options?: {delaySeconds?: number},
+    ): void;
+
+    /**
+     * Sends a job to our job queue for processing. Will be batched with other jobs
+     * sent from the same process in a short window of time.
+     *
+     * The first job in a batch will need to wait 200ms before it can be sent as we
+     * accumulate other jobs.
+     *
+     * Returns a promise that resolves only once the job has been sent to the
+     * queue. This means you may have to wait up to 200ms if this is the first job
+     * in a batch! Avoid this function if you need fast performance.
+     */
+    public abstract sendAndWait(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        job: JobDescription,
+        options?: {delaySeconds?: number},
+    ): Promise<void>;
+
+    /**
+     * Sends a job to our job queue for processing. Will not wait to batch with
+     * other jobs and will be send to our queue immediately. If there's a pending
+     * batch we'll send the batch along with this new job.
+     *
+     * Use this if you need to guarantee to the user that the job was delivered to
+     * the queue. Once delivered to the queue the job will execute (if it errs we
+     * retry) but the duration it will take to execute is not guaranteed.
+     *
+     * You can also use this to skip the maximum 200ms wait time for new jobs in
+     * the queue. However, if your work needs to happen immediately a queue may not
+     * even be a good idea given it can take a while for the job service to process
+     * your job.
+     */
+    public abstract sendImmediately(
+        context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
+        job: JobDescription,
+        options?: {delaySeconds?: number},
+    ): Promise<void>;
+}
+
+/**
+ * Sends background jobs to our job queue for processing. Will batch jobs sent
+ * within a short window of time.
+ */
+export class JobSender extends JobSenderBase {
+    private readonly _queueUrl: string;
+    private readonly _sqsClient: SQSClient;
+
+    private _messageBatch: JobSenderMessageBatch | null = null;
+
+    constructor({queueUrl}: {queueUrl: string}) {
+        super();
+        this._queueUrl = queueUrl;
+        this._sqsClient = new SQSClient({endpoint: new URL("/", queueUrl).toString()});
+    }
+
+    public override send(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -78,18 +124,7 @@ export class JobSender {
         );
     }
 
-    /**
-     * Sends a job to our job queue for processing. Will be batched with other jobs
-     * sent from the same process in a short window of time.
-     *
-     * The first job in a batch will need to wait 200ms before it can be sent as we
-     * accumulate other jobs.
-     *
-     * Returns a promise that resolves only once the job has been sent to the
-     * queue. This means you may have to wait up to 200ms if this is the first job
-     * in a batch! Avoid this function if you need fast performance.
-     */
-    public sendAndWait(
+    public override sendAndWait(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         options?: {delaySeconds?: number},
@@ -137,21 +172,7 @@ export class JobSender {
         return promiseResolver.promise;
     }
 
-    /**
-     * Sends a job to our job queue for processing. Will not wait to batch with
-     * other jobs and will be send to our queue immediately. If there's a pending
-     * batch we'll send the batch along with this new job.
-     *
-     * Use this if you need to guarantee to the user that the job was delivered to
-     * the queue. Once delivered to the queue the job will execute (if it errs we
-     * retry) but the duration it will take to execute is not guaranteed.
-     *
-     * You can also use this to skip the maximum 200ms wait time for new jobs in
-     * the queue. However, if your work needs to happen immediately a queue may not
-     * even be a good idea given it can take a while for the job service to process
-     * your job.
-     */
-    public async sendImmediately(
+    public override async sendImmediately(
         context: Context<{process: ProcessContextModule; tracer: TracerContextModule}>,
         job: JobDescription,
         {delaySeconds = 0}: {delaySeconds?: number} = {},

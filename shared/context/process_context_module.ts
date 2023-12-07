@@ -1,8 +1,14 @@
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
+import {DeadlineExceededError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+
+// We grab the original `setTimeout` here since we want to set a timeout
+// without being affected by Jest fake timers.
+const originalSetTimeout = setTimeout;
 
 /**
  * This context provides information about the process our code is running in
@@ -52,7 +58,13 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
                 // Don't treat errors as unhandled. They will be reported in `afterEach()`.
                 promise.catch(() => {});
 
-                afterEachPromisesForTest.push(promise);
+                assertExists(afterEachPromisesForTest).push(
+                    Object.assign(promise, {
+                        deadlineExceededError: new DeadlineExceededError(
+                            "`ProcessContextModule.waitForTestTasks()` has been waiting for promise for over 5 seconds",
+                        ),
+                    }),
+                );
             },
         });
     }
@@ -65,6 +77,7 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
      */
     public static async waitForTestTasks() {
         assert(process.env.NODE_ENV === "test");
+        assert(afterEachPromisesForTest);
 
         if (!this._waitForTestTasksPromise) {
             this._waitForTestTasksPromise = (async () => {
@@ -76,6 +89,18 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
                 while (afterEachPromisesForTest.length > 0) {
                     const promises = afterEachPromisesForTest;
                     afterEachPromisesForTest = [];
+
+                    // Log a warning when we've been waiting on a promise for too long. We construct
+                    // the error in the `waitUntil()` call so we can trace the source of the
+                    // promise.
+                    for (const promise of promises) {
+                        const timeoutId = originalSetTimeout(() => {
+                            // eslint-disable-next-line no-console
+                            console.error(promise.deadlineExceededError);
+                        }, 5000);
+
+                        promise.finally(() => clearTimeout(timeoutId));
+                    }
 
                     try {
                         await runAllPromises(promises);
@@ -102,4 +127,5 @@ export class ProcessContextModule extends ContextModuleBase implements ForkableC
     }
 }
 
-let afterEachPromisesForTest: Array<Promise<unknown>> = [];
+let afterEachPromisesForTest: Array<Promise<unknown> & {deadlineExceededError: Error}> | null =
+    process.env.NODE_ENV === "test" ? [] : null;

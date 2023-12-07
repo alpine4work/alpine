@@ -1,5 +1,6 @@
 import murmurhash from "murmurhash";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
 import {
     OpensearchClientDocWithIdAndVersion,
@@ -14,6 +15,7 @@ import {
 } from "~/server/opensearch/opensearch_index_type.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search_entity_job_description.js";
+import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
 import {
     SearchEntityId,
     parseSearchEntityId,
@@ -39,7 +41,7 @@ import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     defaultUncertaintyWindowMs,
-    isDateLessThanWithUncertaintyWindow,
+    isDateDefinitelyLessThanWithUncertaintyWindow,
 } from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
@@ -230,6 +232,9 @@ const minEmbeddingChunkTokenCount = 35;
 
 export const processSearchEntityJobFinishedTestCheckpoint = new TestCheckpoint<SearchEntityId>();
 
+export const processSearchEntityJobUpdateDependentEntitiesTestCounter =
+    new TestCounter<SearchEntityDependencyId>();
+
 /**
  * Indexes any entity in our system, making its content available for
  * searching. This function is idempotent, running it multiple times will
@@ -275,7 +280,7 @@ export const processSearchEntityJobFinishedTestCheckpoint = new TestCheckpoint<S
 export async function processIndexSearchEntityJob(
     context: SearchEntityIndexSystemActionContext,
     job: IndexSearchEntityJobDescription,
-    jobSendTime: Date,
+    jobStartTime: Date,
     {
         shouldImmediatelyProcessDependentsForTest = false,
     }: {
@@ -284,76 +289,88 @@ export async function processIndexSearchEntityJob(
 ) {
     const entityId = printSearchEntityId(job.update);
 
-    await retryWithExponentialBackoff(async retry => {
-        const [actualOldDocForKeywordIndex, actualOldDocForSemanticIndex] =
-            await context.opensearch.client.multiGetDocsIfExist(context.tracer.getTracer(), [
-                new OpensearchGetDocWithoutSourceCommand(
-                    SearchEntityKeywordIndex,
-                    job.spaceId,
-                    entityId,
-                    {storedFields: ["lastReadStartTime"]},
-                ),
-                new OpensearchGetDocWithoutSourceCommand(
-                    SearchEntitySemanticIndex,
-                    job.spaceId,
-                    entityId,
-                    {
-                        storedFields: [
-                            ...(context.languageModel
-                                ? [
-                                      `embeddingChunksVectorCache.${context.languageModel.model.statics.key}` as const,
-                                  ]
-                                : []),
-                        ],
-                    },
-                ),
-            ]);
+    await runAllPromises([updateOurEntity(), updateDependentEntities()]);
 
-        const oldDocForKeywordIndex = actualOldDocForKeywordIndex
-            ? {
-                  version: actualOldDocForKeywordIndex.version,
-                  lastReadStartTime: assertExists(
-                      actualOldDocForKeywordIndex.fields.lastReadStartTime?.[0],
-                  ),
-              }
-            : null;
+    await processSearchEntityJobFinishedTestCheckpoint.waitForTest(entityId);
 
-        const oldDocForSemanticIndex = actualOldDocForSemanticIndex
-            ? {
-                  version: actualOldDocForSemanticIndex.version,
-                  embeddingChunksVectorCache: context.languageModel
-                      ? actualOldDocForSemanticIndex.fields[
-                            `embeddingChunksVectorCache.${context.languageModel.model.statics.key}`
-                        ]?.[0] ?? null
-                      : null,
-              }
-            : null;
+    async function updateOurEntity() {
+        await retryWithExponentialBackoff(async retry => {
+            const [actualOldDocForKeywordIndex, actualOldDocForSemanticIndex] =
+                await context.opensearch.client.multiGetDocsIfExist(context.tracer.getTracer(), [
+                    new OpensearchGetDocWithoutSourceCommand(
+                        SearchEntityKeywordIndex,
+                        job.spaceId,
+                        entityId,
+                        {storedFields: ["lastReadStartTime"]},
+                    ),
+                    new OpensearchGetDocWithoutSourceCommand(
+                        SearchEntitySemanticIndex,
+                        job.spaceId,
+                        entityId,
+                        {
+                            storedFields: [
+                                ...(context.languageModel
+                                    ? [
+                                          `embeddingChunksVectorCache.${context.languageModel.model.statics.key}` as const,
+                                      ]
+                                    : []),
+                            ],
+                        },
+                    ),
+                ]);
 
-        // Is the doc currently in the search index sufficient for this indexing job?
-        // If true we can end the job without needing to save `newDoc` to the index.
-        //
-        // It is sufficient if the data in the index was read AFTER the job was sent to
-        // our queue. That means `oldDoc` includes the update our job wants to index.
-        //
-        // Useful optimization when there are multiple updates to the same entity being
-        // processed in parallel. Or when jobs updating the same entity are delayed.
-        //
-        // We only need to check the keyword doc. If the keyword doc is sufficient then
-        // the job which indexed it should have also indexed an embedding doc. If it
-        // did not index an embedding doc, either an embedding doc doesn't exist or
-        // there was an error and the job will be retried.
-        const isOldDocSufficient =
-            !!oldDocForKeywordIndex &&
-            isDateLessThanWithUncertaintyWindow(
-                jobSendTime,
-                oldDocForKeywordIndex.lastReadStartTime,
-            );
+            const oldDocForKeywordIndex = actualOldDocForKeywordIndex
+                ? {
+                      version: actualOldDocForKeywordIndex.version,
+                      lastReadStartTime: assertExists(
+                          actualOldDocForKeywordIndex.fields.lastReadStartTime?.[0],
+                      ),
+                  }
+                : null;
 
-        if (isOldDocSufficient) return;
+            const oldDocForSemanticIndex = actualOldDocForSemanticIndex
+                ? {
+                      version: actualOldDocForSemanticIndex.version,
+                      embeddingChunksVectorCache: context.languageModel
+                          ? actualOldDocForSemanticIndex.fields[
+                                `embeddingChunksVectorCache.${context.languageModel.model.statics.key}`
+                            ]?.[0] ?? null
+                          : null,
+                  }
+                : null;
 
-        await runAllPromises([updateOurEntity(), updateDependentEntities()]);
+            // Is the doc currently in the search index sufficient for this indexing job?
+            // If true we can end the job without needing to save `newDoc` to the index.
+            //
+            // It is sufficient if the data in the index was read AFTER the job was sent to
+            // our queue. That means `oldDoc` includes the update our job wants to index.
+            //
+            // Useful optimization when there are multiple updates to the same entity being
+            // processed in parallel. Or when jobs updating the same entity are delayed.
+            //
+            // We only need to check the keyword doc. If the keyword doc is sufficient then
+            // the job which indexed it should have also indexed an embedding doc. If it
+            // did not index an embedding doc, either an embedding doc doesn't exist or
+            // there was an error and the job will be retried.
+            const isOldDocSufficient =
+                !!oldDocForKeywordIndex &&
+                isDateDefinitelyLessThanWithUncertaintyWindow(
+                    // Optimization: If one of our dependencies updated (and we ourselves were not
+                    // updated) then a job will be queued with `updatedTraits` of `type: "None"`.
+                    // For these jobs, as long as we've indexed data that was read after our parent
+                    // job's start we're happy (since our parent job represents the entity with
+                    // updates).
+                    //
+                    // It should be logically ok to use `jobStartTime` here but we can skip more
+                    // reads by using `parentJobStartTime`.
+                    job.update.updatedTraits.type === "None"
+                        ? job.update.updatedTraits.parentJobStartTime
+                        : jobStartTime,
+                    oldDocForKeywordIndex.lastReadStartTime,
+                );
 
-        async function updateOurEntity() {
+            if (isOldDocSufficient) return;
+
             // We use the Cohere `embed-english-v3.0` model's tokenizer to chunk our
             // content. That's because it's the main model we use in production for
             // embeddings. In development we embed with a smaller model we can run locally
@@ -548,110 +565,115 @@ export async function processIndexSearchEntityJob(
                     {retryPartialVersionConflictError: retry},
                 );
             }
+        });
+    }
+
+    async function updateDependentEntities() {
+        const dependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
+        if (dependencyIds.length === 0) return;
+
+        for (const dependencyId of dependencyIds) {
+            processSearchEntityJobUpdateDependentEntitiesTestCounter.incrementForTest(dependencyId);
         }
 
-        async function updateDependentEntities() {
-            const dependencyIds = getSearchEntityDependencyIdsAffectedByUpdate(job.update);
-            if (dependencyIds.length === 0) return;
-
-            // Wait for the index to refresh before querying dependents. We want to capture
-            // ALL dependents created before the job started. There may be some dependents
-            // another job saved that won't appear in a query until after the index
-            // refreshes.
-            //
+        // Wait for the index to refresh before querying dependents. We want to capture
+        // ALL dependents created before the job started. There may be some dependents
+        // another job saved that won't appear in a query until after the index
+        // refreshes.
+        //
+        // We may capture some dependents that were recently updated and have the
+        // latest dependency data. That's ok since this function is idempotent. We may
+        // be able to skip re-reading them by checking `lastReadStartTime`.
+        if (!import.meta.jest) {
+            await wait(searchEntityIndexRefreshIntervalSeconds * 1000 + defaultUncertaintyWindowMs);
+        } else {
             // In Jest tests, indexes need to be refreshed manually. Don't refresh manually
             // in production.
-            if (import.meta.jest) {
-                await context.opensearch.client.refresh(
-                    context.tracer.getTracer(),
-                    SearchEntityKeywordIndex,
-                );
-            } else {
-                await wait(
-                    searchEntityIndexRefreshIntervalSeconds * 1000 + defaultUncertaintyWindowMs,
-                );
-            }
+            await context.opensearch.client.refresh(
+                context.tracer.getTracer(),
+                SearchEntityKeywordIndex,
+            );
+        }
 
-            // Maximum search page size is 10k.
-            const searchSize = 10_000;
-            let searchAfter: ReadonlyArray<JsonValue> | null = null;
+        // Maximum search page size is 10k.
+        const searchSize = 10_000;
+        let searchAfter: ReadonlyArray<JsonValue> | null = null;
 
-            do {
-                const docs = await context.opensearch.client.searchWithoutSource(
-                    context.tracer.getTracer(),
-                    SearchEntityKeywordIndex,
-                    job.spaceId,
-                    {
-                        size: searchSize,
+        do {
+            const docs = await context.opensearch.client.searchWithoutSource(
+                context.tracer.getTracer(),
+                SearchEntityKeywordIndex,
+                job.spaceId,
+                {
+                    size: searchSize,
 
-                        query: {
-                            bool: {
-                                filter: {
-                                    bool: {
-                                        must: [
-                                            {
-                                                term: {
-                                                    spaceId: new OpensearchQueryValue(job.spaceId),
-                                                },
+                    query: {
+                        bool: {
+                            filter: {
+                                bool: {
+                                    must: [
+                                        {
+                                            term: {
+                                                spaceId: new OpensearchQueryValue(job.spaceId),
                                             },
-                                            {
-                                                terms: {
-                                                    dependencyIds: new OpensearchQueryValue(
-                                                        dependencyIds,
-                                                    ),
-                                                },
+                                        },
+                                        {
+                                            terms: {
+                                                dependencyIds: new OpensearchQueryValue(
+                                                    dependencyIds,
+                                                ),
                                             },
-                                        ],
-                                    },
+                                        },
+                                    ],
                                 },
                             },
                         },
-                        sort: ["_doc"],
                     },
-                );
+                    sort: ["_doc"],
+                },
+            );
 
-                await runAllPromises(
-                    docs.map(async doc => {
-                        if (!shouldImmediatelyProcessDependentsForTest) {
-                            // Wait for confirmation the job was added to the queue. We don't care about
-                            // performance as much when processing jobs.
-                            await context.jobs.sendAndWait({
+            const currentTime = new Date();
+
+            await runAllPromises(
+                docs.map(async doc => {
+                    if (!shouldImmediatelyProcessDependentsForTest) {
+                        // Wait for confirmation the job was added to the queue. We don't care about
+                        // performance as much when processing jobs.
+                        await context.jobs.sendAndWait({
+                            type: "IndexSearchEntity",
+                            spaceId: job.spaceId,
+                            update: {
+                                ...parseSearchEntityId(doc.id),
+                                updatedTraits: {type: "None", parentJobStartTime: jobStartTime},
+                            },
+                        });
+                    } else {
+                        // Only allow immediate processing in tests. Normally we should add dependent
+                        // indexing jobs to the queue.
+                        assert(import.meta.jest);
+
+                        await processIndexSearchEntityJob(
+                            context,
+                            {
                                 type: "IndexSearchEntity",
                                 spaceId: job.spaceId,
                                 update: {
                                     ...parseSearchEntityId(doc.id),
-                                    updatedTraits: {type: "None"},
+                                    updatedTraits: {type: "None", parentJobStartTime: jobStartTime},
                                 },
-                            });
-                        } else {
-                            // Only allow immediate processing in tests. Normally we should add dependent
-                            // indexing jobs to the queue.
-                            assert(import.meta.jest);
+                            },
+                            currentTime,
+                        );
+                    }
+                }),
+            );
 
-                            await processIndexSearchEntityJob(
-                                context,
-                                {
-                                    type: "IndexSearchEntity",
-                                    spaceId: job.spaceId,
-                                    update: {
-                                        ...parseSearchEntityId(doc.id),
-                                        updatedTraits: {type: "None"},
-                                    },
-                                },
-                                new Date(),
-                            );
-                        }
-                    }),
-                );
+            searchAfter = docs.length > 0 ? assertExists(docs[docs.length - 1]!.sort) : null;
 
-                searchAfter = docs.length > 0 ? assertExists(docs[docs.length - 1]!.sort) : null;
-
-                // If we did not reach the pagination limit then don't query again for the
-                // next page.
-                if (docs.length < searchSize) searchAfter = null;
-            } while (searchAfter !== null);
-        }
-    });
-
-    await processSearchEntityJobFinishedTestCheckpoint.waitForTest(entityId);
+            // If we did not reach the pagination limit then don't query again for the
+            // next page.
+            if (docs.length < searchSize) searchAfter = null;
+        } while (searchAfter !== null);
+    }
 }

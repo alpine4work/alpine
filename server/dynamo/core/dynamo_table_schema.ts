@@ -1973,8 +1973,10 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         item: Item,
         {
             condition,
+            onAfterTransactionExecutedSuccessfully,
         }: {
             condition?: DynamoCondition<Item>;
+            onAfterTransactionExecutedSuccessfully?: () => void;
         } = {},
     ): DynamoTransactionEntry {
         const itemExistsCondition = DynamoConditionExpression._unsafeRaw(
@@ -1993,6 +1995,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             // implementing an optimistic locking scheme so we allow this update to
             // be retriable.
             isConditionCheckErrorRetriable: !!condition,
+            onAfterTransactionExecutedSuccessfully,
         });
     }
 

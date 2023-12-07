@@ -9,7 +9,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 export async function processJob(
     context: JobQueueSystemActionContext,
     job: JobDescription,
-    jobSendTime: Date,
+    jobStartTime: Date,
 ): Promise<void> {
     switch (job.type) {
         case "Test": {
@@ -17,7 +17,7 @@ export async function processJob(
             return;
         }
         case "IndexSearchEntity": {
-            await processIndexSearchEntityJob(context, job, jobSendTime);
+            await processIndexSearchEntityJob(context, job, jobStartTime);
             return;
         }
         default:

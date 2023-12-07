@@ -49,12 +49,15 @@ import {createSimpleMessageContent} from "~/shared/messaging/message_content_sch
 const schema = DocumentContentProsemirrorSchema;
 const {SearchEntityKeywordIndex, SearchEntitySemanticIndex} = getSearchEntityIndexesForTest();
 
-const context = createTestContext({shouldStartOpensearch: true});
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    shouldSendJobsToSqs: true,
+});
 
 function startTestJobConsumer({languageModel}: {languageModel: LanguageModelBase}) {
     const consumer = JobConsumer.start(context, {
         queueUrl: context.getSqsLocalJobQueueUrl(),
-        processJob: async (actionContext, job, jobSendTime) => {
+        processJob: async (actionContext, job, jobStartTime) => {
             switch (job.type) {
                 case "IndexSearchEntity": {
                     await processIndexSearchEntityJob(
@@ -66,7 +69,7 @@ function startTestJobConsumer({languageModel}: {languageModel: LanguageModelBase
                             languageModel: new LanguageModelContextModule(languageModel),
                         }),
                         job,
-                        jobSendTime,
+                        jobStartTime,
                     );
                     break;
                 }

@@ -94,14 +94,13 @@ export class JobConsumer {
     private readonly _processJob: (
         context: ServerSystemActionContext,
         job: JobDescription,
-        jobSendTime: Date,
+        jobStartTime: Date,
     ) => Promise<void>;
 
     private _isStopped = false;
     private _abortController = new AbortController();
     private _runningConsumeCallCount = 0;
     private _hasPendingConsumeCall = false;
-    private _emptyQueueCallbacks: Array<() => void> = [];
 
     private constructor(
         context: ServerProcessContext,
@@ -113,7 +112,7 @@ export class JobConsumer {
             processJob: (
                 context: ServerSystemActionContext,
                 job: JobDescription,
-                jobSendTime: Date,
+                jobStartTime: Date,
             ) => Promise<void>;
         },
     ) {
@@ -130,7 +129,7 @@ export class JobConsumer {
             processJob: (
                 context: ServerSystemActionContext,
                 job: JobDescription,
-                jobSendTime: Date,
+                jobStartTime: Date,
             ) => Promise<void>;
         },
     ) {
@@ -367,6 +366,15 @@ export class JobConsumer {
                 messageBody.tracerContext,
             );
 
+        // The time at which the job starts to be available for processing. The send
+        // time plus delay seconds. This will be a little earlier than when the job is
+        // truly available for processing since we don't include the latency of adding
+        // a job to SQS.
+        const jobStartTime =
+            messageBody.delaySeconds === 0
+                ? messageBody.sendTime
+                : new Date(messageBody.sendTime.getTime() + messageBody.delaySeconds * 1000);
+
         span.addData({
             aws: {sqs: {messageId: message.MessageId}},
             jobs: {
@@ -375,11 +383,10 @@ export class JobConsumer {
                 delaySeconds: messageBody.delaySeconds,
                 queueDurationMs:
                     currentTime -
-                    messageBody.sendTime.getTime() -
-                    // Don't include the delay in queue duration. The delay is intentional. We want
-                    // to measure overall queue health. Ideally the queue duration should be as
-                    // close to zero as possible.
-                    messageBody.delaySeconds * 1000,
+                    // Don't include the delay in queue duration (use start time instead of send
+                    // time). The delay is intentional. We want to measure overall queue health.
+                    // Ideally the queue duration should be as close to zero as possible.
+                    jobStartTime.getTime(),
             },
         });
 
@@ -406,8 +413,7 @@ export class JobConsumer {
                         messageBody.job.spaceId,
                     ),
                 },
-                actionContext =>
-                    this._processJob(actionContext, messageBody.job, messageBody.sendTime),
+                actionContext => this._processJob(actionContext, messageBody.job, jobStartTime),
             );
 
             finishSpan();

@@ -15,10 +15,12 @@ export const defaultUncertaintyWindowMs = 500;
  * in distributed systems][2]. Wait for the part where it talks about Google
  * Spanner's True Time.)
  *
- * This function checks if uncertainty interval for `date1` is completely lower
- * than the uncertainty interval for `date2`. If there's some overlap this
- * function returns false since the true time of `date1` may or may not be
- * grater than the true time of `date2`.
+ * This function checks if uncertainty interval for `date1` is possibly lower
+ * than the uncertainty interval for `date2`. If there's some overlap in date
+ * ranges this function returns true.
+ *
+ * If you want to know that `date1` is definitely lower than `date2` you should
+ * use `isDateDefinitelyLessThanWithUncertaintyWindow()`.
  *
  * Our uncertainty window defaults to 500ms which is the [default used by
  * CockroachDB][3]. It could be lower in AWS instances with AWS Time Sync. It's
@@ -29,7 +31,33 @@ export const defaultUncertaintyWindowMs = 500;
  * [2]: https://www.youtube.com/watch?v=BRvj8PykSc4
  * [3]: https://www.cockroachlabs.com/docs/v21.2/operational-faqs#what-happens-when-node-clocks-are-not-properly-synchronized
  */
-export function isDateLessThanWithUncertaintyWindow(
+export function isDatePossiblyLessThanWithUncertaintyWindow(
+    date1: Date,
+    date2: Date,
+    // We default to a 500ms uncertainty window, but in tests use a 0ms uncertainty
+    // window since everything happens on the same machine.
+    uncertaintyWindowMs: number = process.env.NODE_ENV === "test" ? 0 : defaultUncertaintyWindowMs,
+): boolean {
+    return date1.getTime() - uncertaintyWindowMs / 2 <= date2.getTime() + uncertaintyWindowMs / 2;
+}
+
+/**
+ * Returns true if `date1 < date2` is definitely true regardless of our
+ * uncertainty window. This is a useful function for building backend
+ * distributed systems since we can't guarantee clocks between processes are
+ * perfectly synchronized.
+ *
+ * This function checks if the uncertainty interval for `date1` is completely
+ * lower than the uncertainty interval for `date2`. If there's some overlap
+ * this function returns true because we don't definitely know that `date1`
+ * is less than `date2`.
+ *
+ * Generally when comparing times you don't want to be strict so you should use
+ * `isDatePossiblyLessThanWithUncertaintyWindow()` which tells you if `date1`
+ * is possibly less than `date2`. See that function's documentation for more
+ * information on uncertainty windows in distributed systems.
+ */
+export function isDateDefinitelyLessThanWithUncertaintyWindow(
     date1: Date,
     date2: Date,
     // We default to a 500ms uncertainty window, but in tests use a 0ms uncertainty

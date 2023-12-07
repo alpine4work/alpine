@@ -29,9 +29,12 @@ import {
     DynamoBatchContextModule,
     DynamoContextModule,
 } from "~/server/dynamo/core/dynamo_context_module.js";
+import {TestLocalJobSender} from "~/server/dynamo/test_helpers/test_local_job_sender.js";
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {JobDescription} from "~/server/jobs/core/job_description.js";
+import {JobSender} from "~/server/jobs/core/job_sender.js";
 import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {NoopNotificationsContextModule} from "~/server/notifications/core/noop_notifications_context_module.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
@@ -115,14 +118,38 @@ export type TestContext = ServerProcessContext & {
  *
  * The context has all the modules in `AppProcessContext` and you can easily
  * create `AppActionContext`s.
+ *
+ * - By default, we don't start OpenSearch for this test context since it's
+ *   slow to start. Set `shouldStartOpensearch: true` if you need to write
+ *   tests against OpenSearch.
+ *
+ * - By default, ignore jobs in the local test process. Provide `processJob` to
+ *   process a job in the local text context. Provide `shouldSendJobsToSqs` to
+ *   add your jobs to a local SQS server so a `JobConsumer` can process them
+ *   instead of processing them locally.
  */
 export function createTestContext({
     shouldStartOpensearch = false,
     createNotificationsContextModule = () => new NoopNotificationsContextModule(),
+    shouldSendJobsToSqs = false,
+    processJob = async () => {},
 }: {
     shouldStartOpensearch?: boolean;
     createNotificationsContextModule?: () => NotificationsContextModuleBase;
-} = {}): TestContext {
+} & (
+    | {
+          shouldSendJobsToSqs: true;
+          processJob?: undefined;
+      }
+    | {
+          shouldSendJobsToSqs?: false;
+          processJob?: (
+              context: ServerSystemActionContext,
+              job: JobDescription,
+              jobStartTime: Date,
+          ) => Promise<void>;
+      }
+) = {}): TestContext {
     // Increase Jest timeout for tests using a test context since these tests
     // need to interact with the database which may be slow.
     //
@@ -154,7 +181,16 @@ export function createTestContext({
     };
 
     const getSqsLocalPort = () => {
-        if (sqsLocal === null) throw new InternalError("SQS local has not started");
+        if (sqsLocal === null) {
+            if (shouldSendJobsToSqs) {
+                throw new InternalError("SQS local has not started");
+            } else {
+                throw new InternalError(
+                    "SQS local is not enabled for this test context, to start SQS set `shouldSendJobsToSqs: true` in `createTestContext()`",
+                );
+            }
+        }
+
         return sqsLocal.port;
     };
 
@@ -293,28 +329,30 @@ export function createTestContext({
             [
                 fs.mkdtemp(joinPath(assertExists(process.env.TEST_TMPDIR), "cyberworlds_test_")),
                 getPort(),
-                getPort(),
-                getPort(),
+                shouldStartOpensearch ? getPort() : null,
+                shouldSendJobsToSqs ? getPort() : null,
             ],
         );
 
-        [dynamoLocal, sqsLocal, opensearchLocal] = await runAllPromises([
+        [dynamoLocal, opensearchLocal, sqsLocal] = await runAllPromises([
             startDynamoLocal({
                 dataPath: joinPath(tempPath, "dynamo/data"),
                 logsPath: joinPath(tempPath, "dynamo/logs"),
                 port: dynamoLocalPort,
             }),
-            startSqsLocal({
-                dataPath: joinPath(tempPath, "sqs/data"),
-                logsPath: joinPath(tempPath, "sqs/logs"),
-                port: sqsLocalPort,
-                statsPort: null,
-            }),
             shouldStartOpensearch
                 ? startOpensearchLocal({
                       dataPath: joinPath(tempPath, "opensearch/data"),
                       logsPath: joinPath(tempPath, "opensearch/logs"),
-                      port: opensearchLocalPort,
+                      port: assertExists(opensearchLocalPort),
+                  })
+                : null,
+            shouldSendJobsToSqs
+                ? startSqsLocal({
+                      dataPath: joinPath(tempPath, "sqs/data"),
+                      logsPath: joinPath(tempPath, "sqs/logs"),
+                      port: assertExists(sqsLocalPort),
+                      statsPort: null,
                   })
                 : null,
         ]);
@@ -326,13 +364,24 @@ export function createTestContext({
 
         dynamoContextModule.initialize(`http://localhost:${dynamoLocalPort}`, awsSigner);
 
-        jobsContextModule.initialize(`http://localhost:${sqsLocalPort}/local/JobQueue`);
-
         if (!opensearchLocal) {
             opensearchContextModule.initialize(new TestDisabledOpensearchClient());
         } else {
             opensearchContextModule.initialize(
                 new OpensearchClient(`http://localhost:${opensearchLocal.port}`, awsSigner),
+            );
+        }
+
+        if (!sqsLocal) {
+            jobsContextModule.initialize(
+                new TestLocalJobSender({
+                    processJob,
+                    createSystemContext,
+                }),
+            );
+        } else {
+            jobsContextModule.initialize(
+                new JobSender({queueUrl: `http://localhost:${sqsLocal.port}/local/JobQueue`}),
             );
         }
 

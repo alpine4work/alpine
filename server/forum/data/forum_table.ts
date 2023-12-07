@@ -46,7 +46,7 @@ import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_al
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
-import {isDateLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
@@ -2079,7 +2079,7 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
     // If our last change item has expired then other relevant changelog entries
     // may have also expired. The client will need to fully reset its state since
     // we don't have the data necessary to backfill.
-    if (isDateLessThanWithUncertaintyWindow(lastCommentChangeExpirationTime, new Date()))
+    if (isDatePossiblyLessThanWithUncertaintyWindow(lastCommentChangeExpirationTime, new Date()))
         return {type: "Unavailable"};
 
     const changes = await parallelMapAsyncIterableToArray(

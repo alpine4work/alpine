@@ -1,6 +1,10 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep, Step} from "prosemirror-transform";
-import {createDocument, updateDocumentContent} from "~/server/documents/data/documents_table.js";
+import {
+    DocumentContentCacheForUpdate,
+    createDocument,
+    updateDocumentContent,
+} from "~/server/documents/data/documents_table.js";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -101,7 +105,11 @@ export class TestDocument {
      * this `TestDocument`'s state. Moves the update position to after the
      * new text.
      */
-    public async type(session: TestSpaceSession, text: string) {
+    public async type(
+        session: TestSpaceSession,
+        text: string,
+        {cacheOverride}: {cacheOverride?: DocumentContentCacheForUpdate} = {},
+    ) {
         return this._state.withLock(async stateRef => {
             const result = await updateDocumentContent(session.action(), {
                 id: this.id,
@@ -116,6 +124,7 @@ export class TestDocument {
                     ),
                 ],
                 clientId: generateId(),
+                cacheOverrideForTest: cacheOverride,
             });
 
             stateRef.current.lastVersion += 1;

@@ -1,5 +1,5 @@
 import {JobDescription} from "~/server/jobs/core/job_description.js";
-import {JobSender} from "~/server/jobs/core/job_sender.js";
+import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -10,9 +10,9 @@ export class JobsContextModule extends ContextModuleBase<{
     process: ProcessContextModule;
     tracer: TracerContextModule;
 }> {
-    private readonly _sender!: JobSender;
+    private readonly _sender!: JobSenderBase;
 
-    private constructor(sender: JobSender | null) {
+    private constructor(sender: JobSenderBase | null) {
         super();
 
         if (sender !== null) {
@@ -86,14 +86,14 @@ export class JobsContextModule extends ContextModuleBase<{
      * May only run in a test environment.
      */
     public static test(): JobsContextModule & {
-        initialize: (queueUrl: string) => void;
+        initialize: (sender: JobSenderBase) => void;
     } {
         assert(process.env.NODE_ENV === "test");
 
         const contextModule = new JobsContextModule(null);
 
         return Object.assign(contextModule, {
-            initialize: (queueUrl: string) => {
+            initialize: (sender: JobSenderBase) => {
                 let hasInitialized = false;
                 try {
                     // eslint-disable-next-line @typescript-eslint/no-unused-expressions
@@ -105,7 +105,7 @@ export class JobsContextModule extends ContextModuleBase<{
                 assert(!hasInitialized, "Can not initialize job sender twice");
 
                 Object.defineProperty(contextModule, "_sender", {
-                    value: new JobSender({queueUrl}),
+                    value: sender,
                     writable: false,
                 });
             },

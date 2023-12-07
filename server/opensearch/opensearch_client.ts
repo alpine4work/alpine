@@ -145,7 +145,9 @@ export interface OpensearchClientInterface {
     >(
         tracer: TracerBase,
         commands: Commands,
-    ): Promise<{-readonly [K in keyof Commands]: ReturnType<Commands[K]["deserialize"]> | null}>;
+    ): Promise<{
+        -readonly [K in keyof Commands]: OpensearchMultiGetDocCommandOutputType<Commands[K]> | null;
+    }>;
 
     /**
      * Indexes a single document using the [index document API][1].
@@ -368,13 +370,17 @@ export interface OpensearchClientInterface {
 // explaining why your chose JSON stringify/parse methodology is safe. Or why
 // you need to use `json-bigint`.
 
+export type OpensearchMultiGetDocCommandOutputType<
+    Command extends OpensearchMultiGetDocCommandBase<any, any>,
+> = Command extends OpensearchMultiGetDocCommandBase<any, infer Output> ? Output : never;
+
 /**
  * Description for a single document we fetch in a [multi-get documents
  * operation][1].
  *
  * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/multi-get/
  */
-abstract class OpensearchMultiGetDocCommandBase<
+export abstract class OpensearchMultiGetDocCommandBase<
     Index extends OpensearchIndex<any, any, any, any, any>,
     Output,
 > {
@@ -430,7 +436,10 @@ export class OpensearchGetDocCommand<
         _primary_term: number;
         _source?: JsonValue;
         fields?: {[key: string]: Array<JsonValue>};
-    }) {
+    }): OpensearchClientDocWithIdAndVersion<
+        OpensearchIndexDocIdType<Index>,
+        OpensearchIndexDocType<Index>
+    > {
         assert(rawDoc._source);
 
         const doc = this.index.type.deserialize(rawDoc._source);
@@ -492,7 +501,15 @@ export class OpensearchGetDocWithoutSourceCommand<
         _primary_term: number;
         _source?: JsonValue;
         fields?: {[key: string]: Array<JsonValue>};
-    }) {
+    }): {
+        readonly id: OpensearchIndexDocIdType<Index>;
+        readonly version: OpensearchClientDocVersion | null;
+        readonly fields: {
+            readonly [Key in StoredFieldKeys]?: ReadonlyArray<
+                OpensearchIndexStoredFieldsType<Index>[Key]
+            >;
+        };
+    } {
         const fields: {[key: string]: Array<any>} = {};
 
         if (rawDoc.fields) {
@@ -1152,7 +1169,9 @@ export class OpensearchClient implements OpensearchClientInterface {
     >(
         tracer: TracerBase,
         commands: Commands,
-    ): Promise<{-readonly [K in keyof Commands]: ReturnType<Commands[K]["deserialize"]> | null}> {
+    ): Promise<{
+        -readonly [K in keyof Commands]: OpensearchMultiGetDocCommandOutputType<Commands[K]> | null;
+    }> {
         if (commands.length === 0) return [] as any;
 
         const indexes = new Set<OpensearchIndex<any, any, any, any, any>>();
