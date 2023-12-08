@@ -15,7 +15,7 @@ import {
     TextItalic,
     TextStrikethrough,
 } from "phosphor-react";
-import {Mark} from "prosemirror-model";
+import {Mark, Slice} from "prosemirror-model";
 import {Command, EditorState, TextSelection} from "prosemirror-state";
 import {EditorView} from "prosemirror-view";
 import {Memo, ReactNode, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -69,17 +69,34 @@ export function ContentEditorPointerToolbar({
 }) {
     const interactionModality = useInteractionModality();
 
-    const shouldShowIgnoringInteractionModality =
-        isFocused &&
-        // Make sure some characters are selected before showing the selection toolbar.
-        state.selection.from !== state.selection.to &&
-        // Only show the pointer toolbar for a text selection. This includes the
-        // `AllSelection`.
-        state.selection instanceof TextSelection &&
-        // Don't show the toolbar if the selection overlaps with the title. The title
-        // can only be at the beginning of a document so checking whether
-        // `selection.from` is in the title is sufficient for detecting overlap.
-        state.selection.$from.parent.type.name !== "title";
+    const shouldShowIgnoringInteractionModality = useMemo(
+        () =>
+            isFocused &&
+            // Make sure some characters are selected before showing the selection toolbar.
+            state.selection.from !== state.selection.to &&
+            // Only show the pointer toolbar for a text selection. This includes the
+            // `AllSelection`.
+            state.selection instanceof TextSelection &&
+            // If the user has only selected a newline, don't show the toolbar for an empty
+            // selection. This happens when the user double-clicks near a newline in
+            // Chrome. The newline is selected. On triple-click the paragraph following the
+            // newline is also selected.
+            //
+            // Chrome doesn't render a text highlight when only a newline is selected.
+            // Which means we show the toolbar above nothing which doesn't make sense. Also
+            // having the toolbar jump from the right to the left when the user
+            // triple-clicks after a double-click looks weird.
+            //
+            // Styling just a node boundary is kind of ridiculous so since it looks weird
+            // to show the toolbar on a node boundary, disable the toolbar entirely on node
+            // boundary selections.
+            !isNodeBoundarySlice(state.doc.slice(state.selection.from, state.selection.to)) &&
+            // Don't show the toolbar if the selection overlaps with the title. The title
+            // can only be at the beginning of a document so checking whether
+            // `selection.from` is in the title is sufficient for detecting overlap.
+            state.selection.$from.parent.type.name !== "title",
+        [isFocused, state.doc, state.selection],
+    );
 
     const [
         hasPointerMovedDuringNonPointerInteractionModalityWhenShouldShow,
@@ -1012,4 +1029,38 @@ function ContentEditorPointerToolbarHighlightButton({
             </Box>
         </OverlayAnimated>
     );
+}
+
+/**
+ * Does this ProseMirror slice exclusively contain the boundary between two
+ * nodes? With no content in between?
+ *
+ * In the editor boundaries between block nodes are rendered as a newline. So
+ * this returns true when the user has selected a newline.
+ */
+function isNodeBoundarySlice(slice: Slice): boolean {
+    if (slice.openStart === 0) return false;
+    if (slice.openEnd === 0) return false;
+
+    if (slice.content.content.length !== 2) return false;
+
+    let firstNode = slice.content.content[0]!;
+    let secondNode = slice.content.content[1]!;
+
+    let openStart = slice.openStart - 1;
+    let openEnd = slice.openEnd - 1;
+
+    while (openStart > 0) {
+        if (firstNode.content.content.length !== 1) return false;
+        firstNode = firstNode.content.content[0]!;
+        openStart--;
+    }
+
+    while (openEnd > 0) {
+        if (secondNode.content.content.length !== 1) return false;
+        secondNode = secondNode.content.content[0]!;
+        openEnd--;
+    }
+
+    return firstNode.childCount === 0 && secondNode.childCount === 0;
 }
