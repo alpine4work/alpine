@@ -293,6 +293,7 @@ test("can't update a task's notes with out-of-order updates if our durable objec
     await task.addCollection(session1, collection);
 
     await updateTaskNotesContent(session1.action(), {
+        spaceId: space.id,
         taskId: task.id,
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
@@ -328,6 +329,7 @@ test("can update a task's notes when our durable object doesn't remember earlier
     await task.addCollection(session1, collection);
 
     await updateTaskNotesContent(session1.action(), {
+        spaceId: space.id,
         taskId: task.id,
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
@@ -440,6 +442,7 @@ test("can't backfill task notes steps our durable object doesn't remember", asyn
     await task.addCollection(session1, collection);
 
     await updateTaskNotesContent(session1.action(), {
+        spaceId: space.id,
         taskId: task.id,
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
@@ -477,6 +480,7 @@ test("can current task notes version", async () => {
     await task.addCollection(session1, collection);
 
     await updateTaskNotesContent(session1.action(), {
+        spaceId: space.id,
         taskId: task.id,
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],

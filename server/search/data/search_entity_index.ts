@@ -281,11 +281,6 @@ export async function processIndexSearchEntityJob(
     context: SearchEntityIndexSystemActionContext,
     job: IndexSearchEntityJobDescription,
     jobStartTime: Date,
-    {
-        shouldImmediatelyProcessDependentsForTest = false,
-    }: {
-        shouldImmediatelyProcessDependentsForTest?: boolean;
-    } = {},
 ) {
     const entityId = printSearchEntityId(job.update);
 
@@ -633,39 +628,18 @@ export async function processIndexSearchEntityJob(
                 },
             );
 
-            const currentTime = new Date();
-
             await runAllPromises(
                 docs.map(async doc => {
-                    if (!shouldImmediatelyProcessDependentsForTest) {
-                        // Wait for confirmation the job was added to the queue. We don't care about
-                        // performance as much when processing jobs.
-                        await context.jobs.sendAndWait({
-                            type: "IndexSearchEntity",
-                            spaceId: job.spaceId,
-                            update: {
-                                ...parseSearchEntityId(doc.id),
-                                updatedTraits: {type: "None", parentJobStartTime: jobStartTime},
-                            },
-                        });
-                    } else {
-                        // Only allow immediate processing in tests. Normally we should add dependent
-                        // indexing jobs to the queue.
-                        assert(import.meta.jest);
-
-                        await processIndexSearchEntityJob(
-                            context,
-                            {
-                                type: "IndexSearchEntity",
-                                spaceId: job.spaceId,
-                                update: {
-                                    ...parseSearchEntityId(doc.id),
-                                    updatedTraits: {type: "None", parentJobStartTime: jobStartTime},
-                                },
-                            },
-                            currentTime,
-                        );
-                    }
+                    // Confirm the job was added to the queue before exiting. It's ok to take the
+                    // batch delay performance hit when processing jobs.
+                    await context.jobs.sendAndWait({
+                        type: "IndexSearchEntity",
+                        spaceId: job.spaceId,
+                        update: {
+                            ...parseSearchEntityId(doc.id),
+                            updatedTraits: {type: "None", parentJobStartTime: jobStartTime},
+                        },
+                    });
                 }),
             );
 

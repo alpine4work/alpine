@@ -1,15 +1,19 @@
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
+import {ForkableContextModuleBase} from "~/shared/context/fork_action_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-export class JobsContextModule extends ContextModuleBase<{
-    process: ProcessContextModule;
-    tracer: TracerContextModule;
-}> {
+export class JobsContextModule
+    extends ContextModuleBase<{
+        process: ProcessContextModule;
+        tracer: TracerContextModule;
+    }>
+    implements ForkableContextModuleBase
+{
     private readonly _sender!: JobSenderBase;
 
     private constructor(sender: JobSenderBase | null) {
@@ -77,6 +81,10 @@ export class JobsContextModule extends ContextModuleBase<{
      */
     public sendImmediately(job: JobDescription, options?: {delaySeconds?: number}): Promise<void> {
         return this._sender.sendImmediately(this._context, job, options);
+    }
+
+    public fork() {
+        return new JobsContextModule(this._sender);
     }
 
     /**

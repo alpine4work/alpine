@@ -9340,8 +9340,8 @@ test("may reference unauthorized collections", async () => {
             ],
             backfillCollections: [
                 expectUnauthorizedCollection(collection3.id),
-                expectUnauthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
+                expectUnauthorizedCollection(collection2.id),
             ],
             referencedAccounts: [await session1.get()],
         },
@@ -10207,8 +10207,8 @@ test("will reauthorize an unauthorized referenced collection to authorized", asy
             actions: [],
             backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
             backfillCollections: [
-                expectUnauthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
+                expectUnauthorizedCollection(collection2.id),
             ],
             referencedAccounts: [await session1.get()],
         },
@@ -10473,8 +10473,8 @@ test("reauthorize will noop if an unauthorized referenced collection is still un
             actions: [],
             backfillTasks: [expectAuthorizedTask(task1.id), expectAuthorizedTask(task2.id)],
             backfillCollections: [
-                expectUnauthorizedCollection(collection2.id),
                 expectAuthorizedCollection(collection1.id),
+                expectUnauthorizedCollection(collection2.id),
             ],
             referencedAccounts: [await session1.get()],
         },

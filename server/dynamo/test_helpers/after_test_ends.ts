@@ -1,9 +1,18 @@
 import {testSharedHooks} from "~/server/dynamo/test_helpers/test_shared_hooks.js";
+import {InternalError} from "~/shared/error/error.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 
 let callbacks: Array<() => MaybePromise<void>> = [];
 
+let isTestRunning = false;
+
+testSharedHooks.beforeEach(async () => {
+    isTestRunning = true;
+});
+
 testSharedHooks.afterEach(async () => {
+    isTestRunning = false;
+
     let hasError = false;
     let error;
 
@@ -32,5 +41,11 @@ testSharedHooks.afterEach(async () => {
  * in the order this function is called.
  */
 export function afterTestEnds(callback: () => MaybePromise<void>) {
+    if (!isTestRunning) {
+        throw new InternalError(
+            "Can't register callback for after test ends when no test is running",
+        );
+    }
+
     callbacks.push(callback);
 }

@@ -1224,7 +1224,7 @@ async function createChatModelFromItems(
 export async function getChatAccountIds(
     context: ServerActionContext,
     chatId: ChatId,
-    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency},
+    {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<{
     spaceId: SpaceId;
     accountIds: ReadonlyArray<AccountId>;

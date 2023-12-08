@@ -44,7 +44,9 @@ assertEqualTypes<
  */
 export function evaluateTaskQueryNormalizedFiltersForIndexDoc(
     filters: TaskQueryNormalizedFilters,
-    task: Omit<TaskIndexDoc, "id" | "spaceId" | "creator"> & {creator: {accountId: AccountId}},
+    task: Omit<TaskIndexDoc, "id" | "spaceId" | "creator" | "lastIndexSearchEntityJob"> & {
+        creator: {accountId: AccountId};
+    },
 ): boolean {
     // Deleted tasks should always be filtered out.
     if (isTaskIndexDocDeleted(task)) return false;

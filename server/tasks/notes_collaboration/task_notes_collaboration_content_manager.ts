@@ -209,6 +209,7 @@ export class TaskNotesCollaborationContentManager {
                                     // Throws a `FailedPreconditionError` if the provided version is incompatible
                                     // with what's in the database.
                                     await updateTaskNotesContent(context, {
+                                        spaceId: this.spaceId,
                                         taskId: this.taskId,
                                         version: oldVersion,
                                         steps: nextSteps,

@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/@types/node",
         "//:node_modules/@xenova/transformers",
         "//:node_modules/fs-extra",
+        "//server/helpers",
         "//server/language_models/core",
         "//shared/error",
         "//shared/helpers",

@@ -8,9 +8,13 @@ import {CrdtRegister, CrdtRegisterClass} from "~/shared/crdt/crdt_register.js";
 /**
  * Creates an OpenSearch object type for a CRDT register.
  */
-export function createCrdtRegisterOpensearchType<Value, FlattenedKeys extends string>(
+export function createCrdtRegisterOpensearchType<
+    Value,
+    FlattenedKeys extends string,
+    StoredFields extends {[key: string]: unknown},
+>(
     class_: CrdtRegisterClass<Value>,
-    type: OpensearchIndexTypeBase<Value, FlattenedKeys>,
+    type: OpensearchIndexTypeBase<Value, FlattenedKeys, StoredFields>,
 ) {
     return OpensearchIndexObjectType.new({
         fields: {

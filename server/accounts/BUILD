@@ -12,6 +12,7 @@ ts_project(
         "//:node_modules/date-fns",
         "//server/dynamo/core",
         "//server/emails",
+        "//server/jobs/core",
         "//server/tokens",
         "//shared/accounts",
         "//shared/context",

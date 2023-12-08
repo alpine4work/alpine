@@ -1,7 +1,7 @@
 import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {prepareTaskForClient} from "~/server/tasks/data/prepare_task_for_client.js";
-import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
-import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskCollectionIndexDocBase} from "~/server/tasks/data/task_collection_index_doc.js";
+import {TaskIndexDoc, TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
@@ -21,8 +21,10 @@ export async function assembleTaskAndReferences(
         getTaskIndexDoc,
         getCollectionIndexDoc,
     }: {
-        getTaskIndexDoc: (taskId: TaskId) => Promise<TaskIndexDoc>;
-        getCollectionIndexDoc: (taskId: TaskCollectionId) => Promise<TaskCollectionIndexDoc>;
+        getTaskIndexDoc: (taskId: TaskId) => Promise<TaskIndexDocBase & {id: TaskId}>;
+        getCollectionIndexDoc: (
+            taskId: TaskCollectionId,
+        ) => Promise<TaskCollectionIndexDocBase & {id: TaskCollectionId}>;
     },
 ): Promise<{
     task: TaskModel;

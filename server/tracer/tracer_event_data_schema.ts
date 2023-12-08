@@ -250,6 +250,12 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         delaySeconds: Schema.float,
         queueDurationMs: Schema.float,
     },
+    cohere: {
+        textCount: Schema.integer,
+        model: Schema.string,
+        inputType: Schema.string,
+        tokenCount: Schema.integer,
+    },
 };
 
 /**

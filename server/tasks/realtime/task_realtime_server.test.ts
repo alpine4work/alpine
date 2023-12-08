@@ -37,7 +37,7 @@ import {
 
 const context = createTestContext({shouldStartOpensearch: true});
 
-function testQueryTaskIndex(
+async function testQueryTaskIndex(
     space: TestSpace,
     {
         filters = defaultTaskQueryNormalizedFilters,
@@ -51,7 +51,7 @@ function testQueryTaskIndex(
         afterCursor?: TaskIndexDoc | null;
     } = {},
 ): Promise<Array<TaskIndexDoc>> {
-    return queryTaskIndex(space.systemAction(), {
+    const tasks = await queryTaskIndex(space.systemAction(), {
         spaceId: space.id,
         filters,
         sorts,
@@ -60,6 +60,8 @@ function testQueryTaskIndex(
             ? getTaskQueryNormalizedSortCursorForIndexDoc(sorts, afterCursor)
             : null,
     });
+
+    return tasks.map(({lastIndexSearchEntityJob, ...task}) => task);
 }
 
 test("loads an empty query when no tasks are in the space", async () => {
@@ -3792,7 +3794,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
     ).toEqual(
         await runAllPromises([
             getTaskIndexDocIfExistsForTest(context, space.id, task1.id).then(task =>
-                omitObject(assertExists(task), ["version"]),
+                omitObject(assertExists(task), ["version", "lastIndexSearchEntityJob"]),
             ),
         ]),
     );
@@ -3803,7 +3805,7 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
         ),
     ).not.toEqual(
         await getTaskIndexDocIfExistsForTest(context, space.id, task2.id)
-            .then(task => omitObject(assertExists(task), ["version"]))
+            .then(task => omitObject(assertExists(task), ["version", "lastIndexSearchEntityJob"]))
             .then(task => ({
                 ...task,
                 priority: task.priority.apply({value: "High", version: updatedTime}),
@@ -3824,16 +3826,18 @@ test("after loading tasks we will replay actions to add missing tasks if the tas
         hasMoreTasks: false,
         tasks: await runAllPromises([
             getTaskIndexDocIfExistsForTest(context, space.id, task1.id).then(task =>
-                omitObject(assertExists(task), ["version"]),
+                omitObject(assertExists(task), ["version", "lastIndexSearchEntityJob"]),
             ),
             getTaskIndexDocIfExistsForTest(context, space.id, task2.id)
-                .then(task => omitObject(assertExists(task), ["version"]))
+                .then(task =>
+                    omitObject(assertExists(task), ["version", "lastIndexSearchEntityJob"]),
+                )
                 .then(task => ({
                     ...task,
                     priority: task.priority.apply({value: "High", version: updatedTime}),
                 })),
             getTaskIndexDocIfExistsForTest(context, space.id, task3.id).then(task =>
-                omitObject(assertExists(task), ["version"]),
+                omitObject(assertExists(task), ["version", "lastIndexSearchEntityJob"]),
             ),
         ]),
     });

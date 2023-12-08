@@ -1,11 +1,15 @@
 import {ServerSystemActionContext} from "~/server/context/server_action_context.js";
+import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobSenderBase} from "~/server/jobs/core/job_sender.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+
+const originalSetTimeout = setTimeout;
 
 /**
  * An implementation of `JobSenderBase` that runs in the current
@@ -77,7 +81,12 @@ export class TestLocalJobSender extends JobSenderBase {
 
         const jobStartTime = new Date(Date.now() + delaySeconds * 1000);
 
+        let hasRun = false;
+
         const run = () => {
+            assert(!hasRun);
+            hasRun = true;
+
             processContextModule.waitUntil(
                 tracer.withSpan(`Process job ${job.type} (locally)`, async span => {
                     await this._createSystemContext(job.spaceId).with(
@@ -93,7 +102,14 @@ export class TestLocalJobSender extends JobSenderBase {
         if (delaySeconds === 0) {
             run();
         } else {
-            setTimeout(run, delaySeconds * 1000);
+            const timeout = createTimeout(run, delaySeconds * 1000);
+
+            afterTestEnds(() => {
+                if (!hasRun) {
+                    timeout.clear();
+                    run();
+                }
+            });
         }
     }
 }

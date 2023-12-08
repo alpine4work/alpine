@@ -17,10 +17,9 @@ import {TaskStatusWithSortableAccountRegister} from "~/shared/tasks/task_status.
  *
  * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/update-by-query/
  */
-export function applyTaskUpdateAccountNameToTaskIndexDoc(
-    task: TaskIndexDoc,
-    action: TaskUpdateAccountNameAction,
-): TaskIndexDoc {
+export function applyTaskUpdateAccountNameToTaskIndexDoc<
+    Task extends Omit<TaskIndexDoc, "lastIndexSearchEntityJob">,
+>(task: Task, action: TaskUpdateAccountNameAction): Task {
     if (task.creator.accountId === action.accountId) {
         if (
             task.creator.workingAccountNameVersion === action.accountNameVersion &&

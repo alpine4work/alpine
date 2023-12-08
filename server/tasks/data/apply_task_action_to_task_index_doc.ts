@@ -1,4 +1,4 @@
-import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskIndexDocBase} from "~/server/tasks/data/task_index_doc.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {areUint8ArraysEqual} from "~/shared/helpers/binary/are_uint8_arrays_equal.js";
 import {
@@ -36,12 +36,12 @@ import {applyTaskTitleUpdate} from "~/shared/tasks/task_title.js";
  * name to avoid exposing our account name eventual consistency to the end user
  * which looks like a glitch (this isn't implemented as of 2023-09-26).
  */
-export function applyTaskActionToTaskIndexDoc(
-    task: TaskIndexDoc,
+export function applyTaskActionToTaskIndexDoc<Task extends TaskIndexDocBase>(
+    task: Task,
     actionTime: HybridLogicalTime,
     action: TaskTaskAction,
     getActionReferencedSortableAccount: (accountId: AccountId) => TaskSortableAccount,
-): TaskIndexDoc {
+): Task {
     switch (action.type) {
         case "Create": {
             const isCompatible =

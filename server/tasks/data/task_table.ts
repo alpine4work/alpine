@@ -21,6 +21,7 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
+import {withSendTaskIndexSearchEntityJobIfNeeded} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -35,6 +36,7 @@ import {
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {wait} from "~/shared/helpers/async/wait.js";
 import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
@@ -770,7 +772,7 @@ export function commitTaskActionTransaction(
             });
         }
 
-        afterCommitTaskActionTransaction(context, actionTransactionItem);
+        const {processPromise} = afterCommitTaskActionTransaction(context, actionTransactionItem);
 
         // Update relevant affinity scores.
         //
@@ -817,6 +819,16 @@ export function commitTaskActionTransaction(
                 );
             }
         }
+
+        // Try and wait until the transaction is processed before returning to the
+        // client. We only wait up to 100ms then let the transaction processing
+        // finish in the background.
+        //
+        // Given the client only sends one `commitTaskActionTransaction()` request at a
+        // time, this helps reduce conflicts when indexing many sequential actions on
+        // the same task (e.g. from typing in the title). And helps other users
+        // connected to realtime see these actions in the same order they were made.
+        await Promise.race([processPromise.catch(() => {}), wait(100)]);
 
         return {extraActions};
     });
@@ -865,6 +877,8 @@ function afterCommitTaskActionTransaction(
         clientId: actionTransactionItem.clientId,
         processPromise,
     });
+
+    return {processPromise};
 }
 
 const taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression =
@@ -4106,120 +4120,137 @@ export async function getTaskNotesContent(
  */
 export function updateTaskNotesContent(
     context: ServerSessionActionContext,
-    {taskId, version, steps}: {taskId: TaskId; version: number; steps: ReadonlyArray<Step>},
+    {
+        spaceId,
+        taskId,
+        version,
+        steps,
+    }: {
+        spaceId: SpaceId;
+        taskId: TaskId;
+        version: number;
+        steps: ReadonlyArray<Step>;
+    },
 ) {
-    return context.dynamo.retryTransaction(async context => {
-        const [taskItem, notesItem] = await runAllPromises([
-            (async () => {
-                const taskItem = await TaskTable.getItem(context, {
-                    partitionType: "Task",
-                    sortRangeType: "EssentialAttributes",
-                    taskId,
-                });
+    return withSendTaskIndexSearchEntityJobIfNeeded(context, {spaceId, taskId}, () => {
+        return context.dynamo.retryTransaction(async context => {
+            const [taskItem, notesItem] = await runAllPromises([
+                (async () => {
+                    const taskItem = await TaskTable.getItem(context, {
+                        partitionType: "Task",
+                        sortRangeType: "EssentialAttributes",
+                        taskId,
+                    });
 
-                const expectedAccessLevel = "Edit";
+                    const expectedAccessLevel = "Edit";
 
-                const hasAccess = await isTaskItemAccessAuthorized(
-                    context,
-                    context.actor.getAccountId(),
-                    taskItem,
-                    expectedAccessLevel,
-                    {
-                        getTaskItem: taskId => getTaskItemForAuthorization(context, taskId, null),
-                        getCollectionItem: collectionId =>
-                            getTaskCollectionItemForAuthorization(context, collectionId, null),
-                    },
-                );
-
-                if (!hasAccess) {
-                    throw new PermissionDeniedError(
-                        quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                    const hasAccess = await isTaskItemAccessAuthorized(
+                        context,
+                        context.actor.getAccountId(),
+                        taskItem,
+                        expectedAccessLevel,
                         {
-                            displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
-                                taskItem,
-                                expectedAccessLevel,
-                            ),
+                            getTaskItem: taskId =>
+                                getTaskItemForAuthorization(context, taskId, null),
+                            getCollectionItem: collectionId =>
+                                getTaskCollectionItemForAuthorization(context, collectionId, null),
                         },
                     );
+
+                    if (!hasAccess) {
+                        throw new PermissionDeniedError(
+                            quote`Actor does not have ${expectedAccessLevel} access level to task`,
+                            {
+                                displayMessage: getTaskItemPermissionDeniedErrorDisplayMessage(
+                                    taskItem,
+                                    expectedAccessLevel,
+                                ),
+                            },
+                        );
+                    }
+
+                    if (taskItem.spaceId !== spaceId) {
+                        throw new FailedPreconditionError("Task is in unexpected space");
+                    }
+
+                    return taskItem;
+                })(),
+                TaskTable.getItemIfExists(context, {
+                    partitionType: "Task",
+                    sortRangeType: "Notes",
+                    taskId,
+                }),
+            ]);
+
+            let newNotesItem: TaskNotesItem;
+
+            // If the notes item doesn't exist yet then create it.
+            if (!notesItem) {
+                if (version !== 0) throw new FailedPreconditionError("Incorrect version");
+
+                let content = emptyTaskNotesContent;
+
+                for (const step of steps) {
+                    const stepResult = step.apply(content);
+                    if (!stepResult.doc)
+                        throw new FailedPreconditionError("Couldn't apply step to content");
+
+                    assert(isTaskNotesContent(stepResult.doc));
+                    content = stepResult.doc;
                 }
 
-                return taskItem;
-            })(),
-            TaskTable.getItemIfExists(context, {
-                partitionType: "Task",
-                sortRangeType: "Notes",
-                taskId,
-            }),
-        ]);
-
-        let newNotesItem: TaskNotesItem;
-
-        // If the notes item doesn't exist yet then create it.
-        if (!notesItem) {
-            if (version !== 0) throw new FailedPreconditionError("Incorrect version");
-
-            let content = emptyTaskNotesContent;
-
-            for (const step of steps) {
-                const stepResult = step.apply(content);
-                if (!stepResult.doc)
-                    throw new FailedPreconditionError("Couldn't apply step to content");
-
-                assert(isTaskNotesContent(stepResult.doc));
-                content = stepResult.doc;
-            }
-
-            newNotesItem = {
-                partitionType: "Task",
-                sortRangeType: "Notes",
-                spaceId: taskItem.spaceId,
-                taskId,
-                version: steps.length,
-                content,
-            };
-        } else {
-            if (version !== notesItem.version)
-                throw new FailedPreconditionError("Incorrect version");
-
-            let content = notesItem.content;
-
-            for (const step of steps) {
-                const stepResult = step.apply(content);
-                if (!stepResult.doc)
-                    throw new FailedPreconditionError("Couldn't apply step to content");
-
-                assert(isTaskNotesContent(stepResult.doc));
-                content = stepResult.doc;
-            }
-
-            newNotesItem = {
-                ...notesItem,
-                version: notesItem.version + steps.length,
-                content,
-            };
-        }
-
-        // If a task's notes changed and there's a lease, invalidate the lease so the
-        // account who owns the lease can't see changes to a task they shouldn't have
-        // access to.
-        if (taskItem.validLeaseId === null) {
-            if (notesItem === null) {
-                await TaskTable.createItem(context, newNotesItem);
+                newNotesItem = {
+                    partitionType: "Task",
+                    sortRangeType: "Notes",
+                    spaceId: taskItem.spaceId,
+                    taskId,
+                    version: steps.length,
+                    content,
+                };
             } else {
-                await TaskTable.directlyUpdateItem(context, newNotesItem);
+                if (version !== notesItem.version)
+                    throw new FailedPreconditionError("Incorrect version");
+
+                let content = notesItem.content;
+
+                for (const step of steps) {
+                    const stepResult = step.apply(content);
+                    if (!stepResult.doc)
+                        throw new FailedPreconditionError("Couldn't apply step to content");
+
+                    assert(isTaskNotesContent(stepResult.doc));
+                    content = stepResult.doc;
+                }
+
+                newNotesItem = {
+                    ...notesItem,
+                    version: notesItem.version + steps.length,
+                    content,
+                };
             }
-        } else {
-            await DynamoTableSchema.executeTransaction(context, [
-                TaskTable.transactionDirectlyUpdateItem({
-                    ...taskItem,
-                    // Invalidate any leases on this task now that another user has updated it.
-                    validLeaseId: null,
-                }),
-                notesItem === null
-                    ? TaskTable.transactionCreateItem(newNotesItem)
-                    : TaskTable.transactionDirectlyUpdateItem(newNotesItem),
-            ]);
-        }
+
+            // If a task's notes changed and there's a lease, invalidate the lease so the
+            // account who owns the lease can't see changes to a task they shouldn't have
+            // access to.
+            if (taskItem.validLeaseId === null) {
+                if (notesItem === null) {
+                    await TaskTable.createItem(context, newNotesItem);
+                } else {
+                    await TaskTable.directlyUpdateItem(context, newNotesItem);
+                }
+            } else {
+                await DynamoTableSchema.executeTransaction(context, [
+                    TaskTable.transactionDirectlyUpdateItem({
+                        ...taskItem,
+                        // Invalidate any leases on this task now that another user has updated it.
+                        validLeaseId: null,
+                    }),
+                    notesItem === null
+                        ? TaskTable.transactionCreateItem(newNotesItem)
+                        : TaskTable.transactionDirectlyUpdateItem(newNotesItem),
+                ]);
+            }
+        });
     });
 }
 

@@ -22,7 +22,9 @@ import {emptyTaskTitle} from "~/shared/tasks/task_title.js";
 export function createEmptyTaskIndexDoc(
     actionTime: HybridLogicalTime,
     action: TaskCreateAction,
-): Omit<TaskIndexDoc, "id" | "spaceId" | "creator"> & {creator: {accountId: AccountId}} {
+): Omit<TaskIndexDoc, "id" | "spaceId" | "creator"> & {
+    creator: {accountId: AccountId};
+} {
     return {
         creator: {accountId: action.creatorId},
         createdTime: new TaskFilterableTime({

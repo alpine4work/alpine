@@ -142,9 +142,12 @@ test("will index a document after a timeout", async () => {
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
+
+    // Make sure there are no more jobs in the queue.
+    expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("will only index a document once if update happened within timeout", async () => {
+test("will only index a document once if update happened within the timeout", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -193,6 +196,9 @@ test("will only index a document once if update happened within timeout", async 
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
+
+    // Make sure there are no more jobs in the queue.
+    expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
 test("will only index a document once if update happened within timeout even across different caches", async () => {
@@ -260,6 +266,9 @@ test("will only index a document once if update happened within timeout even acr
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
+
+    // Make sure there are no more jobs in the queue.
+    expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
 test("will index a document again if update happened after timeout", async () => {
@@ -320,6 +329,9 @@ test("will index a document again if update happened after timeout", async () =>
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
+
+    // Make sure there are no more jobs in the queue.
+    expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
 test("will index a document again if update happened after timeout with more updates after first timeout", async () => {
@@ -398,6 +410,9 @@ test("will index a document again if update happened after timeout with more upd
         title: "Hollywoo Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
+
+    // Make sure there are no more jobs in the queue.
+    expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
 test("will not schedule another indexing job if document title is updated after creation", async () => {
@@ -461,6 +476,9 @@ test("will not schedule another indexing job if document title is updated after 
         title: "Hollywood (test) Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out.",
     });
+
+    // Make sure there are no more jobs in the queue.
+    expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
 test("will schedule another indexing job if document title is updated after content update", async () => {
@@ -558,6 +576,9 @@ test("will schedule another indexing job if document title is updated after cont
         title: "Hollywood (test) Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
+
+    // Make sure there are no more jobs in the queue.
+    expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
 test("will not schedule another indexing job if document title is updated twice after content update", async () => {
@@ -675,4 +696,7 @@ test("will not schedule another indexing job if document title is updated twice 
         title: "Hollywooooooood (test) Stars and Celebrities",
         body: "What Do They Know? Do They Know Things? Let’s Find Out. This is the title of a game show from BoJack Horseman hosted by the character Mr. Peanutbutter.",
     });
+
+    // Make sure there are no more jobs in the queue.
+    expect(import.meta.jest.getTimerCount()).toEqual(0);
 });

@@ -510,7 +510,7 @@ type DocumentCommentItem = DynamoTableItemType<
  * When the user first makes an edit to a document we queue an indexing job
  * with this delay. If the user makes an update to the document before the
  * delay has passed then we don't index again. Since when the indexing job
- * finally runs the update will be picked up. If the user makes an update after
+ * finally runs, the update will be picked up. If the user makes an update after
  * the delay has passed then we schedule another indexing job with a new delay.
  *
  * We pick a minute since we're ok with it taking a bit for new document

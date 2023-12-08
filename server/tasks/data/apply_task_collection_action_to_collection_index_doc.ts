@@ -1,4 +1,4 @@
-import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
+import {TaskCollectionIndexDocBase} from "~/server/tasks/data/task_collection_index_doc.js";
 import {FailedPreconditionError} from "~/shared/error/error.js";
 import {
     HybridLogicalTime,
@@ -14,11 +14,9 @@ import {TaskCollectionAction} from "~/shared/tasks/actions/task_collection_actio
  * be applied in any order or multiple times and we'll converge to the same
  * result every time.
  */
-export function applyTaskCollectionActionToCollectionIndexDoc(
-    collection: TaskCollectionIndexDoc,
-    actionTime: HybridLogicalTime,
-    action: TaskCollectionAction,
-): TaskCollectionIndexDoc {
+export function applyTaskCollectionActionToCollectionIndexDoc<
+    Collection extends TaskCollectionIndexDocBase,
+>(collection: Collection, actionTime: HybridLogicalTime, action: TaskCollectionAction): Collection {
     switch (action.type) {
         case "Create": {
             if (compareHybridLogicalTimes(collection.createdTime, actionTime)) {

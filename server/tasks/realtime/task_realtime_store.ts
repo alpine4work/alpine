@@ -1,17 +1,21 @@
 import {CalendarDate} from "@internationalized/date";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
+import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
 import {applyTaskUpdateAccountNameToTaskIndexDoc} from "~/server/tasks/data/apply_task_update_account_name_to_task_index_doc.js";
 import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
-import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
+import {
+    TaskCollectionIndexActualDoc,
+    TaskCollectionIndexDoc,
+} from "~/server/tasks/data/task_collection_index_doc.js";
 import {
     getTaskCollectionIndexDocsIfExist,
     getTaskIndexDocsIfExist,
 } from "~/server/tasks/data/task_index.js";
-import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {ReadonlyTaskRealtimeActionHistory} from "~/server/tasks/realtime/task_realtime_action_history.js";
 import {
     TaskRealtimeCollectionSubscription,
@@ -1144,15 +1148,6 @@ export class TaskRealtimeStoreInternal {
             this.ensureFullActionHistory(context),
         ]);
 
-        // Remove the `version` property from loaded tasks. The tasks we keep track of
-        // in our store don't have the OpenSearch version since we update the tasks
-        // independently.
-        for (const task of tasks) {
-            if (task !== null && "version" in task) {
-                delete (task as any).version;
-            }
-        }
-
         this._executeLoadTaskBatchSync(context, taskLoadBatch, tasks);
     }
 
@@ -1166,7 +1161,10 @@ export class TaskRealtimeStoreInternal {
             taskId: TaskId;
             promiseResolver: PromiseResolver<TaskRealtimeStoreTaskEntry | null>;
         }>,
-        tasks: Array<TaskIndexDoc | null>,
+        tasks: ReadonlyArray<OpensearchClientDocWithIdAndVersion<
+            TaskId,
+            TaskIndexActualDoc
+        > | null>,
     ): void {
         const freshTaskById = new Map<
             TaskId,
@@ -1189,7 +1187,12 @@ export class TaskRealtimeStoreInternal {
                 if (!task) {
                     promiseResolver.resolve(null);
                 } else {
-                    freshTaskById.set(taskId, {freshTask: task, promiseResolver});
+                    const {version, lastIndexSearchEntityJob, ...freshTask} = task;
+
+                    freshTaskById.set(taskId, {
+                        freshTask,
+                        promiseResolver,
+                    });
                 }
             }
         }
@@ -1314,15 +1317,6 @@ export class TaskRealtimeStoreInternal {
             this.ensureFullActionHistory(context),
         ]);
 
-        // Remove the `version` property from loaded collections. The collections we
-        // keep track of in our store don't have the OpenSearch version since we update
-        // the collections independently.
-        for (const collection of collections) {
-            if (collection !== null && "version" in collection) {
-                delete (collection as any).version;
-            }
-        }
-
         this._executeLoadCollectionBatchSync(context, collectionLoadBatch, collections);
     }
 
@@ -1336,7 +1330,10 @@ export class TaskRealtimeStoreInternal {
             collectionId: TaskCollectionId;
             promiseResolver: PromiseResolver<TaskRealtimeStoreCollectionEntry | null>;
         }>,
-        collections: Array<TaskCollectionIndexDoc | null>,
+        collections: ReadonlyArray<OpensearchClientDocWithIdAndVersion<
+            TaskCollectionId,
+            TaskCollectionIndexActualDoc
+        > | null>,
     ): void {
         const freshCollectionById = new Map<
             TaskCollectionId,
@@ -1359,8 +1356,10 @@ export class TaskRealtimeStoreInternal {
                 if (!collection) {
                     promiseResolver.resolve(null);
                 } else {
+                    const {version, ...freshCollection} = collection;
+
                     freshCollectionById.set(collectionId, {
-                        freshCollection: collection,
+                        freshCollection,
                         promiseResolver,
                     });
                 }

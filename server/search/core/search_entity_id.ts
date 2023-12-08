@@ -27,8 +27,8 @@ export type SearchEntityId =
     | `PostComment:${PostId}-${number}`
     | `Chat:${ChatId}`
     | `ChatMessage:${ChatId}-${number}`
-    | `Task:${TaskId}` // NOCOMMIT: Index
-    | `TaskCollection:${TaskCollectionId}`; // NOCOMMIT: Index
+    | `Task:${TaskId}`
+    | `TaskCollection:${TaskCollectionId}`;
 
 /**
  * Parsed representation of a `SearchEntityId` string for easier manipulation.

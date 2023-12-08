@@ -6,6 +6,7 @@ ts_project(
     visibility = ["//server:__subpackages__"],
     deps = [
         "//:node_modules/@aws-sdk/client-sqs",
+        "//server/helpers",
         "//server/search/core",
         "//shared/context",
         "//shared/error",

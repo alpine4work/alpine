@@ -81,6 +81,7 @@ export const getTaskNotesContent = defineRpc({
 export const updateTaskNotesContent = defineRpc({
     name: "updateTaskNotesContent",
     input: {
+        spaceId: Schema.id<SpaceId>(),
         taskId: Schema.id<TaskId>(),
         version: Schema.integer,
         steps: Schema.array(TaskNotesContentStepSchema),

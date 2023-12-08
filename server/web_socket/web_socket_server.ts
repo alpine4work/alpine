@@ -1558,22 +1558,22 @@ class WebSocketServerTestConnectionWrapper<
         this._messageFromClientSchema = messageFromClientSchema;
         this._messageFromServerSchema = messageFromServerSchema;
 
-        // In tests, authorize every connection after the current test completes to
-        // make sure we didn't lose access while the test was executing.
         assertExists(afterNextCallbacksForTest).push(async () => {
-            if (this._isClosed) return;
+            await ProcessContextModule.waitForTestTasks();
 
-            await this._actionContext.fork.withFork(
-                webSocketConnectionAuthorizationSpanName,
-                (context, span) => {
-                    span.addData({common: {isBlocking: false}});
+            // In tests, authorize every connection after the current test completes to
+            // make sure we didn't lose access while the test was executing.
+            if (!this._isClosed) {
+                await this._actionContext.fork.withFork(
+                    webSocketConnectionAuthorizationSpanName,
+                    (context, span) => {
+                        span.addData({common: {isBlocking: false}});
 
-                    return this.connection.authorize(context);
-                },
-            );
-        });
+                        return this.connection.authorize(context);
+                    },
+                );
+            }
 
-        assertExists(afterNextCallbacksForTest).push(async () => {
             if (this._closeError.hasError && !this._closeError.wasCaught) {
                 throw new InternalError(
                     "WebSocket connection closed with error (catch error by calling `getCloseError()`)",

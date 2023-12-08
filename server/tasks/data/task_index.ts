@@ -8,10 +8,15 @@ import {DynamoContextModule} from "~/server/dynamo/core/dynamo_context_module.js
 import {SystemActorContextModule} from "~/server/helpers/actor_context_module.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
+import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {
+    OpensearchBulkCommandBase,
     OpensearchClient,
+    OpensearchClientDocWithId,
+    OpensearchClientDocWithIdAndVersion,
     OpensearchGetDocCommand,
     OpensearchIndexDocIfVersionCommand,
+    TestDisabledOpensearchClient,
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
@@ -32,14 +37,13 @@ import {
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
 import {
-    TaskCollectionIndexDoc,
+    TaskCollectionIndexActualDoc,
     TaskCollectionIndexDocType,
-    TaskCollectionIndexDocWithVersion,
 } from "~/server/tasks/data/task_collection_index_doc.js";
 import {
-    TaskIndexDoc,
+    TaskIndexActualDoc,
     TaskIndexDocType,
-    TaskIndexDocWithVersion,
+    TaskIndexSearchEntityJob,
 } from "~/server/tasks/data/task_index_doc.js";
 import {assembleTaskCollectionSearchResults} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -50,13 +54,17 @@ import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
+import {areHybridLogicalTimesEqual} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
@@ -125,6 +133,24 @@ const TaskCollectionIndex = new OpensearchIndex<
 });
 
 /**
+ * The throttle interval for task indexing jobs in seconds. Indexing a
+ * task requires reading the entire thing and saving it to OpenSearch which
+ * can be expensive. Given how frequently users updating tasks, we throttle
+ * how frequently a task is indexed.
+ *
+ * When the user first makes an edit to a task we queue an indexing job
+ * with this delay. If the user makes an update to the task before the
+ * delay has passed then we don't index again. Since when the indexing job
+ * finally runs, the update will be picked up. If the user makes an update after
+ * the delay has passed then we schedule another indexing job with a new delay.
+ *
+ * We pick a minute since we're ok with it taking a bit for new task
+ * changes to be indexed. Reindexing can be expensive so we want to capture as
+ * many updates as possible when we reindex.
+ */
+const taskIndexSearchEntityJobDelaySeconds = 60;
+
+/**
  * Deploy our task indexes to production.
  *
  * May only be called in a production environment. Should only be called by our
@@ -153,7 +179,7 @@ export async function getTaskIndexDocsIfExist(
     }>,
     spaceId: SpaceId,
     taskIds: ReadonlyArray<TaskId>,
-): Promise<ReadonlyArray<TaskIndexDoc>> {
+): Promise<ReadonlyArray<OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc> | null>> {
     // We don't verify that the account is allowed to load these documents. We
     // require a system actor with access to the entire space.
     context.actor.authorizeSystem();
@@ -179,7 +205,12 @@ export async function getTaskCollectionIndexDocsIfExist(
     }>,
     spaceId: SpaceId,
     collectionIds: ReadonlyArray<TaskCollectionId>,
-): Promise<ReadonlyArray<TaskCollectionIndexDoc>> {
+): Promise<
+    ReadonlyArray<OpensearchClientDocWithIdAndVersion<
+        TaskCollectionId,
+        TaskCollectionIndexActualDoc
+    > | null>
+> {
     // We don't verify that the account is allowed to load these documents. We
     // require a system actor with access to the entire space.
     context.actor.authorizeSystem();
@@ -315,18 +346,27 @@ class TaskActionTransactionIndexState {
     public readonly retry: (error?: unknown) => never;
     private readonly _actionReferencedAccountById: ReadonlyMap<AccountId, AccountModel>;
 
-    private readonly _updatedTaskIndexDocById = new Map<TaskId, TaskIndexDocWithVersion>();
+    private readonly _updatedTaskIndexDocById = new Map<
+        TaskId,
+        Replace<
+            OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc>,
+            {lastIndexSearchEntityJob: TaskIndexSearchEntityJob | null}
+        >
+    >();
     private readonly _retrievedTaskIndexDocById = new Map<
         TaskId,
-        Promise<TaskIndexDocWithVersion | null>
+        Promise<OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc> | null>
     >();
     private readonly _updatedCollectionIndexDocById = new Map<
         TaskCollectionId,
-        TaskCollectionIndexDocWithVersion
+        OpensearchClientDocWithIdAndVersion<TaskCollectionId, TaskCollectionIndexActualDoc>
     >();
     private readonly _retrievedCollectionIndexDocById = new Map<
         TaskCollectionId,
-        Promise<TaskCollectionIndexDocWithVersion | null>
+        Promise<OpensearchClientDocWithIdAndVersion<
+            TaskCollectionId,
+            TaskCollectionIndexActualDoc
+        > | null>
     >();
 
     private constructor(
@@ -387,26 +427,247 @@ class TaskActionTransactionIndexState {
                 await actuallyIndexTaskAction(state, action, isInitialAttempt);
             }
 
-            await state._context.opensearch.client.bulk(
-                context.tracer.getTracer(),
-                [
-                    ...mapIterable(
-                        state._updatedTaskIndexDocById,
-                        ([taskId, task]) =>
-                            new OpensearchIndexDocIfVersionCommand(TaskIndex, spaceId, task),
-                    ),
-                    ...mapIterable(
-                        state._updatedCollectionIndexDocById,
-                        ([collectionId, collection]) =>
-                            new OpensearchIndexDocIfVersionCommand(
-                                TaskCollectionIndex,
+            const currentTime = new Date();
+            const jobs: Array<{job: JobDescription; delaySeconds?: number}> = [];
+
+            const commandPromises = concatIterables<
+                Promise<OpensearchBulkCommandBase<typeof TaskIndex | typeof TaskCollectionIndex>>
+            >(
+                mapIterable(state._updatedTaskIndexDocById.values(), async newTask => {
+                    const oldTask = await state._retrievedTaskIndexDocById.get(newTask.id);
+
+                    let newLastIndexSearchEntityJob = newTask.lastIndexSearchEntityJob;
+
+                    if (!oldTask || !newLastIndexSearchEntityJob) {
+                        // NOCOMMIT: On creation we should use `None` instead to avoid searching
+                        // dependencies.
+                        const updatedTraits: TaskIndexSearchEntityJob["updatedTraits"] = {
+                            type: "Any",
+                        };
+
+                        newLastIndexSearchEntityJob = {
+                            sendTime: currentTime,
+                            updatedTraits,
+                        };
+
+                        jobs.push({
+                            delaySeconds: taskIndexSearchEntityJobDelaySeconds,
+                            job: {
+                                type: "IndexSearchEntity",
                                 spaceId,
-                                collection,
-                            ),
-                    ),
-                ],
-                {retryPartialVersionConflictError: retry},
+                                update: {
+                                    type: "Task",
+                                    taskId: newTask.id,
+                                    updatedTraits,
+                                },
+                            },
+                        });
+                    } else {
+                        const updatedTraits: Array<"Authorization"> = [];
+
+                        const isCreatorAccountUnchanged =
+                            oldTask.creator.accountId === newTask.creator.accountId;
+
+                        const isRawDeletedTimeUnchanged =
+                            oldTask.rawDeletedTime === newTask.rawDeletedTime ||
+                            (oldTask.rawDeletedTime !== null &&
+                                newTask.rawDeletedTime !== null &&
+                                areHybridLogicalTimesEqual(
+                                    oldTask.rawDeletedTime,
+                                    newTask.rawDeletedTime,
+                                ));
+
+                        const isRawUndeletedTimeUnchanged =
+                            oldTask.rawUndeletedTime === newTask.rawUndeletedTime ||
+                            (oldTask.rawUndeletedTime !== null &&
+                                newTask.rawUndeletedTime !== null &&
+                                areHybridLogicalTimesEqual(
+                                    oldTask.rawUndeletedTime,
+                                    newTask.rawUndeletedTime,
+                                ));
+
+                        const isAssigneeAccountUnchanged =
+                            oldTask.assignee.value?.assignee.accountId ===
+                            newTask.assignee.value?.assignee.accountId;
+
+                        const areCollectionsUnchanged =
+                            oldTask.collections.raw.collections ===
+                                newTask.collections.raw.collections ||
+                            isDeepEqual(
+                                new Set(
+                                    oldTask.collections.raw.collections
+                                        .getArray()
+                                        .map(({collectionId}) => collectionId),
+                                ),
+                                new Set(
+                                    newTask.collections.raw.collections
+                                        .getArray()
+                                        .map(({collectionId}) => collectionId),
+                                ),
+                            );
+
+                        const isParentTaskUnchanged =
+                            oldTask.parent.taskId.value === newTask.parent.taskId.value;
+
+                        // Any of these individual properties changing could contribute to the task's
+                        // `Authorization` trait.
+                        //
+                        // Deleting a task doesn't change view access to the task but may change view
+                        // access to any child tasks.
+                        if (
+                            !isCreatorAccountUnchanged ||
+                            !isRawDeletedTimeUnchanged ||
+                            !isRawUndeletedTimeUnchanged ||
+                            !isAssigneeAccountUnchanged ||
+                            !areCollectionsUnchanged ||
+                            !isParentTaskUnchanged
+                        ) {
+                            updatedTraits.push("Authorization");
+                        }
+
+                        const areUpdatedTraitsInLastIndexSearchEntityJob =
+                            oldTask.lastIndexSearchEntityJob.updatedTraits.type === "Any" ||
+                            (oldTask.lastIndexSearchEntityJob.updatedTraits.type === "Some" &&
+                                updatedTraits.every(
+                                    trait =>
+                                        oldTask.lastIndexSearchEntityJob.updatedTraits.type ===
+                                            "Some" &&
+                                        oldTask.lastIndexSearchEntityJob.updatedTraits.traits.includes(
+                                            trait,
+                                        ),
+                                ));
+
+                        // Don't add another task index job until after the first one's delay has
+                        // finished. When the delayed indexing job runs it will pick up this update.
+                        //
+                        // Or add another task index job if a trait changed which isn't covered by
+                        // the last index job.
+                        if (
+                            !areUpdatedTraitsInLastIndexSearchEntityJob ||
+                            isDatePossiblyLessThanWithUncertaintyWindow(
+                                new Date(
+                                    oldTask.lastIndexSearchEntityJob.sendTime.getTime() +
+                                        taskIndexSearchEntityJobDelaySeconds * 1000,
+                                ),
+                                currentTime,
+                            )
+                        ) {
+                            newLastIndexSearchEntityJob = {
+                                sendTime: currentTime,
+                                updatedTraits: {type: "Some", traits: updatedTraits},
+                            };
+
+                            jobs.push({
+                                delaySeconds: taskIndexSearchEntityJobDelaySeconds,
+                                job: {
+                                    type: "IndexSearchEntity",
+                                    spaceId,
+                                    update: {
+                                        type: "Task",
+                                        taskId: newTask.id,
+                                        updatedTraits: {type: "Some", traits: updatedTraits},
+                                    },
+                                },
+                            });
+                        }
+                    }
+
+                    return new OpensearchIndexDocIfVersionCommand(
+                        TaskIndex,
+                        spaceId,
+                        newTask.lastIndexSearchEntityJob !== null &&
+                        newTask.lastIndexSearchEntityJob === newLastIndexSearchEntityJob
+                            ? (newTask as OpensearchClientDocWithIdAndVersion<
+                                  TaskId,
+                                  TaskIndexActualDoc
+                              >)
+                            : {...newTask, lastIndexSearchEntityJob: newLastIndexSearchEntityJob},
+                    );
+                }),
+                mapIterable(state._updatedCollectionIndexDocById.values(), async newCollection => {
+                    const oldCollection = await state._retrievedCollectionIndexDocById.get(
+                        newCollection.id,
+                    );
+
+                    if (!oldCollection) {
+                        jobs.push({
+                            job: {
+                                type: "IndexSearchEntity",
+                                spaceId,
+                                update: {
+                                    type: "TaskCollection",
+                                    collectionId: newCollection.id,
+                                    updatedTraits: {type: "Any"},
+                                },
+                            },
+                        });
+                    } else {
+                        const updatedTraits: Array<"Authorization"> = [];
+
+                        const isRawDeletedTimeUnchanged =
+                            oldCollection.rawDeletedTime === newCollection.rawDeletedTime ||
+                            (oldCollection.rawDeletedTime !== null &&
+                                newCollection.rawDeletedTime !== null &&
+                                areHybridLogicalTimesEqual(
+                                    oldCollection.rawDeletedTime,
+                                    newCollection.rawDeletedTime,
+                                ));
+
+                        const isRawUndeletedTimeUnchanged =
+                            oldCollection.rawUndeletedTime === newCollection.rawUndeletedTime ||
+                            (oldCollection.rawUndeletedTime !== null &&
+                                newCollection.rawUndeletedTime !== null &&
+                                areHybridLogicalTimesEqual(
+                                    oldCollection.rawUndeletedTime,
+                                    newCollection.rawUndeletedTime,
+                                ));
+
+                        const isAccessPolicyUnchanged = isDeepEqual(
+                            oldCollection.accessPolicy.value,
+                            newCollection.accessPolicy.value,
+                        );
+
+                        if (
+                            !isRawDeletedTimeUnchanged ||
+                            !isRawUndeletedTimeUnchanged ||
+                            !isAccessPolicyUnchanged
+                        ) {
+                            updatedTraits.push("Authorization");
+                        }
+
+                        // We reindex collections every time they update, instead of throttling like we
+                        // do for tasks. Task may be updated frequently while you're typing in their
+                        // titles.
+                        jobs.push({
+                            job: {
+                                type: "IndexSearchEntity",
+                                spaceId,
+                                update: {
+                                    type: "TaskCollection",
+                                    collectionId: newCollection.id,
+                                    updatedTraits: {type: "Some", traits: updatedTraits},
+                                },
+                            },
+                        });
+                    }
+
+                    return new OpensearchIndexDocIfVersionCommand(
+                        TaskCollectionIndex,
+                        spaceId,
+                        newCollection,
+                    );
+                }),
             );
+
+            const commands = await runAllPromises(commandPromises);
+
+            await state._context.opensearch.client.bulk(context.tracer.getTracer(), commands, {
+                retryPartialVersionConflictError: retry,
+            });
+
+            for (const {job, delaySeconds} of jobs) {
+                state._context.jobs.send(job, {delaySeconds});
+            }
 
             // After we've indexed our data, read all our referenced accounts again but
             // with a strong read consistency. If any referenced account name changed while
@@ -545,7 +806,13 @@ class TaskActionTransactionIndexState {
      * create it. If the task exists with a different version then we need
      * to retry.
      */
-    public putTaskIndexDoc(taskId: TaskId, task: TaskIndexDocWithVersion) {
+    public putTaskIndexDoc(
+        taskId: TaskId,
+        task: Replace<
+            OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc>,
+            {lastIndexSearchEntityJob: TaskIndexSearchEntityJob | null}
+        >,
+    ) {
         assert(task.spaceId === this.spaceId);
 
         const lastTask = this._updatedTaskIndexDocById.get(taskId);
@@ -596,7 +863,10 @@ class TaskActionTransactionIndexState {
      */
     public putCollectionIndexDoc(
         collectionId: TaskCollectionId,
-        collection: TaskCollectionIndexDocWithVersion,
+        collection: OpensearchClientDocWithIdAndVersion<
+            TaskCollectionId,
+            TaskCollectionIndexActualDoc
+        >,
     ) {
         assert(collection.spaceId === this.spaceId);
 
@@ -642,6 +912,7 @@ async function actuallyIndexTaskAction(
                     ...createEmptyTaskIndexDoc(action.time, action.taskAction),
                     creator,
                     version: null,
+                    lastIndexSearchEntityJob: null,
                 });
                 return;
             }
@@ -1017,7 +1288,7 @@ export async function queryTaskIndex(
         limit: number;
         afterCursor: TaskQuerySortCursor | null;
     },
-) {
+): Promise<Array<OpensearchClientDocWithId<TaskId, TaskIndexActualDoc>>> {
     // Must be a system actor because we do no filtering to check whether you are
     // allowed to see the queried tasks. Permissions filtering must be done at a
     // different level.
@@ -1164,4 +1435,108 @@ export async function searchTaskCollections(
     );
 
     return assembleTaskCollectionSearchResults(context, collections);
+}
+
+/**
+ * If the action completes successfully then we'll schedule an
+ * `IndexSearchEntity` job for the provided `TaskId` if there isn't already a
+ * job scheduled for this update.
+ *
+ * We do no authorization that the `actor` is allowed to access a task. Since
+ * this function does not reveal information about the task to the caller or
+ * update the task. It only schedules a indexing job which is idempotent and
+ * should be run whenever the task changes.
+ */
+export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
+    context: ServerSessionActionContext,
+    {spaceId, taskId}: {spaceId: SpaceId; taskId: TaskId},
+    action: () => Promise<Value>,
+): Promise<Value> {
+    // If this is a test where OpenSearch is disabled then don't bother trying to
+    // schedule a search entity indexing job.
+    if (context.opensearch.client instanceof TestDisabledOpensearchClient) {
+        assert(process.env.NODE_ENV === "test");
+        return action();
+    }
+
+    const [value, initialTask] = await runAllPromises([
+        action(),
+        context.opensearch.client.getDocIfExists(
+            context.tracer.getTracer(),
+            TaskIndex,
+            spaceId,
+            taskId,
+        ),
+    ]);
+
+    let hasAlreadyAttempted = false;
+
+    await retryWithExponentialBackoff(async retry => {
+        const isInitialAttempt = !hasAlreadyAttempted;
+        hasAlreadyAttempted = true;
+
+        const task = isInitialAttempt
+            ? initialTask
+            : await context.opensearch.client.getDocIfExists(
+                  context.tracer.getTracer(),
+                  TaskIndex,
+                  spaceId,
+                  taskId,
+              );
+
+        // If we didn't find the task, we may be waiting for it to be created in the
+        // index. The index is updated asynchronously after tasks are committed.
+        if (!task) {
+            throw retry(new InternalError("Task not found in index"));
+        }
+
+        const currentTime = new Date();
+
+        // Don't add a task index job until after the first one's delay has finished.
+        // When the delayed indexing job runs it will pick up this update.
+        if (
+            isDatePossiblyLessThanWithUncertaintyWindow(
+                new Date(
+                    task.lastIndexSearchEntityJob.sendTime.getTime() +
+                        taskIndexSearchEntityJobDelaySeconds * 1000,
+                ),
+                currentTime,
+            )
+        ) {
+            // NOTE(calebmer): Updating traits is currently unsupported for this function
+            // but should be easy to add.
+            const updatedTraits: Array<never> = [];
+
+            await context.opensearch.client.indexDocIfVersion(
+                context.tracer.getTracer(),
+                TaskIndex,
+                spaceId,
+                {
+                    ...task,
+                    lastIndexSearchEntityJob: {
+                        sendTime: currentTime,
+                        updatedTraits: {type: "Some", traits: updatedTraits},
+                    },
+                },
+                {retryVersionConflictError: retry},
+            );
+
+            context.jobs.send(
+                {
+                    type: "IndexSearchEntity",
+                    spaceId,
+                    update: {
+                        type: "Task",
+                        taskId,
+                        updatedTraits: {type: "Some", traits: updatedTraits},
+                    },
+                },
+                {
+                    delaySeconds: taskIndexSearchEntityJobDelaySeconds,
+                },
+            );
+        }
+    });
+
+    return value;
 }

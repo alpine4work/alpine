@@ -12,10 +12,10 @@ index 00000000..6cf9f0a1
 +        </Console>
 +    </Appenders>
 +    <Loggers>
-+        <Logger name="com.amazonaws.services.dynamodbv2.local" level="DEBUG">
++        <Logger name="com.amazonaws.services.dynamodbv2.local" level="WARN">
 +            <AppenderRef ref="Console"/>
 +        </Logger>
-+        <Logger name="com.amazonaws.services.dynamodbv2.local.shared.access.sqlite.SQLiteDBAccess" level="INFO">
++        <Logger name="com.amazonaws.services.dynamodbv2.local.shared.access.sqlite.SQLiteDBAccess" level="WARN">
 +            <AppenderRef ref="Console"/>
 +        </Logger>
 +        <Root level="WARN">

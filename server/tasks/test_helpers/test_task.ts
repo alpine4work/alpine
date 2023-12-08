@@ -1,6 +1,7 @@
 import {prosemirrorToYXmlFragment} from "y-prosemirror";
 import * as Y from "yjs";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {OpensearchClientDocWithIdAndVersion} from "~/server/opensearch/opensearch_client.js";
 import {TestAccount} from "~/server/spaces/test_helpers/test_account.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSession} from "~/server/spaces/test_helpers/test_session.js";
@@ -8,7 +9,7 @@ import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {getTaskIndexDocIfExistsForTest} from "~/server/tasks/data/task_index.js";
-import {TaskIndexDoc, TaskIndexDocWithVersion} from "~/server/tasks/data/task_index_doc.js";
+import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {
     TaskEssentialAttributesItem,
     commitTaskActionTransaction,
@@ -17,7 +18,9 @@ import {
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {HybridLogicalTime} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {generateId} from "~/shared/id/id.js";
@@ -26,17 +29,32 @@ import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
-import {TaskTitle, TaskTitleProsemirrorSchema, getYDocGuid} from "~/shared/tasks/task_title.js";
+import {
+    TaskTitle,
+    TaskTitleProsemirrorSchema,
+    TaskTitleUpdate,
+    applyTaskTitleUpdate,
+    emptyTaskTitle,
+    getYDocGuid,
+} from "~/shared/tasks/task_title.js";
 
 export class TestTask {
     public readonly context: TestContext;
     public readonly space: TestSpace;
     public readonly id: TaskId;
 
-    private constructor(context: TestContext, space: TestSpace, id: TaskId) {
+    private readonly _titleState: MutexValue<TaskTitle>;
+
+    private constructor(
+        context: TestContext,
+        space: TestSpace,
+        id: TaskId,
+        titleState: MutexValue<TaskTitle>,
+    ) {
         this.context = context;
         this.space = space;
         this.id = id;
+        this._titleState = titleState;
     }
 
     public static async create(
@@ -64,7 +82,11 @@ export class TestTask {
             },
         ];
 
-        if (titleText.length > 0) {
+        let titleState: MutexValue<TaskTitle>;
+
+        if (titleText.length === 0) {
+            titleState = new MutexValue(emptyTaskTitle.get());
+        } else {
             const titleProsemirrorNode = TaskTitleProsemirrorSchema.nodes.doc.create(null, [
                 TaskTitleProsemirrorSchema.text(titleText),
             ]);
@@ -83,11 +105,13 @@ export class TestTask {
                     titleUpdate: title,
                 },
             });
+
+            titleState = new MutexValue(title);
         }
 
         await commitTaskActionTransaction(TestTask.action(session), session.space.id, actions);
 
-        return new TestTask(session.context, session.space, id);
+        return new TestTask(session.context, session.space, id, titleState);
     }
 
     /**
@@ -121,7 +145,7 @@ export class TestTask {
 
     public async getIndexDocWithVersion(options?: {
         realtime?: boolean;
-    }): Promise<TaskIndexDocWithVersion> {
+    }): Promise<OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc>> {
         // Wait for any indexing tasks before loading doc...
         await ProcessContextModule.waitForTestTasks();
 
@@ -136,7 +160,9 @@ export class TestTask {
     }
 
     public async getIndexDoc(options?: {realtime?: boolean}): Promise<TaskIndexDoc> {
-        const {version, ...task} = await this.getIndexDocWithVersion(options);
+        const {version, lastIndexSearchEntityJob, ...task} = await this.getIndexDocWithVersion(
+            options,
+        );
         return task;
     }
 
@@ -297,5 +323,44 @@ export class TestTask {
                 },
             },
         ]);
+    }
+
+    public async updateTitle(session: TestSpaceSession, titleUpdate: string | TaskTitleUpdate) {
+        await this._titleState.withLock(async titleStateRef => {
+            if (typeof titleUpdate === "string") {
+                const yDoc = new Y.Doc({guid: getYDocGuid()});
+                Y.applyUpdateV2(yDoc, titleStateRef.current);
+
+                const updates: Array<TaskTitleUpdate> = [];
+
+                yDoc.on("updateV2", update => {
+                    updates.push(update);
+                });
+
+                const yXmlFragment = yDoc.getXmlFragment("doc");
+                const yText = yXmlFragment.get(yXmlFragment.length - 1);
+                assert(yText instanceof Y.XmlText);
+
+                yText.insert(yText.length, titleUpdate);
+
+                assert(updates.length === 1);
+                titleUpdate = updates[0]!;
+                yDoc.destroy();
+            }
+
+            titleStateRef.current = applyTaskTitleUpdate(titleStateRef.current, titleUpdate);
+
+            await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
+                {
+                    type: "UpdateTask",
+                    time: testClock.nowLogical(),
+                    taskId: this.id,
+                    taskAction: {
+                        type: "UpdateTitle",
+                        titleUpdate,
+                    },
+                },
+            ]);
+        });
     }
 }

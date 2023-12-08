@@ -87,7 +87,7 @@ const stopError = new CancelledError("Job queue consumer stopped");
  *
  * [1]: https://go.dev/tour/concurrency/1
  */
-export class JobConsumer {
+export class JobQueueConsumer {
     private readonly _processContext: ServerProcessContext;
     private readonly _queueUrl: string;
     private readonly _sqsClient: SQSClient;
@@ -133,7 +133,7 @@ export class JobConsumer {
             ) => Promise<void>;
         },
     ) {
-        const consumer = new JobConsumer(context, options);
+        const consumer = new JobQueueConsumer(context, options);
 
         consumer._processContext.process.waitUntil(consumer._consume());
 

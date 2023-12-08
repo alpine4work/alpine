@@ -1,11 +1,11 @@
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {
-    JobConsumer,
+    JobQueueConsumer,
     changeMessageVisibilityBatchTestCounter,
     deleteMessageBatchTestCounter,
     receiveMessageTestCounter,
-} from "~/server/jobs/core/job_consumer.js";
+} from "~/server/jobs/queue/job_queue_consumer.js";
 import {UnimplementedError} from "~/shared/error/error.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -15,7 +15,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {Id, generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-let consumer: JobConsumer | null = null;
+let consumer: JobQueueConsumer | null = null;
 
 let receiveMessageRecorder: {getCount: () => number};
 let deleteMessageBatchRecorder: {getCount: () => number};
@@ -35,7 +35,7 @@ beforeEach(async () => {
     deleteMessageBatchRecorder = deleteMessageBatchTestCounter.recordForTest();
     changeMessageVisibilityBatchRecorder = changeMessageVisibilityBatchTestCounter.recordForTest();
 
-    consumer = JobConsumer.start(context, {
+    consumer = JobQueueConsumer.start(context, {
         queueUrl: `http://localhost:${context.getSqsLocalPort()}/local/JobQueue`,
         processJob: async (context, job) => {
             switch (job.type) {

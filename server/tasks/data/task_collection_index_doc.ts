@@ -1,5 +1,4 @@
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
-import {OpensearchClientDocWithVersion} from "~/server/opensearch/opensearch_client.js";
 import {
     OpensearchIndexArrayType,
     OpensearchIndexBooleanType,
@@ -16,6 +15,7 @@ import {
 } from "~/server/tasks/data/internal/hybrid_logical_time_type.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {compareHybridLogicalTimes} from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
@@ -51,15 +51,30 @@ const TaskCollectionAccessPolicyType = createCrdtRegisterOpensearchType(
 /**
  * The type of a document in our task collections index. Can be used to execute
  * arbitrary queries against tasks efficiently.
+ *
+ * This type is customized for use in `TaskRealtimeService` for representing
+ * collections in-memory. So OpenSearch bookkeeping fields have been removed. For
+ * the actual type we get from OpenSearch see `TaskCollectionIndexActualDoc`.
  */
 export type TaskCollectionIndexDoc = MergeObjectIntersection<
     {
         readonly id: TaskCollectionId;
-    } & OpensearchIndexTypeType<typeof TaskCollectionIndexDocType>
+    } & OpensearchIndexTypeType<typeof TaskCollectionIndexDocType> & {
+            // This type is used throughout `TaskRealtimeService` to represent a
+            // collection. It should not include bookkeeping properties from OpenSearch
+            // that won't be updated in-memory.
+            readonly version?: undefined;
+        }
 >;
 
-export type TaskCollectionIndexDocWithVersion =
-    OpensearchClientDocWithVersion<TaskCollectionIndexDoc>;
+export type TaskCollectionIndexActualDoc = OpensearchIndexTypeType<
+    typeof TaskCollectionIndexDocType
+>;
+
+export type TaskCollectionIndexDocBase = TaskCollectionIndexActualDoc;
+
+assertAssignableTypes<TaskCollectionIndexDoc, TaskCollectionIndexDocBase>();
+assertAssignableTypes<TaskCollectionIndexActualDoc, TaskCollectionIndexDocBase>();
 
 export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
     fields: {

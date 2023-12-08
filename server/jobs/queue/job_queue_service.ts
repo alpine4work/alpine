@@ -6,7 +6,7 @@ import {ServerSystemActionContextModules} from "~/server/context/server_action_c
 import {ServerProcessContextModules} from "~/server/context/server_process_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
-import {JobConsumer} from "~/server/jobs/core/job_consumer.js";
+import {JobQueueConsumer} from "~/server/jobs/queue/job_queue_consumer.js";
 import {
     JobQueueSystemActionContext,
     JobQueueSystemActionContextModules,
@@ -36,7 +36,7 @@ runService({
 
         const processContext = createServerProcessContext({tracer, awsSigner, options});
 
-        const consumer = JobConsumer.start(processContext, {
+        const consumer = JobQueueConsumer.start(processContext, {
             // @ts-expect-error: NOCOMMIT
             queueUrl,
             processJob: (_actionContext, job, jobStartTime) => {

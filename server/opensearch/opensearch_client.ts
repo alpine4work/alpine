@@ -205,7 +205,12 @@ export interface OpensearchClientInterface {
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
         },
     ): Promise<
-        Array<OpensearchIndexDocType<Index> & {readonly id: OpensearchIndexDocIdType<Index>}>
+        Array<
+            OpensearchClientDocWithId<
+                OpensearchIndexDocIdType<Index>,
+                OpensearchIndexDocType<Index>
+            >
+        >
     >;
 
     /**
@@ -538,13 +543,17 @@ export class OpensearchGetDocWithoutSourceCommand<
  *
  * [1]: https://opensearch.org/docs/latest/api-reference/document-apis/bulk/
  */
-abstract class OpensearchBulkCommandBase<Index extends OpensearchIndex<any, any, any, any, any>> {
+export abstract class OpensearchBulkCommandBase<
+    Index extends OpensearchIndex<any, any, any, any, any>,
+> {
     public abstract readonly index: Index;
     public abstract readonly routing: OpensearchIndexRoutingType<Index>;
     public abstract readonly id: OpensearchIndexDocIdType<Index>;
 
     public abstract serialize(): {
         action: "index" | "create" | "update" | "delete";
+        ifSequenceNumber?: number;
+        ifPrimaryTerm?: number;
         body: JsonValue;
     };
 }
@@ -578,6 +587,8 @@ export class OpensearchIndexDocIfVersionCommand<
     public serialize() {
         return {
             action: !this.doc.version ? ("create" as const) : ("index" as const),
+            ifSequenceNumber: this.doc.version?.sequenceNumber,
+            ifPrimaryTerm: this.doc.version?.primaryTerm,
             body: this.index.type.serialize(this.doc),
         };
     }
@@ -1411,13 +1422,15 @@ export class OpensearchClient implements OpensearchClientInterface {
         const bulkBody: Array<JsonValue> = [];
 
         for (const command of commands) {
-            const {action, body} = command.serialize();
+            const {action, ifSequenceNumber, ifPrimaryTerm, body} = command.serialize();
 
             bulkBody.push({
                 [action]: {
                     _index: !singularIndex ? command.index.name : undefined,
                     routing: !singularRouting ? command.routing : undefined,
                     _id: command.id,
+                    if_seq_no: ifSequenceNumber,
+                    if_primary_term: ifPrimaryTerm,
                 },
             });
             bulkBody.push(body);
@@ -1672,8 +1685,10 @@ export class OpensearchClient implements OpensearchClientInterface {
         },
     ): Promise<
         Array<
-            OpensearchIndexDocType<Index> & {
-                readonly id: OpensearchIndexDocIdType<Index>;
+            OpensearchClientDocWithId<
+                OpensearchIndexDocIdType<Index>,
+                OpensearchIndexDocType<Index>
+            > & {
                 readonly highlight?: {
                     readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
                 };
@@ -1699,7 +1714,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         });
 
         const docs = hits.map(hit => {
-            const doc = Object.assign(index.type.deserialize(hit._source!), {
+            const doc = Object.assign(index.type.deserialize(hit._source), {
                 id: hit._id,
             });
 
@@ -1864,6 +1879,8 @@ export class OpensearchClient implements OpensearchClientInterface {
                 method: "POST",
             },
             async response => {
+                await response.json();
+
                 if (!response.ok) {
                     throw new InternalError("OpenSearch refresh failed");
                 }

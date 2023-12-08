@@ -11,7 +11,7 @@ import {
 
 export function getTaskQueryNormalizedSortCursorForIndexDoc(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
-    task: TaskIndexDoc,
+    task: Omit<TaskIndexDoc, "lastIndexSearchEntityJob">,
 ): TaskQuerySortCursor {
     const cursor: Array<TaskQuerySortCursorValue> = [];
 
@@ -26,7 +26,7 @@ export function getTaskQueryNormalizedSortCursorForIndexDoc(
 
 function getTaskQueryNormalizedSortCursorValueForIndexDoc(
     sort: TaskQueryNormalizedSort,
-    task: TaskIndexDoc,
+    task: Omit<TaskIndexDoc, "lastIndexSearchEntityJob">,
 ): TaskQuerySortCursorValue {
     switch (sort.type) {
         case "DisplayStatus": {

@@ -1,11 +1,12 @@
 import {RBTree} from "bintrees";
 import {ServerProcessContext} from "~/server/context/server_process_context.js";
+import {OpensearchClientDocWithId} from "~/server/opensearch/opensearch_client.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskUpdateAccountNameToTaskIndexDoc} from "~/server/tasks/data/apply_task_update_account_name_to_task_index_doc.js";
 import {evaluateTaskQueryNormalizedFiltersForIndexDoc} from "~/server/tasks/data/evaluate_task_query_normalized_filters_for_index_doc.js";
 import {getTaskQueryNormalizedSortCursorForIndexDoc} from "~/server/tasks/data/get_task_query_normalized_sort_cursor_for_index_doc.js";
 import {queryTaskIndex} from "~/server/tasks/data/task_index.js";
-import {TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
+import {TaskIndexActualDoc, TaskIndexDoc} from "~/server/tasks/data/task_index_doc.js";
 import {mightTaskActionAddTaskToQueryLoadedRange} from "~/server/tasks/realtime/might_task_action_add_task_to_query_loaded_range.js";
 import {TaskRealtimeQuerySubscriptionInternal} from "~/server/tasks/realtime/task_realtime_query_subscription.js";
 import {
@@ -494,7 +495,7 @@ export class TaskRealtimeQuery {
         context: TaskRealtimeSystemActionContext,
         limit: number,
         afterCursor: TaskQuerySortCursor | null,
-        loadedTasks: Array<TaskIndexDoc>,
+        loadedTasks: Array<OpensearchClientDocWithId<TaskId, TaskIndexActualDoc>>,
     ): Promise<unknown> {
         const addVisibleTask = (taskEntry: TaskRealtimeStoreTaskEntry) => {
             const cursor = getTaskQueryNormalizedSortCursorForIndexDoc(this.sorts, taskEntry.task);
@@ -608,7 +609,7 @@ export class TaskRealtimeQuery {
             }
         }
 
-        for (const loadedTask of loadedTasks) {
+        for (const {lastIndexSearchEntityJob, ...loadedTask} of loadedTasks) {
             const {isFresh, taskEntry} = this.store.ensureTaskEntry(loadedTask);
 
             // Fresh task entries aren't up-to-date in realtime. We need to run our action

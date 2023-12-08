@@ -15351,6 +15351,7 @@ test("can update task notes", async () => {
     });
 
     await updateTaskNotesContent(session.action(), {
+        spaceId: space.id,
         taskId: task.id,
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
@@ -15366,6 +15367,7 @@ test("can update task notes", async () => {
     });
 
     await updateTaskNotesContent(session.action(), {
+        spaceId: space.id,
         taskId: task.id,
         version: 2,
         steps: [new ReplaceStep(3, 3, textSlice("c"))],
@@ -15387,6 +15389,7 @@ test("can't update task notes that don't exist", async () => {
 
     await expect(
         updateTaskNotesContent(session.action(), {
+            spaceId: space.id,
             taskId: generateId(),
             version: 0,
             steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
@@ -15415,6 +15418,7 @@ test("can't update task notes in a different space", async () => {
 
     await expect(
         updateTaskNotesContent(otherSession.action(), {
+            spaceId: space.id,
             taskId: task.id,
             version: 0,
             steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
@@ -15450,6 +15454,7 @@ test("can update task notes in a public collection", async () => {
     });
 
     await updateTaskNotesContent(session2.action(), {
+        spaceId: space.id,
         taskId: task.id,
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
@@ -15485,6 +15490,7 @@ test("can't update task notes in a private collection", async () => {
 
     await expect(
         updateTaskNotesContent(session2.action(), {
+            spaceId: space.id,
             taskId: task.id,
             version: 0,
             steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
@@ -15517,6 +15523,7 @@ test("can't update task notes with the wrong version", async () => {
     });
 
     await updateTaskNotesContent(session.action(), {
+        spaceId: space.id,
         taskId: task.id,
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],
@@ -15533,6 +15540,7 @@ test("can't update task notes with the wrong version", async () => {
 
     await expect(
         updateTaskNotesContent(session.action(), {
+            spaceId: space.id,
             taskId: task.id,
             version: 1,
             steps: [new ReplaceStep(3, 3, textSlice("c"))],
@@ -15566,6 +15574,7 @@ test("can't update task notes with the wrong version when notes are not initiali
 
     await expect(
         updateTaskNotesContent(session.action(), {
+            spaceId: space.id,
             taskId: task.id,
             version: 2,
             steps: [new ReplaceStep(1, 1, textSlice("a"))],
@@ -18223,6 +18232,7 @@ test("account can remove access from itself but can't grant it back if another u
     );
 
     await updateTaskNotesContent(session2.action(), {
+        spaceId: space.id,
         taskId: task1.id,
         version: 0,
         steps: [new ReplaceStep(1, 1, textSlice("a")), new ReplaceStep(2, 2, textSlice("b"))],

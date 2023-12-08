@@ -1,5 +1,4 @@
 import {CalendarDate, parseAbsolute, toCalendarDate} from "@internationalized/date";
-import {OpensearchClientDocWithVersion} from "~/server/opensearch/opensearch_client.js";
 import {
     OpensearchIndexArrayType,
     OpensearchIndexBinaryType,
@@ -25,6 +24,7 @@ import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {isTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
@@ -36,7 +36,7 @@ import {
     HybridLogicalTimeSchema,
     serializeHybridLogicalTime,
 } from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     TaskDueDateRegister,
     TaskParentTaskIdRegister,
@@ -310,7 +310,7 @@ const TaskIndexStatusType = createCrdtRegisterOpensearchType(
                 TaskStatusTypeIntegerMapping.from(TaskStatusTypeIntegerMapping.assert(status)),
         }),
         variants: {
-            Open: cast<OpensearchIndexObjectType<{readonly closer?: undefined}, never>>(
+            Open: cast<OpensearchIndexObjectType<{readonly closer?: undefined}, "this", {}>>(
                 OpensearchIndexObjectType.new({fields: {}}),
             ),
             Closed: OpensearchIndexObjectType.new({
@@ -388,8 +388,9 @@ const TaskIndexTitleType = OpensearchIndexObjectType.new({
     fields: {
         raw: new OpensearchIndexBinaryType() as OpensearchIndexTypeBase<
             any,
-            never
-        > as OpensearchIndexTypeBase<TaskTitle, never>,
+            "this",
+            {}
+        > as OpensearchIndexTypeBase<TaskTitle, "this", {}>,
     },
     computed: {
         fields: {
@@ -450,15 +451,52 @@ const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
         .nullable(),
 );
 
+export type TaskIndexSearchEntityJob = SchemaType<typeof TaskIndexSearchEntityJobSchema>;
+
+export const TaskIndexSearchEntityJobSchema = Schema.object({
+    sendTime: Schema.date,
+    updatedTraits: Schema.union({
+        Any: Schema.object({type: Schema.value("Any")}),
+        Some: Schema.object({
+            type: Schema.value("Some"),
+            traits: Schema.array(Schema.enum(["Authorization"])),
+        }),
+    }),
+});
+
 /**
  * The type of a document in our tasks index. Can be used to execute arbitrary
  * queries against tasks efficiently.
+ *
+ * This type is customized for use in `TaskRealtimeService` for representing
+ * tasks in-memory. So OpenSearch bookkeeping fields have been removed. For the
+ * actual type we get from OpenSearch see `TaskIndexActualDoc`.
  */
 export type TaskIndexDoc = MergeObjectIntersection<
-    {readonly id: TaskId} & OpensearchIndexTypeType<typeof TaskIndexDocType>
+    {
+        readonly id: TaskId;
+    } & Omit<OpensearchIndexTypeType<typeof TaskIndexDocType>, "lastIndexSearchEntityJob"> & {
+            // This type is used throughout `TaskRealtimeService` to represent a task. It
+            // should not include bookkeeping properties from OpenSearch that won't be
+            // updated in-memory.
+            readonly version?: undefined;
+            readonly lastIndexSearchEntityJob?: undefined;
+        }
 >;
 
-export type TaskIndexDocWithVersion = OpensearchClientDocWithVersion<TaskIndexDoc>;
+/**
+ * The actual type of a doc in the OpenSearch task index. `TaskIndexDoc` is a
+ * more refined type where some OpenSearch bookkeeping has been removed.
+ */
+export type TaskIndexActualDoc = OpensearchIndexTypeType<typeof TaskIndexDocType>;
+
+/**
+ * Both `TaskIndexDoc` and `TaskIndexActualDoc` are assignable to this type.
+ */
+export type TaskIndexDocBase = Omit<TaskIndexActualDoc, "lastIndexSearchEntityJob">;
+
+assertAssignableTypes<TaskIndexDoc, TaskIndexDocBase>();
+assertAssignableTypes<TaskIndexActualDoc, TaskIndexDocBase>();
 
 export const TaskIndexDocType = OpensearchIndexObjectType.new({
     fields: {
@@ -538,6 +576,26 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
         title: TaskIndexTitleType,
         dueDate: TaskIndexDueDateType,
         priority: TaskIndexPriorityType,
+
+        /**
+         * Information about the last time we sent an `IndexSearchEntity` job for this
+         * `TaskIndexDoc`. Since tasks may be updated many times in quick succession we
+         * want to throttle how often we reindex the task to capture many changes
+         * at once.
+         *
+         * We throttle task notes and `TaskIndexDoc` changes separately. That's because
+         * we update the data in entirely different databases. Which makes having shared
+         * throttling state more difficult.
+         */
+        lastIndexSearchEntityJob: new OpensearchIndexIgnoredObjectType(
+            TaskIndexSearchEntityJobSchema,
+        ).default({
+            // NOTE(calebmer): Tasks created/updated before this date did not have this
+            // property. This default should cause us to always schedule new indexing jobs
+            // when updating those tasks.
+            sendTime: new Date("2023-12-07T16:35:04.622Z"),
+            updatedTraits: {type: "Any"},
+        }),
     },
     computed: {
         fields: {

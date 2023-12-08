@@ -60,10 +60,16 @@ export abstract class OpensearchIndexTypeBase<
      * Deserializes a JSON value we received from OpenSearch that was previously
      * serialized by the same type.
      */
-    public abstract deserialize(value: JsonValue): Value;
+    public abstract deserialize(value: JsonValue | undefined): Value;
 
     public nullable(): OpensearchIndexTypeBase<Value | null, FlattenedKeys, StoredFields> {
         return new OpensearchIndexNullableType(this);
+    }
+
+    public default(
+        defaultValue: Value,
+    ): OpensearchIndexTypeBase<Value, FlattenedKeys, StoredFields> {
+        return new OpensearchIndexDefaultType(this, defaultValue);
     }
 
     public validate<NewValue extends Value>(
@@ -132,8 +138,46 @@ class OpensearchIndexNullableType<
         return this.sourceType.serialize(value);
     }
 
-    public override deserialize(value: JsonValue): Value | null {
+    public override deserialize(value: JsonValue | undefined): Value | null {
         if (value === null) return null;
+        return this.sourceType.deserialize(value);
+    }
+}
+
+class OpensearchIndexDefaultType<
+    Value,
+    FlattenedKeys extends string,
+    StoredFields extends {[key: string]: unknown},
+> extends OpensearchIndexTypeBase<Value, FlattenedKeys, StoredFields> {
+    public readonly sourceType: OpensearchIndexTypeBase<Value, FlattenedKeys, StoredFields>;
+    private readonly _defaultValue: Value;
+
+    constructor(
+        sourceType: OpensearchIndexTypeBase<Value, FlattenedKeys, StoredFields>,
+        defaultValue: Value,
+    ) {
+        super();
+        this.sourceType = sourceType;
+        this._defaultValue = defaultValue;
+    }
+
+    public get storedFields() {
+        return this.sourceType.storedFields;
+    }
+
+    public override getConfig(
+        builder: OpensearchIndexConfigBuilder,
+        options: {shouldStoreFields: boolean},
+    ) {
+        return this.sourceType.getConfig(builder, options);
+    }
+
+    public override serialize(value: Value): JsonValue {
+        return this.sourceType.serialize(value);
+    }
+
+    public override deserialize(value: JsonValue | undefined): Value {
+        if (value === undefined || value === null) return this._defaultValue;
         return this.sourceType.deserialize(value);
     }
 }
@@ -277,7 +321,7 @@ class OpensearchIndexStoredType<Value> extends OpensearchIndexTypeBase<
         return this._sourceType.serialize(value);
     }
 
-    public override deserialize(value: JsonValue): Value {
+    public override deserialize(value: JsonValue | undefined): Value {
         return this._sourceType.deserialize(value);
     }
 }
@@ -351,7 +395,7 @@ export class OpensearchIndexBooleanType extends OpensearchIndexTypeBase<boolean,
         return value;
     }
 
-    public override deserialize(value: JsonValue): boolean {
+    public override deserialize(value: JsonValue | undefined): boolean {
         assert(typeof value === "boolean");
         return value;
     }
@@ -389,7 +433,7 @@ export class OpensearchIndexByteType extends OpensearchIndexTypeBase<number, "th
         return value;
     }
 
-    public override deserialize(value: JsonValue): number {
+    public override deserialize(value: JsonValue | undefined): number {
         assert(typeof value === "number");
         return value;
     }
@@ -427,7 +471,7 @@ export class OpensearchIndexIntegerType extends OpensearchIndexTypeBase<number, 
         return value;
     }
 
-    public override deserialize(value: JsonValue): number {
+    public override deserialize(value: JsonValue | undefined): number {
         assert(typeof value === "number");
         return value;
     }
@@ -464,7 +508,7 @@ export class OpensearchIndexLongType extends OpensearchIndexTypeBase<bigint, "th
         return value.toString();
     }
 
-    public override deserialize(value: JsonValue): bigint {
+    public override deserialize(value: JsonValue | undefined): bigint {
         assert(typeof value === "string");
         return BigInt(value);
     }
@@ -500,7 +544,7 @@ export class OpensearchIndexDateType extends OpensearchIndexTypeBase<Date, "this
         return value.toISOString();
     }
 
-    public override deserialize(value: JsonValue): Date {
+    public override deserialize(value: JsonValue | undefined): Date {
         assert(typeof value === "string");
         return parseISO(value);
     }
@@ -530,7 +574,7 @@ export class OpensearchIndexBinaryType extends OpensearchIndexTypeBase<Uint8Arra
         return encodeBase64(value);
     }
 
-    public override deserialize(value: JsonValue): Uint8Array {
+    public override deserialize(value: JsonValue | undefined): Uint8Array {
         assert(typeof value === "string");
         return decodeBase64(value);
     }
@@ -567,7 +611,7 @@ export class OpensearchIndexKeywordType extends OpensearchIndexTypeBase<string, 
         return value;
     }
 
-    public override deserialize(value: JsonValue): string {
+    public override deserialize(value: JsonValue | undefined): string {
         assert(typeof value === "string");
         return value;
     }
@@ -646,7 +690,7 @@ export class OpensearchIndexTextType<
         return value;
     }
 
-    public override deserialize(value: JsonValue): string {
+    public override deserialize(value: JsonValue | undefined): string {
         assert(typeof value === "string");
         return value;
     }
@@ -701,7 +745,7 @@ export class OpensearchIndexSearchAsYouTypeType extends OpensearchIndexTypeBase<
         return value;
     }
 
-    public override deserialize(value: JsonValue): string {
+    public override deserialize(value: JsonValue | undefined): string {
         assert(typeof value === "string");
         return value;
     }
@@ -919,7 +963,7 @@ export class OpensearchIndexKnnVectorType extends OpensearchIndexTypeBase<
         return value;
     }
 
-    public override deserialize(value: JsonValue): ReadonlyArray<number> {
+    public override deserialize(value: JsonValue | undefined): ReadonlyArray<number> {
         assert(Array.isArray(value));
         return value;
     }
@@ -957,7 +1001,7 @@ export class OpensearchIndexArrayType<
         return value.map(item => this.sourceType.serialize(item));
     }
 
-    public override deserialize(value: JsonValue): ReadonlyArray<Value> {
+    public override deserialize(value: JsonValue | undefined): ReadonlyArray<Value> {
         assert(Array.isArray(value));
         return value.map(item => this.sourceType.deserialize(item));
     }
@@ -995,7 +1039,8 @@ export class OpensearchIndexIgnoredObjectType<Value> extends OpensearchIndexType
         return this._schema.serialize(value) as JsonValue;
     }
 
-    public override deserialize(value: JsonValue): Value {
+    public override deserialize(value: JsonValue | undefined): Value {
+        assert(value !== undefined);
         return this._schema.deserialize(value);
     }
 }
@@ -1178,14 +1223,13 @@ export class OpensearchIndexObjectType<
         return serializedValue;
     }
 
-    public override deserialize(value: JsonValue): Value {
+    public override deserialize(value: JsonValue | undefined): Value {
         assert(isPlainObject(value));
 
         const deserializedValue: any = {};
 
         for (const [key, field] of this._fields) {
             const keyValue = value[key];
-            assert(keyValue !== undefined);
             deserializedValue[key] = field.deserialize(keyValue);
         }
 
@@ -1314,7 +1358,7 @@ export class OpensearchIndexUnionObjectType<
         return serializedValue;
     }
 
-    public override deserialize(value: JsonValue): Value {
+    public override deserialize(value: JsonValue | undefined): Value {
         assert(isPlainObject(value));
         const type = this._type.deserialize(assertExists(value.type));
         const variant = assertExists(this._variants.get(type));
@@ -1365,7 +1409,7 @@ export class OpensearchIndexNestedType<
         return value.map(item => this._sourceType.serialize(item));
     }
 
-    public override deserialize(value: JsonValue): ReadonlyArray<Value> {
+    public override deserialize(value: JsonValue | undefined): ReadonlyArray<Value> {
         assert(Array.isArray(value));
         return value.map(item => this._sourceType.deserialize(item));
     }

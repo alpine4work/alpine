@@ -2,7 +2,7 @@ import {internalUpdateSessionActorAccountNameWithoutUpdatingTasks} from "~/serve
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
-import {getAccount} from "~/server/spaces/spaces_table.js";
+import {getAccount, getSessionActorAccountSpaces} from "~/server/spaces/spaces_table.js";
 import {
     getTaskCollectionIndexDocIfExistsForTest,
     getTaskIndexDocIfExistsForTest,
@@ -57,7 +57,8 @@ testTaskActionPermutations({
                     action.accountName,
                     {
                         nameVersionForTest: action.accountNameVersion,
-                        getTaskTransactionEntries: async () => [],
+                        getSessionActorAccountSpaces,
+                        getTaskTransactionEntries: () => [],
                     },
                 );
             }
