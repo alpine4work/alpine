@@ -1,5 +1,5 @@
-import {AllMiniLmL6V2Model} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_model.js";
-import {CohereEmbedEnglishV3Model} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_model.js";
+import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
+import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
 import {LanguageModelBaseClass} from "~/server/language_models/core/language_model_base.js";
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {OpensearchIndexAnalysisCustomFilter} from "~/server/opensearch/opensearch_index_analysis.js";
@@ -198,8 +198,8 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
  * - We use `CohereEmbedEnglishV3Model` (paid) in production
  */
 const searchEntitySemanticIndexEmbeddingChunkLanguageModels = {
-    allMiniLmL6V2: AllMiniLmL6V2Model,
-    cohereEmbedEnglishV3: CohereEmbedEnglishV3Model,
+    allMiniLmL6V2: AllMiniLmL6V2LanguageModel,
+    cohereEmbedEnglishV3: CohereEmbedEnglishV3LanguageModel,
 } satisfies {
     [key: string]: LanguageModelBaseClass;
 };

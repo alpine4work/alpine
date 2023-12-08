@@ -14,9 +14,9 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
-assertAssignableTypes<typeof AllMiniLmL6V2Model, LanguageModelBaseClass>();
+assertAssignableTypes<typeof AllMiniLmL6V2LanguageModel, LanguageModelBaseClass>();
 
-export const allMiniLmL6V2ModelEmbedTextTestCounter = new TestCounter();
+export const allMiniLmL6V2LanguageModelEmbedTextTestCounter = new TestCounter();
 
 /**
  * Interface to the `all-MiniLM-L6-v2` model. It is not a very good model
@@ -32,8 +32,8 @@ export const allMiniLmL6V2ModelEmbedTextTestCounter = new TestCounter();
  * [2]: https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
  * [3]: https://huggingface.co/Xenova/all-MiniLM-L6-v2
  */
-export class AllMiniLmL6V2Model implements LanguageModelBase {
-    public readonly statics = AllMiniLmL6V2Model;
+export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
+    public readonly statics = AllMiniLmL6V2LanguageModel;
 
     public static readonly key = "allMiniLmL6V2";
     public static readonly dimensionCount = 384;
@@ -91,7 +91,7 @@ export class AllMiniLmL6V2Model implements LanguageModelBase {
             model,
         });
 
-        return new AllMiniLmL6V2Model(extractor);
+        return new AllMiniLmL6V2LanguageModel(extractor);
     }
 
     /**
@@ -101,7 +101,10 @@ export class AllMiniLmL6V2Model implements LanguageModelBase {
         return tracer.withSpan("all-MiniLM-L6-v2 embed", span => {
             const textArray = Array.isArray(texts) ? texts : Array.from(texts);
 
-            allMiniLmL6V2ModelEmbedTextTestCounter.incrementForTest(undefined, textArray.length);
+            allMiniLmL6V2LanguageModelEmbedTextTestCounter.incrementForTest(
+                undefined,
+                textArray.length,
+            );
 
             span.addData({
                 common: {count: textArray.length},

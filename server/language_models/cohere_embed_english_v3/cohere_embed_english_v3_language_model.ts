@@ -18,13 +18,13 @@ const cohereModelIdentifier = "embed-english-v3.0";
  */
 const maxCohereEmbedBatchTextCount = 96;
 
-assertAssignableTypes<typeof CohereEmbedEnglishV3Model, LanguageModelBaseClass>();
+assertAssignableTypes<typeof CohereEmbedEnglishV3LanguageModel, LanguageModelBaseClass>();
 
 /**
  * Interface to the Cohere `embed-english-v3.0` model.
  */
-export class CohereEmbedEnglishV3Model implements LanguageModelBase {
-    public readonly statics = CohereEmbedEnglishV3Model;
+export class CohereEmbedEnglishV3LanguageModel implements LanguageModelBase {
+    public readonly statics = CohereEmbedEnglishV3LanguageModel;
 
     public static readonly key = "cohereEmbedEnglishV3";
     public static readonly dimensionCount = 1024;

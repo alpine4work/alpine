@@ -11,9 +11,9 @@ import {createTestContext} from "~/server/dynamo/test_helpers/create_test_contex
 import {createChannel, createPost, updateChannelName} from "~/server/forum/data/forum_table.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/job_queue_consumer.js";
 import {
-    AllMiniLmL6V2Model,
-    allMiniLmL6V2ModelEmbedTextTestCounter,
-} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_model.js";
+    AllMiniLmL6V2LanguageModel,
+    allMiniLmL6V2LanguageModelEmbedTextTestCounter,
+} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
 import {LanguageModelBase} from "~/server/language_models/core/language_model_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
@@ -625,7 +625,7 @@ test("will correctly index during race condition (scenario 2)", async () => {
 });
 
 test("goes from no embeddings to some embeddings to no embeddings again", async () => {
-    const languageModel = await AllMiniLmL6V2Model.new();
+    const languageModel = await AllMiniLmL6V2LanguageModel.new();
 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -759,7 +759,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
 });
 
 test("goes from no embeddings to some embeddings to no embeddings again with race conditions", async () => {
-    const languageModel = await AllMiniLmL6V2Model.new();
+    const languageModel = await AllMiniLmL6V2LanguageModel.new();
 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -903,9 +903,9 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
 });
 
 test("generates embeddings and only regenerates embeddings for chunks that changed", async () => {
-    const {getCount} = allMiniLmL6V2ModelEmbedTextTestCounter.recordForTest();
+    const {getCount} = allMiniLmL6V2LanguageModelEmbedTextTestCounter.recordForTest();
 
-    const languageModel = await AllMiniLmL6V2Model.new();
+    const languageModel = await AllMiniLmL6V2LanguageModel.new();
 
     const space = await TestSpace.create(context);
     const session = await space.createSession();
@@ -1033,7 +1033,7 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
 });
 
 test("returns the right chunk when searching for embeddings", async () => {
-    const languageModel = await AllMiniLmL6V2Model.new();
+    const languageModel = await AllMiniLmL6V2LanguageModel.new();
 
     const embedQuery = async (query: string) => {
         const [vector] = await languageModel.embed(context.tracer.getTracer(), query);
@@ -1134,7 +1134,7 @@ YouTube began as a venture capital–funded technology startup. Between November
 });
 
 test("can search based on vector embeddings", async () => {
-    const languageModel = await AllMiniLmL6V2Model.new();
+    const languageModel = await AllMiniLmL6V2LanguageModel.new();
 
     const embedQuery = async (query: string) => {
         const [vector] = await languageModel.embed(context.tracer.getTracer(), query);
@@ -1286,7 +1286,7 @@ test("can search based on vector embeddings", async () => {
 });
 
 test("will reindex if a dependency changes", async () => {
-    const languageModel = await AllMiniLmL6V2Model.new();
+    const languageModel = await AllMiniLmL6V2LanguageModel.new();
 
     startTestJobConsumer({languageModel});
 

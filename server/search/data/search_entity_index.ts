@@ -1,7 +1,7 @@
 import murmurhash from "murmurhash";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
-import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
+import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {
     OpensearchClientDocWithIdAndVersion,
     OpensearchGetDocWithoutSourceCommand,
@@ -371,7 +371,7 @@ export async function processIndexSearchEntityJob(
             // embeddings. In development we embed with a smaller model we can run locally
             // (`all-MiniLM-L6-v2`) but we standardize on Cohere's ideal chunk size to make
             // debugging chunk generation easier.
-            const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+            const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
             const readStartTime = new Date();
             const {dependencyIds, entity} = await getSearchEntity(context, job.update, tokenizer);

@@ -1,6 +1,6 @@
 import nlp from "compromise/one";
 import {Fragment, Mark, Node} from "prosemirror-model";
-import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
+import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
 import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
@@ -72,7 +72,7 @@ export async function chunkSearchContent(
         getAccountIfExists,
         getChunkPreamble = () => ({text: "", lineMarginBottom: 0}),
     }: {
-        tokenizer: CohereEmbedEnglishV3Tokenizer;
+        tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
@@ -144,7 +144,7 @@ export async function getFullSearchContentChunk(
         tokenizer,
         getAccountIfExists,
     }: {
-        tokenizer: CohereEmbedEnglishV3Tokenizer;
+        tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
@@ -282,7 +282,7 @@ function splitSearchContentChunk(
         tokenizer,
         getChunkPreamble: _getChunkPreamble,
     }: {
-        tokenizer: CohereEmbedEnglishV3Tokenizer;
+        tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getChunkPreamble: (options: {
             context: SearchContentChunkContext;
             isInitialChunk: boolean;

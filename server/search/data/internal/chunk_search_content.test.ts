@@ -1,6 +1,6 @@
 import {Node} from "prosemirror-model";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
-import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
+import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {
     getFullSearchContentChunk,
     printSearchContentChunk,
@@ -24,7 +24,7 @@ const context = createTestContext();
 async function testGetFullSearchContentChunk(
     content: Node,
     options: {
-        tokenizer: CohereEmbedEnglishV3Tokenizer;
+        tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
@@ -42,7 +42,7 @@ async function testGetFullSearchContentChunk(
 }
 
 test("discovers paragraph and sentence structure", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -207,7 +207,7 @@ Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut d
 });
 
 test("discovers heading structure", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -454,7 +454,7 @@ To realize a sustainable future, a collective effort is necessary. Governments, 
 });
 
 test("discovers bullet list structure", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -873,7 +873,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
 });
 
 test("discovers paragraph introduction structure", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -983,7 +983,7 @@ This is another paragraph.`,
 });
 
 test("discovers quote block structure", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1155,7 +1155,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis 
 });
 
 test("discovers code block structure", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1244,7 +1244,7 @@ console.log(c);
 });
 
 test("prints a list item with line breaks", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1355,7 +1355,7 @@ test("prints a list item with line breaks", async () => {
 });
 
 test("prints a heading with line breaks", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1462,7 +1462,7 @@ test("prints a heading with line breaks", async () => {
 });
 
 test("prints chunk text with inline styles", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1507,7 +1507,7 @@ test("prints chunk text with inline styles", async () => {
 });
 
 test("escapes markdown characters", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -1867,7 +1867,7 @@ test("prints mentions", async () => {
     const space = await TestSpace.create(context);
     const session = await space.createSession({name: "Caleb Meredith"});
 
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
     expect(
         await testGetFullSearchContentChunk(
@@ -1937,7 +1937,7 @@ hello @Unknown`,
 });
 
 test("correctly chunks document content", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(
@@ -2903,7 +2903,7 @@ To learn how we plan to build this product read our 1–2 year execution plan. W
 });
 
 test("correctly chunks long document content by sentences", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
 
     expect(

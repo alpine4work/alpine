@@ -1,11 +1,11 @@
-import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
+import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 
 /**
  * Truncate some text to the specified number of tokens. If the text was truncated
  * we include `…` at the end to signal truncation.
  */
 export function truncateTokens(
-    tokenizer: CohereEmbedEnglishV3Tokenizer,
+    tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
     text: string,
     tokenCount: number,
 ): string {

@@ -1,8 +1,8 @@
-import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
+import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {truncateTokens} from "~/server/search/data/internal/truncate_tokens.js";
 
 test("truncates document titles appropriately", async () => {
-    const tokenizer = await CohereEmbedEnglishV3Tokenizer.get();
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
 
     expect(truncateTokens(tokenizer, "The quick brown fox jumps over the lazy dog", 16)).toEqual(
         "The quick brown fox jumps over the lazy dog",

@@ -11,7 +11,7 @@ import {
     getPostContentAndChannel,
 } from "~/server/forum/data/forum_table.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
-import {CohereEmbedEnglishV3Tokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_tokenizer.js";
+import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {
     SearchEntityDependencyId,
     isSearchEntityDependencyIdAlsoEntityId,
@@ -112,7 +112,7 @@ const searchEntityEmbeddingPreambleTitleTokenCount = 16;
 // reasons.
 class SearchEntityReadState {
     private readonly _context: SearchEntityIndexSystemActionContext;
-    public readonly tokenizer: CohereEmbedEnglishV3Tokenizer;
+    public readonly tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
     private readonly _targetId: SearchEntityId;
 
     private readonly _dependencyIds = new Set<SearchEntityDependencyId>();
@@ -131,7 +131,7 @@ class SearchEntityReadState {
 
     constructor(
         context: SearchEntityIndexSystemActionContext,
-        tokenizer: CohereEmbedEnglishV3Tokenizer,
+        tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
         targetId: SearchEntityId,
     ) {
         this._context = context;
@@ -359,7 +359,7 @@ class SearchEntityReadState {
 export async function getSearchEntity(
     context: SearchEntityIndexSystemActionContext,
     idObject: SearchEntityIdObject,
-    tokenizer: CohereEmbedEnglishV3Tokenizer,
+    tokenizer: CohereEmbedEnglishV3LanguageTokenizer,
 ): Promise<{
     id: SearchEntityId;
     dependencyIds: Iterable<SearchEntityDependencyId>;
@@ -463,7 +463,7 @@ export async function chunkDocumentSearchContent(
         tokenizer,
         getAccountIfExists,
     }: {
-        tokenizer: CohereEmbedEnglishV3Tokenizer;
+        tokenizer: CohereEmbedEnglishV3LanguageTokenizer;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;

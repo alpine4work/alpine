@@ -10,7 +10,7 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
  *
  * [1]: https://txt.cohere.com/introducing-embed-v3/
  */
-export class CohereEmbedEnglishV3Tokenizer {
+export class CohereEmbedEnglishV3LanguageTokenizer {
     private readonly _tokenizer: BertTokenizer;
 
     private constructor(tokenizer: BertTokenizer) {
@@ -22,7 +22,7 @@ export class CohereEmbedEnglishV3Tokenizer {
             joinPath(runfilesPath, "cohere_embed_english_v3"),
         );
 
-        return new CohereEmbedEnglishV3Tokenizer(tokenizer);
+        return new CohereEmbedEnglishV3LanguageTokenizer(tokenizer);
     });
 
     public static get() {
