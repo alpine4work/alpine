@@ -683,6 +683,17 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return false;
             },
 
+            // We add this property to `EditorView` with a patch. By default, on
+            // triple-click ProseMirror selects the node being clicked and calls
+            // `event.preventDefault()`. Calling `event.preventDefault()` stops the
+            // selection from moving when the user drags their mouse in Chrome. The native
+            // triple-click selection behavior in Chrome works well. Since we want the
+            // selection to keep moving as the user drags, turn off the default
+            // ProseMirror behavior.
+            //
+            // For some node types we may need the ProseMirror behavior in the future.
+            shouldDefaultTripleClickNotPreventDefault: () => true,
+
             dispatchTransaction(transaction) {
                 const oldState = view.state;
 

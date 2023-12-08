@@ -100,7 +100,7 @@ patchedDependencies:
     hash: 2cilo76hjm2rkc2l4kmysee6ya
     path: admin/patches/playwright@1.39.0.patch
   prosemirror-view@1.27.2:
-    hash: ep5td2fcl7fty7i23lgflvirku
+    hash: cxzpv2vdxyatt73znqljdunj5q
     path: admin/patches/prosemirror-view@1.27.2.patch
   psl@1.9.0:
     hash: uwdiyrxrbk6jfhukrzmqvjpgvi
@@ -607,7 +607,7 @@ dependencies:
     version: 1.7.0
   prosemirror-view:
     specifier: 1.27.2
-    version: 1.27.2(patch_hash=ep5td2fcl7fty7i23lgflvirku)
+    version: 1.27.2(patch_hash=cxzpv2vdxyatt73znqljdunj5q)
   punycode:
     specifier: ^2.3.1
     version: 2.3.1
@@ -13507,7 +13507,7 @@ packages:
     dependencies:
       prosemirror-model: 1.18.1
       prosemirror-transform: 1.7.0
-      prosemirror-view: 1.27.2(patch_hash=ep5td2fcl7fty7i23lgflvirku)
+      prosemirror-view: 1.27.2(patch_hash=cxzpv2vdxyatt73znqljdunj5q)
     dev: false
 
   /prosemirror-transform@1.7.0:
@@ -13516,7 +13516,7 @@ packages:
       prosemirror-model: 1.18.1
     dev: false
 
-  /prosemirror-view@1.27.2(patch_hash=ep5td2fcl7fty7i23lgflvirku):
+  /prosemirror-view@1.27.2(patch_hash=cxzpv2vdxyatt73znqljdunj5q):
     resolution: {integrity: sha512-RE2GLUaYXUyrpUl58vHoznZ3wKAj7z8f1ZZolivljwwOe1yiSzsEsuJPZmm3mpBXRgHGk7LWh5v+uhdDXAbjkA==}
     dependencies:
       prosemirror-model: 1.18.1
@@ -15692,7 +15692,7 @@ packages:
       lib0: 0.2.78
       prosemirror-model: 1.18.1
       prosemirror-state: 1.4.2
-      prosemirror-view: 1.27.2(patch_hash=ep5td2fcl7fty7i23lgflvirku)
+      prosemirror-view: 1.27.2(patch_hash=cxzpv2vdxyatt73znqljdunj5q)
       y-protocols: 1.0.5
       yjs: 13.6.6
     dev: false
