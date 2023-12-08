@@ -419,7 +419,6 @@ export function initializeScrollbar(
         // height. That's because it includes the height of our scrollbar. If the
         // scrollable element's content shrinks then our scrollbar will maintain the
         // old height. So calculate `element.scrollHeight` excluding the scrollbar.
-        let offsetTop = null;
         let scrollHeight = 0;
 
         for (const childNode of element.childNodes) {
@@ -428,14 +427,34 @@ export function initializeScrollbar(
             // Ignore our scrollbar element.
             if (childNode === scrollbarElement) continue;
 
-            if (offsetTop === null) {
-                offsetTop = childNode.offsetParent !== element ? element.offsetTop : 0;
-            }
+            // The offset from the top of our child to the top of our scroll area
+            // `element`.
+            //
+            // If `childNode.offsetParent === element` (true if `element` has the CSS
+            // `position: relative`) then that's `childNode.offsetTop`.
+            //
+            // However, if `childNode.offsetParent !== element` we need to subtract
+            // `element.offsetTop` to get our child's offset relative to `element` instead
+            // of relative to their shared parent.
+            const childOffsetTop =
+                childNode.offsetTop - (childNode.offsetParent !== element ? element.offsetTop : 0);
 
-            scrollHeight = Math.max(
-                scrollHeight,
-                childNode.offsetTop - offsetTop + childNode.offsetHeight,
-            );
+            // If the child's overflow is visible then we should use `scrollHeight` instead
+            // of `offsetHeight` since `offsetHeight` will be clipped to the overflow
+            // bounds. The overflowed content contributes to `element`'s `scrollHeight`.
+            //
+            // As of 2023-12-08, `<DocumentContentEditor>` is an example where this is
+            // necessary. The content element is the screen height but has more visible
+            // content underneath.
+            const childHeight =
+                getComputedStyle(childNode).overflowY === "visible"
+                    ? childNode.scrollHeight
+                    : childNode.offsetHeight;
+
+            // Children can be positioned in many surprising ways between `display: flex`
+            // or `float: right` or `position: absolute`. To determine the height of our
+            // content, we look for the element with the largest bottom position.
+            scrollHeight = Math.max(scrollHeight, childOffsetTop + childHeight);
         }
 
         // Make sure the element's `paddingTop`/`paddingBottom` is included in the
