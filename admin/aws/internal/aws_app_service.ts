@@ -194,9 +194,9 @@ export class AwsAppService extends Construct {
                     // in a command line string and are hard to quote so we lookup the environment
                     // variable within the program.
                     "--appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY",
-                    "--appServicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY",
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
+                    "--servicePrivateKey=\\$APP_SERVICE_PRIVATE_KEY",
                 ].join(" ")}`,
             ],
             healthCheck: {

@@ -34,6 +34,10 @@ export class JobsContextModule
         }
     }
 
+    public static new(sender: JobSenderBase) {
+        return new JobsContextModule(sender);
+    }
+
     /**
      * Sends a job to our job queue for processing. Will be batched with other jobs
      * sent from the same process in a short window of time.

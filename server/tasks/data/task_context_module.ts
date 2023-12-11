@@ -23,7 +23,7 @@ import {
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
 import {TaskRealtimeServiceRouterBase} from "~/server/tasks/router/task_realtime_service_router_base.js";
-import {TokenAgentBase} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -168,7 +168,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
  * - Communicating with the task realtime service
  */
 export class TaskContextModule extends TaskContextModuleBase {
-    private readonly _tokenAgent: TokenAgentBase;
+    private readonly _tokenAgent: TokenAgent;
     public readonly router: TaskRealtimeServiceRouterBase;
 
     constructor({
@@ -176,7 +176,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         router,
         dangerouslyEscalateToSystemContext,
     }: {
-        tokenAgent: TokenAgentBase;
+        tokenAgent: TokenAgent;
         router: TaskRealtimeServiceRouterBase;
         dangerouslyEscalateToSystemContext: (
             context: Context<{
@@ -231,10 +231,10 @@ export class TaskContextModule extends TaskContextModuleBase {
 
                 const [hosts, token] = await runAllPromises([
                     this.router.getHosts(this._context, actionTransaction.spaceId),
-                    this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
-                        type: "System",
-                        spaceId: actionTransaction.spaceId,
-                    }),
+                    this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                        "TaskRealtimeService",
+                        {type: "System", spaceId: actionTransaction.spaceId},
+                    ),
                 ]);
 
                 const requestBody = JSON.stringify(
@@ -326,7 +326,7 @@ export class TaskContextModule extends TaskContextModuleBase {
                 spaceId,
                 this._context.actor.getSessionId(),
             ),
-            this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
+            this._tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
                 type: "Session",
                 sessionId: this._context.actor.getSessionId(),
                 accountId: this._context.actor.getAccountId(),
@@ -389,7 +389,7 @@ export class TaskContextModule extends TaskContextModuleBase {
             // when there's a session actor and `getRandomHost()` when there's a system
             // actor.
             this.router.getRandomHost(this._context, spaceId),
-            this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
+            this._tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
                 type: "System",
                 spaceId: this._context.actor.getSpaceId(),
             }),
@@ -448,7 +448,7 @@ export class TaskContextModule extends TaskContextModuleBase {
             // when there's a session actor and `getRandomHost()` when there's a system
             // actor.
             this.router.getRandomHost(this._context, spaceId),
-            this._tokenAgent.dangerouslySignShortLivedToken("TaskRealtimeService", {
+            this._tokenAgent.privateSide.dangerouslySignShortLivedToken("TaskRealtimeService", {
                 type: "System",
                 spaceId: this._context.actor.getSpaceId(),
             }),

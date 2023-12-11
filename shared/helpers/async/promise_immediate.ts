@@ -152,6 +152,8 @@ export class PromiseImmediate<Value> implements PromiseLike<Value> {
         }
     }
 
+    static resolve(value: void): PromiseImmediate<void>;
+    static resolve<Value>(value: Value | PromiseLike<Value>): PromiseImmediate<Value>;
     static resolve<Value>(value: Value | PromiseLike<Value>): PromiseImmediate<Value> {
         return new PromiseImmediate(resolve => {
             resolve(value);

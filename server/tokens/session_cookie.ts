@@ -1,9 +1,7 @@
 import {parse, serialize} from "cookie";
-import {
-    AppServiceTokenAgent,
-    SessionTokenPayload,
-    TokenAgentBase,
-} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {SessionTokenPayload} from "~/server/tokens/token_payload.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -12,7 +10,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * it exists. Otherwise return null.
  */
 export async function getSessionCookieIfExists(
-    tokenAgent: TokenAgentBase,
+    tokenAgent: TokenAgent,
     request: Request,
 ): Promise<SessionTokenPayload | null> {
     const cookieHeader = request.headers.get("cookie");
@@ -35,7 +33,7 @@ export async function getSessionCookieIfExists(
     // signature.
     if (token.split(".").length === 2) return null;
 
-    const payload = await tokenAgent.verifyTokenFromService("AppService", token);
+    const payload = await tokenAgent.publicSide.verifyTokenFromService("AppService", token);
 
     if (payload.type !== "Session")
         throw new InternalError("Unexpected token payload type in session cookie");
@@ -62,7 +60,7 @@ export type SessionCookie = {
  * `getSessionCookieIfExists()`.
  */
 export async function withSessionCookie(
-    tokenAgent: AppServiceTokenAgent,
+    tokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>,
     request: Request,
     action: (sessionCookie: SessionCookie) => Promise<Response>,
 ): Promise<Response> {
@@ -86,7 +84,7 @@ export async function withSessionCookie(
     const oldSessionTokenPayload = await oldTokenPromise;
 
     if (newToken !== "Unset" && oldSessionTokenPayload !== newToken) {
-        const header = await getSessionCookieSetCookieHeader(tokenAgent, newToken);
+        const header = await getSessionCookieSetCookieHeader(tokenAgent.privateSide, newToken);
         response.headers.append("set-cookie", header);
     }
 
@@ -94,10 +92,12 @@ export async function withSessionCookie(
 }
 
 async function getSessionCookieSetCookieHeader(
-    tokenAgent: AppServiceTokenAgent,
+    tokenAgentPrivateSide: AppServiceTokenAgentPrivateSide,
     token: SessionTokenPayload | null,
 ) {
-    const cookieString = token ? await tokenAgent.dangerouslySignEternalSessionToken(token) : "";
+    const cookieString = token
+        ? await tokenAgentPrivateSide.dangerouslySignEternalSessionToken(token)
+        : "";
 
     return serialize("session", cookieString, {
         // The session cookie domain is not set in development because we may be
@@ -119,9 +119,9 @@ async function getSessionCookieSetCookieHeader(
 
 // Let tests call this function directly.
 export function getSessionCookieSetCookieHeaderForTest(
-    tokenAgent: AppServiceTokenAgent,
+    tokenAgentPrivateSide: AppServiceTokenAgentPrivateSide,
     token: SessionTokenPayload | null,
 ) {
     assert(process.env.NODE_ENV === "test");
-    return getSessionCookieSetCookieHeader(tokenAgent, token);
+    return getSessionCookieSetCookieHeader(tokenAgentPrivateSide, token);
 }

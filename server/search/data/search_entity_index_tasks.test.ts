@@ -1156,7 +1156,7 @@ test("will not index a task twice if notes update happened within the timeout", 
                 1,
                 1,
                 new Slice(
-                    new Fragment([
+                    Fragment.from([
                         TaskNotesContentProsemirrorSchema.text(
                             "What Do They Know? Do They Know Things? Let’s Find Out.",
                         ),
@@ -1225,7 +1225,7 @@ test("will index a task twice if a notes update happens after last indexing", as
                 1,
                 1,
                 new Slice(
-                    new Fragment([
+                    Fragment.from([
                         TaskNotesContentProsemirrorSchema.text(
                             "This is the title of a game show from BoJack",
                         ),
@@ -1273,7 +1273,7 @@ test("will index a task twice if a notes update happens after last indexing", as
                 45,
                 45,
                 new Slice(
-                    new Fragment([
+                    Fragment.from([
                         TaskNotesContentProsemirrorSchema.text(
                             " Horseman hosted by the character Mr. Peanutbutter.",
                         ),
@@ -1351,7 +1351,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
                 1,
                 1,
                 new Slice(
-                    new Fragment([
+                    Fragment.from([
                         TaskNotesContentProsemirrorSchema.text(
                             "This is the title of a game show from BoJack",
                         ),
@@ -1399,7 +1399,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
                 45,
                 45,
                 new Slice(
-                    new Fragment([
+                    Fragment.from([
                         TaskNotesContentProsemirrorSchema.text(
                             " Horseman hosted by the character Mr. Peanutbutter.",
                         ),

@@ -31,6 +31,7 @@ async function main() {
             appServicePublicKey: appServicePublicKeyPath,
             edgeServiceFamilyPublicKey: edgeServiceFamilyPublicKeyPath,
             taskRealtimeServicePublicKey: taskRealtimeServicePublicKeyPath,
+            jobQueueServicePublicKey: jobQueueServicePublicKeyPath,
             edgeServiceFamilyPrivateKey: edgeServiceFamilyPrivateKeyPath,
             honeycombApiKey,
             inspectorPort: inspectorPortString,
@@ -42,6 +43,7 @@ async function main() {
             appServicePublicKey: {type: "string"},
             edgeServiceFamilyPublicKey: {type: "string"},
             taskRealtimeServicePublicKey: {type: "string"},
+            jobQueueServicePublicKey: {type: "string"},
             edgeServiceFamilyPrivateKey: {type: "string"},
             honeycombApiKey: {type: "string"},
             inspectorPort: {type: "string"},
@@ -59,6 +61,7 @@ async function main() {
         throw new Error("Missing `edgeServiceFamilyPublicKeyPath` arg");
     if (!taskRealtimeServicePublicKeyPath)
         throw new Error("Missing `taskRealtimeServicePublicKeyPath` arg");
+    if (!jobQueueServicePublicKeyPath) throw new Error("Missing `jobQueueServicePublicKey` arg");
     if (!edgeServiceFamilyPrivateKeyPath)
         throw new Error("Missing `edgeServiceFamilyPrivateKey` arg");
 
@@ -66,11 +69,13 @@ async function main() {
         appServicePublicKey,
         edgeServiceFamilyPublicKey,
         taskRealtimeServicePublicKey,
+        jobQueueServicePublicKey,
         edgeServiceFamilyPrivateKey,
     ] = await Promise.all([
         fs.readFile(appServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPublicKeyPath, "utf8"),
         fs.readFile(taskRealtimeServicePublicKeyPath, "utf8"),
+        fs.readFile(jobQueueServicePublicKeyPath, "utf8"),
         fs.readFile(edgeServiceFamilyPrivateKeyPath, "utf8"),
     ]);
 
@@ -94,6 +99,7 @@ async function main() {
             APP_SERVICE_PUBLIC_KEY: appServicePublicKey,
             EDGE_SERVICE_FAMILY_PUBLIC_KEY: edgeServiceFamilyPublicKey,
             TASK_REALTIME_SERVICE_PUBLIC_KEY: taskRealtimeServicePublicKey,
+            JOB_QUEUE_SERVICE_PUBLIC_KEY: jobQueueServicePublicKey,
             EDGE_SERVICE_FAMILY_PRIVATE_KEY: edgeServiceFamilyPrivateKey,
             HONEYCOMB_API_KEY: honeycombApiKey,
         },

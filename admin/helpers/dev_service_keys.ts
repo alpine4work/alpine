@@ -27,6 +27,15 @@ export const devTaskRealtimeServicePublicKeyPath = joinPath(
     "task_realtime_service_rsa.pub",
 );
 
+export const devJobQueueServicePrivateKeyPath = joinPath(
+    devKeysDirectoryPath,
+    "job_queue_service_rsa",
+);
+export const devJobQueueServicePublicKeyPath = joinPath(
+    devKeysDirectoryPath,
+    "job_queue_service_rsa.pub",
+);
+
 /**
  * Make sure our development key files exist. If our key files do not exist
  * then we generate new keys. Otherwise this function does nothing.
@@ -112,6 +121,33 @@ export async function ensureDevServiceKeys() {
             await runAllPromises([
                 fs.writeFile(devTaskRealtimeServicePrivateKeyPath, privateKey),
                 fs.writeFile(devTaskRealtimeServicePublicKeyPath, publicKey),
+            ]);
+        })(),
+        (async () => {
+            if (await fs.pathExists(devJobQueueServicePrivateKeyPath)) return;
+            await fs.ensureDir(devKeysDirectoryPath);
+
+            const {publicKey, privateKey} = await new Promise<{
+                publicKey: string;
+                privateKey: string;
+            }>((resolve, reject) =>
+                generateKeyPair(
+                    "rsa",
+                    {
+                        modulusLength: 2048,
+                        publicKeyEncoding: {type: "spki", format: "pem"},
+                        privateKeyEncoding: {type: "pkcs8", format: "pem"},
+                    },
+                    (error, publicKey, privateKey) => {
+                        if (error) reject(error);
+                        else resolve({publicKey, privateKey});
+                    },
+                ),
+            );
+
+            await runAllPromises([
+                fs.writeFile(devJobQueueServicePrivateKeyPath, privateKey),
+                fs.writeFile(devJobQueueServicePublicKeyPath, publicKey),
             ]);
         })(),
     ]);

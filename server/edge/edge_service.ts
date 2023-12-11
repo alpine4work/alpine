@@ -2,13 +2,16 @@ import {fetchFromDurableObjectStub} from "~/server/cloudflare/fetch_from_durable
 import {TaskRealtimeServiceEdgeRouter} from "~/server/edge/task_realtime_service_edge_router.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
-import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {TokenAgentPublicSide} from "~/server/tokens/token_agent_public_side.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -23,6 +26,7 @@ type EdgeServiceEnv = {
     APP_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
     TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
+    JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     HONEYCOMB_API_KEY?: string;
 };
@@ -30,7 +34,7 @@ type EdgeServiceEnv = {
 // Cache some shared resources across requests.
 let sharedResources: {
     env: EdgeServiceEnv;
-    tokenAgentPromise: Promise<EdgeServiceFamilyTokenAgent>;
+    tokenAgentPromise: Promise<TokenAgent>;
     taskRealtimeServiceRouterPromise: Promise<TaskRealtimeServiceEdgeRouter>;
 } | null = null;
 
@@ -105,19 +109,29 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                         "Missing `TASK_REALTIME_SERVICE_PUBLIC_KEY` env variable",
                     );
 
+                const jobQueueServicePublicKey = env.JOB_QUEUE_SERVICE_PUBLIC_KEY;
+                if (!jobQueueServicePublicKey)
+                    throw new InternalError("Missing `JOB_QUEUE_SERVICE_PUBLIC_KEY` env variable");
+
                 const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
                 if (!edgeServiceFamilyPrivateKey)
                     throw new InternalError(
                         "Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable",
                     );
 
-                const tokenAgentPromise = EdgeServiceFamilyTokenAgent.new({
-                    serviceName: "EdgeService",
-                    appServicePublicKey,
-                    edgeServiceFamilyPublicKey,
-                    taskRealtimeServicePublicKey,
-                    edgeServiceFamilyPrivateKey,
-                });
+                const tokenAgentPromise = runAllPromises([
+                    TokenAgentPublicSide.new({
+                        serviceName: "EdgeService",
+                        appServicePublicKey,
+                        edgeServiceFamilyPublicKey,
+                        taskRealtimeServicePublicKey,
+                        jobQueueServicePublicKey,
+                    }),
+                    TokenAgentPrivateSide.new({
+                        serviceName: "EdgeService",
+                        servicePrivateKey: edgeServiceFamilyPrivateKey,
+                    }),
+                ]).then(([publicSide, privateSide]) => ({publicSide, privateSide}));
 
                 const ourSharedResources: typeof sharedResources = {
                     env,
@@ -253,7 +267,7 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                 const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
                 if (!sessionCookieToken) throw unauthenticatedSessionError();
 
-                const requestToken = await tokenAgent.dangerouslySignShortLivedToken(
+                const requestToken = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
                     "TaskRealtimeService",
                     sessionCookieToken,
                 );

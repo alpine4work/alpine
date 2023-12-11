@@ -38,6 +38,7 @@ ts_project(
         "//admin/dynamo:__pkg__",
         "//admin/opensearch/deploy:__pkg__",
         "//server/accounts/update_name:__pkg__",
+        "//server/jobs/queue:__pkg__",
         "//server/remix:__pkg__",
         "//server/rpc:__pkg__",
         "//server/search/data:__pkg__",

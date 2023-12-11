@@ -55,7 +55,7 @@ export async function loader({request, context, span}: LoaderArgs) {
             });
         }
 
-        const encryptedRoutesString = await context.loader.tokenAgent.encrypt(
+        const encryptedRoutesString = await context.loader.tokenAgent.publicSide.encrypt(
             "EdgeService",
             routesString,
         );

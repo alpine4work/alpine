@@ -12,10 +12,13 @@ import {
 import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {NoopEmailContextModule} from "~/server/emails/noop_email_context_module.js";
+import {JobSender} from "~/server/jobs/core/job_sender.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -61,6 +64,22 @@ export async function createAdhocServerProcessContext({
                       )}`,
                 baseContext.getAwsSigner(),
             ),
+        ),
+        jobs: JobsContextModule.new(
+            new JobSender({
+                queueUrl:
+                    awsProfile !== "local"
+                        ? ((): never => {
+                              throw new UnimplementedError("Production job queue URL");
+                          })()
+                        : `http://localhost:${parseInt(
+                              assertExists(
+                                  env.SQS_LOCAL_PORT,
+                                  "SQS local port must be provided when running SQS locally",
+                              ),
+                              10,
+                          )}/local/JobQueue`,
+            }),
         ),
     });
 

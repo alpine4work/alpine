@@ -17,7 +17,7 @@ const maxRetryAttemptCount = 200;
  * spinner while we wait for the server to be ready.
  */
 export async function createDevProxyServer(
-    artifact: Artifact,
+    artifact: Artifact & {readonly ports: {}},
     {
         logError,
         mainPromise: _mainPromise,
@@ -28,7 +28,7 @@ export async function createDevProxyServer(
 ) {
     const mainPromise = PromiseImmediate.resolve(_mainPromise);
 
-    let lastPrivatePort = artifact.privatePort;
+    let lastPrivatePort = artifact.ports.privatePort;
 
     let keepAliveAgent = new http.Agent({keepAlive: true});
     const dontKeepAliveAgent = new http.Agent({keepAlive: false});
@@ -50,7 +50,10 @@ export async function createDevProxyServer(
         // Wait for the HTTP server to start before making our first request.
         //
         // TODO(calebmer): I don't think we need request retrying in our proxy anymore
-        // if we're waiting on `httpServerStartPromise`?
+        // if we're waiting on `httpServerStartPromise`? If we can remove the need for
+        // retries then maybe we can merge this code with
+        // `//server/tasks/realtime/gateway` which would be awesome (since gateway code
+        // is based off this code but only run in production).
         mainPromise
             .then(() => {
                 const server = artifact.server.getWithoutLock();
@@ -87,15 +90,15 @@ export async function createDevProxyServer(
             // TODO(calebmer): Destroy the last keep-alive agent when there are no more
             // ongoing requests? Can't immediately destroy it since there may be a request
             // we're finishing.
-            if (lastPrivatePort !== artifact.privatePort) {
-                lastPrivatePort = artifact.privatePort;
+            if (lastPrivatePort !== artifact.ports.privatePort) {
+                lastPrivatePort = artifact.ports.privatePort;
                 keepAliveAgent = new http.Agent({keepAlive: true});
             }
 
             const req = http.request({
                 agent: keepAliveAgent,
                 hostname: "localhost",
-                port: artifact.privatePort,
+                port: artifact.ports.privatePort,
                 path: proxyReq.url,
                 method: proxyReq.method,
                 headers: proxyReq.headers,
@@ -176,7 +179,10 @@ export async function createDevProxyServer(
         // Wait for the HTTP server to start before making our first request.
         //
         // TODO(calebmer): I don't think we need request retrying in our proxy anymore
-        // if we're waiting on `httpServerStartPromise`?
+        // if we're waiting on `httpServerStartPromise`? If we can remove the need for
+        // retries then maybe we can merge this code with
+        // `//server/tasks/realtime/gateway` which would be awesome (since gateway code
+        // is based off this code but only run in production).
         mainPromise
             .then(() => {
                 const server = artifact.server.getWithoutLock();
@@ -223,7 +229,7 @@ export async function createDevProxyServer(
                 // we try to reuse it.
                 agent: dontKeepAliveAgent,
                 hostname: "localhost",
-                port: artifact.privatePort,
+                port: artifact.ports.privatePort,
                 path: proxyReq.url,
                 method: proxyReq.method,
                 headers: proxyReq.headers,
@@ -313,6 +319,6 @@ export async function createDevProxyServer(
     });
 
     await new Promise<void>(resolve => {
-        proxyServer.listen(artifact.publicPort, resolve);
+        proxyServer.listen(artifact.ports.publicPort, resolve);
     });
 }

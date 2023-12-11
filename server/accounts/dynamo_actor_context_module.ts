@@ -6,7 +6,7 @@ import {
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {TokenServiceName} from "~/server/tokens/token_agent.js";
+import {TokenServiceName} from "~/server/tokens/token_service_name.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";

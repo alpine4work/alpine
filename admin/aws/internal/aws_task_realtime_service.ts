@@ -237,7 +237,7 @@ export class AwsTaskRealtimeService extends Construct {
                     "--appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY",
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
-                    "--taskRealtimeServicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY",
+                    "--servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY",
                 ].join(" ")}`,
             ],
             healthCheck: {

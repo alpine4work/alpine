@@ -3,7 +3,7 @@ import {
     TaskRealtimeServiceRoutes,
     TaskRealtimeServiceRoutesSchema,
 } from "~/server/tasks/router/task_realtime_service_router_base.js";
-import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -17,7 +17,7 @@ import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 export class TaskRealtimeServiceEdgeRouter extends TaskRealtimeServiceRouterBase {
     private readonly _protocol: string;
     private readonly _host: string;
-    private readonly _tokenAgent: EdgeServiceFamilyTokenAgent;
+    private readonly _tokenAgent: TokenAgent;
 
     constructor({
         protocol,
@@ -26,7 +26,7 @@ export class TaskRealtimeServiceEdgeRouter extends TaskRealtimeServiceRouterBase
     }: {
         protocol: string;
         host: string;
-        tokenAgent: EdgeServiceFamilyTokenAgent;
+        tokenAgent: TokenAgent;
     }) {
         super();
         this._protocol = protocol;
@@ -49,7 +49,9 @@ export class TaskRealtimeServiceEdgeRouter extends TaskRealtimeServiceRouterBase
                 }
 
                 const encryptedRoutesString = await response.text();
-                const routesString = await this._tokenAgent.decrypt(encryptedRoutesString);
+                const routesString = await this._tokenAgent.privateSide.decrypt(
+                    encryptedRoutesString,
+                );
                 const routes = TaskRealtimeServiceRoutesSchema.deserialize(
                     JSON.parse(routesString),
                 );

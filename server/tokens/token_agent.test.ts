@@ -1,5 +1,10 @@
 import {generateKeyPair} from "crypto";
-import {AppServiceTokenAgent, EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {
+    AppServiceTokenAgentPrivateSide,
+    TokenAgentPrivateSide,
+} from "~/server/tokens/token_agent_private_side.js";
+import {TokenAgentPublicSide} from "~/server/tokens/token_agent_public_side.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -7,59 +12,83 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 
-let appServiceTokenAgent: AppServiceTokenAgent;
-let edgeServiceTokenAgent: EdgeServiceFamilyTokenAgent;
-let documentCollaborationServiceTokenAgent: EdgeServiceFamilyTokenAgent;
+let appServiceTokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>;
+let edgeServiceTokenAgent: TokenAgent;
+let documentCollaborationServiceTokenAgent: TokenAgent;
 
 beforeAll(async () => {
-    const [appServiceKeyPair, edgeServiceFamilyKeyPair, taskRealtimeServiceKeyPair] =
-        await runAllPromises(
-            createArrayWithLength(
-                3,
-                () =>
-                    new Promise<{publicKey: string; privateKey: string}>((resolve, reject) =>
-                        generateKeyPair(
-                            "rsa",
-                            {
-                                modulusLength: 2048,
-                                publicKeyEncoding: {type: "spki", format: "pem"},
-                                privateKeyEncoding: {type: "pkcs8", format: "pem"},
-                            },
-                            (error, publicKey, privateKey) => {
-                                if (error) reject(error);
-                                else resolve({publicKey, privateKey});
-                            },
-                        ),
+    const [
+        appServiceKeyPair,
+        edgeServiceFamilyKeyPair,
+        taskRealtimeServiceKeyPair,
+        jobQueueServiceKeyPair,
+    ] = await runAllPromises(
+        createArrayWithLength(
+            4,
+            () =>
+                new Promise<{publicKey: string; privateKey: string}>((resolve, reject) =>
+                    generateKeyPair(
+                        "rsa",
+                        {
+                            modulusLength: 2048,
+                            publicKeyEncoding: {type: "spki", format: "pem"},
+                            privateKeyEncoding: {type: "pkcs8", format: "pem"},
+                        },
+                        (error, publicKey, privateKey) => {
+                            if (error) reject(error);
+                            else resolve({publicKey, privateKey});
+                        },
                     ),
-            ),
-        );
+                ),
+        ),
+    );
 
     assert(appServiceKeyPair);
     assert(edgeServiceFamilyKeyPair);
     assert(taskRealtimeServiceKeyPair);
+    assert(jobQueueServiceKeyPair);
 
     [appServiceTokenAgent, edgeServiceTokenAgent, documentCollaborationServiceTokenAgent] =
         await runAllPromises([
-            AppServiceTokenAgent.new({
-                appServicePublicKey: appServiceKeyPair.publicKey,
-                edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
-                taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
-                appServicePrivateKey: appServiceKeyPair.privateKey,
-            }),
-            EdgeServiceFamilyTokenAgent.new({
-                serviceName: "EdgeService",
-                appServicePublicKey: appServiceKeyPair.publicKey,
-                edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
-                taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
-                edgeServiceFamilyPrivateKey: edgeServiceFamilyKeyPair.privateKey,
-            }),
-            EdgeServiceFamilyTokenAgent.new({
-                serviceName: "DocumentCollaborationService",
-                appServicePublicKey: appServiceKeyPair.publicKey,
-                edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
-                taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
-                edgeServiceFamilyPrivateKey: edgeServiceFamilyKeyPair.privateKey,
-            }),
+            runAllPromises([
+                TokenAgentPublicSide.new({
+                    serviceName: "EdgeService",
+                    appServicePublicKey: appServiceKeyPair.publicKey,
+                    edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
+                    taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
+                    jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
+                }),
+                AppServiceTokenAgentPrivateSide.new({
+                    serviceName: "AppService",
+                    servicePrivateKey: edgeServiceFamilyKeyPair.privateKey,
+                }),
+            ]).then(([publicSide, privateSide]) => ({publicSide, privateSide})),
+            runAllPromises([
+                TokenAgentPublicSide.new({
+                    serviceName: "EdgeService",
+                    appServicePublicKey: appServiceKeyPair.publicKey,
+                    edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
+                    taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
+                    jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
+                }),
+                TokenAgentPrivateSide.new({
+                    serviceName: "EdgeService",
+                    servicePrivateKey: edgeServiceFamilyKeyPair.privateKey,
+                }),
+            ]).then(([publicSide, privateSide]) => ({publicSide, privateSide})),
+            runAllPromises([
+                TokenAgentPublicSide.new({
+                    serviceName: "DocumentCollaborationService",
+                    appServicePublicKey: appServiceKeyPair.publicKey,
+                    edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
+                    taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
+                    jobQueueServicePublicKey: jobQueueServiceKeyPair.publicKey,
+                }),
+                TokenAgentPrivateSide.new({
+                    serviceName: "DocumentCollaborationService",
+                    servicePrivateKey: edgeServiceFamilyKeyPair.privateKey,
+                }),
+            ]).then(([publicSide, privateSide]) => ({publicSide, privateSide})),
         ]);
 });
 
@@ -67,103 +96,7 @@ test("app service can sign short lived tokens for app service", async () => {
     const sessionId = generateId<SessionId>();
     const accountId = generateId<AccountId>();
 
-    const token = await appServiceTokenAgent.dangerouslySignShortLivedToken("AppService", {
-        type: "Session",
-        sessionId,
-        accountId,
-    });
-
-    expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
-        serviceName: "AppService",
-        payload: {
-            type: "Session",
-            sessionId,
-            accountId,
-        },
-    });
-
-    expect(await appServiceTokenAgent.verifyTokenFromService("AppService", token)).toEqual({
-        type: "Session",
-        sessionId,
-        accountId,
-    });
-
-    await expect(appServiceTokenAgent.verifyTokenFromService("EdgeService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(edgeServiceTokenAgent.verifyToken(token)).rejects.toThrow(PermissionDeniedError);
-    await expect(edgeServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(
-        edgeServiceTokenAgent.verifyTokenFromService("EdgeService", token),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(documentCollaborationServiceTokenAgent.verifyToken(token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("AppService", token),
-    ).rejects.toThrow(PermissionDeniedError);
-    await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("EdgeService", token),
-    ).rejects.toThrow(PermissionDeniedError);
-});
-
-test("edge service can sign short lived tokens for edge service", async () => {
-    const sessionId = generateId<SessionId>();
-    const accountId = generateId<AccountId>();
-
-    const token = await edgeServiceTokenAgent.dangerouslySignShortLivedToken("EdgeService", {
-        type: "Session",
-        sessionId,
-        accountId,
-    });
-
-    expect(await edgeServiceTokenAgent.verifyToken(token)).toEqual({
-        serviceName: "EdgeService",
-        payload: {
-            type: "Session",
-            sessionId,
-            accountId,
-        },
-    });
-
-    expect(await edgeServiceTokenAgent.verifyTokenFromService("EdgeService", token)).toEqual({
-        type: "Session",
-        sessionId,
-        accountId,
-    });
-
-    await expect(edgeServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(appServiceTokenAgent.verifyToken(token)).rejects.toThrow(PermissionDeniedError);
-    await expect(appServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(appServiceTokenAgent.verifyTokenFromService("EdgeService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(documentCollaborationServiceTokenAgent.verifyToken(token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("AppService", token),
-    ).rejects.toThrow(PermissionDeniedError);
-    await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("EdgeService", token),
-    ).rejects.toThrow(PermissionDeniedError);
-});
-
-test("document collaboration service can sign short lived tokens for app service", async () => {
-    const sessionId = generateId<SessionId>();
-    const accountId = generateId<AccountId>();
-
-    const token = await documentCollaborationServiceTokenAgent.dangerouslySignShortLivedToken(
+    const token = await appServiceTokenAgent.privateSide.dangerouslySignShortLivedToken(
         "AppService",
         {
             type: "Session",
@@ -172,7 +105,130 @@ test("document collaboration service can sign short lived tokens for app service
         },
     );
 
-    expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
+    expect(await appServiceTokenAgent.publicSide.verifyToken(token)).toEqual({
+        serviceName: "AppService",
+        payload: {
+            type: "Session",
+            sessionId,
+            accountId,
+        },
+    });
+
+    expect(
+        await appServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).toEqual({
+        type: "Session",
+        sessionId,
+        accountId,
+    });
+
+    await expect(
+        appServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(edgeServiceTokenAgent.publicSide.verifyToken(token)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyToken(token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "AppService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "EdgeService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("edge service can sign short lived tokens for edge service", async () => {
+    const sessionId = generateId<SessionId>();
+    const accountId = generateId<AccountId>();
+
+    const token = await edgeServiceTokenAgent.privateSide.dangerouslySignShortLivedToken(
+        "EdgeService",
+        {
+            type: "Session",
+            sessionId,
+            accountId,
+        },
+    );
+
+    expect(await edgeServiceTokenAgent.publicSide.verifyToken(token)).toEqual({
+        serviceName: "EdgeService",
+        payload: {
+            type: "Session",
+            sessionId,
+            accountId,
+        },
+    });
+
+    expect(
+        await edgeServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).toEqual({
+        type: "Session",
+        sessionId,
+        accountId,
+    });
+
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(appServiceTokenAgent.publicSide.verifyToken(token)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        appServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        appServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyToken(token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "AppService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "EdgeService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+});
+
+test("document collaboration service can sign short lived tokens for app service", async () => {
+    const sessionId = generateId<SessionId>();
+    const accountId = generateId<AccountId>();
+
+    const token =
+        await documentCollaborationServiceTokenAgent.privateSide.dangerouslySignShortLivedToken(
+            "AppService",
+            {
+                type: "Session",
+                sessionId,
+                accountId,
+            },
+        );
+
+    expect(await appServiceTokenAgent.publicSide.verifyToken(token)).toEqual({
         serviceName: "DocumentCollaborationService",
         payload: {
             type: "Session",
@@ -182,33 +238,44 @@ test("document collaboration service can sign short lived tokens for app service
     });
 
     expect(
-        await appServiceTokenAgent.verifyTokenFromService("DocumentCollaborationService", token),
+        await appServiceTokenAgent.publicSide.verifyTokenFromService(
+            "DocumentCollaborationService",
+            token,
+        ),
     ).toEqual({
         type: "Session",
         sessionId,
         accountId,
     });
 
-    await expect(appServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(edgeServiceTokenAgent.verifyToken(token)).rejects.toThrow(PermissionDeniedError);
-    await expect(edgeServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
     await expect(
-        edgeServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        appServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(documentCollaborationServiceTokenAgent.verifyToken(token)).rejects.toThrow(
+    await expect(edgeServiceTokenAgent.publicSide.verifyToken(token)).rejects.toThrow(
         PermissionDeniedError,
     );
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("AppService", token),
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyToken(token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "AppService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "EdgeService",
+            token,
+        ),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -216,7 +283,7 @@ test("app service can sign short lived tokens for app service and edge service",
     const sessionId = generateId<SessionId>();
     const accountId = generateId<AccountId>();
 
-    const token = await appServiceTokenAgent.dangerouslySignShortLivedToken(
+    const token = await appServiceTokenAgent.privateSide.dangerouslySignShortLivedToken(
         ["AppService", "EdgeService"],
         {
             type: "Session",
@@ -225,7 +292,7 @@ test("app service can sign short lived tokens for app service and edge service",
         },
     );
 
-    expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
+    expect(await appServiceTokenAgent.publicSide.verifyToken(token)).toEqual({
         serviceName: "AppService",
         payload: {
             type: "Session",
@@ -234,17 +301,19 @@ test("app service can sign short lived tokens for app service and edge service",
         },
     });
 
-    expect(await appServiceTokenAgent.verifyTokenFromService("AppService", token)).toEqual({
+    expect(
+        await appServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).toEqual({
         type: "Session",
         sessionId,
         accountId,
     });
 
-    await expect(appServiceTokenAgent.verifyTokenFromService("EdgeService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
+    await expect(
+        appServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
 
-    expect(await edgeServiceTokenAgent.verifyToken(token)).toEqual({
+    expect(await edgeServiceTokenAgent.publicSide.verifyToken(token)).toEqual({
         serviceName: "AppService",
         payload: {
             type: "Session",
@@ -253,24 +322,32 @@ test("app service can sign short lived tokens for app service and edge service",
         },
     });
 
-    expect(await edgeServiceTokenAgent.verifyTokenFromService("AppService", token)).toEqual({
+    expect(
+        await edgeServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).toEqual({
         type: "Session",
         sessionId,
         accountId,
     });
 
     await expect(
-        edgeServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(documentCollaborationServiceTokenAgent.verifyToken(token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("AppService", token),
+        documentCollaborationServiceTokenAgent.publicSide.verifyToken(token),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "AppService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "EdgeService",
+            token,
+        ),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -278,7 +355,7 @@ test("edge service can sign short lived tokens for app service and edge service"
     const sessionId = generateId<SessionId>();
     const accountId = generateId<AccountId>();
 
-    const token = await edgeServiceTokenAgent.dangerouslySignShortLivedToken(
+    const token = await edgeServiceTokenAgent.privateSide.dangerouslySignShortLivedToken(
         ["AppService", "EdgeService"],
         {
             type: "Session",
@@ -287,7 +364,7 @@ test("edge service can sign short lived tokens for app service and edge service"
         },
     );
 
-    expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
+    expect(await appServiceTokenAgent.publicSide.verifyToken(token)).toEqual({
         serviceName: "EdgeService",
         payload: {
             type: "Session",
@@ -296,43 +373,53 @@ test("edge service can sign short lived tokens for app service and edge service"
         },
     });
 
-    expect(await appServiceTokenAgent.verifyTokenFromService("EdgeService", token)).toEqual({
+    expect(
+        await appServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).toEqual({
         type: "Session",
         sessionId,
         accountId,
     });
 
-    await expect(appServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    expect(await edgeServiceTokenAgent.verifyToken(token)).toEqual({
-        serviceName: "EdgeService",
-        payload: {
-            type: "Session",
-            sessionId,
-            accountId,
-        },
-    });
-
-    expect(await edgeServiceTokenAgent.verifyTokenFromService("EdgeService", token)).toEqual({
-        type: "Session",
-        sessionId,
-        accountId,
-    });
-
-    await expect(edgeServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(documentCollaborationServiceTokenAgent.verifyToken(token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("AppService", token),
+        appServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(await edgeServiceTokenAgent.publicSide.verifyToken(token)).toEqual({
+        serviceName: "EdgeService",
+        payload: {
+            type: "Session",
+            sessionId,
+            accountId,
+        },
+    });
+
+    expect(
+        await edgeServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).toEqual({
+        type: "Session",
+        sessionId,
+        accountId,
+    });
+
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyToken(token),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "AppService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "EdgeService",
+            token,
+        ),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -340,13 +427,13 @@ test("app service can sign eternal tokens for app service and edge service", asy
     const sessionId = generateId<SessionId>();
     const accountId = generateId<AccountId>();
 
-    const token = await appServiceTokenAgent.dangerouslySignEternalSessionToken({
+    const token = await appServiceTokenAgent.privateSide.dangerouslySignEternalSessionToken({
         type: "Session",
         sessionId,
         accountId,
     });
 
-    expect(await appServiceTokenAgent.verifyToken(token)).toEqual({
+    expect(await appServiceTokenAgent.publicSide.verifyToken(token)).toEqual({
         serviceName: "AppService",
         payload: {
             type: "Session",
@@ -355,17 +442,19 @@ test("app service can sign eternal tokens for app service and edge service", asy
         },
     });
 
-    expect(await appServiceTokenAgent.verifyTokenFromService("AppService", token)).toEqual({
+    expect(
+        await appServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).toEqual({
         type: "Session",
         sessionId,
         accountId,
     });
 
-    await expect(appServiceTokenAgent.verifyTokenFromService("EdgeService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
+    await expect(
+        appServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
 
-    expect(await edgeServiceTokenAgent.verifyToken(token)).toEqual({
+    expect(await edgeServiceTokenAgent.publicSide.verifyToken(token)).toEqual({
         serviceName: "AppService",
         payload: {
             type: "Session",
@@ -374,24 +463,32 @@ test("app service can sign eternal tokens for app service and edge service", asy
         },
     });
 
-    expect(await edgeServiceTokenAgent.verifyTokenFromService("AppService", token)).toEqual({
+    expect(
+        await edgeServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).toEqual({
         type: "Session",
         sessionId,
         accountId,
     });
 
     await expect(
-        edgeServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
     ).rejects.toThrow(PermissionDeniedError);
 
-    await expect(documentCollaborationServiceTokenAgent.verifyToken(token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("AppService", token),
+        documentCollaborationServiceTokenAgent.publicSide.verifyToken(token),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "AppService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "EdgeService",
+            token,
+        ),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -399,7 +496,7 @@ test("edge service can sign short lived tokens for edge service that actually ex
     const sessionId = generateId<SessionId>();
     const accountId = generateId<AccountId>();
 
-    const token = await edgeServiceTokenAgent.dangerouslySignShortLivedToken(
+    const token = await edgeServiceTokenAgent.privateSide.dangerouslySignShortLivedToken(
         "EdgeService",
         {
             type: "Session",
@@ -411,30 +508,40 @@ test("edge service can sign short lived tokens for edge service that actually ex
         },
     );
 
-    await expect(appServiceTokenAgent.verifyToken(token)).rejects.toThrow(PermissionDeniedError);
-    await expect(appServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(appServiceTokenAgent.verifyTokenFromService("EdgeService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(edgeServiceTokenAgent.verifyToken(token)).rejects.toThrow(PermissionDeniedError);
-    await expect(edgeServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
+    await expect(appServiceTokenAgent.publicSide.verifyToken(token)).rejects.toThrow(
         PermissionDeniedError,
     );
     await expect(
-        edgeServiceTokenAgent.verifyTokenFromService("EdgeService", token),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(documentCollaborationServiceTokenAgent.verifyToken(token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("AppService", token),
+        appServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        appServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(edgeServiceTokenAgent.publicSide.verifyToken(token)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyToken(token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "AppService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "EdgeService",
+            token,
+        ),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -442,7 +549,7 @@ test("app service can sign short lived tokens for app service and edge service t
     const sessionId = generateId<SessionId>();
     const accountId = generateId<AccountId>();
 
-    const token = await appServiceTokenAgent.dangerouslySignShortLivedToken(
+    const token = await appServiceTokenAgent.privateSide.dangerouslySignShortLivedToken(
         ["AppService", "EdgeService"],
         {
             type: "Session",
@@ -454,30 +561,40 @@ test("app service can sign short lived tokens for app service and edge service t
         },
     );
 
-    await expect(appServiceTokenAgent.verifyToken(token)).rejects.toThrow(PermissionDeniedError);
-    await expect(appServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(appServiceTokenAgent.verifyTokenFromService("EdgeService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(edgeServiceTokenAgent.verifyToken(token)).rejects.toThrow(PermissionDeniedError);
-    await expect(edgeServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
+    await expect(appServiceTokenAgent.publicSide.verifyToken(token)).rejects.toThrow(
         PermissionDeniedError,
     );
     await expect(
-        edgeServiceTokenAgent.verifyTokenFromService("EdgeService", token),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(documentCollaborationServiceTokenAgent.verifyToken(token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("AppService", token),
+        appServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        appServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(edgeServiceTokenAgent.publicSide.verifyToken(token)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyToken(token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "AppService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "EdgeService",
+            token,
+        ),
     ).rejects.toThrow(PermissionDeniedError);
 });
 
@@ -485,41 +602,52 @@ test("document collaboration service can sign short lived tokens for app service
     const sessionId = generateId<SessionId>();
     const accountId = generateId<AccountId>();
 
-    const token = await documentCollaborationServiceTokenAgent.dangerouslySignShortLivedToken(
-        "AppService",
-        {
-            type: "Session",
-            sessionId,
-            accountId,
-        },
-        {
-            currentTimeForTest: new Date(Date.now() - 1000 * 60 * 5),
-        },
-    );
+    const token =
+        await documentCollaborationServiceTokenAgent.privateSide.dangerouslySignShortLivedToken(
+            "AppService",
+            {
+                type: "Session",
+                sessionId,
+                accountId,
+            },
+            {
+                currentTimeForTest: new Date(Date.now() - 1000 * 60 * 5),
+            },
+        );
 
-    await expect(appServiceTokenAgent.verifyToken(token)).rejects.toThrow(PermissionDeniedError);
-    await expect(appServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(appServiceTokenAgent.verifyTokenFromService("EdgeService", token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-
-    await expect(edgeServiceTokenAgent.verifyToken(token)).rejects.toThrow(PermissionDeniedError);
-    await expect(edgeServiceTokenAgent.verifyTokenFromService("AppService", token)).rejects.toThrow(
+    await expect(appServiceTokenAgent.publicSide.verifyToken(token)).rejects.toThrow(
         PermissionDeniedError,
     );
     await expect(
-        edgeServiceTokenAgent.verifyTokenFromService("EdgeService", token),
-    ).rejects.toThrow(PermissionDeniedError);
-
-    await expect(documentCollaborationServiceTokenAgent.verifyToken(token)).rejects.toThrow(
-        PermissionDeniedError,
-    );
-    await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("AppService", token),
+        appServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
-        documentCollaborationServiceTokenAgent.verifyTokenFromService("EdgeService", token),
+        appServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(edgeServiceTokenAgent.publicSide.verifyToken(token)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("AppService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        edgeServiceTokenAgent.publicSide.verifyTokenFromService("EdgeService", token),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyToken(token),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "AppService",
+            token,
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+    await expect(
+        documentCollaborationServiceTokenAgent.publicSide.verifyTokenFromService(
+            "EdgeService",
+            token,
+        ),
     ).rejects.toThrow(PermissionDeniedError);
 });

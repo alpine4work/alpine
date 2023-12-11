@@ -11,7 +11,9 @@ import {
 } from "~/server/cloudflare/context/worker_process_context.js";
 import {WorkerRpcContextModule} from "~/server/cloudflare/context/worker_rpc_context_module.js";
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
-import {EdgeServiceFamilyTokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
+import {TokenAgentPublicSide} from "~/server/tokens/token_agent_public_side.js";
 import {createServerTracer} from "~/server/tracer/server_tracer.js";
 import {traceServerResponse} from "~/server/tracer/trace_server_response.js";
 import {
@@ -30,6 +32,7 @@ import {
     UnimplementedError,
 } from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -45,6 +48,7 @@ export type DurableObjectEnv = {
     APP_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PUBLIC_KEY?: string;
     TASK_REALTIME_SERVICE_PUBLIC_KEY?: string;
+    JOB_QUEUE_SERVICE_PUBLIC_KEY?: string;
     EDGE_SERVICE_FAMILY_PRIVATE_KEY?: string;
     HONEYCOMB_API_KEY?: string;
 };
@@ -107,7 +111,7 @@ export function createDurableObject<
 } {
     return class DurableObjectWrapper {
         private readonly _state: DurableObjectState;
-        private _tokenAgent: EdgeServiceFamilyTokenAgent | Promise<EdgeServiceFamilyTokenAgent>;
+        private _tokenAgent: TokenAgent | Promise<TokenAgent>;
         private readonly _cookieJar: CookieJar;
         private readonly _tracer: TracerRoot;
         private readonly _processContext: WorkerProcessContext;
@@ -131,17 +135,27 @@ export function createDurableObject<
             if (!taskRealtimeServicePublicKey)
                 throw new InternalError("Missing `TASK_REALTIME_SERVICE_PUBLIC_KEY` env variable");
 
+            const jobQueueServicePublicKey = env.JOB_QUEUE_SERVICE_PUBLIC_KEY;
+            if (!jobQueueServicePublicKey)
+                throw new InternalError("Missing `JOB_QUEUE_SERVICE_PUBLIC_KEY` env variable");
+
             const edgeServiceFamilyPrivateKey = env.EDGE_SERVICE_FAMILY_PRIVATE_KEY;
             if (!edgeServiceFamilyPrivateKey)
                 throw new InternalError("Missing `EDGE_SERVICE_FAMILY_PRIVATE_KEY` env variable");
 
-            const tokenAgentPromise = EdgeServiceFamilyTokenAgent.new({
-                serviceName,
-                appServicePublicKey,
-                edgeServiceFamilyPublicKey,
-                taskRealtimeServicePublicKey,
-                edgeServiceFamilyPrivateKey,
-            });
+            const tokenAgentPromise = runAllPromises([
+                TokenAgentPublicSide.new({
+                    serviceName,
+                    appServicePublicKey,
+                    edgeServiceFamilyPublicKey,
+                    taskRealtimeServicePublicKey,
+                    jobQueueServicePublicKey,
+                }),
+                TokenAgentPrivateSide.new({
+                    serviceName,
+                    servicePrivateKey: edgeServiceFamilyPrivateKey,
+                }),
+            ]).then(([publicSide, privateSide]) => ({publicSide, privateSide}));
 
             this._tokenAgent = tokenAgentPromise;
 

@@ -1,5 +1,4 @@
 import {WebSocketPair} from "#server/web_socket/internal/web_socket_pair.js";
-import fs from "fs-extra";
 import {Session} from "~/server/accounts/accounts_table.js";
 import {
     DynamoActorContextModule,
@@ -20,6 +19,10 @@ import {
     createServerProcessContext,
     serverProcessContextParseOptions,
 } from "~/server/node/create_server_process_context.js";
+import {
+    createServiceTokenAgent,
+    serviceTokenAgentParseOptions,
+} from "~/server/node/create_service_token_agent.js";
 import {createStandardizedServerWithWebSockets} from "~/server/node/create_standardized_server.js";
 import {runService} from "~/server/node/run_service.js";
 import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
@@ -38,7 +41,7 @@ import {
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
-import {TaskRealtimeServiceTokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -74,10 +77,7 @@ runService({
     serviceName: "TaskRealtimeService",
     options: {
         portBase: {type: "string"},
-        appServicePublicKey: {type: "string"},
-        edgeServiceFamilyPublicKey: {type: "string"},
-        taskRealtimeServicePublicKey: {type: "string"},
-        taskRealtimeServicePrivateKey: {type: "string"},
+        ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
     run: async ({options, tracer, workerIndex}) => {
@@ -89,67 +89,18 @@ runService({
         // `portBase` instead of `portBase + 1`.
         const port = process.env.NODE_ENV !== "production" ? portBase : portBase + workerIndex + 1;
 
-        if (!options.appServicePublicKey)
-            throw new InternalError("Missing `appServicePublicKey` option");
-        if (!options.edgeServiceFamilyPublicKey)
-            throw new InternalError("Missing `edgeServiceFamilyPublicKey` option");
-        if (!options.taskRealtimeServicePublicKey)
-            throw new InternalError("Missing `taskRealtimeServicePublicKey` option");
-        if (!options.taskRealtimeServicePrivateKey)
-            throw new InternalError("Missing `taskRealtimeServicePrivateKey` option");
-
-        // Our key args may either be a file path or an environment variable name. We
-        // first test the environment variable name then try to load as a file path.
-        //
-        // We allow an environment variable name since an RSA key argument might be too
-        // long for the command line. Tools like AWS also make it easiest to pass in
-        // secrets through environment variables as opposed to command line arguments
-        // or files. As of 2023-08-07 the AWS CDK logic for setting production CLI
-        // arguments can be found in
-        // `admin/aws/internal/add_all_container_aws_resources.ts`.
-        function getKeyFromOption(arg: string) {
-            if (arg.startsWith("$")) {
-                const envKey = arg.slice(1);
-                const envValue = process.env[envKey];
-
-                if (envValue === undefined)
-                    throw new InternalError(quote`Env variable ${envKey} does not exist`);
-
-                // Don't allow access to the environment variable anywhere else in the program.
-                // Force key usage to be controlled here from the top of the program.
-                //
-                // Also secures against attacks where an attacker finds a way to inspect
-                // `process.env`.
-                delete process.env[envKey];
-
-                return envValue;
-            } else {
-                return fs.readFile(arg, "utf8");
-            }
-        }
-
-        const [
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            taskRealtimeServicePrivateKey,
-        ] = await runAllPromises([
-            getKeyFromOption(options.appServicePublicKey),
-            getKeyFromOption(options.edgeServiceFamilyPublicKey),
-            getKeyFromOption(options.taskRealtimeServicePublicKey),
-            getKeyFromOption(options.taskRealtimeServicePrivateKey),
-        ]);
-
-        const tokenAgent = await TaskRealtimeServiceTokenAgent.new({
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            taskRealtimeServicePrivateKey,
+        const tokenAgent = await createServiceTokenAgent({
+            serviceName: "TaskRealtimeService",
+            options,
         });
 
         const awsSigner = new AwsRequestSigner();
 
-        const processContext = createServerProcessContext({tracer, awsSigner, options});
+        const processContext = createServerProcessContext({
+            tracer,
+            awsSigner,
+            options,
+        });
 
         const [server, {start}] = TaskRealtimeServer.new(processContext);
 
@@ -610,7 +561,7 @@ runService({
 async function createActorContextModule(
     context: Context<DynamoContextModules & {cache: CacheContextModule}>,
     request: Request,
-    tokenAgent: TaskRealtimeServiceTokenAgent,
+    tokenAgent: TokenAgent,
     spaceId: SpaceId,
 ) {
     const authorizationHeader = request.headers.get("authorization");
@@ -625,9 +576,8 @@ async function createActorContextModule(
     }
 
     const authorizationHeaderToken = authorizationHeaderMatch[1] ?? "";
-    const {serviceName, payload: authorizationHeaderPayload} = await tokenAgent.verifyToken(
-        authorizationHeaderToken,
-    );
+    const {serviceName, payload: authorizationHeaderPayload} =
+        await tokenAgent.publicSide.verifyToken(authorizationHeaderToken);
 
     switch (authorizationHeaderPayload.type) {
         case "Session": {

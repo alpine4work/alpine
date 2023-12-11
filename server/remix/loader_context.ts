@@ -7,7 +7,8 @@ import {NotificationsContextModuleBase} from "~/server/notifications/core/notifi
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {SessionCookie} from "~/server/tokens/session_cookie.js";
-import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
@@ -60,7 +61,7 @@ export class LoaderContextModule extends ContextModuleBase {
     /**
      * Allow Remix loaders to sign tokens and encrypt data with our token agent.
      */
-    public readonly tokenAgent: AppServiceTokenAgent;
+    public readonly tokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>;
 
     /**
      * Manipulate the HTTP session cookie. Important to remember that the client
@@ -98,7 +99,7 @@ export class LoaderContextModule extends ContextModuleBase {
             sessionCookie,
             devServerPort,
         }: {
-            tokenAgent: AppServiceTokenAgent;
+            tokenAgent: TokenAgent<AppServiceTokenAgentPrivateSide>;
             sessionCookie: SessionCookie;
             devServerPort: number | null;
         },

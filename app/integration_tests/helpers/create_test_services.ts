@@ -20,7 +20,7 @@ import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
 import {getSessionCookieSetCookieHeaderForTest} from "~/server/tokens/session_cookie.js";
-import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
+import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -72,24 +72,10 @@ export function createTestServices(context: TestContext): TestServer {
     let edgeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
     let taskRealtimeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
 
-    const appServiceTokenAgentPromise = (async () => {
-        const [
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            appServicePrivateKey,
-        ] = await runAllPromises([
-            fs.readFile(devAppServicePublicKeyPath, "utf8"),
-            fs.readFile(devEdgeServiceFamilyPublicKeyPath, "utf8"),
-            fs.readFile(devTaskRealtimeServicePublicKeyPath, "utf8"),
-            fs.readFile(devAppServicePrivateKeyPath, "utf8"),
-        ]);
-
-        return AppServiceTokenAgent.new({
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            appServicePrivateKey,
+    const appServiceTokenAgentPrivateSidePromise = (async () => {
+        return AppServiceTokenAgentPrivateSide.new({
+            serviceName: "AppService",
+            servicePrivateKey: await fs.readFile(devAppServicePrivateKeyPath, "utf8"),
         });
     })();
 
@@ -225,13 +211,16 @@ export function createTestServices(context: TestContext): TestServer {
             | {sessionId: SessionId; accountId: AccountId}
             | {id: SessionId; account: {id: AccountId}},
     ) => {
-        const tokenAgent = await appServiceTokenAgentPromise;
+        const tokenAgentPrivateSide = await appServiceTokenAgentPrivateSidePromise;
 
-        const sessionCookieHeader = await getSessionCookieSetCookieHeaderForTest(tokenAgent, {
-            type: "Session",
-            sessionId: "id" in session ? session.id : session.sessionId,
-            accountId: "account" in session ? session.account.id : session.accountId,
-        });
+        const sessionCookieHeader = await getSessionCookieSetCookieHeaderForTest(
+            tokenAgentPrivateSide,
+            {
+                type: "Session",
+                sessionId: "id" in session ? session.id : session.sessionId,
+                accountId: "account" in session ? session.account.id : session.accountId,
+            },
+        );
 
         await browserContext.addCookies(
             parseSetCookieHeader(sessionCookieHeader).map(cookie => ({

@@ -1,6 +1,6 @@
 import {unauthenticatedSessionError} from "~/server/helpers/unauthenticated_session_error.js";
 import {getSessionCookieIfExists} from "~/server/tokens/session_cookie.js";
-import {TokenAgentBase} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 import {DurableObjectServiceName} from "~/shared/tracer/tracer_root.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
@@ -21,7 +21,7 @@ export async function fetchFromDurableObjectStub({
 }: {
     durableObjectNamespace: DurableObjectNamespace;
     serviceName: DurableObjectServiceName;
-    tokenAgent: TokenAgentBase;
+    tokenAgent: TokenAgent;
     request: Request;
     pathname: string;
     idName: string;
@@ -43,7 +43,7 @@ export async function fetchFromDurableObjectStub({
         const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
         if (!sessionCookieToken) throw unauthenticatedSessionError();
 
-        const requestToken = await tokenAgent.dangerouslySignShortLivedToken(
+        const requestToken = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
             serviceName,
             sessionCookieToken,
         );

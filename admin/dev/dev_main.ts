@@ -26,6 +26,8 @@ import {
     devAppServicePublicKeyPath,
     devEdgeServiceFamilyPrivateKeyPath,
     devEdgeServiceFamilyPublicKeyPath,
+    devJobQueueServicePrivateKeyPath,
+    devJobQueueServicePublicKeyPath,
     devTaskRealtimeServicePrivateKeyPath,
     devTaskRealtimeServicePublicKeyPath,
     ensureDevServiceKeys,
@@ -48,6 +50,7 @@ import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_with
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Id} from "~/shared/id/id.js";
@@ -83,6 +86,8 @@ const edgeDevInspectorPort = parsePort(env.EDGE_DEV_INSPECTOR_PORT);
 const taskRealtimeDevPort = parsePort(env.TASK_REALTIME_DEV_PORT);
 const taskRealtimeDevInspectorPort = parsePort(env.TASK_REALTIME_DEV_INSPECTOR_PORT);
 
+const jobQueueDevInspectorPort = parsePort(env.JOB_QUEUE_DEV_INSPECTOR_PORT);
+
 const remixDevServerPort = parsePort(env.REMIX_DEV_SERVER_PORT);
 
 const dynamoLocalDataPath = joinPath(devEnvPaths.data, "dynamo");
@@ -102,14 +107,22 @@ export type Artifact = {
     readonly bazelTarget: string;
     readonly executablePath: string;
     readonly stdioPrefix: string;
-    readonly publicPort: number;
-    privatePort: number;
-    readonly privatePortArg?: string;
     readonly env?: {readonly [key: string]: string};
     readonly args?: ReadonlyArray<string>;
     readonly server: MutexValue<ArtifactServer | null>;
     readonly onServerRestart?: () => Promise<void>;
-};
+} & (
+    | {
+          readonly ports?: undefined;
+      }
+    | {
+          readonly ports: {
+              readonly publicPort: number;
+              privatePort: number;
+              readonly privatePortArg?: string;
+          };
+      }
+);
 
 export type ArtifactServer =
     | {
@@ -137,18 +150,22 @@ async function createArtifacts() {
             executablePath: "app/app.sh",
             stdioPrefix: "app",
             env: {BAZEL_BINDIR: "."},
-            publicPort: appDevPort,
-            privatePort: privatePort1,
+            ports: {
+                publicPort: appDevPort,
+                privatePort: privatePort1,
+            },
             args: [
                 `--edgeServiceUrl=http://localhost:${edgeDevPort}`,
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--appServicePrivateKey=${devAppServicePrivateKeyPath}`,
+                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${devAppServicePrivateKeyPath}`,
                 `--remixDevServerPort=${remixDevServerPort}`,
                 "--shouldSeedDynamo",
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
+                `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--inspectorPort=${appDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
@@ -163,13 +180,16 @@ async function createArtifacts() {
             bazelTarget: "//server/edge",
             executablePath: "server/edge/edge.sh",
             stdioPrefix: "edg",
-            publicPort: edgeDevPort,
-            privatePort: privatePort2,
+            ports: {
+                publicPort: edgeDevPort,
+                privatePort: privatePort2,
+            },
             args: [
                 `--appServiceUrl=http://localhost:${appDevPort}`,
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
                 `--inspectorPort=${edgeDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
@@ -180,19 +200,42 @@ async function createArtifacts() {
             bazelTarget: "//server/tasks/realtime",
             executablePath: "server/tasks/realtime/realtime.sh",
             stdioPrefix: "tsk",
-            publicPort: taskRealtimeDevPort,
-            privatePort: privatePort3,
-            // In production we have an HTTP server for each CPU on the machine. In
-            // development we only have one HTTP server.
-            privatePortArg: "portBase",
+            ports: {
+                publicPort: taskRealtimeDevPort,
+                privatePort: privatePort3,
+                // In production we have an HTTP server for each CPU on the machine. In
+                // development we only have one HTTP server.
+                privatePortArg: "portBase",
+            },
             args: [
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--taskRealtimeServicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
+                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
+                `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 `--inspectorPort=${taskRealtimeDevInspectorPort}`,
+                ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
+            ],
+            server: new MutexValue<ArtifactServer | null>(null),
+        },
+        {
+            bazelTarget: "//server/jobs/queue",
+            executablePath: "server/jobs/queue/queue.sh",
+            stdioPrefix: "job",
+            args: [
+                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${devJobQueueServicePrivateKeyPath}`,
+                `--dynamoLocalPort=${dynamoLocalPort}`,
+                `--opensearchLocalPort=${opensearchLocalPort}`,
+                `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+                `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
+                `--inspectorPort=${jobQueueDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],
             server: new MutexValue<ArtifactServer | null>(null),
@@ -262,7 +305,9 @@ const artifactsPromise = createArtifacts().then(artifacts =>
             await runAllPromises([
                 rebuildArtifact(artifact),
                 updateArtifactDependencyBazelPackagePaths(artifact),
-                createDevProxyServer(artifact, {logError, mainPromise: fastMainPromise}),
+                artifact.ports
+                    ? createDevProxyServer(artifact, {logError, mainPromise: fastMainPromise})
+                    : null,
             ]);
         }),
     ),
@@ -326,7 +371,7 @@ function logError(reason: string, error: unknown) {
  */
 async function rebuildArtifact(artifact: Artifact) {
     await artifact.server.withLock(async artifactServerRef => {
-        const privatePortPromise = getPort();
+        const privatePortPromise = artifact.ports ? getPort() : null;
 
         const {buildId, hasFailed: hasBuildFailed} = await buildBazelTarget(artifact.bazelTarget);
 
@@ -338,9 +383,11 @@ async function rebuildArtifact(artifact: Artifact) {
             if (artifactServer.buildId === buildId) return;
 
             if (artifactServer.subprocess) {
-                // Start sending traffic to a new port before we kill the old port.
-                const privatePort = await privatePortPromise;
-                artifact.privatePort = privatePort;
+                if (artifact.ports) {
+                    // Start sending traffic to a new port before we kill the old port.
+                    const privatePort = await privatePortPromise;
+                    artifact.ports.privatePort = assertExists(privatePort);
+                }
 
                 // If our server process doesn't exit in a reasonable period of time, send
                 // `SIGKILL` to force the process to shutdown.
@@ -393,7 +440,9 @@ async function rebuildArtifact(artifact: Artifact) {
         const subprocess = spawnWithCoordinatedStdio(
             executablePath,
             [
-                `--${artifact.privatePortArg ?? "port"}=${artifact.privatePort}`,
+                ...(artifact.ports
+                    ? [`--${artifact.ports.privatePortArg ?? "port"}=${artifact.ports.privatePort}`]
+                    : []),
                 ...(artifact.args ?? []),
             ],
             {
@@ -402,12 +451,14 @@ async function rebuildArtifact(artifact: Artifact) {
             },
         );
 
-        const httpServerStartPromise = PromiseImmediate.resolve(
-            waitForHttpServer(artifact.privatePort).catch(error => {
-                // Don't log an error. If a server never starts, the user will see a 504
-                // gateway timeout when they try to access the artifact's URL.
-            }),
-        );
+        const httpServerStartPromise = artifact.ports
+            ? PromiseImmediate.resolve(
+                  waitForHttpServer(artifact.ports.privatePort).catch(error => {
+                      // Don't log an error. If a server never starts, the user will see a 504
+                      // gateway timeout when they try to access the artifact's URL.
+                  }),
+              )
+            : PromiseImmediate.resolve();
 
         // Make sure to assign this before our `await` below which may throw if the
         // process exists.

@@ -1,5 +1,6 @@
 import {WorkerActorContextModule} from "~/server/cloudflare/context/worker_actor_context_module.js";
-import {TokenAgentBase, TokenPayload} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenPayload} from "~/server/tokens/token_payload.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -21,7 +22,7 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
 }> {
     private readonly _protocol: string;
     private readonly _host: string;
-    private readonly _tokenAgent: TokenAgentBase;
+    private readonly _tokenAgent: TokenAgent;
     private readonly _cookieJar: CookieJar;
 
     constructor({
@@ -32,7 +33,7 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
     }: {
         protocol: string;
         host: string;
-        tokenAgent: TokenAgentBase;
+        tokenAgent: TokenAgent;
         cookieJar: CookieJar;
     }) {
         super();
@@ -70,7 +71,7 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
                         throw exhaustive(context.actor);
                 }
 
-                const token = await this._tokenAgent.dangerouslySignShortLivedToken(
+                const token = await this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
                     "AppService",
                     tokenPayload,
                 );

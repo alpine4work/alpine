@@ -8,7 +8,7 @@ import {
 import {NotificationsContextModuleBase as NotificationsContextModuleBaseInterface} from "~/server/notifications/core/notifications_context_module_base.js";
 import {processNotificationEvent} from "~/server/notifications/data/notifications_table.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
-import {TokenAgentBase} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
@@ -155,7 +155,7 @@ abstract class NotificationsContextModuleBase
 
 export class NotificationsContextModule extends NotificationsContextModuleBase {
     private readonly _edgeServiceUrl: string;
-    private readonly _tokenAgent: TokenAgentBase;
+    private readonly _tokenAgent: TokenAgent;
 
     constructor({
         dangerouslyEscalateToSystemContext,
@@ -178,7 +178,7 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
             ) => Promise<Value>,
         ) => Promise<Value>;
         edgeServiceUrl: string;
-        tokenAgent: TokenAgentBase;
+        tokenAgent: TokenAgent;
     }) {
         super({dangerouslyEscalateToSystemContext});
         this._edgeServiceUrl = edgeServiceUrl;
@@ -222,7 +222,7 @@ export class NotificationsContextModule extends NotificationsContextModuleBase {
                     // Double check that we're allowed to escalate to system privileges.
                     await authorizeSpaceAccess(this._context, spaceId);
 
-                    const token = await this._tokenAgent.dangerouslySignShortLivedToken(
+                    const token = await this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
                         "MyAccountService",
                         {type: "System", spaceId},
                     );

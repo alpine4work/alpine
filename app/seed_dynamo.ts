@@ -1,8 +1,10 @@
 import {seedTestAccounts} from "~/server/accounts/accounts_table.js";
 import {seedTestAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
-import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {seedTestChannels} from "~/server/forum/data/forum_table.js";
+import {JobsContextModule} from "~/server/jobs/core/jobs_context_module.js";
 import {seedTestSpaces} from "~/server/spaces/spaces_table.js";
+import {Context} from "~/shared/context/context.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -12,7 +14,9 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * This seed function is idempotent. You may run it however many times you want
  * and it will keep working.
  */
-export function seedDynamo(context: DynamoContext): Promise<void> {
+export function seedDynamo(
+    context: Context<DynamoContextModules & {jobs: JobsContextModule}>,
+): Promise<void> {
     assert(process.env.NODE_ENV !== "production");
     return context.tracer.withSpan("Seed DynamoDB test data", async context => {
         await runAllPromises([

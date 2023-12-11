@@ -1,6 +1,5 @@
 import * as build from "@remix-run/dev/server-build";
 import {createRequestHandler} from "@remix-run/node";
-import fs from "fs-extra";
 import {createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
@@ -21,6 +20,10 @@ import {
     createServerProcessContext,
     serverProcessContextParseOptions,
 } from "~/server/node/create_server_process_context.js";
+import {
+    createServiceTokenAgent,
+    serviceTokenAgentParseOptions,
+} from "~/server/node/create_service_token_agent.js";
 import {createStandardizedRequestListener} from "~/server/node/create_standardized_server.js";
 import {registerGracefulServerShutdown} from "~/server/node/register_graceful_server_shutdown.js";
 import {runService} from "~/server/node/run_service.js";
@@ -32,7 +35,8 @@ import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TaskRealtimeServiceEcsRouter} from "~/server/tasks/data/task_realtime_service_ecs_router.js";
 import {TaskRealtimeServiceLocalRouter} from "~/server/tasks/data/task_realtime_service_local_router.js";
 import {SessionCookie, withSessionCookie} from "~/server/tokens/session_cookie.js";
-import {AppServiceTokenAgent} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
+import {AppServiceTokenAgentPrivateSide} from "~/server/tokens/token_agent_private_side.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -40,7 +44,6 @@ import {InternalError, InvalidArgumentError, PermissionDeniedError} from "~/shar
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SessionId, SpaceId} from "~/shared/id/types/id_types.js";
 
@@ -92,15 +95,12 @@ runService({
     options: {
         port: {type: "string"},
         edgeServiceUrl: {type: "string"},
-        appServicePublicKey: {type: "string"},
-        edgeServiceFamilyPublicKey: {type: "string"},
-        taskRealtimeServicePublicKey: {type: "string"},
-        appServicePrivateKey: {type: "string"},
         remixDevServerPort: {type: "string"},
         taskRealtimeServiceLocalPort: {type: "string"},
         shouldSeedDynamo: {type: "boolean"},
         ecsCluster: {type: "string"},
         taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
+        ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
     run: async ({options, tracer}) => {
@@ -110,69 +110,22 @@ runService({
         const {edgeServiceUrl} = options;
         if (!edgeServiceUrl) throw new InternalError("Missing `edgeServiceUrl` option");
 
-        if (!options.appServicePublicKey)
-            throw new InternalError("Missing `appServicePublicKey` option");
-        if (!options.edgeServiceFamilyPublicKey)
-            throw new InternalError("Missing `edgeServiceFamilyPublicKey` option");
-        if (!options.taskRealtimeServicePublicKey)
-            throw new InternalError("Missing `taskRealtimeServicePublicKey` option");
-        if (!options.appServicePrivateKey)
-            throw new InternalError("Missing `appServicePrivateKey` option");
-
-        // Our key args may either be a file path or an environment variable name. We
-        // first test the environment variable name then try to load as a file path.
-        //
-        // We allow an environment variable name since an RSA key argument might be too
-        // long for the command line. Tools like AWS also make it easiest to pass in
-        // secrets through environment variables as opposed to command line arguments
-        // or files. As of 2023-08-07 the AWS CDK logic for setting production CLI
-        // arguments can be found in
-        // `admin/aws/internal/add_all_container_aws_resources.ts`.
-        function getKeyFromOption(arg: string) {
-            if (arg.startsWith("$")) {
-                const envKey = arg.slice(1);
-                const envValue = process.env[envKey];
-
-                if (envValue === undefined)
-                    throw new InternalError(quote`Env variable ${envKey} does not exist`);
-
-                // Don't allow access to the environment variable anywhere else in the program.
-                // Force key usage to be controlled here from the top of the program.
-                //
-                // Also secures against attacks where an attacker finds a way to inspect
-                // `process.env`.
-                delete process.env[envKey];
-
-                return envValue;
-            } else {
-                return fs.readFile(arg, "utf8");
-            }
-        }
-
-        const [
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            appServicePrivateKey,
-        ] = await runAllPromises([
-            getKeyFromOption(options.appServicePublicKey),
-            getKeyFromOption(options.edgeServiceFamilyPublicKey),
-            getKeyFromOption(options.taskRealtimeServicePublicKey),
-            getKeyFromOption(options.appServicePrivateKey),
-        ]);
-
-        const tokenAgent = await AppServiceTokenAgent.new({
-            appServicePublicKey,
-            edgeServiceFamilyPublicKey,
-            taskRealtimeServicePublicKey,
-            appServicePrivateKey,
+        const tokenAgent = await createServiceTokenAgent({
+            serviceName: "AppService",
+            privateSide: AppServiceTokenAgentPrivateSide,
+            options,
         });
 
         const awsSigner = new AwsRequestSigner();
 
-        const processContext = createServerProcessContext({tracer, awsSigner, options});
+        const processContext = createServerProcessContext({
+            tracer,
+            awsSigner,
+            options,
+        });
 
-        // Cache `TaskRealtimeService` routes across the entire process.
+        // Create the router object here so we cache `TaskRealtimeService` routes
+        // across the entire process.
         const taskRealtimeServiceRouter =
             process.env.NODE_ENV === "production"
                 ? new TaskRealtimeServiceEcsRouter({
@@ -379,7 +332,7 @@ runService({
 function createActorContextModule(
     request: Request,
     url: URL,
-    tokenAgent: AppServiceTokenAgent,
+    tokenAgent: TokenAgent,
     sessionCookie: SessionCookie,
 ) {
     // Clients can authenticate with our app service in one of two ways:
@@ -468,9 +421,8 @@ function createActorContextModule(
             }
 
             const authorizationHeaderToken = authorizationHeaderMatch[1] ?? "";
-            const {serviceName, payload: authorizationHeaderPayload} = await tokenAgent.verifyToken(
-                authorizationHeaderToken,
-            );
+            const {serviceName, payload: authorizationHeaderPayload} =
+                await tokenAgent.publicSide.verifyToken(authorizationHeaderToken);
 
             switch (authorizationHeaderPayload.type) {
                 case "Session": {

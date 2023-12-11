@@ -3,7 +3,7 @@ import {
     SessionActorContextModule,
     SystemActorContextModule,
 } from "~/server/helpers/actor_context_module.js";
-import {TokenAgentBase} from "~/server/tokens/token_agent.js";
+import {TokenAgent} from "~/server/tokens/token_agent.js";
 import {Context} from "~/shared/context/context.js";
 import {ContextModuleBase} from "~/shared/context/context_module_base.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";
@@ -20,10 +20,10 @@ export type WorkerActorContextModule =
  * the token.
  */
 export async function createWorkerActorContextModule(
-    tokenAgent: TokenAgentBase,
+    tokenAgent: TokenAgent,
     token: string,
 ): Promise<WorkerActorContextModule> {
-    const {payload} = await tokenAgent.verifyToken(token);
+    const {payload} = await tokenAgent.publicSide.verifyToken(token);
 
     switch (payload.type) {
         case "Session": {
