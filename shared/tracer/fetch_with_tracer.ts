@@ -2,6 +2,7 @@ import {parse as parseCookieHeader} from "cookie";
 import {parse as parseSetCookieHeader} from "set-cookie-parser";
 import {formatDate as formatHttpDate} from "tough-cookie";
 import {UnavailableError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {CookieJar} from "~/shared/helpers/http/cookie_jar.js";
 import {getSetCookieHeaders} from "~/shared/helpers/http/get_set_cookie_headers.js";
@@ -178,7 +179,14 @@ export async function fetchWithTracer<ResponseData>(
         // eslint-disable-next-line no-global-fetch
         const response = await fetch(request).catch(error => {
             // Classify network errors as the `Unavailable` status code.
-            throw UnavailableError.from(error);
+            throw UnavailableError.from(error, undefined, {
+                displayMessage:
+                    // If we're in a web browser, if we failed to make a request it's probably the
+                    // user's internet connection and they should look into a fix.
+                    typeof window !== "undefined"
+                        ? errorDisplayMessage`Couldn’t connect to the internet. Make sure you’re online and try again.`
+                        : undefined,
+            });
         });
 
         cookieJar?.fromResponse(response);
