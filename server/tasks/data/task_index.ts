@@ -438,11 +438,14 @@ class TaskActionTransactionIndexState {
 
                     let newLastIndexSearchEntityJob = newTask.lastIndexSearchEntityJob;
 
+                    // We expect `!oldTask` to mean the task is being created. We won't know the
+                    // right version number if we didn't read the previous task so our bulk update
+                    // will fail if the task is being updated instead of created.
                     if (!oldTask || !newLastIndexSearchEntityJob) {
-                        // NOCOMMIT: On creation we should use `None` instead to avoid searching
-                        // dependencies.
+                        // Nothing depends on this entity when it's created. Don't bother trying to
+                        // reindex dependencies.
                         const updatedTraits: TaskIndexSearchEntityJob["updatedTraits"] = {
-                            type: "Any",
+                            type: "None",
                         };
 
                         newLastIndexSearchEntityJob = {
@@ -589,6 +592,9 @@ class TaskActionTransactionIndexState {
                         newCollection.id,
                     );
 
+                    // We expect `!oldCollection` to mean the collection is being created. We won't
+                    // know the right version number if we didn't read the previous collection so
+                    // our bulk update will fail if the task is being updated instead of created.
                     if (!oldCollection) {
                         jobs.push({
                             job: {
@@ -597,7 +603,9 @@ class TaskActionTransactionIndexState {
                                 update: {
                                     type: "TaskCollection",
                                     collectionId: newCollection.id,
-                                    updatedTraits: {type: "Any"},
+                                    // Nothing depends on this entity when it's created. Don't bother trying to
+                                    // reindex dependencies.
+                                    updatedTraits: {type: "None"},
                                 },
                             },
                         });

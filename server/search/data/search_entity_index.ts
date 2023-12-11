@@ -351,16 +351,14 @@ export async function processIndexSearchEntityJob(
                 !!oldDocForKeywordIndex &&
                 isDateDefinitelyLessThanWithUncertaintyWindow(
                     // Optimization: If one of our dependencies updated (and we ourselves were not
-                    // updated) then a job will be queued with `updatedTraits` of `type: "None"`.
+                    // updated) then a job will be queued with `parentJobStartTime`.
                     // For these jobs, as long as we've indexed data that was read after our parent
                     // job's start we're happy (since our parent job represents the entity with
                     // updates).
                     //
                     // It should be logically ok to use `jobStartTime` here but we can skip more
                     // reads by using `parentJobStartTime`.
-                    job.update.updatedTraits.type === "None"
-                        ? job.update.updatedTraits.parentJobStartTime
-                        : jobStartTime,
+                    job.parentJobStartTime ?? jobStartTime,
                     oldDocForKeywordIndex.lastReadStartTime,
                 );
 
@@ -637,8 +635,11 @@ export async function processIndexSearchEntityJob(
                         spaceId: job.spaceId,
                         update: {
                             ...parseSearchEntityId(doc.id),
-                            updatedTraits: {type: "None", parentJobStartTime: jobStartTime},
+                            // Dependencies didn't update so we can skip reindexing transitive
+                            // dependencies.
+                            updatedTraits: {type: "None"},
                         },
+                        parentJobStartTime: jobStartTime,
                     });
                 }),
             );

@@ -398,7 +398,7 @@ async function rebuildArtifact(artifact: Artifact) {
                     if (!hasGracefullyExited) {
                         scheduleUncaughtError(
                             new DeadlineExceededError(
-                                "Server graceful exit timeout exceeded, sending SIGKILL",
+                                quote`${artifact.bazelTarget} exceeded graceful exit timeout, sending SIGKILL`,
                             ),
                         );
                         artifactServer.subprocess.kill("SIGKILL");

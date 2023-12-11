@@ -283,7 +283,9 @@ export async function createChatForTest(
         update: {
             type: "Chat",
             chatId: id,
-            updatedTraits: {type: "Any"},
+            // Nothing depends on this entity when it's created. Don't bother trying to
+            // reindex dependencies.
+            updatedTraits: {type: "None"},
         },
     });
 
@@ -612,7 +614,9 @@ function actuallyGetOrCreateChatForAccounts(
                         update: {
                             type: "Chat",
                             chatId,
-                            updatedTraits: {type: "Any"},
+                            // Nothing depends on this entity when it's created. Don't bother trying to
+                            // reindex dependencies.
+                            updatedTraits: {type: "None"},
                         },
                     });
 
@@ -796,7 +800,9 @@ export function sendChatMessage(
                 type: "ChatMessage",
                 chatId,
                 messageIndex,
-                updatedTraits: {type: "Any"},
+                // Nothing depends on this entity when it's created. Don't bother trying to
+                // reindex dependencies.
+                updatedTraits: {type: "None"},
             },
         });
 

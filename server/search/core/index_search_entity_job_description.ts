@@ -18,4 +18,5 @@ export const IndexSearchEntityJobDescriptionSchema = Schema.object({
     type: Schema.value("IndexSearchEntity"),
     spaceId: Schema.id<SpaceId>(),
     update: SearchEntityUpdateSchema,
+    parentJobStartTime: Schema.date.optional(),
 });

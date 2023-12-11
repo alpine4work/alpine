@@ -1030,7 +1030,7 @@ export async function internalUpdateSessionActorAccountNameWithoutUpdatingTasks<
                 update: {
                     type: "Account",
                     accountId: newAccountItem.accountId,
-                    updatedTraits: {type: "Any"},
+                    updatedTraits: {type: "Some", traits: []},
                 },
             });
         }

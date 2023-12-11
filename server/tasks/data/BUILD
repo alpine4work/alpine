@@ -28,9 +28,11 @@ ts_project(
         # in tests to use 2 CPUs (see `startOpensearchLocal()`) so reserve those
         # resources in Bazel and one for the test process.
         "internal/get_task_query_normalized_filters_opensearch_query_clause_test": {
+            "size": "medium",
             "tags": ["cpu:3"],
         },
         "internal/get_task_query_normalized_sorts_opensearch_sort_clause_test": {
+            "size": "medium",
             "tags": ["cpu:3"],
         },
     },

@@ -288,7 +288,9 @@ export async function seedTestChannels(
             update: {
                 type: "Channel",
                 channelId: testChannelId,
-                updatedTraits: {type: "Any"},
+                // Nothing depends on this entity when it's created. Don't bother trying to
+                // reindex dependencies.
+                updatedTraits: {type: "None"},
             },
         });
     }
@@ -324,7 +326,9 @@ export async function createChannel(
         update: {
             type: "Channel",
             channelId: channelItem.channelId,
-            updatedTraits: {type: "Any"},
+            // Nothing depends on this entity when it's created. Don't bother trying to
+            // reindex dependencies.
+            updatedTraits: {type: "None"},
         },
     });
 
@@ -700,7 +704,9 @@ export async function createPost(
         update: {
             type: "Post",
             postId: postItem.postId,
-            updatedTraits: {type: "Any"},
+            // Nothing depends on this entity when it's created. Don't bother trying to
+            // reindex dependencies.
+            updatedTraits: {type: "None"},
         },
     });
 
@@ -1128,7 +1134,9 @@ export async function createPostComment(
                 type: "PostComment",
                 postId,
                 commentIndex,
-                updatedTraits: {type: "Any"},
+                // Nothing depends on this entity when it's created. Don't bother trying to
+                // reindex dependencies.
+                updatedTraits: {type: "None"},
             },
         });
 

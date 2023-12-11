@@ -453,10 +453,11 @@ const TaskIndexPriorityType = createCrdtRegisterOpensearchType(
 
 export type TaskIndexSearchEntityJob = SchemaType<typeof TaskIndexSearchEntityJobSchema>;
 
-export const TaskIndexSearchEntityJobSchema = Schema.object({
+const TaskIndexSearchEntityJobSchema = Schema.object({
     sendTime: Schema.date,
     updatedTraits: Schema.union({
         Any: Schema.object({type: Schema.value("Any")}),
+        None: Schema.object({type: Schema.value("None")}),
         Some: Schema.object({
             type: Schema.value("Some"),
             traits: Schema.array(Schema.enum(["Authorization"])),
