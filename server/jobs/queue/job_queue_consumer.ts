@@ -287,26 +287,30 @@ export class JobQueueConsumer {
                 (receiveMessagesVisibilityTimeoutSeconds / 2) * 1000,
             );
 
-            for (const messageState of messageStates) {
-                messageState.promise.then(
-                    () => {
-                        messageStateSet.delete(messageState);
-                        if (messageStateSet.size === 0) promiseResolver.resolve();
+            if (messageStates.length === 0) {
+                promiseResolver.resolve();
+            } else {
+                for (const messageState of messageStates) {
+                    messageState.promise.then(
+                        () => {
+                            messageStateSet.delete(messageState);
+                            if (messageStateSet.size === 0) promiseResolver.resolve();
 
-                        // The message has been handled! Remove it from the queue.
-                        deleteMessageReceiptHandles.push(messageState.receiptHandle);
-                    },
-                    () => {
-                        messageStateSet.delete(messageState);
-                        if (messageStateSet.size === 0) promiseResolver.resolve();
+                            // The message has been handled! Remove it from the queue.
+                            deleteMessageReceiptHandles.push(messageState.receiptHandle);
+                        },
+                        () => {
+                            messageStateSet.delete(messageState);
+                            if (messageStateSet.size === 0) promiseResolver.resolve();
 
-                        // We don't need to log errors since they've already been reported in the
-                        // "Process job" span.
-                        //
-                        // We leave the message in the queue so it can be processed by the next
-                        // `ReceiveMessage` call.
-                    },
-                );
+                            // We don't need to log errors since they've already been reported in the
+                            // "Process job" span.
+                            //
+                            // We leave the message in the queue so it can be processed by the next
+                            // `ReceiveMessage` call.
+                        },
+                    );
+                }
             }
 
             await promiseResolver.promise;
