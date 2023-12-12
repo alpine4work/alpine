@@ -292,6 +292,20 @@ export type TracerEventData = {
              */
             readonly name?: string;
         };
+
+        /**
+         * The duration of the `fetch()` call. An HTTP span includes the response body
+         * download and parsing time. If you want to know only the amount of network
+         * time a fetch request spent you can use this field.
+         *
+         * This duration does not include the time it takes to download the response
+         * body. This duration ends when we've received the HTTP request headers.
+         *
+         * If other synchronous work in the Node.js process is interrupting parsing
+         * of the fetch request, this field can be useful for isolating network
+         * performance.
+         */
+        readonly fetchDurationMs?: number;
     };
 
     /**

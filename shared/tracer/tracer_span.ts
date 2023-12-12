@@ -37,7 +37,7 @@ export class TracerSpan extends TracerBase {
     /**
      * The monotonic clock we use for measuring span times.
      */
-    private readonly _clock: MonotonicClock;
+    public readonly clock: MonotonicClock;
 
     /**
      * The name of the trace.
@@ -106,11 +106,11 @@ export class TracerSpan extends TracerBase {
         super();
 
         this._tracer = tracer;
-        this._clock = clock;
+        this.clock = clock;
         this._name = name;
         this.traceId = parentSpan?.traceId ?? generateId();
         this.spanId = generateId();
-        this._startTime = this._clock.now();
+        this._startTime = this.clock.now();
         this._propagatedEventData = parentSpan
             ? parentSpan.propagatedEventData ?? null
             : this._tracer.propagatedEventData
@@ -160,7 +160,7 @@ export class TracerSpan extends TracerBase {
         return TracerSpan._start(
             this._tracer,
             // Inherit the parent span's clock (not the tracer clock) for consistent times.
-            this._clock,
+            this.clock,
             name,
             {
                 traceId: this.traceId,
@@ -283,7 +283,7 @@ export class TracerSpan extends TracerBase {
         assert(!this._isFinished);
         this._isFinished = true;
 
-        const endTime = this._clock.now();
+        const endTime = this.clock.now();
         const durationMs = endTime - this._startTime;
 
         this._eventData = {
@@ -304,7 +304,7 @@ export class TracerSpan extends TracerBase {
      * causal relationship between these spans.
      */
     public link({traceId, spanId}: {traceId: TraceId; spanId: TraceSpanId}) {
-        const time = this._clock.now();
+        const time = this.clock.now();
 
         // Link this span with another using the Honeycomb link event format:
         // https://docs.honeycomb.io/getting-data-in/tracing/send-trace-data/#links
@@ -339,7 +339,7 @@ export class TracerSpan extends TracerBase {
      * See documentation for this method on `TracerBase.log()`.
      */
     public log(name: string, data: TracerEventData = {}) {
-        const time = this._clock.now();
+        const time = this.clock.now();
 
         this._tracer._sendEvent(
             new TracerEvent(

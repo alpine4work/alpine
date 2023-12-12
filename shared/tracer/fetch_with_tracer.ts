@@ -176,6 +176,8 @@ export async function fetchWithTracer<ResponseData>(
             request = await sign(request, span);
         }
 
+        const fetchStartTime = span.clock.now();
+
         // eslint-disable-next-line no-global-fetch
         const response = await fetch(request).catch(error => {
             // Classify network errors as the `Unavailable` status code.
@@ -189,10 +191,13 @@ export async function fetchWithTracer<ResponseData>(
             });
         });
 
+        const fetchEndTime = span.clock.now();
+
         cookieJar?.fromResponse(response);
 
         span.addData({
             http: {
+                fetchDurationMs: fetchEndTime - fetchStartTime,
                 statusCode: response.status,
                 response: {
                     header: Object.fromEntries(

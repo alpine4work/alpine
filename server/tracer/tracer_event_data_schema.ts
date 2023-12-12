@@ -123,6 +123,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         service: {
             name: Schema.string,
         },
+        fetchDurationMs: Schema.float,
     },
     exception: {
         message: Schema.string,
