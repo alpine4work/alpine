@@ -223,7 +223,10 @@ export interface OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
-    searchWithoutSource<Index extends OpensearchIndex<any, any, any, any, any>>(
+    searchWithoutSource<
+        Index extends OpensearchIndex<any, any, any, any, any>,
+        StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index> & string,
+    >(
         tracer: TracerBase,
         index: Index,
         routing: OpensearchIndexRoutingType<Index>,
@@ -232,12 +235,18 @@ export interface OpensearchClientInterface {
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            storedFields?: Array<StoredFieldKeys>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
         },
     ): Promise<
         Array<{
             readonly score: number;
             readonly id: OpensearchIndexDocIdType<Index>;
+            readonly fields: {
+                readonly [Key in StoredFieldKeys]?: ReadonlyArray<
+                    OpensearchIndexStoredFieldsType<Index>[Key]
+                >;
+            };
             readonly sort?: ReadonlyArray<JsonValue>;
             readonly highlight?: {
                 readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
@@ -607,6 +616,7 @@ type OpensearchSearchHit = {
     _id: string;
     _score: number;
     _source?: JsonValue;
+    fields?: {[key: string]: Array<JsonValue>};
     sort?: Array<JsonValue>;
     highlight?: {
         [key: string]: Array<string>;
@@ -1550,6 +1560,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             query,
             sort = ["_score"],
             searchAfter,
+            storedFields,
             highlight,
             withoutDocs = false,
         }: {
@@ -1557,6 +1568,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            storedFields?: ReadonlyArray<string>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
             withoutDocs?: boolean;
         },
@@ -1586,6 +1598,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             // visibility window is 10min) for indexing actions.
             url.searchParams.set("timeout", "30s");
             url.searchParams.set("cancel_after_time_interval", "30s");
+
+            if (storedFields && storedFields.length > 0) {
+                url.searchParams.set("stored_fields", storedFields.join(","));
+            }
 
             try {
                 const body = await fetchWithTracer(
@@ -1788,7 +1804,10 @@ export class OpensearchClient implements OpensearchClientInterface {
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
-    public async searchWithoutSource<Index extends OpensearchIndex<any, any, any, any, any>>(
+    public async searchWithoutSource<
+        Index extends OpensearchIndex<any, any, any, any, any>,
+        StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index> & string,
+    >(
         tracer: TracerBase,
         index: Index,
         routing: OpensearchIndexRoutingType<Index>,
@@ -1797,18 +1816,25 @@ export class OpensearchClient implements OpensearchClientInterface {
             query,
             sort,
             searchAfter,
+            storedFields,
             highlight,
         }: {
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            storedFields?: Array<StoredFieldKeys>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
         },
     ): Promise<
         Array<{
             readonly score: number;
             readonly id: OpensearchIndexDocIdType<Index>;
+            readonly fields: {
+                readonly [Key in StoredFieldKeys]?: ReadonlyArray<
+                    OpensearchIndexStoredFieldsType<Index>[Key]
+                >;
+            };
             readonly sort?: ReadonlyArray<JsonValue>;
             readonly highlight?: {
                 readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
@@ -1836,9 +1862,23 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         const docs = hits.map(hit => {
             assert(!hit._source);
+
+            const fields: {[key: string]: Array<any>} = {};
+
+            if (hit.fields) {
+                for (const [key, values] of Object.entries(hit.fields)) {
+                    const storedFieldType = index.type.storedFields[key];
+                    if (!storedFieldType)
+                        throw new InternalError(quote`Stored field type not found for ${key}`);
+
+                    fields[key] = values.map(value => storedFieldType.deserialize(value));
+                }
+            }
+
             return {
                 id: hit._id as OpensearchIndexDocIdType<Index>,
                 score: hit._score,
+                fields: fields as any,
                 sort: hit.sort,
                 highlight: hit.highlight as any,
                 innerHits: hit.inner_hits
@@ -1850,7 +1890,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                                   );
                               }
 
-                              const fields: {[key: string]: Array<any>} = {};
+                              const innerFields: {[key: string]: Array<any>} = {};
 
                               for (const [key, values] of Object.entries(innerHit.fields ?? {})) {
                                   const storedFieldType = index.type.storedFields[key];
@@ -1859,14 +1899,14 @@ export class OpensearchClient implements OpensearchClientInterface {
                                           quote`Stored field type not found for ${key}`,
                                       );
 
-                                  fields[key] = values.map(value =>
+                                  innerFields[key] = values.map(value =>
                                       storedFieldType.deserialize(value),
                                   );
                               }
 
                               return {
                                   offset: innerHit._nested.offset,
-                                  fields: fields as any,
+                                  fields: innerFields as any,
                               };
                           }),
                       )

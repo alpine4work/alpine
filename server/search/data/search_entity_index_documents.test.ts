@@ -4,7 +4,7 @@ import {DocumentContentCacheForUpdate} from "~/server/documents/data/documents_t
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {OpensearchGetDocWithoutSourceCommand} from "~/server/opensearch/opensearch_client.js";
-import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,

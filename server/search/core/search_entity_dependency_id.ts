@@ -1,4 +1,4 @@
-import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {

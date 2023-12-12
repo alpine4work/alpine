@@ -21,7 +21,7 @@ import {
     SearchEntityId,
     SearchEntityIdObject,
     printSearchEntityId,
-} from "~/server/search/core/search_entity_id.js";
+} from "~/shared/search/search_entity_id.js";
 import {chunkSearchContent} from "~/server/search/data/internal/chunk_search_content.js";
 import {
     SearchEntityIndexAccessPolicy,

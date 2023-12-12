@@ -2,7 +2,7 @@ import {
     SearchEntityDependencyId,
     isSearchEntityIdAlsoEntityDependencyId,
 } from "~/server/search/core/search_entity_dependency_id.js";
-import {SearchEntityIdObject, printSearchEntityId} from "~/server/search/core/search_entity_id.js";
+import {SearchEntityIdObject, printSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";

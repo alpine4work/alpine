@@ -12,6 +12,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {Schema} from "~/shared/schema/schema.js";
 
 /**
  * The internal identifier of an entity in our search system. Search entities
@@ -29,6 +30,8 @@ export type SearchEntityId =
     | `ChatMessage:${ChatId}-${number}`
     | `Task:${TaskId}`
     | `TaskCollection:${TaskCollectionId}`;
+
+export const SearchEntityIdSchema = Schema.string as Schema<SearchEntityId>;
 
 /**
  * Parsed representation of a `SearchEntityId` string for easier manipulation.

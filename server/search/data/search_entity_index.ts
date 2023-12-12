@@ -17,14 +17,10 @@ import {
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search_entity_job_description.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
-import {
-    SearchEntityId,
-    parseSearchEntityId,
-    printSearchEntityId,
-} from "~/server/search/core/search_entity_id.js";
 import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
 import {getSearchEntity} from "~/server/search/data/internal/get_search_entity.js";
 import {
+    SearchEntityIndexDefaultGrantTypeIntegerMapping,
     SearchEntityKeywordIndexDoc,
     SearchEntityKeywordIndexDocType,
     SearchEntitySemanticIndexDoc,
@@ -32,6 +28,7 @@ import {
     SearchEntitySemanticIndexEmbeddingChunk,
 } from "~/server/search/data/internal/search_entity_index_doc.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/search_entity_index_system_action_context.js";
+import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -46,6 +43,11 @@ import {
 } from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    SearchEntityId,
+    parseSearchEntityId,
+    printSearchEntityId,
+} from "~/shared/search/search_entity_id.js";
 
 /**
  * The search index should be near realtime to serve search requests. However,
@@ -646,4 +648,128 @@ export async function processIndexSearchEntityJob(
             if (docs.length < searchSize) searchAfter = null;
         } while (searchAfter !== null);
     }
+}
+
+export type SearchByKeywordResult = {
+    readonly entityId: SearchEntityId;
+    readonly title: string | null;
+    readonly bodyHighlight: string | null;
+};
+
+/**
+ * Search for entities in a space by keyword. Returns entities that almost
+ * exactly match the query text (some typos are tolerated). Entities with the
+ * query text in their title or that match an exact phrase rank higher.
+ */
+export async function searchByKeyword(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        queryText,
+        limit,
+    }: {
+        spaceId: SpaceId;
+        queryText: string;
+        limit: number;
+    },
+): Promise<{
+    results: Array<SearchByKeywordResult>;
+}> {
+    // NOCOMMIT: Tests (test authorization)
+    await authorizeSpaceAccess(context, spaceId);
+
+    // NOCOMMIT: If in debug mode, add `explain`
+
+    // NOCOMMIT: Allow the client to configure this in debug mode
+    const titleBoost = 4;
+
+    const docs = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
+        size: limit,
+        storedFields: ["title"],
+        sort: ["_score"],
+        query: {
+            bool: {
+                must: [
+                    {
+                        multi_match: {
+                            query: new OpensearchQueryValue(queryText),
+                            // The more fields matched, the better!
+                            //
+                            // - If you match a shingle it will also implicitly match the main field.
+                            //   So we get limited phrase matching.
+                            // - Matches in title fields are boosted above matches in body fields.
+                            type: "most_fields",
+                            fields: [
+                                `title^${titleBoost}`,
+                                `title._2gram^${titleBoost}`,
+                                `title._3gram^${titleBoost}`,
+                                "body",
+                                "body._2gram",
+                                "body._3gram",
+                            ],
+                            // Still match even if the query text has typos.
+                            fuzziness: "AUTO",
+                        },
+                    },
+                ],
+
+                // Use filter context to only match content the user is allowed to see. The
+                // content must be in our space and must grant access to the account. Either
+                // directly or through a default grant.
+                filter: [
+                    {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+                    {
+                        bool: {
+                            minimum_should_match: 1,
+                            should: [
+                                {
+                                    term: {
+                                        "accessPolicy.accountGrantAccountIds":
+                                            new OpensearchQueryValue(context.actor.getAccountId()),
+                                    },
+                                },
+                                {
+                                    term: {
+                                        "accessPolicy.defaultGrantType": new OpensearchQueryValue(
+                                            SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
+                                                "Space",
+                                            ),
+                                        ),
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+        },
+        highlight: {
+            type: "unified",
+            // Split the text at sentences for highlighting. That way the highlighted
+            // previews are complete thoughts for the user to read.
+            boundary_scanner: "sentence",
+            boundary_scanner_locale: "en-US",
+            // Return only the one best fragment. Given we use a sentence boundary this
+            // should be a nice readable snippet.
+            number_of_fragments: 1,
+            order: "score",
+            // NOCOMMIT: I want to increase the size of highlighted text returned. I think
+            // that's done with `fragment_size`?
+            fields: {
+                // We only highlight `body`. The entire `title` is generally returned as part
+                // of the search entity.
+                body: {},
+            },
+        },
+    });
+
+    const results = docs.map((doc): SearchByKeywordResult => {
+        return {
+            entityId: doc.id,
+            title: doc.fields.title?.[0] ?? null,
+            bodyHighlight: doc.highlight?.body?.[0] ?? null,
+        };
+    });
+
+    return {results};
 }

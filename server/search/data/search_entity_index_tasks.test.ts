@@ -3,7 +3,7 @@ import {ReplaceStep} from "prosemirror-transform";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {OpensearchGetDocWithoutSourceCommand} from "~/server/opensearch/opensearch_client.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
-import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchEntityIndexDefaultGrantTypeIntegerMapping} from "~/server/search/data/internal/search_entity_index_doc.js";
 import {
     getSearchEntityIndexesForTest,

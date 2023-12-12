@@ -1362,8 +1362,13 @@ export async function searchTaskCollections(
                             query: new OpensearchQueryValue(nameQuery),
                             type: "bool_prefix",
                             fields: ["name.value", "name.value._2gram", "name.value._3gram"],
+                            fuzziness: 0,
                         },
                     },
+                    // TODO(calebmer): I have learned (after initially writing this) that
+                    // `bool_prefix` does indeed support `fuzziness` on all but the last word. Not
+                    // sure if it still makes sense to have a second match like this? Could just
+                    // leverage fuzziness support in `multi_match`.
                     {
                         match: {
                             "name.value": {

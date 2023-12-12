@@ -17,6 +17,7 @@ ts_project(
         "//shared/helpers",
         "//shared/notifications",
         "//shared/schema",
+        "//shared/search",
         "//shared/tasks",
     ],
 )

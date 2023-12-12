@@ -100,9 +100,13 @@ export abstract class OpensearchIndexTypeBase<
      * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-store.html
      * [2]: https://sease.io/2021/02/field-retrieval-performance-in-elasticsearch.html
      */
-    public store(
-        this: OpensearchIndexTypeBase<Value, "this", {}>,
-    ): OpensearchIndexTypeBase<Value, "this", {readonly this: NonNullableNonArrayType<Value>}> {
+    public store<FlattenedKeys extends string>(
+        this: OpensearchIndexTypeBase<Value, FlattenedKeys, {}>,
+    ): OpensearchIndexTypeBase<
+        Value,
+        FlattenedKeys,
+        {readonly this: NonNullableNonArrayType<Value>}
+    > {
         return new OpensearchIndexStoredType(this);
     }
 }
@@ -286,22 +290,25 @@ type NonNullableNonArrayType<Value> = Value extends null
     ? NonNullableNonArrayType<ItemValue>
     : Value;
 
-class OpensearchIndexStoredType<Value> extends OpensearchIndexTypeBase<
+class OpensearchIndexStoredType<
     Value,
-    "this",
+    FlattenedKeys extends string,
+> extends OpensearchIndexTypeBase<
+    Value,
+    FlattenedKeys,
     {readonly this: NonNullableNonArrayType<Value>}
 > {
-    private readonly _sourceType: OpensearchIndexTypeBase<Value, "this", {}>;
+    private readonly _sourceType: OpensearchIndexTypeBase<Value, FlattenedKeys, {}>;
 
     public override readonly storedFields: {
-        readonly this: OpensearchIndexTypeBase<NonNullableNonArrayType<Value>, "this", {}>;
+        readonly this: OpensearchIndexTypeBase<NonNullableNonArrayType<Value>, FlattenedKeys, {}>;
     };
 
-    constructor(sourceType: OpensearchIndexTypeBase<Value, "this", {}>) {
+    constructor(sourceType: OpensearchIndexTypeBase<Value, FlattenedKeys, {}>) {
         super();
         this._sourceType = sourceType;
 
-        let nonNullableNonArraySourceType: OpensearchIndexTypeBase<any, "this", {}> =
+        let nonNullableNonArraySourceType: OpensearchIndexTypeBase<any, FlattenedKeys, {}> =
             this._sourceType;
         while (
             nonNullableNonArraySourceType instanceof OpensearchIndexNullableType ||

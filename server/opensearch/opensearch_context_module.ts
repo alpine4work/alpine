@@ -64,7 +64,7 @@ export class OpensearchContextModule
             // May only construct an uninitialized context module in tests.
             assert(process.env.NODE_ENV === "test");
 
-            Object.defineProperty(this, "client", {
+            Object.defineProperty(this, "_client", {
                 configurable: true,
                 get: () => {
                     throw new InternalError("OpenSearch client has not been initialized");
@@ -100,9 +100,9 @@ export class OpensearchContextModule
                 } catch {
                     hasInitialized = false;
                 }
-                assert(!hasInitialized, "Can not initialize DynamoDB client twice");
+                assert(!hasInitialized, "Can not initialize OpenSearch client twice");
 
-                Object.defineProperty(contextModule, "client", {
+                Object.defineProperty(contextModule, "_client", {
                     value: client,
                     writable: false,
                 });
@@ -279,7 +279,10 @@ export class OpensearchContextModule
      *
      * [1]: https://opensearch.org/docs/latest/api-reference/search/
      */
-    public searchWithoutSource<Index extends OpensearchIndex<any, any, any, any, any>>(
+    public searchWithoutSource<
+        Index extends OpensearchIndex<any, any, any, any, any>,
+        StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index> & string,
+    >(
         index: Index,
         routing: OpensearchIndexRoutingType<Index>,
         options: {
@@ -287,12 +290,18 @@ export class OpensearchContextModule
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
+            storedFields?: Array<StoredFieldKeys>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
         },
     ): Promise<
         Array<{
             readonly score: number;
             readonly id: OpensearchIndexDocIdType<Index>;
+            readonly fields: {
+                readonly [Key in StoredFieldKeys]?: ReadonlyArray<
+                    OpensearchIndexStoredFieldsType<Index>[Key]
+                >;
+            };
             readonly sort?: ReadonlyArray<JsonValue>;
             readonly highlight?: {
                 readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;

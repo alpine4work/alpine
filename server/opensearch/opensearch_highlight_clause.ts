@@ -19,4 +19,8 @@ export type OpensearchHighlightClause<FlattenedKeys extends string> =
 type OpensearchHighlightClauseOptions = {
     type?: "unified" | "fvh" | "plain";
     encoder?: "default" | "html";
+    boundary_scanner?: "chars" | "sentence" | "word";
+    boundary_scanner_locale?: string;
+    number_of_fragments?: number;
+    order?: "none" | "score";
 };
