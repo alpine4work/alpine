@@ -660,6 +660,10 @@ export type SearchByKeywordResult = {
  * Search for entities in a space by keyword. Returns entities that almost
  * exactly match the query text (some typos are tolerated). Entities with the
  * query text in their title or that match an exact phrase rank higher.
+ *
+ * This function only really works with queries containing complete words. It
+ * doesn't support prefix matching of the last word which you'd need to build
+ * type-ahead functionality.
  */
 export async function searchByKeyword(
     context: ServerSessionActionContext,

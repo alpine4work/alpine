@@ -9,6 +9,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/react",
         "//:node_modules/react",
+        "//:node_modules/unicode-default-word-boundary",
         "//client/accounts",
         "//client/context",
         "//client/design",
