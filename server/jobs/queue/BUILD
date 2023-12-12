@@ -6,6 +6,8 @@ ts_project(
     test_deps = ["//server/dynamo/test_helpers"],
     deps = [
         "//server/jobs/core",
+        "//server/language_models/all_mini_lm_l6_v2",
+        "//server/language_models/cohere_embed_english_v3",
         "//server/node",
         "//server/search/data",
         "//server/tasks/data",

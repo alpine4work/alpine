@@ -5,6 +5,7 @@ ts_project(
     name = "all_mini_lm_l6_v2",
     visibility = [
         "//admin/adhoc:__pkg__",
+        "//server/jobs/queue:__pkg__",
         "//server/search/data:__pkg__",
     ],
     deps = [
@@ -42,6 +43,7 @@ js_library(
     ],
     visibility = [
         "//admin/adhoc:__pkg__",
+        "//admin/dev:__pkg__",
     ],
 )
 

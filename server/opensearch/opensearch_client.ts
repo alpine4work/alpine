@@ -853,17 +853,20 @@ export class OpensearchClient implements OpensearchClientInterface {
 
                     // `number_of_shards` and `routing_partition_size` are returned as strings.
                     // Treat them as integers.
-                    (previousIndexConfig.settings as any).index.number_of_shards = parseInt(
+                    (previousIndexConfig.settings as any).index.number_of_shards = JSON.parse(
                         (previousIndexConfig.settings as any).index.number_of_shards,
-                        10,
                     );
-                    (previousIndexConfig.settings as any).index.routing_partition_size = parseInt(
+                    (previousIndexConfig.settings as any).index.routing_partition_size = JSON.parse(
                         (previousIndexConfig.settings as any).index.routing_partition_size,
-                        10,
                     );
+                    if ("knn" in (previousIndexConfig.settings as any).index) {
+                        (previousIndexConfig.settings as any).index.knn = JSON.parse(
+                            (previousIndexConfig.settings as any).index.knn,
+                        );
+                    }
 
-                    // The `stem_english_possessive` property is converted into a `string`. Convert
-                    // it back to a boolean.
+                    // These properties are converted into a `string`. Convert them back to
+                    // booleans.
                     if (previousIndexConfig.settings.analysis?.filter) {
                         for (const filter of Object.values(
                             previousIndexConfig.settings.analysis.filter,
@@ -871,6 +874,24 @@ export class OpensearchClient implements OpensearchClientInterface {
                             if ((filter as any).stem_english_possessive) {
                                 (filter as any).stem_english_possessive = JSON.parse(
                                     (filter as any).stem_english_possessive,
+                                );
+                            }
+
+                            if ((filter as any).output_unigrams) {
+                                (filter as any).output_unigrams = JSON.parse(
+                                    (filter as any).output_unigrams,
+                                );
+                            }
+
+                            if ((filter as any).max_shingle_size) {
+                                (filter as any).max_shingle_size = JSON.parse(
+                                    (filter as any).max_shingle_size,
+                                );
+                            }
+
+                            if ((filter as any).min_shingle_size) {
+                                (filter as any).min_shingle_size = JSON.parse(
+                                    (filter as any).min_shingle_size,
                                 );
                             }
                         }

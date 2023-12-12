@@ -4,6 +4,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 ts_project(
     name = "cohere_embed_english_v3",
     visibility = [
+        "//server/jobs/queue:__pkg__",
         "//server/search/data:__pkg__",
     ],
     deps = [

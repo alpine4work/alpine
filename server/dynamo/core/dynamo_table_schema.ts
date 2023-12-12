@@ -2782,7 +2782,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
      *
      * [1]: https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_Scan.html
      */
-    public async *expensiveScan<PartitionKey extends Types["PartitionKey"]>(
+    public async *expensiveScan(
         context: DynamoContext,
         {
             limit,
@@ -2791,7 +2791,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             limit?: number;
             consistency?: DynamoReadConsistency;
         } = {},
-    ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"] & PartitionKey>> {
+    ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"]>> {
         const client = await this._getClient(context, false);
 
         const iterator = client.expensiveScan(context.tracer.getTracer(), {

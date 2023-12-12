@@ -424,7 +424,7 @@ export class JobQueueConsumer {
         } catch (error) {
             // When there's an error processing a job in development, log an error so the
             // user can see it in the console since they might not see it in the UI.
-            if (process.env.NODE_ENV !== "development") {
+            if (process.env.NODE_ENV !== "production") {
                 // eslint-disable-next-line no-console
                 console.error("Job processing failed:", error);
             }

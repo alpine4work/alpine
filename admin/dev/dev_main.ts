@@ -36,6 +36,7 @@ import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
 import {workspacePath} from "~/admin/helpers/workspace_path.js";
 import {startOpensearchLocal} from "~/admin/opensearch/local/start_opensearch_local.js";
 import {startSqsLocal} from "~/admin/sqs/local/start_sqs_local.js";
+import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {
     waitForProcessExit,
@@ -235,6 +236,7 @@ async function createArtifacts() {
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
+                `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
                 `--inspectorPort=${jobQueueDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],

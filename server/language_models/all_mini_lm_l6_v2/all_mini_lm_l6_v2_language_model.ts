@@ -64,9 +64,7 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
         this._extractor = extractor;
     }
 
-    public static async new() {
-        const basePath = joinPath(runfilesPath, "all_mini_lm_l6_v2");
-
+    public static async new(basePath: string = joinPath(runfilesPath, "all_mini_lm_l6_v2")) {
         if (!(await fs.pathExists(`${basePath}_config`))) {
             throw new InternalError(
                 "Couldn't find runfiles, you must include `//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data` in `data` to use this model (avoid using this model in production)",
