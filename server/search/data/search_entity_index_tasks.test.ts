@@ -88,15 +88,14 @@ async function actuallyGetIndexedSearchEntity(
     body: string | null;
     embeddingChunkCount?: number;
 }> {
-    const [docForKeywordIndex, docForSemanticIndex] =
-        await context.opensearch.client.multiGetDocsIfExist(context.tracer.getTracer(), [
-            new OpensearchGetDocWithoutSourceCommand(SearchEntityKeywordIndex, spaceId, entityId, {
-                storedFields: ["title", "body"],
-            }),
-            new OpensearchGetDocWithoutSourceCommand(SearchEntitySemanticIndex, spaceId, entityId, {
-                storedFields: ["embeddingChunks.text"],
-            }),
-        ]);
+    const [docForKeywordIndex, docForSemanticIndex] = await context.opensearch.multiGetDocsIfExist([
+        new OpensearchGetDocWithoutSourceCommand(SearchEntityKeywordIndex, spaceId, entityId, {
+            storedFields: ["title", "body"],
+        }),
+        new OpensearchGetDocWithoutSourceCommand(SearchEntitySemanticIndex, spaceId, entityId, {
+            storedFields: ["embeddingChunks.text"],
+        }),
+    ]);
 
     const embeddingChunkCount = docForSemanticIndex?.fields["embeddingChunks.text"]?.length ?? 0;
 
@@ -622,13 +621,9 @@ test("tasks update their access policies appropriately after indexing", async ()
     ];
 
     const getSearchEntityIds = async (session: TestSpaceSession) => {
-        await context.opensearch.client.refresh(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-        );
+        await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-        const docs = await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
+        const docs = await context.opensearch.searchWithoutSource(
             SearchEntityKeywordIndex,
             space.id,
             {
@@ -881,8 +876,7 @@ test("tasks update their access policies appropriately after indexing", async ()
     ]);
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Task:${parentTask1.id}`,
@@ -902,8 +896,7 @@ test("tasks update their access policies appropriately after indexing", async ()
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Task:${parentTask1.id}`,
@@ -942,8 +935,7 @@ test("tasks update their access policies appropriately after indexing", async ()
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Task:${parentTask1.id}`,
@@ -984,8 +976,7 @@ test("tasks update their access policies appropriately after indexing", async ()
     ]);
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `TaskCollection:${publicCollection.id}`,
@@ -1005,8 +996,7 @@ test("tasks update their access policies appropriately after indexing", async ()
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `TaskCollection:${publicCollection.id}`,
@@ -1056,8 +1046,7 @@ test("tasks update their access policies appropriately after indexing", async ()
     ]);
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `TaskCollection:${publicCollection.id}`,
@@ -1075,8 +1064,7 @@ test("tasks update their access policies appropriately after indexing", async ()
     await ProcessContextModule.waitForTestTasks();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `TaskCollection:${publicCollection.id}`,

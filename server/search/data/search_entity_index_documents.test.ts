@@ -87,15 +87,14 @@ async function actuallyGetIndexedSearchEntity(
     body: string | null;
     embeddingChunkCount?: number;
 }> {
-    const [docForKeywordIndex, docForSemanticIndex] =
-        await context.opensearch.client.multiGetDocsIfExist(context.tracer.getTracer(), [
-            new OpensearchGetDocWithoutSourceCommand(SearchEntityKeywordIndex, spaceId, entityId, {
-                storedFields: ["title", "body"],
-            }),
-            new OpensearchGetDocWithoutSourceCommand(SearchEntitySemanticIndex, spaceId, entityId, {
-                storedFields: ["embeddingChunks.text"],
-            }),
-        ]);
+    const [docForKeywordIndex, docForSemanticIndex] = await context.opensearch.multiGetDocsIfExist([
+        new OpensearchGetDocWithoutSourceCommand(SearchEntityKeywordIndex, spaceId, entityId, {
+            storedFields: ["title", "body"],
+        }),
+        new OpensearchGetDocWithoutSourceCommand(SearchEntitySemanticIndex, spaceId, entityId, {
+            storedFields: ["embeddingChunks.text"],
+        }),
+    ]);
 
     const embeddingChunkCount = docForSemanticIndex?.fields["embeddingChunks.text"]?.length ?? 0;
 

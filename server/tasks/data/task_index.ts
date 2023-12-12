@@ -16,7 +16,6 @@ import {
     OpensearchClientDocWithIdAndVersion,
     OpensearchGetDocCommand,
     OpensearchIndexDocIfVersionCommand,
-    TestDisabledOpensearchClient,
 } from "~/server/opensearch/opensearch_client.js";
 import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_module.js";
 import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
@@ -185,8 +184,7 @@ export async function getTaskIndexDocsIfExist(
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
-    return context.opensearch.client.multiGetDocsIfExist(
-        context.tracer.getTracer(),
+    return context.opensearch.multiGetDocsIfExist(
         taskIds.map(taskId => new OpensearchGetDocCommand(TaskIndex, spaceId, taskId)),
     );
 }
@@ -216,8 +214,7 @@ export async function getTaskCollectionIndexDocsIfExist(
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
-    return context.opensearch.client.multiGetDocsIfExist(
-        context.tracer.getTracer(),
+    return context.opensearch.multiGetDocsIfExist(
         collectionIds.map(
             collectionId => new OpensearchGetDocCommand(TaskCollectionIndex, spaceId, collectionId),
         ),
@@ -236,13 +233,7 @@ export function getTaskIndexDocIfExistsForTest(
 ) {
     assert(import.meta.jest);
 
-    return context.opensearch.client.getDocIfExists(
-        context.tracer.getTracer(),
-        TaskIndex,
-        spaceId,
-        taskId,
-        options,
-    );
+    return context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId, options);
 }
 
 /**
@@ -256,12 +247,7 @@ export function getTaskCollectionIndexDocIfExistsForTest(
 ) {
     assert(import.meta.jest);
 
-    return context.opensearch.client.getDocIfExists(
-        context.tracer.getTracer(),
-        TaskCollectionIndex,
-        spaceId,
-        collectionId,
-    );
+    return context.opensearch.getDocIfExists(TaskCollectionIndex, spaceId, collectionId);
 }
 
 /**
@@ -273,7 +259,7 @@ export function refreshTaskIndexForTest(
 ) {
     assert(import.meta.jest);
 
-    return context.opensearch.client.refresh(context.tracer.getTracer(), TaskIndex);
+    return context.opensearch.refresh(TaskIndex);
 }
 
 /**
@@ -285,7 +271,7 @@ export function refreshTaskCollectionIndexForTest(
 ) {
     assert(import.meta.jest);
 
-    return context.opensearch.client.refresh(context.tracer.getTracer(), TaskCollectionIndex);
+    return context.opensearch.refresh(TaskCollectionIndex);
 }
 
 export const indexTaskActionTransactionBeforeUpdateTestCheckpoint = new TestCheckpoint<SpaceId>();
@@ -669,7 +655,7 @@ class TaskActionTransactionIndexState {
 
             const commands = await runAllPromises(commandPromises);
 
-            await state._context.opensearch.client.bulk(context.tracer.getTracer(), commands, {
+            await state._context.opensearch.bulk(commands, {
                 retryPartialVersionConflictError: retry,
             });
 
@@ -793,8 +779,7 @@ class TaskActionTransactionIndexState {
         if (updatedTask) return updatedTask;
 
         return getOrSetDefaultMapValue(this._retrievedTaskIndexDocById, taskId, async () => {
-            const task = await this._context.opensearch.client.getDocIfExists(
-                this._context.tracer.getTracer(),
+            const task = await this._context.opensearch.getDocIfExists(
                 TaskIndex,
                 this.spaceId,
                 taskId,
@@ -846,8 +831,7 @@ class TaskActionTransactionIndexState {
             this._retrievedCollectionIndexDocById,
             collectionId,
             async () => {
-                const collection = await this._context.opensearch.client.getDocIfExists(
-                    this._context.tracer.getTracer(),
+                const collection = await this._context.opensearch.getDocIfExists(
                     TaskCollectionIndex,
                     this.spaceId,
                     collectionId,
@@ -1093,7 +1077,7 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
             // `_update_by_query`. We know that no NEW tasks will have the old account name
             // so we only need to update tasks we find from an initial query.
             if (import.meta.jest) {
-                await context.opensearch.client.refresh(context.tracer.getTracer(), TaskIndex);
+                await context.opensearch.refresh(TaskIndex);
             } else {
                 await context.tracer.withSpan(
                     "Waiting for task index to refresh",
@@ -1165,8 +1149,7 @@ function indexTaskUpdateAccountNameActionAssumingItsCommitted(
                 action.accountId,
             );
 
-            const {versionConflictCount} = await context.opensearch.client.updateByQuery(
-                context.tracer.getTracer(),
+            const {versionConflictCount} = await context.opensearch.updateByQuery(
                 TaskIndex,
                 spaceId,
                 {
@@ -1306,19 +1289,14 @@ export async function queryTaskIndex(
 
     queryTaskIndexTestCounter.incrementForTest(spaceId);
 
-    const tasks = await context.opensearch.client.search(
-        context.tracer.getTracer(),
-        TaskIndex,
-        spaceId,
-        {
-            query: getTaskQueryNormalizedFiltersOpensearchQueryClause(spaceId, filters),
-            sort: getTaskQueryNormalizedSortsOpensearchSortClause(sorts),
-            size: limit,
-            searchAfter: afterCursor
-                ? convertTaskQuerySortCursorToOpensearchCursor(sorts, afterCursor)
-                : undefined,
-        },
-    );
+    const tasks = await context.opensearch.search(TaskIndex, spaceId, {
+        query: getTaskQueryNormalizedFiltersOpensearchQueryClause(spaceId, filters),
+        sort: getTaskQueryNormalizedSortsOpensearchSortClause(sorts),
+        size: limit,
+        searchAfter: afterCursor
+            ? convertTaskQuerySortCursorToOpensearchCursor(sorts, afterCursor)
+            : undefined,
+    });
 
     return tasks;
 }
@@ -1333,114 +1311,107 @@ export async function searchTaskCollections(
 ): Promise<Array<TaskCollectionModelSearchResult>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const collections = await context.opensearch.client.searchWithoutSource(
-        context.tracer.getTracer(),
-        TaskCollectionIndex,
-        spaceId,
-        {
-            size: limit,
-            sort: [
-                "_score",
-                // If score is tied, put the newer collections first.
-                {createdTime: {order: "desc", missing: "_last"}},
-            ],
-            query: {
-                bool: {
-                    // Components of our task collection name search implementation:
-                    //
-                    // 1. We use the [OpenSearch search-as-you-type field type][1]. This gives us an
-                    //    extra 2-gram field, 3-gram field, and prefix search optimized field.
-                    //    2-grams and 3-grams are used to improve search ranking when you use a
-                    //    sequence of words in the right order. The prefix search optimized field
-                    //    improves the performance of otherwise slow prefix queries.
-                    //
-                    // 2. We use [`match_bool_prefix`][2] as the search operator (as opposed to
-                    //    [`match_phrase_prefix`][3] or a plain [`match`][4]). This allows us to
-                    //    match words in any order (`match_phrase_prefix` requires words to be in
-                    //    order) while letting the last word act as a prefix search. Our 2-gram and
-                    //    3-gram fields boosts the score when words are in the right order so
-                    //    they'll show first but correct order is not required. (Actually we use
-                    //    `multi_match` + `bool_prefix` which performs `match_bool_prefix` on
-                    //    multiple fields.)
-                    //
-                    // 3. In addition to a `match_bool_prefix` we have a plain [`match`][4] with
-                    //    `fuzziness: "AUTO"`. This allows us to search single word typos since
-                    //    `match_bool_prefix` doesn't support `fuzziness`. (I'm not sure of the
-                    //    implementation reason for this.) We downrank this match so typo matches
-                    //    appear below full text matches.
-                    //
-                    // 4. We use a custom analyzer built from the `english` language analyzer plus
-                    //    the [`word_delimiter_graph`][5] token filter. This filter takes strings
-                    //    like `"FY2024Q3"` and turns it into the tokens `["FY", "2024", "Q", "3"]`.
-                    //    Businesses have plenty of identifiers (like this one), by tokenizing
-                    //    identifiers we allow searches like `"Q3"` to match any identifier
-                    //    containing that substring.
-                    //
-                    // [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/search-as-you-type/
-                    // [2]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match-boolean-prefix
-                    // [3]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match-phrase-prefix
-                    // [4]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match
-                    // [5]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-word-delimiter-graph-tokenfilter.html
-                    minimum_should_match: 1,
-                    should: [
-                        {
-                            multi_match: {
+    const collections = await context.opensearch.searchWithoutSource(TaskCollectionIndex, spaceId, {
+        size: limit,
+        sort: [
+            "_score",
+            // If score is tied, put the newer collections first.
+            {createdTime: {order: "desc", missing: "_last"}},
+        ],
+        query: {
+            bool: {
+                // Components of our task collection name search implementation:
+                //
+                // 1. We use the [OpenSearch search-as-you-type field type][1]. This gives us an
+                //    extra 2-gram field, 3-gram field, and prefix search optimized field.
+                //    2-grams and 3-grams are used to improve search ranking when you use a
+                //    sequence of words in the right order. The prefix search optimized field
+                //    improves the performance of otherwise slow prefix queries.
+                //
+                // 2. We use [`match_bool_prefix`][2] as the search operator (as opposed to
+                //    [`match_phrase_prefix`][3] or a plain [`match`][4]). This allows us to
+                //    match words in any order (`match_phrase_prefix` requires words to be in
+                //    order) while letting the last word act as a prefix search. Our 2-gram and
+                //    3-gram fields boosts the score when words are in the right order so
+                //    they'll show first but correct order is not required. (Actually we use
+                //    `multi_match` + `bool_prefix` which performs `match_bool_prefix` on
+                //    multiple fields.)
+                //
+                // 3. In addition to a `match_bool_prefix` we have a plain [`match`][4] with
+                //    `fuzziness: "AUTO"`. This allows us to search single word typos since
+                //    `match_bool_prefix` doesn't support `fuzziness`. (I'm not sure of the
+                //    implementation reason for this.) We downrank this match so typo matches
+                //    appear below full text matches.
+                //
+                // 4. We use a custom analyzer built from the `english` language analyzer plus
+                //    the [`word_delimiter_graph`][5] token filter. This filter takes strings
+                //    like `"FY2024Q3"` and turns it into the tokens `["FY", "2024", "Q", "3"]`.
+                //    Businesses have plenty of identifiers (like this one), by tokenizing
+                //    identifiers we allow searches like `"Q3"` to match any identifier
+                //    containing that substring.
+                //
+                // [1]: https://opensearch.org/docs/latest/field-types/supported-field-types/search-as-you-type/
+                // [2]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match-boolean-prefix
+                // [3]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match-phrase-prefix
+                // [4]: https://opensearch.org/docs/latest/search-plugins/sql/full-text/#match
+                // [5]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-word-delimiter-graph-tokenfilter.html
+                minimum_should_match: 1,
+                should: [
+                    {
+                        multi_match: {
+                            query: new OpensearchQueryValue(nameQuery),
+                            type: "bool_prefix",
+                            fields: ["name.value", "name.value._2gram", "name.value._3gram"],
+                        },
+                    },
+                    {
+                        match: {
+                            "name.value": {
                                 query: new OpensearchQueryValue(nameQuery),
-                                type: "bool_prefix",
-                                fields: ["name.value", "name.value._2gram", "name.value._3gram"],
+                                fuzziness: "AUTO",
+                                // Reduce the number of fuzzy expansions.
+                                prefix_length: 1,
+                                // Misspellings should rank lower than proper spellings.
+                                boost: 0.5,
                             },
                         },
-                        {
-                            match: {
-                                "name.value": {
-                                    query: new OpensearchQueryValue(nameQuery),
-                                    fuzziness: "AUTO",
-                                    // Reduce the number of fuzzy expansions.
-                                    prefix_length: 1,
-                                    // Misspellings should rank lower than proper spellings.
-                                    boost: 0.5,
+                    },
+                ],
+
+                // Enter a filter context. Query clauses in a filter context may be cached.
+                // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
+                filter: {
+                    bool: {
+                        must: [
+                            // Always filter for non-deleted collections in our space. These filters should
+                            // be pretty fast thanks to our OpenSearch index sort.
+                            {term: {spaceId: new OpensearchQueryValue(spaceId)}},
+                            {term: {isDeleted: new OpensearchQueryValue(false)}},
+                        ],
+
+                        minimum_should_match: 1,
+                        // Can only search collections the account has access to. So that's collections
+                        // where we have an account grant and collections where there's a default grant
+                        // of type `Space`.
+                        should: [
+                            {
+                                term: {
+                                    accessPolicyDefaultGrantType: new OpensearchQueryValue("Space"),
                                 },
                             },
-                        },
-                    ],
-
-                    // Enter a filter context. Query clauses in a filter context may be cached.
-                    // https://opensearch.org/docs/latest/query-dsl/query-filter-context/#filter-context
-                    filter: {
-                        bool: {
-                            must: [
-                                // Always filter for non-deleted collections in our space. These filters should
-                                // be pretty fast thanks to our OpenSearch index sort.
-                                {term: {spaceId: new OpensearchQueryValue(spaceId)}},
-                                {term: {isDeleted: new OpensearchQueryValue(false)}},
-                            ],
-
-                            minimum_should_match: 1,
-                            // Can only search collections the account has access to. So that's collections
-                            // where we have an account grant and collections where there's a default grant
-                            // of type `Space`.
-                            should: [
-                                {
-                                    term: {
-                                        accessPolicyDefaultGrantType: new OpensearchQueryValue(
-                                            "Space",
-                                        ),
-                                    },
+                            {
+                                term: {
+                                    accessPolicyAccountGrantIds: new OpensearchQueryValue(
+                                        context.actor.getAccountId(),
+                                    ),
                                 },
-                                {
-                                    term: {
-                                        accessPolicyAccountGrantIds: new OpensearchQueryValue(
-                                            context.actor.getAccountId(),
-                                        ),
-                                    },
-                                },
-                            ],
-                        },
+                            },
+                        ],
                     },
                 },
             },
         },
-    );
+    });
 
     return assembleTaskCollectionSearchResults(context, collections);
 }
@@ -1462,19 +1433,14 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
 ): Promise<Value> {
     // If this is a test where OpenSearch is disabled then don't bother trying to
     // schedule a search entity indexing job.
-    if (context.opensearch.client instanceof TestDisabledOpensearchClient) {
+    if (context.opensearch.isDisabledForTest()) {
         assert(process.env.NODE_ENV === "test");
         return action();
     }
 
     const [value, initialTask] = await runAllPromises([
         action(),
-        context.opensearch.client.getDocIfExists(
-            context.tracer.getTracer(),
-            TaskIndex,
-            spaceId,
-            taskId,
-        ),
+        context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId),
     ]);
 
     let hasAlreadyAttempted = false;
@@ -1485,12 +1451,7 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
 
         const task = isInitialAttempt
             ? initialTask
-            : await context.opensearch.client.getDocIfExists(
-                  context.tracer.getTracer(),
-                  TaskIndex,
-                  spaceId,
-                  taskId,
-              );
+            : await context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId);
 
         // If we didn't find the task, we may be waiting for it to be created in the
         // index. The index is updated asynchronously after tasks are committed.
@@ -1515,8 +1476,7 @@ export async function withSendTaskIndexSearchEntityJobIfNeeded<Value>(
             // but should be easy to add.
             const updatedTraits: Array<never> = [];
 
-            await context.opensearch.client.indexDocIfVersion(
-                context.tracer.getTracer(),
+            await context.opensearch.indexDocIfVersion(
                 TaskIndex,
                 spaceId,
                 {

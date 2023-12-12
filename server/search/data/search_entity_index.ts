@@ -1,4 +1,5 @@
 import murmurhash from "murmurhash";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
@@ -291,7 +292,7 @@ export async function processIndexSearchEntityJob(
     async function updateOurEntity() {
         await retryWithExponentialBackoff(async retry => {
             const [actualOldDocForKeywordIndex, actualOldDocForSemanticIndex] =
-                await context.opensearch.client.multiGetDocsIfExist(context.tracer.getTracer(), [
+                await context.opensearch.multiGetDocsIfExist([
                     new OpensearchGetDocWithoutSourceCommand(
                         SearchEntityKeywordIndex,
                         job.spaceId,
@@ -533,16 +534,14 @@ export async function processIndexSearchEntityJob(
             // way we guarantee we aren't overwriting new data (read by the other job) with
             // old data (read by this job).
             if (!oldDocForSemanticIndex && newDocForSemanticIndex.embeddingChunks.length === 0) {
-                await context.opensearch.client.indexDocIfVersion(
-                    context.tracer.getTracer(),
+                await context.opensearch.indexDocIfVersion(
                     SearchEntityKeywordIndex,
                     job.spaceId,
                     newDocForKeywordIndex,
                     {retryVersionConflictError: retry},
                 );
             } else {
-                await context.opensearch.client.bulk(
-                    context.tracer.getTracer(),
+                await context.opensearch.bulk(
                     [
                         new OpensearchIndexDocIfVersionCommand(
                             SearchEntityKeywordIndex,
@@ -582,10 +581,7 @@ export async function processIndexSearchEntityJob(
         } else {
             // In Jest tests, indexes need to be refreshed manually. Don't refresh manually
             // in production.
-            await context.opensearch.client.refresh(
-                context.tracer.getTracer(),
-                SearchEntityKeywordIndex,
-            );
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
         }
 
         // Maximum search page size is 10k.
@@ -593,8 +589,7 @@ export async function processIndexSearchEntityJob(
         let searchAfter: ReadonlyArray<JsonValue> | null = null;
 
         do {
-            const docs = await context.opensearch.client.searchWithoutSource(
-                context.tracer.getTracer(),
+            const docs = await context.opensearch.searchWithoutSource(
                 SearchEntityKeywordIndex,
                 job.spaceId,
                 {

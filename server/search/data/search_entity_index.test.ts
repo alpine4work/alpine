@@ -18,19 +18,15 @@ import {LanguageModelBase} from "~/server/language_models/core/language_model_ba
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
-import {SearchEntityId} from "~/server/search/core/search_entity_id.js";
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/internal/get_search_entity.js";
-import {SearchEntityIndexDefaultGrantTypeIntegerMapping} from "~/server/search/data/internal/search_entity_index_doc.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
     processSearchEntityJobFinishedTestCheckpoint,
 } from "~/server/search/data/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
-import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     DocumentContentProsemirrorSchema,
@@ -96,52 +92,42 @@ test("can index and reindex a document", async () => {
         body: "This is a document. Very cool.",
     });
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        must: [
-                            {term: {spaceId: new OpensearchQueryValue(space.id)}},
-                            {
-                                match_phrase: {
-                                    body: {query: new OpensearchQueryValue("cool")},
-                                },
+        await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
+            size: 100,
+            query: {
+                bool: {
+                    must: [
+                        {term: {spaceId: new OpensearchQueryValue(space.id)}},
+                        {
+                            match_phrase: {
+                                body: {query: new OpensearchQueryValue("cool")},
                             },
-                        ],
-                    },
+                        },
+                    ],
                 },
             },
-        ),
+        }),
     ).toEqual([]);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        must: [
-                            {term: {spaceId: new OpensearchQueryValue(space.id)}},
-                            {
-                                match_phrase: {
-                                    body: {query: new OpensearchQueryValue("wow")},
-                                },
+        await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
+            size: 100,
+            query: {
+                bool: {
+                    must: [
+                        {term: {spaceId: new OpensearchQueryValue(space.id)}},
+                        {
+                            match_phrase: {
+                                body: {query: new OpensearchQueryValue("wow")},
                             },
-                        ],
-                    },
+                        },
+                    ],
                 },
             },
-        ),
+        }),
     ).toEqual([]);
 
     await processIndexSearchEntityJob(
@@ -158,52 +144,42 @@ test("can index and reindex a document", async () => {
         new Date(),
     );
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        must: [
-                            {term: {spaceId: new OpensearchQueryValue(space.id)}},
-                            {
-                                match_phrase: {
-                                    body: {query: new OpensearchQueryValue("cool")},
-                                },
+        await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
+            size: 100,
+            query: {
+                bool: {
+                    must: [
+                        {term: {spaceId: new OpensearchQueryValue(space.id)}},
+                        {
+                            match_phrase: {
+                                body: {query: new OpensearchQueryValue("cool")},
                             },
-                        ],
-                    },
+                        },
+                    ],
                 },
             },
-        ),
+        }),
     ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        must: [
-                            {term: {spaceId: new OpensearchQueryValue(space.id)}},
-                            {
-                                match_phrase: {
-                                    body: {query: new OpensearchQueryValue("wow")},
-                                },
+        await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
+            size: 100,
+            query: {
+                bool: {
+                    must: [
+                        {term: {spaceId: new OpensearchQueryValue(space.id)}},
+                        {
+                            match_phrase: {
+                                body: {query: new OpensearchQueryValue("wow")},
                             },
-                        ],
-                    },
+                        },
+                    ],
                 },
             },
-        ),
+        }),
     ).toEqual([]);
 
     await document.type(session, " A new sentence, wow.");
@@ -222,52 +198,42 @@ test("can index and reindex a document", async () => {
         new Date(),
     );
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        must: [
-                            {term: {spaceId: new OpensearchQueryValue(space.id)}},
-                            {
-                                match_phrase: {
-                                    body: {query: new OpensearchQueryValue("cool")},
-                                },
+        await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
+            size: 100,
+            query: {
+                bool: {
+                    must: [
+                        {term: {spaceId: new OpensearchQueryValue(space.id)}},
+                        {
+                            match_phrase: {
+                                body: {query: new OpensearchQueryValue("cool")},
                             },
-                        ],
-                    },
+                        },
+                    ],
                 },
             },
-        ),
+        }),
     ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        must: [
-                            {term: {spaceId: new OpensearchQueryValue(space.id)}},
-                            {
-                                match_phrase: {
-                                    body: {query: new OpensearchQueryValue("wow")},
-                                },
+        await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
+            size: 100,
+            query: {
+                bool: {
+                    must: [
+                        {term: {spaceId: new OpensearchQueryValue(space.id)}},
+                        {
+                            match_phrase: {
+                                body: {query: new OpensearchQueryValue("wow")},
                             },
-                        ],
-                    },
+                        },
+                    ],
                 },
             },
-        ),
+        }),
     ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
 });
 
@@ -294,35 +260,30 @@ test("can highlight a document", async () => {
         new Date(),
     );
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        must: [
-                            {term: {spaceId: new OpensearchQueryValue(space.id)}},
-                            {
-                                match_phrase: {
-                                    body: {query: new OpensearchQueryValue("cool")},
-                                },
+        await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
+            size: 100,
+            query: {
+                bool: {
+                    must: [
+                        {term: {spaceId: new OpensearchQueryValue(space.id)}},
+                        {
+                            match_phrase: {
+                                body: {query: new OpensearchQueryValue("cool")},
                             },
-                        ],
-                    },
-                },
-                highlight: {
-                    type: "unified",
-                    fields: {
-                        body: {},
-                    },
+                        },
+                    ],
                 },
             },
-        ),
+            highlight: {
+                type: "unified",
+                fields: {
+                    body: {},
+                },
+            },
+        }),
     ).toEqual([
         {
             id: `Document:${document.id}`,
@@ -342,8 +303,7 @@ test("will skip indexing if already indexed", async () => {
     });
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -366,8 +326,7 @@ test("will skip indexing if already indexed", async () => {
 
     const {primaryTerm, sequenceNumber: sequenceNumberBase} = assertExists(
         (
-            await context.opensearch.client.getDocWithoutSourceIfExists(
-                context.tracer.getTracer(),
+            await context.opensearch.getDocWithoutSourceIfExists(
                 SearchEntityKeywordIndex,
                 space.id,
                 `Document:${document.id}`,
@@ -376,8 +335,7 @@ test("will skip indexing if already indexed", async () => {
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -403,8 +361,7 @@ test("will skip indexing if already indexed", async () => {
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -430,8 +387,7 @@ test("will skip indexing if already indexed", async () => {
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -457,8 +413,7 @@ test("will skip indexing if already indexed", async () => {
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -517,29 +472,24 @@ test("will correctly index during race condition (scenario 1)", async () => {
     pause1.unpause();
     await job1Promise;
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        must: [
-                            {term: {spaceId: new OpensearchQueryValue(space.id)}},
-                            {
-                                match_phrase: {
-                                    body: {query: new OpensearchQueryValue("wow")},
-                                },
+        await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
+            size: 100,
+            query: {
+                bool: {
+                    must: [
+                        {term: {spaceId: new OpensearchQueryValue(space.id)}},
+                        {
+                            match_phrase: {
+                                body: {query: new OpensearchQueryValue("wow")},
                             },
-                        ],
-                    },
+                        },
+                    ],
                 },
             },
-        ),
+        }),
     ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
 });
 
@@ -598,29 +548,24 @@ test("will correctly index during race condition (scenario 2)", async () => {
     pause2.unpause();
     await job2Promise;
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        must: [
-                            {term: {spaceId: new OpensearchQueryValue(space.id)}},
-                            {
-                                match_phrase: {
-                                    body: {query: new OpensearchQueryValue("wow")},
-                                },
+        await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
+            size: 100,
+            query: {
+                bool: {
+                    must: [
+                        {term: {spaceId: new OpensearchQueryValue(space.id)}},
+                        {
+                            match_phrase: {
+                                body: {query: new OpensearchQueryValue("wow")},
                             },
-                        ],
-                    },
+                        },
+                    ],
                 },
             },
-        ),
+        }),
     ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
 });
 
@@ -652,8 +597,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -661,8 +605,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntitySemanticIndex,
             space.id,
             `Document:${document.id}`,
@@ -692,8 +635,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -701,8 +643,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntitySemanticIndex,
             space.id,
             `Document:${document.id}`,
@@ -735,8 +676,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -744,8 +684,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntitySemanticIndex,
             space.id,
             `Document:${document.id}`,
@@ -791,8 +730,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -800,8 +738,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntitySemanticIndex,
             space.id,
             `Document:${document.id}`,
@@ -836,8 +773,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -845,8 +781,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntitySemanticIndex,
             space.id,
             `Document:${document.id}`,
@@ -879,8 +814,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `Document:${document.id}`,
@@ -888,8 +822,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
     ).not.toBeNull();
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntitySemanticIndex,
             space.id,
             `Document:${document.id}`,
@@ -915,8 +848,7 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
     expect(getCount()).toEqual(0);
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntitySemanticIndex,
             space.id,
             `Document:${documentId}`,
@@ -948,8 +880,7 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
     expect(getCount()).toEqual(3);
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntitySemanticIndex,
             space.id,
             `Document:${document.id}`,
@@ -969,8 +900,7 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
         },
     });
 
-    const doc = await context.opensearch.client.getDocWithoutSourceIfExists(
-        context.tracer.getTracer(),
+    const doc = await context.opensearch.getDocWithoutSourceIfExists(
         SearchEntitySemanticIndex,
         space.id,
         `Document:${document.id}`,
@@ -1000,8 +930,7 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
     expect(getCount()).toEqual(4);
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntitySemanticIndex,
             space.id,
             `Document:${document.id}`,
@@ -1067,36 +996,31 @@ test("returns the right chunk when searching for embeddings", async () => {
         new Date(),
     );
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntitySemanticIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntitySemanticIndex,
-            space.id,
-            {
-                size: 1,
-                query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        inner_hits: {
-                            size: 1,
-                            _source: false,
-                            stored_fields: ["embeddingChunks.text"],
-                        },
-                        query: {
-                            knn: {
-                                "embeddingChunks.vector.allMiniLmL6V2": {
-                                    vector: new OpensearchQueryValue(
-                                        await embedQuery("where did the founders meet"),
-                                    ),
-                                    k: 100,
-                                    filter: {
-                                        term: {
-                                            "embeddingChunks.spaceId": new OpensearchQueryValue(
-                                                space.id,
-                                            ),
-                                        },
+        await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            size: 1,
+            query: {
+                nested: {
+                    path: "embeddingChunks",
+                    inner_hits: {
+                        size: 1,
+                        _source: false,
+                        stored_fields: ["embeddingChunks.text"],
+                    },
+                    query: {
+                        knn: {
+                            "embeddingChunks.vector.allMiniLmL6V2": {
+                                vector: new OpensearchQueryValue(
+                                    await embedQuery("where did the founders meet"),
+                                ),
+                                k: 100,
+                                filter: {
+                                    term: {
+                                        "embeddingChunks.spaceId": new OpensearchQueryValue(
+                                            space.id,
+                                        ),
                                     },
                                 },
                             },
@@ -1104,7 +1028,7 @@ test("returns the right chunk when searching for embeddings", async () => {
                     },
                 },
             },
-        ),
+        }),
     ).toEqual([
         {
             id: `Document:${document.id}`,
@@ -1207,31 +1131,24 @@ test("can search based on vector embeddings", async () => {
         new Date(),
     );
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntitySemanticIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntitySemanticIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        query: {
-                            knn: {
-                                "embeddingChunks.vector.allMiniLmL6V2": {
-                                    vector: new OpensearchQueryValue(
-                                        await embedQuery("video site"),
-                                    ),
-                                    k: 100,
-                                    filter: {
-                                        term: {
-                                            "embeddingChunks.spaceId": new OpensearchQueryValue(
-                                                space.id,
-                                            ),
-                                        },
+        await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            size: 100,
+            query: {
+                nested: {
+                    path: "embeddingChunks",
+                    query: {
+                        knn: {
+                            "embeddingChunks.vector.allMiniLmL6V2": {
+                                vector: new OpensearchQueryValue(await embedQuery("video site")),
+                                k: 100,
+                                filter: {
+                                    term: {
+                                        "embeddingChunks.spaceId": new OpensearchQueryValue(
+                                            space.id,
+                                        ),
                                     },
                                 },
                             },
@@ -1239,38 +1156,33 @@ test("can search based on vector embeddings", async () => {
                     },
                 },
             },
-        ),
+        }),
     ).toEqual([
         {id: `Document:${document1.id}`, score: expect.any(Number)},
         {id: `Document:${document2.id}`, score: expect.any(Number)},
     ]);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntitySemanticIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        query: {
-                            knn: {
-                                "embeddingChunks.vector.allMiniLmL6V2": {
-                                    vector: new OpensearchQueryValue(
-                                        // These words aren't in our source material but the model should figure out
-                                        // that "dungeon master" is associated with tabletop games and "scary" is
-                                        // associated with suspense or running away.
-                                        await embedQuery("scary tabletop game"),
-                                    ),
-                                    k: 100,
-                                    filter: {
-                                        term: {
-                                            "embeddingChunks.spaceId": new OpensearchQueryValue(
-                                                space.id,
-                                            ),
-                                        },
+        await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            size: 100,
+            query: {
+                nested: {
+                    path: "embeddingChunks",
+                    query: {
+                        knn: {
+                            "embeddingChunks.vector.allMiniLmL6V2": {
+                                vector: new OpensearchQueryValue(
+                                    // These words aren't in our source material but the model should figure out
+                                    // that "dungeon master" is associated with tabletop games and "scary" is
+                                    // associated with suspense or running away.
+                                    await embedQuery("scary tabletop game"),
+                                ),
+                                k: 100,
+                                filter: {
+                                    term: {
+                                        "embeddingChunks.spaceId": new OpensearchQueryValue(
+                                            space.id,
+                                        ),
                                     },
                                 },
                             },
@@ -1278,7 +1190,7 @@ test("can search based on vector embeddings", async () => {
                     },
                 },
             },
-        ),
+        }),
     ).toEqual([
         {id: `Document:${document2.id}`, score: expect.any(Number)},
         {id: `Document:${document1.id}`, score: expect.any(Number)},
@@ -1360,30 +1272,25 @@ test("will reindex if a dependency changes", async () => {
         new Date(),
     );
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntitySemanticIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntitySemanticIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        query: {
-                            term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
-                        },
-                        inner_hits: {
-                            size: 100,
-                            _source: false,
-                            stored_fields: ["embeddingChunks.text"],
-                        },
+        await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            size: 100,
+            query: {
+                nested: {
+                    path: "embeddingChunks",
+                    query: {
+                        term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
+                    },
+                    inner_hits: {
+                        size: 100,
+                        _source: false,
+                        stored_fields: ["embeddingChunks.text"],
                     },
                 },
             },
-        ),
+        }),
     ).toEqual([
         {
             id: `Post:${post1.id}`,
@@ -1454,30 +1361,25 @@ Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat s
     (await pause1Promise).unpause();
     (await pause2Promise).unpause();
 
-    await context.opensearch.client.refresh(context.tracer.getTracer(), SearchEntitySemanticIndex);
+    await context.opensearch.refresh(SearchEntitySemanticIndex);
 
     expect(
-        await context.opensearch.client.searchWithoutSource(
-            context.tracer.getTracer(),
-            SearchEntitySemanticIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    nested: {
-                        path: "embeddingChunks",
-                        query: {
-                            term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
-                        },
-                        inner_hits: {
-                            size: 100,
-                            _source: false,
-                            stored_fields: ["embeddingChunks.text"],
-                        },
+        await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+            size: 100,
+            query: {
+                nested: {
+                    path: "embeddingChunks",
+                    query: {
+                        term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
+                    },
+                    inner_hits: {
+                        size: 100,
+                        _source: false,
+                        stored_fields: ["embeddingChunks.text"],
                     },
                 },
             },
-        ),
+        }),
     ).toEqual([
         {
             id: `Post:${post1.id}`,
@@ -1552,8 +1454,7 @@ test("deleting a chat message will clear out its indexed content", async () => {
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `ChatMessage:${chatId}-0`,
@@ -1590,8 +1491,7 @@ test("deleting a chat message will clear out its indexed content", async () => {
     );
 
     expect(
-        await context.opensearch.client.getDocWithoutSourceIfExists(
-            context.tracer.getTracer(),
+        await context.opensearch.getDocWithoutSourceIfExists(
             SearchEntityKeywordIndex,
             space.id,
             `ChatMessage:${chatId}-0`,
@@ -1606,9 +1506,8 @@ test("deleting a chat message will clear out its indexed content", async () => {
 
 test("ignores formatting characters when analyzing text", async () => {
     expect(
-        await context.opensearch.client
+        await context.opensearch
             .analyze(
-                context.tracer.getTracer(),
                 SearchEntityKeywordIndex,
                 opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
                 "This is some **bold text**, wow",
@@ -1617,9 +1516,8 @@ test("ignores formatting characters when analyzing text", async () => {
     ).toEqual(["some", "bold", "text", "wow"]);
 
     expect(
-        await context.opensearch.client
+        await context.opensearch
             .analyze(
-                context.tracer.getTracer(),
                 SearchEntityKeywordIndex,
                 opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
                 "This asterisk\\* is referring to some note\n\n\\* That would be here la la la",
@@ -1628,9 +1526,8 @@ test("ignores formatting characters when analyzing text", async () => {
     ).toEqual(["asterisk", "refer", "some", "note", "would", "here", "la", "la", "la"]);
 
     expect(
-        await context.opensearch.client
+        await context.opensearch
             .analyze(
-                context.tracer.getTracer(),
                 SearchEntityKeywordIndex,
                 opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
                 `\
