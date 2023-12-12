@@ -4,10 +4,20 @@ import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-bou
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
+import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {Modal} from "~/client/design/modal.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {SearchResultList} from "~/client/search/search_result_list.js";
+import {minSearchResultViewHeight} from "~/client/search/search_result_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
+import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
+import {
+    Spacing,
+    convertRemLengthToPx,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -168,6 +178,9 @@ function reduceSearchState(oldState: SearchState, action: SearchAction): SearchS
 export function SearchModal() {
     const context = useAppContext();
     const {space} = useSpaceContext();
+
+    const resultListContainerRef = useRef<HTMLDivElement>(null);
+
     // NOCOMMIT: initial state
     const [searchState, dispatch] = useReducer(reduceSearchState, {
         queryText: "hello world",
@@ -189,6 +202,8 @@ export function SearchModal() {
     const lastRequestRef = useRef<SearchStateRequest | null>(null);
 
     useEffect(() => {
+        const resultListContainerElement = assertExists(resultListContainerRef.current);
+
         const request = searchState.pendingRequest;
 
         if (lastRequestRef.current === request) return;
@@ -196,11 +211,23 @@ export function SearchModal() {
 
         if (!request) return;
 
+        // Load enough items to fill the virtualization window once. This gives the
+        // user some space to scroll and read before we need to load more messages.
+        //
+        // If the user did a jump scroll then we load 50% more messages so we have some
+        // buffer above and below the virtualization window.
+        const limit = Math.max(
+            20,
+            Math.ceil(
+                getVirtualizationWindowHeight(resultListContainerElement.clientHeight) /
+                    convertRemLengthToPx(minSearchResultViewHeight, getRemPxWithoutListening()),
+            ),
+        );
+
         searchByKeyword(context, {
             spaceId: space.id,
             queryText: request.queryText,
-            // NOCOMMIT: Proper limit
-            limit: 100,
+            limit,
         }).then(
             output => {
                 dispatch({
@@ -231,7 +258,7 @@ export function SearchModal() {
                 // NOCOMMIT
             }}
         >
-            <Box width="full" height="full" display="flex" flexDirection="column">
+            <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
                 <SearchModalInput
                     queryText={searchState.queryText}
                     onQueryTextChange={queryText => dispatch({type: "ChangeQueryText", queryText})}
@@ -239,11 +266,12 @@ export function SearchModal() {
                 <Box
                     flexGrow="1"
                     width="full"
+                    overflow="hidden"
                     display="flex"
                     flexDirection="row"
                     borderTop="grey-10"
                 >
-                    <Box flexGrow="1" height="full">
+                    <Box ref={resultListContainerRef} flexGrow="1" height="full" overflow="hidden">
                         {!searchState.data ? (
                             <></>
                         ) : !searchState.data.ok ? (
