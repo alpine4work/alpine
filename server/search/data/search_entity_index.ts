@@ -679,7 +679,7 @@ export async function searchByKeyword(
 ): Promise<{
     results: Array<SearchByKeywordResult>;
 }> {
-    // NOCOMMIT: Tests (test authorization)
+    // NOCOMMIT: Tests (include authorization tests)
     await authorizeSpaceAccess(context, spaceId);
 
     // NOCOMMIT: If in debug mode, add `explain`
@@ -757,8 +757,9 @@ export async function searchByKeyword(
             // should be a nice readable snippet.
             number_of_fragments: 1,
             order: "score",
-            // NOCOMMIT: I want to increase the size of highlighted text returned. I think
-            // that's done with `fragment_size`?
+            // NOCOMMIT: Figure out real values for these?
+            fragment_size: 300,
+            no_match_size: 300,
             fields: {
                 // We only highlight `body`. The entire `title` is generally returned as part
                 // of the search entity.

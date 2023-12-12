@@ -168,7 +168,13 @@ function reduceSearchState(oldState: SearchState, action: SearchAction): SearchS
 export function SearchModal() {
     const context = useAppContext();
     const {space} = useSpaceContext();
-    const [searchState, dispatch] = useReducer(reduceSearchState, initialSearchState);
+    // NOCOMMIT: initial state
+    const [searchState, dispatch] = useReducer(reduceSearchState, {
+        queryText: "hello world",
+        wordTypingTimeoutTime: null,
+        pendingRequest: {queryText: "hello world"},
+        data: null,
+    });
 
     useEffect(() => {
         if (searchState.wordTypingTimeoutTime === null) return;

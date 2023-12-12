@@ -1,5 +1,4 @@
 import createJsonBigInt from "json-bigint";
-import {inspect} from "util";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {OpensearchHighlightClause} from "~/server/opensearch/opensearch_highlight_clause.js";
@@ -1578,119 +1577,89 @@ export class OpensearchClient implements OpensearchClientInterface {
             await this._ensureLocalIndex(tracer, index);
         }
 
-        return retryWithExponentialBackoff(async retry => {
-            const url = new URL(`/${index.name}/_search`, this._url);
-            url.searchParams.set("routing", routing);
-            url.searchParams.set("size", String(size));
+        const url = new URL(`/${index.name}/_search`, this._url);
+        url.searchParams.set("routing", routing);
+        url.searchParams.set("size", String(size));
 
-            // Important optimization. This means if we've satisfied the search's `size`
-            // limit then we can immediately end the query and return instead of scanning
-            // the entire index. [Works well with index sorting][1].
-            //
-            // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html#early-terminate
-            url.searchParams.set("track_total_hits", "false");
+        // Important optimization. This means if we've satisfied the search's `size`
+        // limit then we can immediately end the query and return instead of scanning
+        // the entire index. [Works well with index sorting][1].
+        //
+        // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html#early-terminate
+        url.searchParams.set("track_total_hits", "false");
 
-            // Don't return partial results in case of error or timeout.
-            url.searchParams.set("allow_partial_search_results", "false");
+        // Don't return partial results in case of error or timeout.
+        url.searchParams.set("allow_partial_search_results", "false");
 
-            // If a `TaskRealtimeService` search request takes a long time then it may
-            // leave the action history visibility window. Bounding the time a search may
-            // take means we leave the rest of the visibility window (9.5min when the
-            // visibility window is 10min) for indexing actions.
-            url.searchParams.set("timeout", "30s");
-            url.searchParams.set("cancel_after_time_interval", "30s");
+        // If a `TaskRealtimeService` search request takes a long time then it may
+        // leave the action history visibility window. Bounding the time a search may
+        // take means we leave the rest of the visibility window (9.5min when the
+        // visibility window is 10min) for indexing actions.
+        url.searchParams.set("timeout", "30s");
+        url.searchParams.set("cancel_after_time_interval", "30s");
 
-            if (storedFields && storedFields.length > 0) {
-                url.searchParams.set("stored_fields", storedFields.join(","));
-            }
+        if (storedFields && storedFields.length > 0) {
+            url.searchParams.set("stored_fields", storedFields.join(","));
+        }
 
-            try {
-                const body = await fetchWithTracer(
-                    tracer,
-                    url,
-                    {
-                        sign: this._signer.sign,
-                        serviceName: "OpenSearch",
-                        route: `/${index.name}/_search`,
-                        method: "POST",
-                        headers: {"content-type": "application/json"},
-                        // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
-                        // bigints we want to stringify as JSON integer literals so we need to use
-                        // `json-bigint`.
-                        body: JsonBigInt.stringify({
-                            query,
-                            sort,
-                            search_after: searchAfter,
-                            _source: !withoutDocs,
-                            highlight,
-                        }),
+        const body = await fetchWithTracer(
+            tracer,
+            url,
+            {
+                sign: this._signer.sign,
+                serviceName: "OpenSearch",
+                route: `/${index.name}/_search`,
+                method: "POST",
+                headers: {"content-type": "application/json"},
+                // NOTE(#opensearch-important-json-disclaimer): `searchAfter` may contain
+                // bigints we want to stringify as JSON integer literals so we need to use
+                // `json-bigint`.
+                body: JsonBigInt.stringify({
+                    query,
+                    sort,
+                    search_after: searchAfter,
+                    _source: !withoutDocs,
+                    highlight,
+                }),
+            },
+            async (response, span) => {
+                span.addData({
+                    opensearch: {
+                        query: getOpensearchQueryClauseDescription(query),
+                        sort: JSON.stringify(sort),
                     },
-                    async (response, span) => {
-                        span.addData({
-                            opensearch: {
-                                query: getOpensearchQueryClauseDescription(query),
-                                sort: JSON.stringify(sort),
-                            },
-                        });
+                });
 
-                        // NOTE(#opensearch-important-json-disclaimer): We only use `_source` which is
-                        // deserialized with our index object type. `_source`s correctly serialize big
-                        // integers for JavaScript (they're stringified).
-                        //
-                        // However, `sort` values are a problem here! OpenSearch returns sort values in
-                        // its internal format. So a `long` will be a JSON number and that JSON number
-                        // may be too big to represent in a JavaScript 64-bit float so we'll get an
-                        // imprecise value.
-                        //
-                        // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
-                        // `sort` values unless you parse with `json-bigint`.
-                        const body:
-                            | {
-                                  hits: {hits: Array<OpensearchSearchHit>};
-                                  error?: undefined;
-                              }
-                            | {error: OpensearchError; hits?: undefined} = await response.json();
-
-                        if (body.error) {
-                            const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
-                            throw new UnknownError(`OpenSearch search failed: ${errorType}`, {
-                                cause: body.error,
-                            });
-                        }
-
-                        return body;
-                    },
-                );
-
-                return body.hits.hits;
-            } catch (error) {
-                // While the index is being created we may get a
-                // `search_phase_execution_exception` error. Retry until our cluster is
-                // healthy.
+                // NOTE(#opensearch-important-json-disclaimer): We only use `_source` which is
+                // deserialized with our index object type. `_source`s correctly serialize big
+                // integers for JavaScript (they're stringified).
                 //
-                // NOTE(calebmer): We see this happening in integration tests where multiple
-                // process try to create and access our OpenSearch indexes all at once. Ideally
-                // `_ensureLocalIndex()` would wait for all that to settle down but I can't
-                // quite figure out what we need to wait for.
-                if (
-                    process.env.NODE_ENV !== "production" &&
-                    error instanceof Error &&
-                    isObject(error.cause) &&
-                    error.cause.type === "search_phase_execution_exception" &&
-                    (error.cause.reason === "all shards failed" ||
-                        (isObject(error.cause.caused_by) &&
-                            error.cause.caused_by.type === "search_phase_execution_exception" &&
-                            typeof error.cause.caused_by.reason === "string" &&
-                            error.cause.caused_by.reason.startsWith(
-                                "Search rejected due to missing shards",
-                            )))
-                ) {
-                    retry(error);
+                // However, `sort` values are a problem here! OpenSearch returns sort values in
+                // its internal format. So a `long` will be a JSON number and that JSON number
+                // may be too big to represent in a JavaScript 64-bit float so we'll get an
+                // imprecise value.
+                //
+                // If we ignore `sort` values we'll be fine. Keep in mind that you can't use
+                // `sort` values unless you parse with `json-bigint`.
+                const body:
+                    | {
+                          hits: {hits: Array<OpensearchSearchHit>};
+                          error?: undefined;
+                      }
+                    | {error: OpensearchError; hits?: undefined} = await response.json();
+
+                if (body.error) {
+                    const errorType = body.error.root_cause?.[0]?.type ?? body.error.type;
+                    throw new UnknownError(`OpenSearch search failed: ${errorType}`, {
+                        cause: body.error,
+                    });
                 }
 
-                throw error;
-            }
-        });
+                return body;
+            },
+        );
+
+        return body.hits.hits;
     }
 
     /**

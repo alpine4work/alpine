@@ -13,7 +13,10 @@ ts_project(
             "data": ["//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data_testonly"],
         },
     },
-    visibility = ["//server/jobs/queue:__pkg__"],
+    visibility = [
+        "//server/jobs/queue:__pkg__",
+        "//server/rpc:__pkg__",
+    ],
     deps = [
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@xenova/transformers",

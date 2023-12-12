@@ -23,4 +23,6 @@ type OpensearchHighlightClauseOptions = {
     boundary_scanner_locale?: string;
     number_of_fragments?: number;
     order?: "none" | "score";
+    fragment_size?: number;
+    no_match_size?: number;
 };
