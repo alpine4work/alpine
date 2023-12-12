@@ -22,20 +22,18 @@ export const defaultModalMaxWidth: Spacing = "128";
  * Has an underlay which when clicked will close the modal.
  */
 export function Modal({
+    "aria-label": ariaLabel,
     "aria-labelledby": ariaLabelledBy,
     children,
     onClose: _onCloseWithoutAnimation,
     "aria-describedby": ariaDescribedBy,
     maxWidth = defaultModalMaxWidth,
+    height = "auto",
+    maxHeight = "full",
+    borderRadius = "md",
     withoutCloseAnimation,
     withoutCloseButton,
 }: {
-    /**
-     * An ID to an element within the modal labeling the modal. Usually a title
-     * element like an `<h2>`.
-     */
-    "aria-labelledby": string;
-
     /**
      * The contents of the modal. If the contents are too big for the screen then
      * the content area will scroll.
@@ -65,7 +63,25 @@ export function Modal({
     /**
      * The maximum width for this modal. Defaults to `128`.
      */
-    maxWidth?: Spacing | RemLength;
+    maxWidth?: Spacing | RemLength | "full";
+
+    /**
+     * How height is handled for this modal. Defaults to `auto` which means the
+     * modal height will be as big as it's content height. If you want the modal's
+     * height to stretch across all available space then use `full`.
+     *
+     * `width` behaves as `full` but you can't configure it.
+     */
+    height?: "auto" | "full";
+
+    /**
+     * The maximum height of our modal. Defaults to `full`.
+     *
+     * Useful if you set `height="full"` to constrain the height of your modal.
+     */
+    maxHeight?: Spacing | RemLength | "full";
+
+    borderRadius?: "md" | "lg";
 
     /**
      * The modal will never animate when closing if set to true. Otherwise we fade
@@ -79,7 +95,25 @@ export function Modal({
      * the background to close the modal. We just won't have an explicit action.
      */
     withoutCloseButton?: boolean;
-}) {
+} & (
+    | {
+          /**
+           * A label exposed to assistive technology (through `aria-label`) when
+           * there is no visible label for the element.
+           */
+          "aria-label": string;
+          "aria-labelledby"?: undefined;
+      }
+    | {
+          /**
+           * A reference to another element (through `aria-labelledby`) with a
+           * visible label for this element. Usually a title element like an `<h2>`
+           * for modals.
+           */
+          "aria-labelledby": string;
+          "aria-label"?: undefined;
+      }
+)) {
     const portalElement = assertExists(
         useOverlayRootPortalElement(),
         "Can not render modal before portal element is available",
@@ -89,7 +123,16 @@ export function Modal({
     const onCloseWithoutAnimation = useEvent(_onCloseWithoutAnimation);
     useEffect(() => {
         if (!isFadingOut) return;
-        const timeout = createTimeout(onCloseWithoutAnimation, modalStyles.modalFadeOutDuration);
+
+        const timeout = createTimeout(() => {
+            onCloseWithoutAnimation();
+
+            // If the `onClose()` callback doesn't actually close the modal in the same
+            // React render, the modal component is still mounted so should be made visible
+            // again.
+            setIsFadingOut(false);
+        }, modalStyles.modalFadeOutDuration);
+
         return () => timeout.clear();
     }, [isFadingOut, onCloseWithoutAnimation]);
 
@@ -140,6 +183,7 @@ export function Modal({
                         <section
                             role="alertdialog"
                             aria-modal="true"
+                            aria-label={ariaLabel}
                             aria-labelledby={ariaLabelledBy}
                             aria-describedby={ariaDescribedBy}
                             className={classNames(
@@ -148,16 +192,27 @@ export function Modal({
                                     position: "relative",
                                     zIndex: "0",
                                     width: "full",
-                                    maxHeight: "full",
+                                    height,
                                     backgroundColor: "grey-0",
                                     boxShadow: "elevation-40",
-                                    borderRadius: "md",
+                                    borderRadius,
                                     display: "flex",
                                     overflow: "hidden",
                                 }),
                             )}
                             style={{
-                                maxWidth: isRemLength(maxWidth) ? maxWidth : spacing[maxWidth],
+                                maxWidth:
+                                    maxWidth === "full"
+                                        ? "100%"
+                                        : isRemLength(maxWidth)
+                                        ? maxWidth
+                                        : spacing[maxWidth],
+                                maxHeight:
+                                    maxHeight === "full"
+                                        ? "100%"
+                                        : isRemLength(maxHeight)
+                                        ? maxHeight
+                                        : spacing[maxHeight],
                                 animation: modalStyles.modalOverlayFadeInAnimation,
                             }}
                         >

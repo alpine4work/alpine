@@ -52,7 +52,11 @@ export function ModalDialog({
     const modalRef = useRef<ModalWithButtonsRef>(null);
 
     // Immediately focus the primary button.
+    const hasInitiallyMountedRef = useRef(false);
     useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
         const modal = assertExists(modalRef.current);
         modal.focusPrimaryButton();
     }, []);

@@ -6,8 +6,10 @@ import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {useShowToast} from "~/client/design/toast.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
+import {SearchModal} from "~/client/search/search_modal.js";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/layout/internal/space_layout_top_bar_create_button.js";
 import {SpaceLayoutTopBarInboxButton} from "~/client/spaces/layout/internal/space_layout_top_bar_inbox_button.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -27,6 +29,7 @@ export function SpaceLayoutTopBar({
     space: SpaceModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
 }) {
+    const isInitialAppRender = useIsInitialAppRender();
     const showToast = useShowToast();
     const isMobile = useIsMobile();
 
@@ -104,6 +107,11 @@ export function SpaceLayoutTopBar({
                         <MagnifyingGlass size={spacing["3"]} />
                         <Box fontStyle="truncate">Search {space.name}…</Box>
                     </Box>
+                    {!isInitialAppRender && (
+                        <SearchModal
+                        // NOCOMMIT: Open/close properly
+                        />
+                    )}
                 </Box>
             )}
             <Box

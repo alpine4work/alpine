@@ -1,30 +1,22 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "layout",
+    name = "search",
     visibility = [
         "//app:__subpackages__",
         "//client:__subpackages__",
     ],
     deps = [
         "//:node_modules/@types/react",
-        "//:node_modules/grapheme-splitter",
-        "//:node_modules/phosphor-react",
         "//:node_modules/react",
         "//client/accounts",
         "//client/context",
         "//client/design",
-        "//client/dynamo",
-        "//client/inbox",
-        "//client/remix",
-        "//client/search",
-        "//client/spaces",
-        "//shared/design",
-        "//shared/dynamo",
+        "//client/rpc",
+        "//shared/accounts",
         "//shared/error",
         "//shared/helpers",
-        "//shared/id",
         "//shared/rpc",
-        "//shared/styles",
+        "//shared/spaces",
     ],
 )
