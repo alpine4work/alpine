@@ -1,6 +1,7 @@
 import {differenceInMinutes} from "date-fns";
 import {authorizeChatAccessForAccount, getChatAccountIds} from "~/server/chat/data/chat_table.js";
 import {getContentReferencesForNode} from "~/server/content/get_content_references.js";
+import {printContentSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet.js";
 import {
     ServerActionContextModules,
     ServerSessionActionContextModules,
@@ -547,7 +548,10 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         latestMessage: {
                             author,
                             createdTime: item.latestMessage.createdTime,
-                            contentSnippet: {doc: item.latestMessage.contentSnippet, references},
+                            contentTextSnippet: printContentSingleLineTextSnippet({
+                                doc: item.latestMessage.contentSnippet,
+                                references,
+                            }),
                         },
                         otherChatAccount,
                     });
@@ -600,15 +604,17 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         postAuthor,
                         loudNotificationCount: item.loudNotificationCount,
                         postCreatedTime: item.postCreatedTime,
-                        postContentSnippetIfMentioned,
+                        postContentTextSnippetIfMentioned: postContentSnippetIfMentioned
+                            ? printContentSingleLineTextSnippet(postContentSnippetIfMentioned)
+                            : null,
                         latestComment: latestComment
                             ? {
                                   author: latestComment.author,
                                   createdTime: latestComment.comment.createdTime,
-                                  contentSnippet: {
+                                  contentTextSnippet: printContentSingleLineTextSnippet({
                                       doc: latestComment.comment.contentSnippet,
                                       references: latestComment.references,
-                                  },
+                                  }),
                               }
                             : null,
                         otherCommentAuthor,
@@ -651,10 +657,10 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         latestPost: {
                             author: latestPostAuthor,
                             createdTime: item.latestPost.createdTime,
-                            contentSnippet: {
+                            contentTextSnippet: printContentSingleLineTextSnippet({
                                 doc: item.latestPost.contentSnippet,
                                 references: latestPostContentSnippetReferences,
-                            },
+                            }),
                         },
                         otherPostAuthor,
                     });
@@ -692,10 +698,10 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         latestComment: {
                             author: latestCommentAuthor,
                             createdTime: item.latestComment.createdTime,
-                            contentSnippet: {
+                            contentTextSnippet: printContentSingleLineTextSnippet({
                                 doc: item.latestComment.contentSnippet,
                                 references: latestCommentContentSnippetReferences,
-                            },
+                            }),
                         },
                         otherCommentAuthor,
                     });
@@ -737,10 +743,10 @@ const InboxTable = DynamoGeneralRealtimeTableSchema.new({
                         firstComment: {
                             author: firstCommentAuthor,
                             createdTime: item.firstComment.createdTime,
-                            contentSnippet: {
+                            contentTextSnippet: printContentSingleLineTextSnippet({
                                 doc: item.firstComment.contentSnippet,
                                 references: firstCommentContentSnippetReferences,
-                            },
+                            }),
                         },
                         otherCommentThreadAuthor,
                     });

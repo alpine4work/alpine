@@ -2,7 +2,6 @@ import {Path, resolvePath} from "@remix-run/router";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {PostContentWithReferencesSchema} from "~/shared/forum/post_content_schema.js";
 import {
     AccountId,
     ChannelId,
@@ -12,7 +11,6 @@ import {
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
-import {MessageContentWithReferencesSchema} from "~/shared/messaging/message_content_schema.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -82,7 +80,7 @@ export class InboxChatEntryModel
             latestMessage: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
-                contentSnippet: MessageContentWithReferencesSchema,
+                contentTextSnippet: Schema.string,
             }),
             otherChatAccount: AccountModel.schema.nullable(),
         }),
@@ -110,11 +108,11 @@ export class InboxPostCommentsEntryModel
             channel: ChannelPreviewModel.schema(),
             loudNotificationCount: Schema.integer.min(0),
             postCreatedTime: Schema.date,
-            postContentSnippetIfMentioned: PostContentWithReferencesSchema.nullable(),
+            postContentTextSnippetIfMentioned: Schema.string.nullable(),
             latestComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
-                contentSnippet: MessageContentWithReferencesSchema,
+                contentTextSnippet: Schema.string,
             }).nullable(),
             otherCommentAuthor: AccountModel.schema.nullable(),
         }),
@@ -145,7 +143,7 @@ export class InboxChannelPostsEntryModel
             latestPost: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
-                contentSnippet: PostContentWithReferencesSchema,
+                contentTextSnippet: Schema.string,
             }),
             otherPostAuthor: AccountModel.schema.nullable(),
         }),
@@ -181,7 +179,7 @@ export class InboxDocumentCommentThreadEntryModel
             latestComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
-                contentSnippet: MessageContentWithReferencesSchema,
+                contentTextSnippet: Schema.string,
             }),
             otherCommentAuthor: AccountModel.schema.nullable(),
         }),
@@ -218,7 +216,7 @@ export class InboxDocumentNewCommentThreadsEntryModel
             firstComment: Schema.object({
                 author: AccountModel.schema,
                 createdTime: Schema.date,
-                contentSnippet: MessageContentWithReferencesSchema,
+                contentTextSnippet: Schema.string,
             }),
             otherCommentThreadAuthor: AccountModel.schema.nullable(),
         }),

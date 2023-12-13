@@ -50,6 +50,9 @@ export function SearchResultView({
                             lineClamp: 2,
                             WebkitBoxOrient: "vertical",
                             textOverflow: "ellipsis",
+                            // Render contextual alternate glyphs. Particularly important that we render
+                            // the right "@" for mentions.
+                            fontFeatureSettings: '"calt" on',
                         }}
                     >
                         {result.bodyTextSnippet.map(({isHighlighted, text}, index) => {

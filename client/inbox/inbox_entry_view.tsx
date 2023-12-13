@@ -4,17 +4,14 @@ import {AnimationControls, animate} from "motion";
 import {ReactNode, useEffect, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
-import {ContentView} from "~/client/content/content_view.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {ContentWithReferences} from "~/shared/content/content_references.js";
-import {Spacing, parseRemLengthNumber} from "~/shared/design/spacing.js";
+import {Spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -26,13 +23,7 @@ import {
     InboxEntryModel,
     InboxPostCommentsEntryModel,
 } from "~/shared/notifications/inbox_model.js";
-import {
-    backgroundColorVar,
-    colorSchemeVars,
-    contentSchemaStyles,
-    fontSizesByPlatform,
-    sprinkles,
-} from "~/shared/styles/styles.js";
+import {backgroundColorVar, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export const inboxEntryViewMinHeight = "4rem";
 export const inboxEntryWidth: Spacing = "96";
@@ -286,7 +277,7 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                {entry.postContentSnippetIfMentioned ? (
+                {entry.postContentTextSnippetIfMentioned !== null ? (
                     <>
                         <span className={boldClassName}>
                             <AccountShortName account={entry.postAuthor} />
@@ -314,10 +305,10 @@ function InboxPostCommentsEntryView({entry}: {entry: InboxPostCommentsEntryModel
             <InboxEntryLatestMessagePreview
                 time={entry.latestComment?.createdTime ?? entry.postCreatedTime}
                 latestMessage={
-                    entry.postContentSnippetIfMentioned
+                    entry.postContentTextSnippetIfMentioned !== null
                         ? {
                               author: entry.postAuthor,
-                              contentSnippet: entry.postContentSnippetIfMentioned,
+                              contentTextSnippet: entry.postContentTextSnippetIfMentioned,
                           }
                         : entry.latestComment
                 }
@@ -551,95 +542,69 @@ function InboxEntryLatestMessagePreview({
     time: Date;
     latestMessage: {
         author: AccountModel;
-        contentSnippet: ContentWithReferences;
+        contentTextSnippet: string;
     } | null;
 }) {
     const currentTime = useCurrentTimeRoundedToHour();
     const {timeZone, locale} = useClientInfo();
-
-    const isMobile = useIsMobile();
-    const contentViewScale =
-        fontSizesByPlatform["50"][isMobile ? "mobile" : "desktop"].fontSize /
-        fontSizesByPlatform["100"][isMobile ? "mobile" : "desktop"].fontSize;
 
     return (
         <Box
             // Do not read the message preview for screen reader users. It will likely be
             // confusing as the text cuts off eventually.
             aria-hidden={true}
-            style={{
-                height: `${
-                    parseRemLengthNumber(contentSchemaStyles.paragraphFontSize.lineHeight) *
-                    contentViewScale
-                }rem`,
-            }}
+            paddingTop="0.5"
+            width="full"
+            pointerEvents="none"
+            color="grey-50"
+            fontSize="50"
+            display="flex"
+            gap="1.5"
         >
             <Box
-                display="flex"
-                pointerEvents="none"
+                flexGrow="1"
+                overflow="hidden"
+                fontStyle="truncate"
                 style={{
-                    width: `${100 * (1 / contentViewScale)}%`,
-                    transformOrigin: "center left",
-                    transform: `scale(${contentViewScale})`,
-                    // This color is selected to be close to `grey-50`. Ideally we'd use that color
-                    // instead of opacity so when the background color changes the colors of the
-                    // message stay the same. But we want the arbitrary content in our message
-                    // content to also mix with the white background.
-                    //
-                    // Experimentally, `grey-text` at 0.59 opacity looks identical to `grey-50` in
-                    // light mode and `grey-text` at 0.61 opacity looks identical to `grey-50` in
-                    // dark mode. Splitting the difference with 0.6.
-                    opacity: 0.6,
+                    // Render contextual alternate glyphs. Particularly important that we render
+                    // the right "@" for mentions.
+                    fontFeatureSettings: '"calt" on',
                 }}
             >
-                {latestMessage ? (
+                {latestMessage && (
                     <>
-                        <Box
-                            flexShrink="0"
-                            style={contentSchemaStyles.paragraphFontSize}
-                            marginRight="-1"
-                        >
-                            <AccountShortName account={latestMessage.author} />:
-                        </Box>
-                        <Box flexGrow="1" overflow="hidden">
-                            <ContentView
-                                content={latestMessage.contentSnippet}
-                                isInert={true}
-                                isTruncated={true}
-                            />
-                        </Box>
+                        <AccountShortName account={latestMessage.author} />:{" "}
+                        {latestMessage.contentTextSnippet}
                     </>
-                ) : (
-                    <Box flexGrow="1" />
                 )}
-                <Box flexShrink="0" style={contentSchemaStyles.paragraphFontSize} marginLeft="0.5">
-                    {useMemo(() => {
-                        if (differenceInHours(currentTime, time) < 24) {
-                            const formatter = new Intl.DateTimeFormat(locale, {
-                                timeZone,
-                                calendar: "iso8601",
-                                hour: "numeric",
-                                minute: "2-digit",
-                                hour12: true,
-                            });
+            </Box>
+            <Box flexShrink="0" marginLeft="0.5">
+                {useMemo(() => {
+                    if (differenceInHours(currentTime, time) < 24) {
+                        const formatter = new Intl.DateTimeFormat(locale, {
+                            timeZone,
+                            calendar: "iso8601",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                        });
 
-                            return formatter
-                                .format(time)
-                                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-                        } else {
-                            const formatter = new Intl.DateTimeFormat(locale, {
-                                timeZone,
-                                calendar: "iso8601",
-                                month: "short",
-                                day: "numeric",
-                            });
+                        return formatter
+                            .format(time)
+                            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+                    } else {
+                        const formatter = new Intl.DateTimeFormat(locale, {
+                            timeZone,
+                            calendar: "iso8601",
+                            month: "short",
+                            day: "numeric",
+                        });
 
-                            return formatter
-                                .format(time)
-                                .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
-                        }
-                    }, [currentTime, locale, time, timeZone])}
-                </Box>
+                        return formatter
+                            .format(time)
+                            .replaceAll(/\s*(AM|PM)/g, string => string.trim().toLowerCase());
+                    }
+                }, [currentTime, locale, time, timeZone])}
             </Box>
         </Box>
     );
