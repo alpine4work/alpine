@@ -6,11 +6,9 @@ import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {Modal} from "~/client/design/modal.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {SearchResultList} from "~/client/search/search_result_list.js";
 import {minSearchResultViewHeight} from "~/client/search/search_result_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {
     Spacing,
@@ -18,7 +16,6 @@ import {
     parseRemLengthNumber,
     spacing,
 } from "~/shared/design/spacing.js";
-import {InternalError} from "~/shared/error/error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";

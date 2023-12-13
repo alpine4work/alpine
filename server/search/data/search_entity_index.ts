@@ -757,9 +757,14 @@ export async function searchByKeyword(
             // should be a nice readable snippet.
             number_of_fragments: 1,
             order: "score",
-            // NOCOMMIT: Figure out real values for these?
-            fragment_size: 300,
-            no_match_size: 300,
+            // We want to show two sentences of content for search results. Given fragments
+            // are created at sentence boundaries that means we need enough characters to
+            // cover at least two sentences. We discovered that p95 sentence length is 260
+            // by analyzing ~500,000 sentences in the [GoodWiki dataset][1].
+            //
+            // [1]: https://huggingface.co/datasets/euirim/goodwiki
+            fragment_size: 260 * 2,
+            no_match_size: 260 * 2,
             fields: {
                 // We only highlight `body`. The entire `title` is generally returned as part
                 // of the search entity.
