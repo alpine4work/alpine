@@ -21,7 +21,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
 import {searchByKeyword} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchResult} from "~/shared/search/search_result.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 // NOCOMMIT: Double check that this renders on top of peeks. Add a test
@@ -64,11 +64,7 @@ type SearchState = {
     readonly wordTypingTimeoutTime: number | null;
     readonly pendingRequest: SearchStateRequest | null;
     readonly data: Result<{
-        readonly results: ReadonlyArray<{
-            readonly entityId: SearchEntityId;
-            readonly title: string | null;
-            readonly bodyHighlight: string | null;
-        }>;
+        readonly results: ReadonlyArray<SearchResult>;
     }> | null;
 };
 
@@ -91,11 +87,7 @@ type SearchAction =
           readonly type: "ReceiveResponse";
           readonly request: SearchStateRequest;
           readonly data: Result<{
-              readonly results: ReadonlyArray<{
-                  readonly entityId: SearchEntityId;
-                  readonly title: string | null;
-                  readonly bodyHighlight: string | null;
-              }>;
+              readonly results: ReadonlyArray<SearchResult>;
           }>;
       };
 

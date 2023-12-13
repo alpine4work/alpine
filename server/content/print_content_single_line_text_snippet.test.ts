@@ -1,0 +1,126 @@
+import {printContentSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {DocumentWithoutTitleContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
+
+const schema = DocumentWithoutTitleContentProsemirrorSchema;
+
+test("headings collapse onto the same line", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("heading", {level: 1}, [schema.text("This is a heading")]),
+        schema.node("paragraph", {}, [schema.text("Followed by a paragraph")]),
+        schema.node("heading", {level: 2}, [schema.text("This is another heading?")]),
+        schema.node("paragraph", {}, [
+            schema.text(
+                "Except that last heading had punctuation. This paragraph ends with a colon:",
+            ),
+        ]),
+        schema.node("heading", {level: 2}, [schema.text("And is followed by another heading.")]),
+        schema.node("paragraph", {}, [schema.text("Nice")]),
+    ]);
+
+    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+        "This is a heading. Followed by a paragraph. This is another heading? Except that last heading had punctuation. This paragraph ends with a colon: And is followed by another heading. Nice",
+    );
+});
+
+test("list items collapse onto the same line", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("orderedListItem", {indent: 0}, [
+            schema.node("paragraph", {}, [schema.text("a")]),
+        ]),
+        schema.node("orderedListItem", {indent: 0}, [
+            schema.node("paragraph", {}, [schema.text("b")]),
+        ]),
+        schema.node("orderedListItem", {indent: 1}, [
+            schema.node("paragraph", {}, [schema.text("b-a")]),
+        ]),
+        schema.node("orderedListItem", {indent: 1}, [
+            schema.node("paragraph", {}, [schema.text("b-b")]),
+        ]),
+        schema.node("orderedListItem", {indent: 1}, [
+            schema.node("paragraph", {}, [schema.text("b-c")]),
+        ]),
+        schema.node("unorderedListItem", {indent: 3}, [
+            schema.node("paragraph", {}, [schema.text("b-c-a")]),
+        ]),
+        schema.node("orderedListItem", {indent: 4}, [
+            schema.node("paragraph", {}, [schema.text("b-c-a-a")]),
+        ]),
+        schema.node("orderedListItem", {indent: 4}, [
+            schema.node("paragraph", {}, [schema.text("b-c-a-b")]),
+        ]),
+        schema.node("unorderedListItem", {indent: 3}, [
+            schema.node("paragraph", {}, [schema.text("b-c-b")]),
+        ]),
+        schema.node("unorderedListItem", {indent: 3}, [
+            schema.node("paragraph", {}, [schema.text("b-c-c")]),
+        ]),
+        schema.node("unorderedListItem", {indent: 3}, [
+            schema.node("paragraph", {}, [schema.text("b-c-d")]),
+        ]),
+        schema.node("orderedListItem", {indent: 0}, [
+            schema.node("paragraph", {}, [schema.text("c")]),
+        ]),
+    ]);
+
+    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+        "1. a. 2. b. 1. b-a. 2. b-b. 3. b-c. b-c-a. 1. b-c-a-a. 2. b-c-a-b. b-c-b. b-c-c. b-c-d. 3. c",
+    );
+});
+
+test("code block collapses onto the same line", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [schema.text("This is a code block")]),
+        schema.node("codeBlock", {}, [
+            schema.text("let a = 1;\nlet b = 1;\nlet c = a + b;\nconsole.log(c);"),
+        ]),
+        schema.node("paragraph", {}, [schema.text("This paragraph follows the code block.")]),
+    ]);
+
+    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+        "This is a code block. let a = 1; let b = 1; let c = a + b; console.log(c); This paragraph follows the code block.",
+    );
+});
+
+test("quote blocks collapse onto the same line", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [schema.text("paragraph1")]),
+        schema.node("quoteBlock", {}, [
+            schema.node("paragraph", {}, [schema.text("paragraph2")]),
+            schema.node("paragraph", {}, [schema.text("paragraph3")]),
+            schema.node("unorderedListItem", {}, [
+                schema.node("paragraph", {}, [schema.text("paragraph4")]),
+            ]),
+            schema.node("orderedListItem", {}, [
+                schema.node("paragraph", {}, [schema.text("paragraph5")]),
+            ]),
+            schema.node("paragraph", {}, [schema.text("paragraph6")]),
+        ]),
+        schema.node("paragraph", {}, [schema.text("paragraph7")]),
+    ]);
+
+    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+        "paragraph1. paragraph2. paragraph3. paragraph4. 1. paragraph5. paragraph6. paragraph7",
+    );
+});
+
+test("breaks collapse onto the same line", () => {
+    const doc = schema.node("doc", {}, [
+        schema.node("paragraph", {}, [
+            schema.text("foo"),
+            schema.node("break"),
+            schema.text("bar"),
+            schema.node("break"),
+        ]),
+        schema.node("paragraph", {}, [
+            schema.text("buz"),
+            schema.node("break"),
+            schema.text("qux"),
+            schema.node("break"),
+        ]),
+    ]);
+
+    expect(printContentSingleLineTextSnippet({doc, references: emptyContentReferences})).toEqual(
+        "foo bar. buz qux",
+    );
+});

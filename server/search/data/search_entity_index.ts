@@ -1,4 +1,5 @@
 import murmurhash from "murmurhash";
+import {printContentSingleLineTextSnippetWithHighlighting} from "~/server/content/print_content_single_line_text_snippet.js";
 import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
@@ -19,6 +20,7 @@ import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
 import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
 import {getSearchEntity} from "~/server/search/data/internal/get_search_entity.js";
+import {parseSearchContent} from "~/server/search/data/internal/parse_search_content.js";
 import {
     SearchEntityIndexDefaultGrantTypeIntegerMapping,
     SearchEntityKeywordIndexDoc,
@@ -29,6 +31,7 @@ import {
 } from "~/server/search/data/internal/search_entity_index_doc.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/search_entity_index_system_action_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -48,6 +51,7 @@ import {
     parseSearchEntityId,
     printSearchEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SearchResult} from "~/shared/search/search_result.js";
 
 /**
  * The search index should be near realtime to serve search requests. However,
@@ -650,12 +654,6 @@ export async function processIndexSearchEntityJob(
     }
 }
 
-export type SearchByKeywordResult = {
-    readonly entityId: SearchEntityId;
-    readonly title: string | null;
-    readonly bodyHighlight: string | null;
-};
-
 /**
  * Search for entities in a space by keyword. Returns entities that almost
  * exactly match the query text (some typos are tolerated). Entities with the
@@ -677,7 +675,7 @@ export async function searchByKeyword(
         limit: number;
     },
 ): Promise<{
-    results: Array<SearchByKeywordResult>;
+    results: Array<SearchResult>;
 }> {
     // NOCOMMIT: Tests (include authorization tests)
     await authorizeSpaceAccess(context, spaceId);
@@ -773,11 +771,38 @@ export async function searchByKeyword(
         },
     });
 
-    const results = docs.map((doc): SearchByKeywordResult => {
+    const results = docs.map((doc): SearchResult => {
+        // The highlighted body text we get from OpenSearch is markdown formatted with
+        // `<em>` tags inserted where we need to highlight. To get this in a format we
+        // can render:
+        //
+        // 1. Parse the Markdown back to a ProseMirror node
+        // 2. Print the ProseMirror node to a single line of text
+        let rawBodyTextSnippet = doc.highlight?.body?.[0];
+
+        // NOTE(calebmer): I've found sometimes OpenSearch returns text that starts
+        // like this: ". Cultural references. The overall plot is a reference...". Note
+        // the ". " at the beginning of the string. This seems to me like confused
+        // sentence boundary scanning. Since having terminal punctuation at the
+        // beginning of our body text snippet is almost never useful, remove it.
+        rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\p{Sentence_Terminal}\s*/u, "");
+
+        const bodySnippet = rawBodyTextSnippet
+            ? parseSearchContent(rawBodyTextSnippet, {shouldParseEmphasisHtmlTagAsHighlight: true})
+            : null;
+
+        // NOCOMMIT: Use this function for notifications too!
+        const bodyTextSnippet = bodySnippet
+            ? printContentSingleLineTextSnippetWithHighlighting(
+                  {doc: bodySnippet, references: emptyContentReferences},
+                  mark => mark.type.name === "highlight",
+              )
+            : [];
+
         return {
             entityId: doc.id,
             title: doc.fields.title?.[0] ?? null,
-            bodyHighlight: doc.highlight?.body?.[0] ?? null,
+            bodyTextSnippet,
         };
     });
 

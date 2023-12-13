@@ -2,6 +2,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
     name = "content",
+    test_deps = ["//shared/documents"],
     visibility = [
         "//app:__pkg__",
         "//server:__subpackages__",

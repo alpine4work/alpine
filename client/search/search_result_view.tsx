@@ -1,8 +1,7 @@
+import {Fragment} from "react";
 import {Box} from "~/client/design/box.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
-import {colorSchemeVars} from "~/shared/styles/styles.js";
-
-// NOCOMMIT: Render highlighted body properly. Ideally share code with inbox
+import {SearchResult} from "~/shared/search/search_result.js";
+import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 
 export const minSearchResultViewHeight = "2.75rem";
 
@@ -11,11 +10,7 @@ export function SearchResultView({
     isFirstEntry,
     isLastEntry,
 }: {
-    result: {
-        readonly entityId: SearchEntityId;
-        readonly title: string | null;
-        readonly bodyHighlight: string | null;
-    };
+    result: SearchResult;
     isFirstEntry: boolean;
     isLastEntry: boolean;
 }) {
@@ -57,7 +52,23 @@ export function SearchResultView({
                             textOverflow: "ellipsis",
                         }}
                     >
-                        {result.bodyHighlight}
+                        {result.bodyTextSnippet.map(({isHighlighted, text}, index) => {
+                            if (!isHighlighted) {
+                                return <Fragment key={index}>{text}</Fragment>;
+                            } else {
+                                return (
+                                    <span
+                                        key={index}
+                                        className={sprinkles({
+                                            color: "grey-text",
+                                            fontStyle: "semi-bold",
+                                        })}
+                                    >
+                                        {text}
+                                    </span>
+                                );
+                            }
+                        })}
                     </Box>
                 </Box>
             </Box>
