@@ -68,12 +68,16 @@ type SearchState = {
     }> | null;
 };
 
-const initialSearchState: SearchState = {
-    queryText: "",
-    wordTypingTimeoutTime: null,
-    pendingRequest: null,
-    data: null,
-};
+function getInitialSearchState(initialQueryText: string): SearchState {
+    const queryWords = splitUnicodeDefaultWordBoundary(initialQueryText);
+
+    return {
+        queryText: initialQueryText,
+        wordTypingTimeoutTime: null,
+        pendingRequest: queryWords.length > 0 ? {queryText: initialQueryText} : null,
+        data: null,
+    };
+}
 
 type SearchAction =
     | {
@@ -156,19 +160,42 @@ function reduceSearchState(oldState: SearchState, action: SearchAction): SearchS
     }
 }
 
-export function SearchModal() {
+export function SearchModal({
+    initialQueryText,
+    onClose,
+}: {
+    initialQueryText: string;
+    onClose: () => void;
+}) {
     const context = useAppContext();
     const {space} = useSpaceContext();
 
     const resultListContainerRef = useRef<HTMLDivElement>(null);
 
-    // NOCOMMIT: initial state
-    const [searchState, dispatch] = useReducer(reduceSearchState, {
-        queryText: "hello world",
-        wordTypingTimeoutTime: null,
-        pendingRequest: {queryText: "hello world"},
-        data: null,
-    });
+    const [searchState, dispatch] = useReducer(
+        reduceSearchState,
+        initialQueryText,
+        getInitialSearchState,
+    );
+
+    // Keep the `search` URL parameter updated while this modal is open. We don't
+    // use Remix's `useSearchParams()` because we don't want to re-render
+    // underlying components when the search parameter changes. By directly calling
+    // `replaceState()` we silently side-step Remix.
+    useEffect(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.set("search", searchState.queryText);
+        window.history.replaceState(null, "", url);
+    }, [searchState.queryText]);
+
+    // When this component unmounts, remove the `search` URL parameter.
+    useEffect(() => {
+        return () => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("search");
+            window.history.replaceState(null, "", url);
+        };
+    }, []);
 
     useEffect(() => {
         if (searchState.wordTypingTimeoutTime === null) return;
@@ -235,9 +262,7 @@ export function SearchModal() {
             maxHeight="192"
             borderRadius="lg"
             withoutCloseButton={true}
-            onClose={() => {
-                // NOCOMMIT
-            }}
+            onClose={onClose}
         >
             <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
                 <SearchModalInput

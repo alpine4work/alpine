@@ -1,6 +1,6 @@
 import GraphemeSplitter from "grapheme-splitter";
 import {MagnifyingGlass} from "phosphor-react";
-import {useMemo} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
@@ -32,6 +32,25 @@ export function SpaceLayoutTopBar({
     const isInitialAppRender = useIsInitialAppRender();
     const showToast = useShowToast();
     const isMobile = useIsMobile();
+
+    const [searchState, setSearchState] = useState<{initialQueryText: string} | null>(null);
+
+    // On initial render, if there's a `search` query parameter then open our
+    // search modal.
+    useEffect(() => {
+        if (isInitialAppRender) return;
+
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.has("search")) {
+            const initialQueryText = url.searchParams.get("search") ?? "";
+
+            setSearchState(searchState => {
+                if (searchState) return searchState;
+                return {initialQueryText};
+            });
+        }
+    }, [isInitialAppRender]);
 
     return (
         <Box
@@ -107,9 +126,10 @@ export function SpaceLayoutTopBar({
                         <MagnifyingGlass size={spacing["3"]} />
                         <Box fontStyle="truncate">Search {space.name}…</Box>
                     </Box>
-                    {!isInitialAppRender && (
+                    {searchState && (
                         <SearchModal
-                        // NOCOMMIT: Open/close properly
+                            initialQueryText={searchState.initialQueryText}
+                            onClose={() => setSearchState(null)}
                         />
                     )}
                 </Box>
