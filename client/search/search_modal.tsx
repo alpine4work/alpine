@@ -32,21 +32,27 @@ import {sprinkles} from "~/shared/styles/styles.js";
 
 /**
  * The debounce timeout before we'll send a new search request. Picked so that
- * >80% of typists will be done typing by the time this debounce fires. <20%
- * may still be slowly typing characters.
+ * >50% of typists will be done typing by the time this debounce fires.
+ *
+ * We expect that in a work context we generally have above average typists.
+ * Also for search the user generally knows what they want to type or it's a
+ * word they usually type which may make them faster. We may have some weird
+ * intermediate results but that's accepted.
  */
 const searchWordTypingDebounceMs = (() => {
-    // This is approximately p20 typing speed according to the distribution
-    // here:
+    // This is p50 typing speed according to the distribution here:
     // https://humanbenchmark.com/tests/typing
-    const wordsPerMinute = 24;
+    //
+    // Percentile calculator here:
+    // https://docs.google.com/spreadsheets/d/1_FiahHiNpEqFG7KrtRYOcKWRG8LYIcuHZWBAX2X4nFQ/edit?usp=sharing
+    const wordsPerMinute = 44;
 
     const charactersPerMinute = wordsPerMinute * 5;
     const charactersPerSecond = charactersPerMinute / 60;
     const charactersPerMillisecond = charactersPerSecond / 1000;
     const millisecondsPerCharacter = 1 / charactersPerMillisecond;
 
-    return millisecondsPerCharacter;
+    return Math.floor(millisecondsPerCharacter);
 })();
 
 type SearchStateRequest = {
@@ -99,13 +105,6 @@ function reduceSearchState(oldState: SearchState, action: SearchAction): SearchS
             const oldQueryWords = splitUnicodeDefaultWordBoundary(oldState.queryText);
             const newQueryWords = splitUnicodeDefaultWordBoundary(action.queryText);
 
-            const isTypingLastWord =
-                newQueryWords.length > 0 &&
-                oldQueryWords.length === newQueryWords.length &&
-                oldQueryWords
-                    .slice(0, -1)
-                    .every((oldQueryWord, i) => oldQueryWord === newQueryWords[i]);
-
             const isTypingNewLastWord =
                 newQueryWords.length > 0 &&
                 oldQueryWords.length === newQueryWords.length - 1 &&
@@ -114,28 +113,21 @@ function reduceSearchState(oldState: SearchState, action: SearchAction): SearchS
             let newPendingRequest: SearchStateRequest | null;
             let newWordTypingTimeoutTime: number | null;
 
-            // If the user is typing in the last word, then preserve our pending search
-            // until the user finishes typing. That way we only send searches to our server
-            // with completed words.
-            if (isTypingLastWord) {
-                newPendingRequest = oldState.pendingRequest;
-                newWordTypingTimeoutTime = Date.now() + searchWordTypingDebounceMs;
-            }
             // If the user has started typing a new word at the end of the query then send
             // a search with the OLD text not including the start of their new word. We'll
             // send a query with their new word once they're done typing.
             //
-            // Again, we only want to send searches to our server with completed words.
-            else if (isTypingNewLastWord) {
+            // This way we send intermediate searches to our server with completed words.
+            if (isTypingNewLastWord) {
                 newPendingRequest =
                     oldQueryWords.length > 0 ? {queryText: oldState.queryText} : null;
                 newWordTypingTimeoutTime = Date.now() + searchWordTypingDebounceMs;
             }
-            // If the query changed in a way that doesn't resemble a user typing (e.g. the
-            // user pasted some text), immediately send a query with the new text.
+            // For other edits, wait for a debounce timeout so we know the user is done
+            // typing before sending a request to the server.
             else {
-                newPendingRequest = newQueryWords.length > 0 ? {queryText: action.queryText} : null;
-                newWordTypingTimeoutTime = null;
+                newPendingRequest = oldState.pendingRequest;
+                newWordTypingTimeoutTime = Date.now() + searchWordTypingDebounceMs;
             }
 
             return {
