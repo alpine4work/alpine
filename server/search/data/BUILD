@@ -19,9 +19,13 @@ ts_project(
     ],
     deps = [
         "//:node_modules/@types/fs-extra",
+        "//:node_modules/@types/mdast",
         "//:node_modules/@xenova/transformers",
         "//:node_modules/compromise",
         "//:node_modules/fs-extra",
+        "//:node_modules/mdast-util-from-markdown",
+        "//:node_modules/mdast-util-gfm-strikethrough",
+        "//:node_modules/micromark-extension-gfm-strikethrough",
         "//:node_modules/murmurhash",
         "//:node_modules/prosemirror-model",
         "//server/chat/data",

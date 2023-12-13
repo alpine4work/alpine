@@ -20,6 +20,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {clamp} from "~/shared/helpers/number/clamp.js";
 import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
 
 type RecursiveIterable<T> = Iterable<T | RecursiveIterable<T>>;
@@ -42,28 +43,41 @@ function mapRecursiveIterable<Value, NewValue>(
  *
  * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
  */
-const newLineRegExp = /((?:\r?\n|\r)+)/g;
-const newLineRegExpWithoutRepetition = /((?:\r?\n|\r))/g;
+export const newLineRegExp = /((?:\r?\n|\r)+)/g;
 
 /**
- * Take arbitrary content and divide it into `SearchContentChunk`s of the ideal
- * length for our LLM (Cohere). We divide content into chunks along the natural
- * structure of the document. (e.g. Headings create separate chunks.)
+ * Match different new-line formats. [Same newline regex that's in
+ * `compromise`][1].
+ *
+ * Same as `newLineRegExp` but only one line break instead of multiple.
+ *
+ * [1]: https://github.com/spencermountain/compromise/blob/cb5068d01e4a2002e5baabd2e332e0f077a5997f/src/1-one/tokenize/methods/01-sentences/01-simple-split.js#L5
+ */
+export const newLineRegExpWithoutRepetition = /((?:\r?\n|\r))/g;
+
+/**
+ * Take arbitrary content and divide it into chunks of the ideal length for our
+ * LLM (Cohere). We divide content into chunks along the natural structure of
+ * the document. (e.g. Headings create separate chunks.)
  *
  * Also prints our content to Markdown formatted text which we can index in
- * OpenSearch for keyword search.
+ * OpenSearch for keyword search. Refer to the [CommonMark specification][1]
+ * for the Markdown syntax we use. The markdown content is able to be parsed
+ * back into a ProseMirror node by `parseSearchContent()` (with some acceptable
+ * lossiness, see the documentation on that function).
  *
  * Picking good chunks for an LLM can be more art than science. For an
- * introduction to chunking strategies see [this blog post from Pinecone][1].
+ * introduction to chunking strategies see [this blog post from Pinecone][2].
  * Chunks also can't be context-less.
  *
  * You should add some preamble to chunks so the LLM can better understand
  * what's in the content. A good discussion on adding context to chunks is in
- * [this reply on the OpenAI forums][2]. To add context to chunks implement the
+ * [this reply on the OpenAI forums][3]. To add context to chunks implement the
  * `getChunkPreamble` function.
  *
- * [1]: https://www.pinecone.io/learn/chunking-strategies/
- * [2]: https://community.openai.com/t/the-length-of-the-embedding-contents/111471/7
+ * [1]: https://spec.commonmark.org/0.30
+ * [2]: https://www.pinecone.io/learn/chunking-strategies/
+ * [3]: https://community.openai.com/t/the-length-of-the-embedding-contents/111471/7
  */
 export async function chunkSearchContent(
     content: Node,
@@ -174,6 +188,7 @@ export async function getFullSearchContentChunk(
             const sectionHeadingPromise = sectionHeadingNode
                 ? printSearchTextForInlineFragment(sectionHeadingNode.content, {
                       getAccountIfExists,
+                      isHeading: true,
                   })
                 : null;
 
@@ -476,15 +491,24 @@ export function printSearchContentChunk(chunk: {
     let text = chunk.preamble.text;
     let lastLineMargin = chunk.preamble.lineMarginBottom;
 
+    let isLineStart = false;
+
     for (let i = 0; i < flatChunks.length; i++) {
         const chunk = flatChunks[i]!;
 
         if (i === 0 && text.length === 0 && lastLineMargin === 0) {
             // Preamble is empty, don't add margin lines at the beginning of the text.
+            isLineStart = true;
         } else {
             const lineMargin = Math.max(lastLineMargin, chunk.lineMarginTop);
             if (lineMargin > 0) {
+                if (text.endsWith(" ")) {
+                    // Make sure trailing spaces aren't collapsed at newlines.
+                    text = text.slice(0, -1) + "&#x0020;";
+                }
+
                 text += "\n".repeat(lineMargin);
+                isLineStart = true;
             }
         }
 
@@ -499,10 +523,27 @@ export function printSearchContentChunk(chunk: {
                 text += " ";
             }
 
-            text += sentenceChunk.text;
+            text +=
+                isLineStart &&
+                sentenceChunk.text.startsWith(" ") &&
+                !/^ +(?:\d\.|[-*])/.test(sentenceChunk.text)
+                    ? // Make sure leading spaces aren't collapsed at newlines.
+                      "&#x0020;" + sentenceChunk.text.slice(1)
+                    : isLineStart &&
+                      sentenceChunk.text.startsWith(">  ") &&
+                      !/^>  +(?:\d\.|[-*])/.test(sentenceChunk.text)
+                    ? // Make sure leading spaces aren't collapsed at blockquote newlines. (Nested blockquotes are not
+                      // supported here.)
+                      "> &#x0020;" + sentenceChunk.text.slice(3)
+                    : sentenceChunk.text;
         }
 
         lastLineMargin = chunk.lineMarginBottom;
+    }
+
+    if (text.endsWith(" ")) {
+        // Make sure trailing spaces aren't collapsed at newlines.
+        text = text.slice(0, -1) + "&#x0020;";
     }
 
     return {
@@ -845,7 +886,8 @@ async function chunkSearchContentBySentenceForBlockNode(
             });
 
             return {
-                sentenceChunks: prefixedSentenceChunks,
+                sentenceChunks:
+                    prefixedSentenceChunks.length === 0 ? [">"] : prefixedSentenceChunks,
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             };
@@ -888,15 +930,18 @@ async function chunkSearchContentBySentenceForBlockNode(
                         assert(listItemNumber !== undefined);
                     }
 
-                    bullet = `${listItemNumber}.`;
+                    // Only allow integers from 1-99. Longer integers like 101 would require more
+                    // than four spaces of indentation for child bullets to be considered children
+                    // by the CommonMark markdown specification.
+                    bullet = `${clamp(1, Math.round(listItemNumber), 99)}.`;
                     break;
                 }
                 default:
                     throw exhaustive(typeName);
             }
 
-            const firstLinePrefix = "  ".repeat(indent) + bullet;
-            const remainingLinePrefix = "  ".repeat(indent) + " ".repeat(bullet.length + 1);
+            const firstLinePrefix = "    ".repeat(indent) + bullet;
+            const remainingLinePrefix = "    ".repeat(indent) + " ".repeat(bullet.length + 1);
 
             const prefixedSentenceChunks = sentenceChunks.map((sentenceChunk, i) => {
                 return sentenceChunk
@@ -918,7 +963,10 @@ async function chunkSearchContentBySentenceForBlockNode(
             });
 
             return {
-                sentenceChunks: prefixedSentenceChunks,
+                sentenceChunks:
+                    prefixedSentenceChunks.length === 0
+                        ? [firstLinePrefix]
+                        : prefixedSentenceChunks,
                 lineMarginTop: 1,
                 lineMarginBottom: 1,
             };
@@ -981,14 +1029,20 @@ async function chunkSearchContentBySentenceForTextblockNode(
 
     switch (typeName) {
         case "paragraph": {
-            const text = await printSearchTextForInlineFragment(node.content, options);
+            const text = await printSearchTextForInlineFragment(node.content, {
+                ...options,
+                isHeading: false,
+            });
 
             return chunkSearchContentBySentenceForText(text);
         }
         // TODO(calebmer): Code blocks are in this weird kind of working kind of not
         // working state. Is this right? Who knows. Needs a test.
         case "codeBlock": {
-            const text = await printSearchTextForInlineFragment(node.content, options);
+            const text = await printSearchTextForInlineFragment(node.content, {
+                ...options,
+                isHeading: false,
+            });
 
             const textChunks = chunkSearchContentBySentenceForText(text);
             if (textChunks.length === 0) {
@@ -996,16 +1050,16 @@ async function chunkSearchContentBySentenceForTextblockNode(
             }
 
             textChunks[0] = "```\n" + textChunks[0]!;
-            textChunks[textChunks.length - 1] =
-                textChunks[textChunks.length - 1]! +
-                (textChunks[textChunks.length - 1]!.endsWith("\n") ? "" : "\n") +
-                "```";
+            textChunks[textChunks.length - 1] = textChunks[textChunks.length - 1]! + "\n```";
 
             return textChunks;
         }
         case "title":
         case "heading": {
-            const text = await printSearchTextForInlineFragment(node.content, options);
+            const text = await printSearchTextForInlineFragment(node.content, {
+                ...options,
+                isHeading: true,
+            });
 
             const prefix =
                 typeName === "title" ? "#" : "#".repeat(1 + clampHeadingLevel(node.attrs.level));
@@ -1041,6 +1095,7 @@ async function printSearchTextForInlineFragment(
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
+        isHeading: boolean;
     },
 ): Promise<string> {
     const texts = await runAllPromises(
@@ -1103,6 +1158,7 @@ const printSearchEmbeddingTextForMarkByTypeName: {
 async function printSearchTextForInlineNode(
     node: Node,
     options: {
+        isHeading: boolean;
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
@@ -1113,7 +1169,15 @@ async function printSearchTextForInlineNode(
 
     switch (typeName) {
         case "break": {
-            return "\n";
+            // Hard breaks aren't supported in headings so directly add a `<br/>` element.
+            if (options.isHeading) {
+                return "<br/>";
+            } else {
+                // A little funky, but CommonMark specifies a newline preceded by a backslash
+                // (`\`) as a hard line break.
+                // https://spec.commonmark.org/0.30/#hard-line-breaks
+                return "\\\n";
+            }
         }
         case "mention": {
             const mention: ContentMention = node.attrs.mention;
@@ -1131,7 +1195,22 @@ async function printSearchTextForInlineNode(
             // get it confused with our own markdown styling.
             let textContent = escapeMarkdown(node.textContent);
 
+            const codeMark = node.marks.find(mark => mark.type.name === "code");
+
+            // The code mark must always be applied first. CommonMark specifies that
+            // asterisks or other characters within code are treated as literal characters.
+            if (codeMark) {
+                const printSearchEmbeddingTextForMark =
+                    printSearchEmbeddingTextForMarkByTypeName[
+                        codeMark.type.name as ContentMarkTypeName
+                    ];
+
+                textContent = printSearchEmbeddingTextForMark(textContent, codeMark);
+            }
+
             textContent = node.marks.reduceRight((textContent, mark) => {
+                if (mark === codeMark) return textContent;
+
                 const printSearchEmbeddingTextForMark =
                     printSearchEmbeddingTextForMarkByTypeName[
                         mark.type.name as ContentMarkTypeName
@@ -1162,9 +1241,12 @@ async function printSearchTextForInlineNode(
  * [1]: https://www.markdownguide.org/basic-syntax/#escaping-characters
  */
 function escapeMarkdown(textContent: string): string {
-    return textContent.replaceAll(/^\s*[>+\-#]|^\s*\d+\.|[\\`*_~]|]\(/gm, substring => {
-        const match = substring.match(/^(\s*?)(\S.*)$/);
-        assert(match);
-        return `${match[1]!}\\${match[2]!}`;
-    });
+    return textContent.replaceAll(
+        /^\s*[>+\-#]|(?<=^\s*\d+)\.|[\\`*_~]|]\(|<[/!?a-zA-Z]/gm,
+        substring => {
+            const match = substring.match(/^(\s*?)(\S.*)$/);
+            assert(match);
+            return `${match[1]!}\\${match[2]!}`;
+        },
+    );
 }

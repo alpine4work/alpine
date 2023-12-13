@@ -6,14 +6,21 @@ import {
     printSearchContentChunk,
 } from "~/server/search/data/internal/chunk_search_content.js";
 import {chunkDocumentSearchContent} from "~/server/search/data/internal/get_search_entity.js";
+import {parseSearchContent} from "~/server/search/data/internal/parse_search_content.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {missingAccountName} from "~/shared/accounts/missing_account_name.js";
+import {ContentMention} from "~/shared/content/content_mention.js";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
     DocumentWithoutTitleContentProsemirrorSchema,
 } from "~/shared/documents/document_content_schema.js";
+import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {AccountId, ContentMentionAccountId} from "~/shared/id/types/id_types.js";
 
@@ -28,17 +35,95 @@ async function testGetFullSearchContentChunk(
         getAccountIfExists: (
             accountId: AccountId | ContentMentionAccountId,
         ) => Promise<AccountModel | null>;
+        skipParseCorrectnessTests?: boolean;
     },
 ) {
     const chunk = await getFullSearchContentChunk(content, options);
 
-    return {
-        text: printSearchContentChunk({
+    const text = printSearchContentChunk({
+        preamble: {text: "", lineMarginBottom: 0},
+        body: chunk,
+    }).text;
+
+    if (!options.skipParseCorrectnessTests) {
+        const content2 = parseSearchContent(text);
+
+        const chunk2 = await getFullSearchContentChunk(content2, options);
+
+        const text2 = printSearchContentChunk({
             preamble: {text: "", lineMarginBottom: 0},
-            body: chunk,
-        }).text,
+            body: chunk2,
+        }).text;
+
+        // Content we get after parsing should equal the content we printed with some
+        // acceptable lossiness.
+        expect(content2.toJSON()).toEqual(
+            (await dropUnpreservedNodeStyles(content, options)).toJSON(),
+        );
+        expect(text2).toEqual(text);
+
+        const content3 = parseSearchContent(text2);
+
+        // Printing/parsing our parsed content again should give us the exact same
+        // content. Parsing/printing should be reversible after we've removed lossy
+        // styles.
+        expect(content3.toJSON()).toEqual(content2.toJSON());
+    }
+
+    return {
+        text,
         ...chunk,
     };
+}
+
+/**
+ * Drop styles that aren't preserved by chunking.
+ */
+async function dropUnpreservedNodeStyles(
+    node: Node,
+    options: {
+        getAccountIfExists: (
+            accountId: AccountId | ContentMentionAccountId,
+        ) => Promise<AccountModel | null>;
+    },
+): Promise<Node> {
+    if (node.type.name === "mention") {
+        const mention: ContentMention = node.attrs.mention;
+        const account = await options.getAccountIfExists(mention.accountId);
+        if (!account) return node.type.schema.text(`@${missingAccountName}`);
+
+        const accountName = mention.isShort
+            ? getAccountShortNameWithoutFullNameTooltip(account.initialData)
+            : account.initialData.name;
+
+        return node.type.schema.text(`@${accountName}`);
+    }
+
+    const marks = node.marks.filter(
+        mark =>
+            mark.type.name !== "link" &&
+            mark.type.name !== "comment" &&
+            mark.type.name !== "highlight",
+    );
+
+    if (marks.length !== node.marks.length) {
+        node = node.mark(marks);
+    }
+
+    if (node.type.name === "text") return node;
+
+    const content = await runAllPromises(
+        node.content.content.map(childNode => dropUnpreservedNodeStyles(childNode, options)),
+    );
+
+    if (node.type.name === "checkListItem") {
+        return assertExists(node.type.schema.nodes.unorderedListItem).create(
+            {indent: node.attrs.indent},
+            content,
+        );
+    }
+
+    return node.type.create(node.attrs, content);
 }
 
 test("discovers paragraph and sentence structure", async () => {
@@ -545,6 +630,11 @@ test("discovers bullet list structure", async () => {
                             "Food Security: Diverse and sustainable farming methods contribute to food security, ensuring a more resilient food system.",
                         ),
                     ]),
+                    schema.node("paragraph", {}, [
+                        schema.text(
+                            "Here's a second paragraph in the list item to make sure that works.",
+                        ),
+                    ]),
                 ]),
                 schema.node("unorderedListItem", {indent: 0}, [
                     schema.node("paragraph", {}, [
@@ -561,14 +651,14 @@ test("discovers bullet list structure", async () => {
 ## Sustainable Agriculture: Nurturing the Earth and Communities
 
 1. Soil Health:
-  1. Preventing Erosion: Sustainable farming practices like crop rotation and cover cropping protect soil from erosion, preserving its fertility.
-  2. Enhancing Soil Quality: Practices such as composting and reduced tillage improve soil structure and nutrient content.
-  3. Water Conservation:
-    - Reduced Water Usage: Sustainable methods like drip irrigation and rainwater harvesting minimize water waste in agriculture.
-    - Preserving Water Quality: Practices like buffer zones prevent agricultural runoff, preserving water quality in surrounding ecosystems.
+    1. Preventing Erosion: Sustainable farming practices like crop rotation and cover cropping protect soil from erosion, preserving its fertility.
+    2. Enhancing Soil Quality: Practices such as composting and reduced tillage improve soil structure and nutrient content.
+    3. Water Conservation:
+        - Reduced Water Usage: Sustainable methods like drip irrigation and rainwater harvesting minimize water waste in agriculture.
+        - Preserving Water Quality: Practices like buffer zones prevent agricultural runoff, preserving water quality in surrounding ecosystems.
 2. Cost Reduction:
-  1. Lower Input Costs: Sustainable practices reduce the need for expensive fertilizers and pesticides, lowering production costs.
-  2. Long-Term Viability: By preserving soil fertility and biodiversity, sustainable agriculture ensures long-term productivity and economic stability for farmers.
+    1. Lower Input Costs: Sustainable practices reduce the need for expensive fertilizers and pesticides, lowering production costs.
+    2. Long-Term Viability: By preserving soil fertility and biodiversity, sustainable agriculture ensures long-term productivity and economic stability for farmers.
 3. Consumer Demand: Growing consumer preference for sustainably produced goods creates market opportunities for farmers practicing sustainable agriculture.
 
 Sustainable agriculture significantly benefits the environment by promoting soil health, conserving water, and minimizing the negative impact of farming activities on surrounding ecosystems.
@@ -577,9 +667,11 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
 
 - Supporting Local Communities: Sustainable agriculture encourages local food production and distribution, supporting local economies and communities.
 - Food Security: Diverse and sustainable farming methods contribute to food security, ensuring a more resilient food system.
+
+  Here's a second paragraph in the list item to make sure that works.
 - Knowledge Sharing: Sustainable farming practices involve education and knowledge sharing within communities, empowering farmers with valuable skills.`,
         isGroup: true,
-        tokenCount: 314,
+        tokenCount: 330,
         context: {sectionHeading: null},
         childChunks: [
             {
@@ -630,7 +722,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                 },
                                 sentenceChunks: [
                                     {
-                                        text: "  1. Preventing Erosion: Sustainable farming practices like crop rotation and cover cropping protect soil from erosion, preserving its fertility.",
+                                        text: "    1. Preventing Erosion: Sustainable farming practices like crop rotation and cover cropping protect soil from erosion, preserving its fertility.",
                                         tokenCount: 24,
                                     },
                                 ],
@@ -646,7 +738,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                 },
                                 sentenceChunks: [
                                     {
-                                        text: "  2. Enhancing Soil Quality: Practices such as composting and reduced tillage improve soil structure and nutrient content.",
+                                        text: "    2. Enhancing Soil Quality: Practices such as composting and reduced tillage improve soil structure and nutrient content.",
                                         tokenCount: 23,
                                     },
                                 ],
@@ -669,7 +761,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                                 "Sustainable Agriculture: Nurturing the Earth and Communities",
                                         },
                                         sentenceChunks: [
-                                            {text: "  3. Water Conservation:", tokenCount: 5},
+                                            {text: "    3. Water Conservation:", tokenCount: 5},
                                         ],
                                         lineMarginTop: 1,
                                         lineMarginBottom: 1,
@@ -683,7 +775,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                         },
                                         sentenceChunks: [
                                             {
-                                                text: "    - Reduced Water Usage: Sustainable methods like drip irrigation and rainwater harvesting minimize water waste in agriculture.",
+                                                text: "        - Reduced Water Usage: Sustainable methods like drip irrigation and rainwater harvesting minimize water waste in agriculture.",
                                                 tokenCount: 20,
                                             },
                                         ],
@@ -699,7 +791,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                         },
                                         sentenceChunks: [
                                             {
-                                                text: "    - Preserving Water Quality: Practices like buffer zones prevent agricultural runoff, preserving water quality in surrounding ecosystems.",
+                                                text: "        - Preserving Water Quality: Practices like buffer zones prevent agricultural runoff, preserving water quality in surrounding ecosystems.",
                                                 tokenCount: 20,
                                             },
                                         ],
@@ -738,7 +830,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                 },
                                 sentenceChunks: [
                                     {
-                                        text: "  1. Lower Input Costs: Sustainable practices reduce the need for expensive fertilizers and pesticides, lowering production costs.",
+                                        text: "    1. Lower Input Costs: Sustainable practices reduce the need for expensive fertilizers and pesticides, lowering production costs.",
                                         tokenCount: 25,
                                     },
                                 ],
@@ -754,7 +846,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                 },
                                 sentenceChunks: [
                                     {
-                                        text: "  2. Long-Term Viability: By preserving soil fertility and biodiversity, sustainable agriculture ensures long-term productivity and economic stability for farmers.",
+                                        text: "    2. Long-Term Viability: By preserving soil fertility and biodiversity, sustainable agriculture ensures long-term productivity and economic stability for farmers.",
                                         tokenCount: 28,
                                     },
                                 ],
@@ -813,7 +905,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
             },
             {
                 isGroup: true,
-                tokenCount: 65,
+                tokenCount: 81,
                 context: {
                     sectionHeading: "Sustainable Agriculture: Nurturing the Earth and Communities",
                 },
@@ -836,7 +928,7 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                     },
                     {
                         isGroup: false,
-                        tokenCount: 23,
+                        tokenCount: 39,
                         context: {
                             sectionHeading:
                                 "Sustainable Agriculture: Nurturing the Earth and Communities",
@@ -845,6 +937,10 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                             {
                                 text: "- Food Security: Diverse and sustainable farming methods contribute to food security, ensuring a more resilient food system.",
                                 tokenCount: 23,
+                            },
+                            {
+                                text: "\n\n  Here's a second paragraph in the list item to make sure that works.",
+                                tokenCount: 16,
                             },
                         ],
                         lineMarginTop: 1,
@@ -863,6 +959,1053 @@ Adopting sustainable agricultural methods not only reduces costs for farmers but
                                 tokenCount: 22,
                             },
                         ],
+                        lineMarginTop: 1,
+                        lineMarginBottom: 1,
+                    },
+                ],
+            },
+        ],
+    });
+});
+
+test("discovers long ordered list structure", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            // C+ content generated by yours truly, ChatGPT.
+            schema.node("doc", {}, [
+                ...createArrayWithLength(110, index =>
+                    schema.node("orderedListItem", {indent: 0}, [
+                        schema.node("paragraph", {}, [schema.text(`${index + 1}`)]),
+                    ]),
+                ),
+                schema.node("orderedListItem", {indent: 1}, [
+                    schema.node("paragraph", {}, [schema.text("a")]),
+                ]),
+                schema.node("orderedListItem", {indent: 1}, [
+                    schema.node("paragraph", {}, [schema.text("b")]),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+1. 1
+2. 2
+3. 3
+4. 4
+5. 5
+6. 6
+7. 7
+8. 8
+9. 9
+10. 10
+11. 11
+12. 12
+13. 13
+14. 14
+15. 15
+16. 16
+17. 17
+18. 18
+19. 19
+20. 20
+21. 21
+22. 22
+23. 23
+24. 24
+25. 25
+26. 26
+27. 27
+28. 28
+29. 29
+30. 30
+31. 31
+32. 32
+33. 33
+34. 34
+35. 35
+36. 36
+37. 37
+38. 38
+39. 39
+40. 40
+41. 41
+42. 42
+43. 43
+44. 44
+45. 45
+46. 46
+47. 47
+48. 48
+49. 49
+50. 50
+51. 51
+52. 52
+53. 53
+54. 54
+55. 55
+56. 56
+57. 57
+58. 58
+59. 59
+60. 60
+61. 61
+62. 62
+63. 63
+64. 64
+65. 65
+66. 66
+67. 67
+68. 68
+69. 69
+70. 70
+71. 71
+72. 72
+73. 73
+74. 74
+75. 75
+76. 76
+77. 77
+78. 78
+79. 79
+80. 80
+81. 81
+82. 82
+83. 83
+84. 84
+85. 85
+86. 86
+87. 87
+88. 88
+89. 89
+90. 90
+91. 91
+92. 92
+93. 93
+94. 94
+95. 95
+96. 96
+97. 97
+98. 98
+99. 99
+99. 100
+99. 101
+99. 102
+99. 103
+99. 104
+99. 105
+99. 106
+99. 107
+99. 108
+99. 109
+99. 110
+    1. a
+    2. b`,
+        isGroup: true,
+        context: {sectionHeading: null},
+        tokenCount: 336,
+        childChunks: [
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "1. 1", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "2. 2", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "3. 3", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "4. 4", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "5. 5", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "6. 6", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "7. 7", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "8. 8", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "9. 9", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "10. 10", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "11. 11", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "12. 12", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "13. 13", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "14. 14", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "15. 15", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "16. 16", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "17. 17", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "18. 18", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "19. 19", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "20. 20", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "21. 21", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "22. 22", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "23. 23", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "24. 24", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "25. 25", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "26. 26", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "27. 27", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "28. 28", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "29. 29", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "30. 30", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "31. 31", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "32. 32", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "33. 33", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "34. 34", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "35. 35", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "36. 36", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "37. 37", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "38. 38", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "39. 39", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "40. 40", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "41. 41", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "42. 42", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "43. 43", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "44. 44", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "45. 45", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "46. 46", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "47. 47", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "48. 48", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "49. 49", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "50. 50", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "51. 51", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "52. 52", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "53. 53", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "54. 54", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "55. 55", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "56. 56", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "57. 57", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "58. 58", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "59. 59", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "60. 60", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "61. 61", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "62. 62", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "63. 63", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "64. 64", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "65. 65", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "66. 66", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "67. 67", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "68. 68", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "69. 69", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "70. 70", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "71. 71", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "72. 72", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "73. 73", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "74. 74", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "75. 75", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "76. 76", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "77. 77", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "78. 78", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "79. 79", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "80. 80", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "81. 81", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "82. 82", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "83. 83", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "84. 84", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "85. 85", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "86. 86", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "87. 87", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "88. 88", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "89. 89", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "90. 90", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "91. 91", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "92. 92", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "93. 93", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "94. 94", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "95. 95", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "96. 96", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "97. 97", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "98. 98", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 99", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 100", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 101", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 102", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 103", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 104", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 105", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 106", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 107", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 108", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: false,
+                tokenCount: 3,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "99. 109", tokenCount: 3}],
+                lineMarginTop: 1,
+                lineMarginBottom: 1,
+            },
+            {
+                isGroup: true,
+                tokenCount: 9,
+                context: {sectionHeading: null},
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 3,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "99. 110", tokenCount: 3}],
+                        lineMarginTop: 1,
+                        lineMarginBottom: 1,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 3,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "    1. a", tokenCount: 3}],
+                        lineMarginTop: 1,
+                        lineMarginBottom: 1,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 3,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "    2. b", tokenCount: 3}],
                         lineMarginTop: 1,
                         lineMarginBottom: 1,
                     },
@@ -1047,10 +2190,10 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis 
 >
 > Donec sodales varius malesuada. Sed at pellentesque tellus. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nulla ut turpis commodo, luctus mi malesuada, venenatis purus. Aliquam erat volutpat. Proin quis bibendum augue. Praesent in lacinia dui.
 >
-> Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
+> Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,\\
 > eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
         isGroup: true,
-        tokenCount: 619,
+        tokenCount: 620,
         context: {sectionHeading: null},
         childChunks: [
             {
@@ -1091,7 +2234,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis 
             },
             {
                 isGroup: false,
-                tokenCount: 427,
+                tokenCount: 428,
                 context: {sectionHeading: null},
                 sentenceChunks: [
                     {text: "> Ut suscipit sit amet libero sit amet volutpat.", tokenCount: 20},
@@ -1132,7 +2275,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis 
                         text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
                         tokenCount: 22,
                     },
-                    {text: "Praesent in dignissim turpis,", tokenCount: 13},
+                    {text: "Praesent in dignissim turpis,\\", tokenCount: 14},
                     {text: "\n>", tokenCount: 1},
                     {text: "eget scelerisque massa.", tokenCount: 9},
                     {
@@ -1154,6 +2297,172 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque facilisis 
     });
 });
 
+test("empty quote blocks and list items", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [schema.text("Test 1:")]),
+                schema.node("quoteBlock", {}, [schema.node("paragraph", {}, [])]),
+                schema.node("paragraph", {}, [schema.text("Test 2:")]),
+                schema.node("unorderedListItem", {}, [schema.node("paragraph", {}, [])]),
+                schema.node("paragraph", {}, [schema.text("Test 3:")]),
+                schema.node("orderedListItem", {}, [schema.node("paragraph", {}, [])]),
+                schema.node("paragraph", {}, [schema.text("Test 4:")]),
+                schema.node("orderedListItem", {}, [
+                    schema.node("paragraph", {}, [schema.text("a")]),
+                ]),
+                schema.node("orderedListItem", {}, [schema.node("paragraph", {}, [])]),
+                schema.node("orderedListItem", {}, [
+                    schema.node("paragraph", {}, [schema.text("b")]),
+                ]),
+            ]),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+Test 1:
+
+>
+
+Test 2:
+
+-
+
+Test 3:
+
+1.
+
+Test 4:
+
+1. a
+2.
+3. b`,
+        isGroup: true,
+        context: {sectionHeading: null},
+        tokenCount: 24,
+        childChunks: [
+            {
+                isGroup: true,
+                context: {sectionHeading: null},
+                tokenCount: 4,
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 3,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "Test 1:", tokenCount: 3}],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 1,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: ">", tokenCount: 1}],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                    },
+                ],
+            },
+            {
+                isGroup: true,
+                context: {sectionHeading: null},
+                tokenCount: 4,
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 3,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "Test 2:", tokenCount: 3}],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 1,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "-", tokenCount: 1}],
+                        lineMarginTop: 1,
+                        lineMarginBottom: 1,
+                    },
+                ],
+            },
+            {
+                isGroup: true,
+                context: {sectionHeading: null},
+                tokenCount: 5,
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 3,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "Test 3:", tokenCount: 3}],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 2,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "1.", tokenCount: 2}],
+                        lineMarginTop: 1,
+                        lineMarginBottom: 1,
+                    },
+                ],
+            },
+            {
+                isGroup: true,
+                context: {sectionHeading: null},
+                tokenCount: 11,
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 3,
+                        context: {sectionHeading: null},
+                        sentenceChunks: [{text: "Test 4:", tokenCount: 3}],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                    },
+                    {
+                        isGroup: true,
+                        context: {sectionHeading: null},
+                        tokenCount: 8,
+                        childChunks: [
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "1. a", tokenCount: 3}],
+                                lineMarginTop: 1,
+                                lineMarginBottom: 1,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 2,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "2.", tokenCount: 2}],
+                                lineMarginTop: 1,
+                                lineMarginBottom: 1,
+                            },
+                            {
+                                isGroup: false,
+                                tokenCount: 3,
+                                context: {sectionHeading: null},
+                                sentenceChunks: [{text: "3. b", tokenCount: 3}],
+                                lineMarginTop: 1,
+                                lineMarginBottom: 1,
+                            },
+                        ],
+                    },
+                ],
+            },
+        ],
+    });
+});
+
 test("discovers code block structure", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
     const getAccountIfExists = async () => null;
@@ -1167,7 +2476,13 @@ test("discovers code block structure", async () => {
                     ),
                 ]),
                 schema.node("codeBlock", {}, [
-                    schema.text("let a = 1;\nlet b = 1;\nlet c = a + b;\nconsole.log(c);\n"),
+                    schema.text("let a = 1;\nlet b = 1;\nlet c = a + b;\nconsole.log(c);"),
+                ]),
+                schema.node("codeBlock", {}, [
+                    schema.text("// Code that ends with a newline\nreturn;\n"),
+                ]),
+                schema.node("codeBlock", {}, [
+                    schema.text("\n// Code that starts with a newline\nreturn;"),
                 ]),
             ]),
             {tokenizer, getAccountIfExists},
@@ -1181,9 +2496,21 @@ let a = 1;
 let b = 1;
 let c = a + b;
 console.log(c);
+\`\`\`
+
+\`\`\`
+// Code that ends with a newline
+return;
+
+\`\`\`
+
+\`\`\`
+
+// Code that starts with a newline
+return;
 \`\`\``,
         isGroup: true,
-        tokenCount: 222,
+        tokenCount: 256,
         context: {sectionHeading: null},
         childChunks: [
             {
@@ -1233,8 +2560,33 @@ console.log(c);
                     {text: "\n", tokenCount: 0},
                     {text: "let c = a + b;", tokenCount: 7},
                     {text: "\n", tokenCount: 0},
-                    {text: "console.log(c);", tokenCount: 7},
-                    {text: "\n```", tokenCount: 3},
+                    {text: "console.log(c);\n```", tokenCount: 10},
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 17,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {text: "```\n// Code that ends with a newline", tokenCount: 12},
+                    {text: "\n", tokenCount: 0},
+                    {text: "return;", tokenCount: 2},
+                    {text: "\n\n```", tokenCount: 3},
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 17,
+                context: {sectionHeading: null},
+                sentenceChunks: [
+                    {text: "```\n\n", tokenCount: 3},
+                    {text: "// Code that starts with a newline", tokenCount: 9},
+                    {text: "\n", tokenCount: 0},
+                    {text: "return;\n```", tokenCount: 5},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -1266,10 +2618,10 @@ test("prints a list item with line breaks", async () => {
         ),
     ).toEqual({
         text: `\
-- Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
+- Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,\\
   eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
         isGroup: false,
-        tokenCount: 165,
+        tokenCount: 166,
         context: {sectionHeading: null},
         sentenceChunks: [
             {
@@ -1280,7 +2632,7 @@ test("prints a list item with line breaks", async () => {
                 text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
                 tokenCount: 22,
             },
-            {text: "Praesent in dignissim turpis,", tokenCount: 13},
+            {text: "Praesent in dignissim turpis,\\", tokenCount: 14},
             {text: "\n  ", tokenCount: 0},
             {text: "eget scelerisque massa.", tokenCount: 9},
             {
@@ -1319,11 +2671,11 @@ test("prints a list item with line breaks", async () => {
         ),
     ).toEqual({
         text: `\
-- Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
-
+- Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,\\
+  \\
   eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
         isGroup: false,
-        tokenCount: 165,
+        tokenCount: 167,
         context: {sectionHeading: null},
         sentenceChunks: [
             {
@@ -1334,8 +2686,10 @@ test("prints a list item with line breaks", async () => {
                 text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
                 tokenCount: 22,
             },
-            {text: "Praesent in dignissim turpis,", tokenCount: 13},
-            {text: "\n\n  ", tokenCount: 0},
+            {text: "Praesent in dignissim turpis,\\", tokenCount: 14},
+            {text: "\n  ", tokenCount: 0},
+            {text: "\\", tokenCount: 1},
+            {text: "\n  ", tokenCount: 0},
             {text: "eget scelerisque massa.", tokenCount: 9},
             {
                 text: "Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit.",
@@ -1375,8 +2729,7 @@ test("prints a heading with line breaks", async () => {
         ),
     ).toEqual({
         text: `\
-#### Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
-#### eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
+#### Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,<br/>eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
         isGroup: false,
         tokenCount: 172,
         context: {sectionHeading: null},
@@ -1389,9 +2742,7 @@ test("prints a heading with line breaks", async () => {
                 text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
                 tokenCount: 22,
             },
-            {text: "Praesent in dignissim turpis,", tokenCount: 13},
-            {text: "\n####", tokenCount: 4},
-            {text: "eget scelerisque massa.", tokenCount: 9},
+            {text: "Praesent in dignissim turpis,<br/>eget scelerisque massa.", tokenCount: 26},
             {
                 text: "Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit.",
                 tokenCount: 25,
@@ -1426,9 +2777,7 @@ test("prints a heading with line breaks", async () => {
         ),
     ).toEqual({
         text: `\
-#### Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,
-####
-#### eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
+#### Nulla luctus purus venenatis lacus molestie, vitae pulvinar purus accumsan. Ut diam magna, pretium ac lectus at, condimentum porttitor ligula. Praesent in dignissim turpis,<br/><br/>eget scelerisque massa. Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit. In vel auctor eros. Nulla ac quam mi. Pellentesque a arcu eros. Cras felis ligula, vestibulum nec pulvinar quis, efficitur sit amet sapien. Etiam vestibulum id sem eget mollis.`,
         isGroup: false,
         tokenCount: 176,
         context: {sectionHeading: null},
@@ -1441,9 +2790,10 @@ test("prints a heading with line breaks", async () => {
                 text: "Ut diam magna, pretium ac lectus at, condimentum porttitor ligula.",
                 tokenCount: 22,
             },
-            {text: "Praesent in dignissim turpis,", tokenCount: 13},
-            {text: "\n####\n####", tokenCount: 8},
-            {text: "eget scelerisque massa.", tokenCount: 9},
+            {
+                text: "Praesent in dignissim turpis,<br/><br/>eget scelerisque massa.",
+                tokenCount: 30,
+            },
             {
                 text: "Donec nunc tellus, finibus quis nisl quis, pharetra mollis elit.",
                 tokenCount: 25,
@@ -1482,23 +2832,68 @@ test("prints chunk text with inline styles", async () => {
                     schema.text(" "),
                     schema.text("test7", [schema.mark("code"), schema.mark("italic")]),
                     schema.text(" "),
+                    schema.text("test7.5", [schema.mark("italic"), schema.mark("code")]),
+                    schema.text(" "),
                     schema.text("test8", [schema.mark("strike")]),
                     schema.text(" "),
                     schema.text("test9", [schema.mark("strike"), schema.mark("bold")]),
-                    schema.text(" *test10*"),
+                    schema.text(" *test10* "),
+                    schema.text("test", [schema.mark("code")]),
+                    schema.text("test", [schema.mark("code"), schema.mark("bold")]),
+                    schema.text("test", [schema.mark("code")]),
+                    schema.text(" "),
+                    schema.text("test", [schema.mark("bold")]),
+                    schema.text("test", [schema.mark("bold"), schema.mark("italic")]),
+                    schema.text("test", [schema.mark("bold")]),
                 ]),
             ]),
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
-        text: "test1 **test2** *test3* ***test4*** `test5` `**test6**` `*test7*` ~~test8~~ **~~test9~~** \\*test10\\*",
+        text: "test1 **test2** *test3* ***test4*** `test5` **`test6`** *`test7`* *`test7.5`* ~~test8~~ **~~test9~~** \\*test10\\* `test`**`test`**`test` **test*****test*****test**",
         isGroup: false,
-        tokenCount: 60,
+        tokenCount: 98,
         context: {sectionHeading: null},
         sentenceChunks: [
             {
-                text: "test1 **test2** *test3* ***test4*** `test5` `**test6**` `*test7*` ~~test8~~ **~~test9~~** \\*test10\\*",
-                tokenCount: 60,
+                text: "test1 **test2** *test3* ***test4*** `test5` **`test6`** *`test7`* *`test7.5`* ~~test8~~ **~~test9~~** \\*test10\\* `test`**`test`**`test` **test*****test*****test**",
+                tokenCount: 98,
+            },
+        ],
+        lineMarginTop: 2,
+        lineMarginBottom: 2,
+    });
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("test", [schema.mark("italic")]),
+                    schema.text("test", [schema.mark("italic"), schema.mark("bold")]),
+                    schema.text("test", [schema.mark("italic")]),
+                ]),
+            ]),
+            {
+                tokenizer,
+                getAccountIfExists,
+                // TODO(calebmer): There's a bug in our Markdown parser which means we can't
+                // correctly handle this case. We should get the Markdown parser fixed.
+                //
+                // See:
+                // - https://github.com/orgs/unifiedjs/discussions/160
+                // - https://github.com/syntax-tree/mdast-util-from-markdown/issues/15
+                skipParseCorrectnessTests: true,
+            },
+        ),
+    ).toEqual({
+        text: "*test****test****test*",
+        isGroup: false,
+        tokenCount: 13,
+        context: {sectionHeading: null},
+        sentenceChunks: [
+            {
+                text: "*test****test****test*",
+                tokenCount: 13,
             },
         ],
         lineMarginTop: 2,
@@ -1513,6 +2908,29 @@ test("escapes markdown characters", async () => {
     expect(
         await testGetFullSearchContentChunk(
             schema.node("doc", {}, [
+                schema.node("paragraph", {}, [
+                    schema.text("multiple  spaces   between      words"),
+                ]),
+                schema.node("paragraph", {}, [
+                    schema.text("    space at the beginning of paragraph"),
+                ]),
+                schema.node("paragraph", {}, [schema.text("space at the end of paragraph    ")]),
+                schema.node("quoteBlock", {}, [
+                    schema.node("paragraph", {}, [
+                        schema.text("    space at the beginning of paragraph"),
+                    ]),
+                    schema.node("paragraph", {}, [
+                        schema.text("space at the end of paragraph    "),
+                    ]),
+                ]),
+                schema.node("paragraph", {}, [
+                    schema.text("spaces before break    "),
+                    schema.node("break"),
+                    schema.text("wow next"),
+                    schema.node("break"),
+                    schema.text("    spaces after break"),
+                ]),
+                schema.node("paragraph", {}, [schema.text("space at the end of paragraph    ")]),
                 schema.node("paragraph", {}, [schema.text("This is a literal asterisk: *")]),
                 schema.node("paragraph", {}, [schema.text("This is a literal underscore: _")]),
                 schema.node("paragraph", {}, [schema.text("This is a literal dash: -")]),
@@ -1551,11 +2969,32 @@ test("escapes markdown characters", async () => {
                 ]),
                 schema.node("paragraph", {}, [schema.text("* this asterisk starts the line")]),
                 schema.node("paragraph", {}, [schema.text("# this pound starts the line")]),
+                schema.node("paragraph", {}, [
+                    schema.text(
+                        "This <em>looks</em> like a paragraph <strong>with</strong> some HTML, this is < em >weird< /em >",
+                    ),
+                ]),
             ]),
             {tokenizer, getAccountIfExists},
         ),
     ).toEqual({
         text: `\
+multiple  spaces   between      words
+
+&#x0020;   space at the beginning of paragraph
+
+space at the end of paragraph   &#x0020;
+
+> &#x0020;   space at the beginning of paragraph
+>
+> space at the end of paragraph   &#x0020;
+
+spaces before break    \\
+wow next\\
+&#x0020;   spaces after break
+
+space at the end of paragraph   &#x0020;
+
 This is a literal asterisk: \\*
 
 This is a literal underscore: \\_
@@ -1584,30 +3023,54 @@ Here's some braces that look like a link: [Google\\](https://google.com)
 
 [ ] this unchecked checkbox starts the line
 
-\\1. this number item looks like it starts a line
+1\\. this number item looks like it starts a line
 
-\\1. this number item also looks like it starts a line
+1\\. this number item also looks like it starts a line
 
 \\- this dash starts the line
 
-  \\- this dash has some spaces before it starts the line
+&#x0020; \\- this dash has some spaces before it starts the line
 
 \\* this asterisk starts the line
 
-\\# this pound starts the line`,
+\\# this pound starts the line
+
+This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, this is < em >weird< /em >`,
         isGroup: true,
         context: {sectionHeading: null},
-        tokenCount: 224,
+        tokenCount: 308,
         childChunks: [
             {
                 isGroup: false,
-                tokenCount: 10,
+                tokenCount: 4,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "multiple  spaces   between      words", tokenCount: 4}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 6,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "    space at the beginning of paragraph", tokenCount: 6}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 6,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "space at the end of paragraph    ", tokenCount: 6}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 15,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {
-                        text: "This is a literal asterisk: \\*",
-                        tokenCount: 10,
-                    },
+                    {text: ">     space at the beginning of paragraph", tokenCount: 7},
+                    {text: "\n>\n> space at the end of paragraph    ", tokenCount: 8},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -1617,11 +3080,36 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 tokenCount: 10,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {
-                        text: "This is a literal underscore: \\_",
-                        tokenCount: 10,
-                    },
+                    {text: "spaces before break    \\", tokenCount: 4},
+                    {text: "\n", tokenCount: 0},
+                    {text: "wow next\\", tokenCount: 3},
+                    {text: "\n", tokenCount: 0},
+                    {text: "    spaces after break", tokenCount: 3},
                 ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 6,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "space at the end of paragraph    ", tokenCount: 6}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 10,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "This is a literal asterisk: \\*", tokenCount: 10}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 10,
+                context: {sectionHeading: null},
+                sentenceChunks: [{text: "This is a literal underscore: \\_", tokenCount: 10}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1629,12 +3117,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 7,
                 context: {sectionHeading: null},
-                sentenceChunks: [
-                    {
-                        text: "This is a literal dash: -",
-                        tokenCount: 7,
-                    },
-                ],
+                sentenceChunks: [{text: "This is a literal dash: -", tokenCount: 7}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1642,12 +3125,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 7,
                 context: {sectionHeading: null},
-                sentenceChunks: [
-                    {
-                        text: "This is a literal pound: #",
-                        tokenCount: 7,
-                    },
-                ],
+                sentenceChunks: [{text: "This is a literal pound: #", tokenCount: 7}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1655,12 +3133,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 10,
                 context: {sectionHeading: null},
-                sentenceChunks: [
-                    {
-                        text: "This is a literal squiggle: \\~",
-                        tokenCount: 10,
-                    },
-                ],
+                sentenceChunks: [{text: "This is a literal squiggle: \\~", tokenCount: 10}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1668,12 +3141,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 9,
                 context: {sectionHeading: null},
-                sentenceChunks: [
-                    {
-                        text: "This is a literal backtick: \\`",
-                        tokenCount: 9,
-                    },
-                ],
+                sentenceChunks: [{text: "This is a literal backtick: \\`", tokenCount: 9}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1681,12 +3149,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 13,
                 context: {sectionHeading: null},
-                sentenceChunks: [
-                    {
-                        text: "This is multiple backticks: \\`\\`\\`",
-                        tokenCount: 13,
-                    },
-                ],
+                sentenceChunks: [{text: "This is multiple backticks: \\`\\`\\`", tokenCount: 13}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1695,10 +3158,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 tokenCount: 14,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {
-                        text: "This is backticks surrounding text: \\`code?\\`",
-                        tokenCount: 14,
-                    },
+                    {text: "This is backticks surrounding text: \\`code?\\`", tokenCount: 14},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -1707,12 +3167,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 12,
                 context: {sectionHeading: null},
-                sentenceChunks: [
-                    {
-                        text: "Here's a math expression: 2 + 4 > 5",
-                        tokenCount: 12,
-                    },
-                ],
+                sentenceChunks: [{text: "Here's a math expression: 2 + 4 > 5", tokenCount: 12}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1720,12 +3175,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 10,
                 context: {sectionHeading: null},
-                sentenceChunks: [
-                    {
-                        text: "Here's some braces: [INTERNAL]",
-                        tokenCount: 10,
-                    },
-                ],
+                sentenceChunks: [{text: "Here's some braces: [INTERNAL]", tokenCount: 10}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1734,10 +3184,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 tokenCount: 16,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {
-                        text: "Here's some braces that look like a checkbox: [x]",
-                        tokenCount: 16,
-                    },
+                    {text: "Here's some braces that look like a checkbox: [x]", tokenCount: 16},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -1760,10 +3207,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 tokenCount: 10,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {
-                        text: "[x] this checked checkbox starts the line",
-                        tokenCount: 10,
-                    },
+                    {text: "[x] this checked checkbox starts the line", tokenCount: 10},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -1773,10 +3217,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 tokenCount: 11,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {
-                        text: "[ ] this unchecked checkbox starts the line",
-                        tokenCount: 11,
-                    },
+                    {text: "[ ] this unchecked checkbox starts the line", tokenCount: 11},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -1786,10 +3227,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 tokenCount: 12,
                 context: {sectionHeading: null},
                 sentenceChunks: [
-                    {
-                        text: "\\1. this number item looks like it starts a line",
-                        tokenCount: 12,
-                    },
+                    {text: "1\\. this number item looks like it starts a line", tokenCount: 12},
                 ],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
@@ -1800,7 +3238,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 context: {sectionHeading: null},
                 sentenceChunks: [
                     {
-                        text: "\\1. this number item also looks like it starts a line",
+                        text: "1\\. this number item also looks like it starts a line",
                         tokenCount: 13,
                     },
                 ],
@@ -1811,12 +3249,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 7,
                 context: {sectionHeading: null},
-                sentenceChunks: [
-                    {
-                        text: "\\- this dash starts the line",
-                        tokenCount: 7,
-                    },
-                ],
+                sentenceChunks: [{text: "\\- this dash starts the line", tokenCount: 7}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1837,12 +3270,7 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 9,
                 context: {sectionHeading: null},
-                sentenceChunks: [
-                    {
-                        text: "\\* this asterisk starts the line",
-                        tokenCount: 9,
-                    },
-                ],
+                sentenceChunks: [{text: "\\* this asterisk starts the line", tokenCount: 9}],
                 lineMarginTop: 2,
                 lineMarginBottom: 2,
             },
@@ -1850,10 +3278,18 @@ Here's some braces that look like a link: [Google\\](https://google.com)
                 isGroup: false,
                 tokenCount: 7,
                 context: {sectionHeading: null},
+                sentenceChunks: [{text: "\\# this pound starts the line", tokenCount: 7}],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 37,
+                context: {sectionHeading: null},
                 sentenceChunks: [
                     {
-                        text: "\\# this pound starts the line",
-                        tokenCount: 7,
+                        text: "This \\<em>looks\\</em> like a paragraph \\<strong>with\\</strong> some HTML, this is < em >weird< /em >",
+                        tokenCount: 37,
                     },
                 ],
                 lineMarginTop: 2,
