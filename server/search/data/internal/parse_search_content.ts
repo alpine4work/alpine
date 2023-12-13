@@ -4,6 +4,7 @@ import {gfmStrikethroughFromMarkdown} from "mdast-util-gfm-strikethrough";
 import {gfmStrikethrough} from "micromark-extension-gfm-strikethrough";
 import {Fragment, Node} from "prosemirror-model";
 import {newLineRegExp} from "~/server/search/data/internal/chunk_search_content.js";
+import {HighlightColor} from "~/shared/design/highlight_color.js";
 import {
     DocumentContent,
     DocumentContentProsemirrorSchema,
@@ -47,6 +48,21 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
  */
 export function parseSearchContent(
     inputText: string,
+    {
+        shouldParseEmphasisHtmlTagAsHighlight = false,
+    }: {
+        /**
+         * This `parseSearchContent()` function is primarily used with OpenSearch's
+         * highlighting functionality. OpenSearch highlights our Markdown search
+         * content with `<em>` tags surrounding highlighted content.
+         *
+         * If this flag is set to true then if we see `<em>` HTML tags then we will
+         * apply the `highlight` document mark to content within. The `highlight`
+         * document mark will only be used for highlighting `<em>` HTML tags when this
+         * flag is true since our markdown format doesn't support `highlight`.
+         */
+        shouldParseEmphasisHtmlTagAsHighlight?: boolean;
+    } = {},
 ): DocumentContent | DocumentWithoutTitleContent {
     const inputRootNode = fromMarkdown(inputText, {
         extensions: [gfmStrikethrough()],
@@ -87,11 +103,7 @@ export function parseSearchContent(
                 return [
                     schema.nodes.paragraph.create(
                         {},
-                        Array.from(
-                            flatMapIterable(inputNode.children, inputChildNode =>
-                                parsePhrasingNode(inputChildNode),
-                            ),
-                        ),
+                        Array.from(parsePhrasingNodes(inputNode.children)),
                     ),
                 ];
             }
@@ -172,11 +184,7 @@ export function parseSearchContent(
                 return [
                     schema.nodes.heading.create(
                         {level: clamp(1, inputNode.depth - 1, 3)},
-                        Array.from(
-                            flatMapIterable(inputNode.children, inputChildNode =>
-                                parsePhrasingNode(inputChildNode),
-                            ),
-                        ),
+                        Array.from(parsePhrasingNodes(inputNode.children)),
                     ),
                 ];
             }
@@ -225,74 +233,99 @@ export function parseSearchContent(
         }
     };
 
-    const parsePhrasingNode = (inputNode: PhrasingContent): Iterable<Node> => {
+    function* parsePhrasingNodes(inputNodes: Iterable<PhrasingContent>): IterableIterator<Node> {
+        let isWithinEmphasisTagHighlight = false;
+
+        for (const inputNode of inputNodes) {
+            if (inputNode.type === "html" && shouldParseEmphasisHtmlTagAsHighlight) {
+                if (/^<em\s*>$/.test(inputNode.value)) {
+                    isWithinEmphasisTagHighlight = true;
+                    continue;
+                }
+
+                if (/^<\/em\s*>$/.test(inputNode.value)) {
+                    isWithinEmphasisTagHighlight = false;
+                    continue;
+                }
+            }
+
+            if (!isWithinEmphasisTagHighlight) {
+                yield* actuallyParsePhrasingNode(inputNode);
+            } else {
+                yield* mapIterable(actuallyParsePhrasingNode(inputNode), outputNode =>
+                    outputNode.mark(
+                        schema.marks.highlight
+                            .create({color: HighlightColor.Orange})
+                            .addToSet(outputNode.marks),
+                    ),
+                );
+            }
+        }
+    }
+
+    function* actuallyParsePhrasingNode(inputNode: PhrasingContent): Iterable<Node> {
         switch (inputNode.type) {
             case "text": {
-                return [schema.text(inputNode.value)];
+                yield schema.text(inputNode.value);
+                break;
             }
 
             case "emphasis": {
-                return flatMapIterable(inputNode.children, inputChildNode => {
-                    const outputChildNodes = parsePhrasingNode(inputChildNode);
-
-                    return mapIterable(outputChildNodes, outputChildNode => {
-                        return outputChildNode.mark(
-                            schema.marks.italic.create().addToSet(outputChildNode.marks),
-                        );
-                    });
-                });
+                yield* mapIterable(parsePhrasingNodes(inputNode.children), outputChildNode =>
+                    outputChildNode.mark(
+                        schema.marks.italic.create().addToSet(outputChildNode.marks),
+                    ),
+                );
+                break;
             }
 
             case "strong": {
-                return flatMapIterable(inputNode.children, inputChildNode => {
-                    const outputChildNodes = parsePhrasingNode(inputChildNode);
-
-                    return mapIterable(outputChildNodes, outputChildNode => {
-                        return outputChildNode.mark(
-                            schema.marks.bold.create().addToSet(outputChildNode.marks),
-                        );
-                    });
-                });
+                yield* mapIterable(parsePhrasingNodes(inputNode.children), outputChildNode =>
+                    outputChildNode.mark(
+                        schema.marks.bold.create().addToSet(outputChildNode.marks),
+                    ),
+                );
+                break;
             }
 
             case "delete": {
-                return flatMapIterable(inputNode.children, inputChildNode => {
-                    const outputChildNodes = parsePhrasingNode(inputChildNode);
-
-                    return mapIterable(outputChildNodes, outputChildNode => {
-                        return outputChildNode.mark(
-                            schema.marks.strike.create().addToSet(outputChildNode.marks),
-                        );
-                    });
-                });
+                yield* mapIterable(parsePhrasingNodes(inputNode.children), outputChildNode =>
+                    outputChildNode.mark(
+                        schema.marks.strike.create().addToSet(outputChildNode.marks),
+                    ),
+                );
+                break;
             }
 
             case "inlineCode": {
-                return [schema.text(inputNode.value, [schema.marks.code.create()])];
+                yield schema.text(inputNode.value, [schema.marks.code.create()]);
+                break;
             }
 
             case "break": {
-                return [schema.nodes.break.create()];
+                yield schema.nodes.break.create();
+                break;
             }
 
             // `chunkSearchContent()` should not output link nodes. In case user
             // content is not properly escaped, include the link's raw text.
             case "link":
             case "linkReference": {
-                return flatMapIterable(inputNode.children, inputChildNode => {
-                    return parsePhrasingNode(inputChildNode);
-                });
+                yield* parsePhrasingNodes(inputNode.children);
+                break;
             }
 
             // Support some subset of HTML outputted by `chunkSearchContent()` or other
             // tools in our system.
             case "html": {
                 // We use HTML break tags when we can't use a Markdown hard break.
-                if (/<br\s*\/?\s*>/.test(inputNode.value)) {
-                    return [schema.nodes.break.create()];
+                if (/^<br\s*\/?>$/.test(inputNode.value)) {
+                    yield schema.nodes.break.create();
+                    break;
                 }
 
-                return [schema.text(inputNode.value)];
+                yield schema.text(inputNode.value);
+                break;
             }
 
             // `chunkSearchContent()` should not output these node types. In case user
@@ -300,22 +333,21 @@ export function parseSearchContent(
             case "footnoteReference":
             case "image":
             case "imageReference": {
-                if (!inputNode.position) return [];
+                if (!inputNode.position) break;
 
-                return [
-                    schema.text(
-                        inputText.slice(
-                            assertExists(inputNode.position.start.offset),
-                            assertExists(inputNode.position.end.offset),
-                        ),
+                yield schema.text(
+                    inputText.slice(
+                        assertExists(inputNode.position.start.offset),
+                        assertExists(inputNode.position.end.offset),
                     ),
-                ];
+                );
+                break;
             }
 
             default:
                 throw exhaustive(inputNode);
         }
-    };
+    }
 
     const outputNodes: Array<Node> = [];
 
@@ -327,9 +359,7 @@ export function parseSearchContent(
                 {},
                 Array.from(
                     mapIterable(
-                        flatMapIterable(titleInputRootChildNode.children, inputChildNode =>
-                            parsePhrasingNode(inputChildNode),
-                        ),
+                        parsePhrasingNodes(titleInputRootChildNode.children),
                         // Clear all marks. Marks are unsupported in titles.
                         outputChildNode => outputChildNode.mark([]),
                     ),

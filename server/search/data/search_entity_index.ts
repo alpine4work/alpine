@@ -749,8 +749,6 @@ export async function searchByKeyword(
         },
         highlight: {
             type: "unified",
-            // Escape any HTML characters in the text before inserting `<em>` tags.
-            encoder: "html",
             // Split the text at sentences for highlighting. That way the highlighted
             // previews are complete thoughts for the user to read.
             boundary_scanner: "sentence",
