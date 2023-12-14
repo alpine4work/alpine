@@ -69,6 +69,47 @@ export function ContentEditorPointerToolbar({
 }) {
     const interactionModality = useInteractionModality();
 
+    const [hasPointerMovedWhileDown, setHasPointerMovedWhileDown] = useState(false);
+
+    // If the pointer has moved while pressing down and the user has some text
+    // selected, the user is probably trying to drag to change their selection. If
+    // they are dragging then we don't want to show the toolbar since it won't have
+    // much use. They can't click anything in the toolbar until they release
+    // anyway.
+    //
+    // If we show the toolbar while dragging it jumps around awkwardly and blocks
+    // pointer events from the mouse over content the user is potentially
+    // dragging to.
+    useEffect(() => {
+        setHasPointerMovedWhileDown(false);
+
+        let isPointerDown = false;
+
+        const handlePointerDown = () => {
+            isPointerDown = true;
+        };
+
+        const handlePointerMove = () => {
+            if (isPointerDown) {
+                setHasPointerMovedWhileDown(true);
+            }
+        };
+
+        const handlePointerUp = () => {
+            isPointerDown = false;
+            setHasPointerMovedWhileDown(false);
+        };
+
+        document.addEventListener("pointerdown", handlePointerDown, true);
+        document.addEventListener("pointermove", handlePointerMove, true);
+        document.addEventListener("pointerup", handlePointerUp, true);
+        return () => {
+            document.removeEventListener("pointerdown", handlePointerDown, true);
+            document.removeEventListener("pointermove", handlePointerMove, true);
+            document.removeEventListener("pointerup", handlePointerUp, true);
+        };
+    }, []);
+
     const shouldShowIgnoringInteractionModality = useMemo(
         () =>
             isFocused &&
@@ -94,8 +135,10 @@ export function ContentEditorPointerToolbar({
             // Don't show the toolbar if the selection overlaps with the title. The title
             // can only be at the beginning of a document so checking whether
             // `selection.from` is in the title is sufficient for detecting overlap.
-            state.selection.$from.parent.type.name !== "title",
-        [isFocused, state.doc, state.selection],
+            state.selection.$from.parent.type.name !== "title" &&
+            // Don't show the toolbar if the user's pointer is dragging to select text.
+            !hasPointerMovedWhileDown,
+        [hasPointerMovedWhileDown, isFocused, state.doc, state.selection],
     );
 
     const [
@@ -372,7 +415,15 @@ function ContentEditorPointerToolbarOverlay({
             offset="3"
             offsetAlong="-4"
             overlay={
-                <div className={overlayAnimateContainerClassName}>
+                <div
+                    className={overlayAnimateContainerClassName}
+                    style={{
+                        // If we are animating, it's important the entire overlay has
+                        // `pointer-events: none`. That way if the user is dragging to select text the
+                        // overlay doesn't intercept pointer events and cause the drag to get wacky.
+                        pointerEvents: animation !== null ? "none" : undefined,
+                    }}
+                >
                     <Box
                         display="flex"
                         paddingLeft="1"
