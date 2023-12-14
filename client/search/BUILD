@@ -13,6 +13,7 @@ ts_project(
         "//client/accounts",
         "//client/context",
         "//client/design",
+        "//client/peek",
         "//client/rpc",
         "//shared/accounts",
         "//shared/error",

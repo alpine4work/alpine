@@ -14,6 +14,7 @@ export async function loadInitialPeekDataForServer(
     peekRoutes: Array<ServerRoute>,
     spacePath: Path,
 ): Promise<{
+    spacePath: Path;
     peekPath: Path;
     hydrationData: {
         loaderData: {[key: string]: unknown};
@@ -64,6 +65,7 @@ export async function loadInitialPeekDataForServer(
     );
 
     return {
+        spacePath,
         peekPath,
         hydrationData: {loaderData, errors},
         loadExtraRouteIds,

@@ -23,7 +23,6 @@ export * from "~/shared/styles/internal/fonts.css.js";
 export * from "~/shared/styles/internal/input_placeholder.css.js";
 export * as modalStyles from "~/shared/styles/internal/modal.css.js";
 export * from "~/shared/styles/internal/overlay_animated.css.js";
-export * from "~/shared/styles/internal/peek.css.js";
 export * from "~/shared/styles/internal/press_opacity_overlay.css.js";
 export * from "~/shared/styles/internal/scrollbar.css.js";
 export * from "~/shared/styles/internal/sprinkles.css.js";

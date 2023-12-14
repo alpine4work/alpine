@@ -99,7 +99,6 @@ import {Schema} from "~/shared/schema/schema.js";
 import {
     colorSchemeVars,
     greyElevated1ClassName,
-    peekContainerClassName,
     spinAnimationClassName,
     sprinkles,
     wiggleAnimation,
@@ -1259,7 +1258,6 @@ function PeekOverlay({
                 style={{
                     bottom: `-${peekBottomBuffer}`,
                 }}
-                className={peekContainerClassName}
             >
                 <Box
                     ref={overlayRef}

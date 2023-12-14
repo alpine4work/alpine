@@ -2,9 +2,9 @@ import {style} from "@vanilla-extract/css";
 import {mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
 import {
     desktopTitlePaddingTop,
-    mobileOrPeekTitlePaddingTop,
+    mobileTitlePaddingTop,
 } from "~/shared/styles/internal/content_schema.css.js";
-import {peekContainerClassName} from "~/shared/styles/internal/peek.css.js";
+import {peekWithMobileLayoutContainerClassName} from "~/shared/styles/internal/peek.css.js";
 
 export const blobsClassName = style({
     zIndex: -50,
@@ -16,12 +16,12 @@ export const blobsClassName = style({
     width: "100%",
     "@media": {
         [mobilePlatformMediaQuery]: {
-            top: `calc(${mobileOrPeekTitlePaddingTop} - ${desktopTitlePaddingTop})`,
+            top: `calc(${mobileTitlePaddingTop} - ${desktopTitlePaddingTop})`,
         },
     },
     selectors: {
-        [`${peekContainerClassName} &`]: {
-            top: `calc(${mobileOrPeekTitlePaddingTop} - ${desktopTitlePaddingTop})`,
+        [`${peekWithMobileLayoutContainerClassName} &`]: {
+            top: `calc(${mobileTitlePaddingTop} - ${desktopTitlePaddingTop})`,
         },
     },
 });

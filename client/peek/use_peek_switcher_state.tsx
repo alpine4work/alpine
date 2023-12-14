@@ -1,5 +1,5 @@
 import {HydrationState, MemoryHistory, createMemoryHistory, resolvePath} from "@remix-run/router";
-import {useEffect, useState} from "react";
+import {Memo, useEffect, useState} from "react";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
@@ -10,11 +10,11 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {generateId} from "~/shared/id/id.js";
 import {PeekId} from "~/shared/id/types/id_types.js";
-import {isPeekPath} from "~/shared/remix/peek_path_helpers.js";
+import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 
 export type PeekSwitcherStatePeek<Extra> = {
     readonly id: PeekId;
-    readonly initialPeekPath: string;
+    readonly initialSpacePath: string;
     readonly history: MemoryHistory;
     readonly routerPromise: PromiseImmediate<PeekRemixEmbedRouter>;
     readonly extra: Extra;
@@ -53,14 +53,14 @@ export function usePeekSwitcherState<Extra>({
     initialPeekData,
 }: {
     initialPeekData: MaybeThunk<{
-        peekPath: string;
+        spacePath: string;
         hydrationData: HydrationState;
         extra: Extra;
     } | null>;
 }): {
     selectedPeek: PeekSwitcherStatePeek<Extra> | null;
     activePeek: PeekSwitcherStatePeek<Extra> | null;
-    switchPeek: (peekData: {peekPath: string; extra: Extra} | null) => Promise<void>;
+    switchPeek: Memo<(peekData: {spacePath: string; extra: Extra} | null) => Promise<void>>;
 } {
     const {peekRoutes, createPeekRouter} = usePeekRemixEmbedRouter();
 
@@ -103,16 +103,17 @@ export function usePeekSwitcherState<Extra>({
             };
         }
 
-        const peekPath = resolvePath(peekData.peekPath);
-        if (!isPeekPath(peekPath)) throw new InternalError("Expected peek path");
+        const spacePath = resolvePath(peekData.spacePath);
+        const peekPath = convertSpacePathToPeekPath(spacePath);
+        if (!peekPath) throw new InternalError("Invalid space path");
 
-        const history = createMemoryHistory({initialEntries: [peekData.peekPath]});
+        const history = createMemoryHistory({initialEntries: [peekPath]});
 
         const peekId = generateId<PeekId>();
 
         const peek: PeekSwitcherStatePeek<Extra> = {
             id: peekId,
-            initialPeekPath: peekData.peekPath,
+            initialSpacePath: peekData.spacePath,
             history,
             routerPromise: PromiseImmediate.resolve(
                 createPeekRouter({
@@ -132,7 +133,7 @@ export function usePeekSwitcherState<Extra>({
 
     const switchPeek = useEvent(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        (peekData: {peekPath: string; extra: Extra} | null): Promise<void> => {
+        (peekData: {spacePath: string; extra: Extra} | null): Promise<void> => {
             if (!peekData) {
                 setPeekState({
                     activePeek: null,
@@ -143,8 +144,9 @@ export function usePeekSwitcherState<Extra>({
 
             const abortController = new AbortController();
 
-            const peekPath = resolvePath(peekData.peekPath);
-            if (!isPeekPath(peekPath)) throw new InternalError("Expected peek path");
+            const spacePath = resolvePath(peekData.spacePath);
+            const peekPath = convertSpacePathToPeekPath(spacePath);
+            if (!peekPath) throw new InternalError("Invalid space path");
 
             const history = createMemoryHistory({initialEntries: [peekPath]});
 
@@ -167,7 +169,7 @@ export function usePeekSwitcherState<Extra>({
 
             const peek: PeekSwitcherStatePeek<Extra> = {
                 id: peekId,
-                initialPeekPath: peekData.peekPath,
+                initialSpacePath: peekData.spacePath,
                 history,
                 routerPromise: PromiseImmediate.resolve(routerPromise),
                 extra: peekData.extra,

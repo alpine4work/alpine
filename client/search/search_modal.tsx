@@ -1,14 +1,20 @@
-import {MagnifyingGlass} from "phosphor-react";
-import {useEffect, useReducer, useRef} from "react";
+import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {Memo, useCallback, useEffect, useReducer, useRef} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {Modal} from "~/client/design/modal.js";
-import {SearchResultList} from "~/client/search/search_result_list.js";
-import {minSearchResultViewHeight} from "~/client/search/search_result_view.js";
+import {usePromise} from "~/client/helpers/use_promise.js";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
+import {
+    PeekSwitcherStatePeek,
+    usePeekSwitcherState,
+} from "~/client/peek/use_peek_switcher_state.js";
+import {SearchResultView, minSearchResultViewHeight} from "~/client/search/search_result_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {
     Spacing,
@@ -16,13 +22,20 @@ import {
     parseRemLengthNumber,
     spacing,
 } from "~/shared/design/spacing.js";
+import {UnimplementedError} from "~/shared/error/error.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {searchByKeyword} from "~/shared/rpc/search_rpc_definitions.js";
+import {
+    SearchEntityId,
+    SearchEntityIdObject,
+    parseSearchEntityId,
+} from "~/shared/search/search_entity_id.js";
 import {SearchResult} from "~/shared/search/search_result.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 // NOCOMMIT: Double check that this renders on top of peeks. Add a test
 
@@ -178,13 +191,13 @@ export function SearchModal({
         getInitialSearchState,
     );
 
-    // Keep the `search` URL parameter updated while this modal is open. We don't
-    // use Remix's `useSearchParams()` because we don't want to re-render
-    // underlying components when the search parameter changes. By directly calling
-    // `replaceState()` we silently side-step Remix.
+    // Keep the `search` URL parameter updated while this modal is open.
     useEffect(() => {
         const url = new URL(window.location.href);
         url.searchParams.set("search", searchState.queryText);
+
+        // Silently update the URL without telling Remix so our components don't
+        // re-render unnecessarily.
         window.history.replaceState(null, "", url);
     }, [searchState.queryText]);
 
@@ -193,6 +206,9 @@ export function SearchModal({
         return () => {
             const url = new URL(window.location.href);
             url.searchParams.delete("search");
+
+            // Silently update the URL without telling Remix so our components don't
+            // re-render unnecessarily.
             window.history.replaceState(null, "", url);
         };
     }, []);
@@ -254,6 +270,10 @@ export function SearchModal({
         );
     }, [context, searchState.pendingRequest, space.id]);
 
+    const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{entityId: SearchEntityId}>(
+        {initialPeekData: null},
+    );
+
     return (
         <Modal
             aria-label="Search"
@@ -294,10 +314,28 @@ export function SearchModal({
                                 />
                             </Box>
                         ) : (
-                            <SearchResultList results={searchState.data.value.results} />
+                            <SearchModalResultList
+                                results={searchState.data.value.results}
+                                selectedPeek={selectedPeek}
+                                switchPeek={switchPeek}
+                            />
                         )}
                     </Box>
-                    <Box flexShrink="0" width="96" height="full" borderLeft="grey-10"></Box>
+                    <Box
+                        flexShrink="0"
+                        width="128"
+                        height="full"
+                        overflow="hidden"
+                        borderLeft="grey-10"
+                    >
+                        {activePeek && (
+                            <SearchModalPeekContent
+                                // Fully remount whenever the peek changes...
+                                key={activePeek.id}
+                                peek={activePeek}
+                            />
+                        )}
+                    </Box>
                 </Box>
             </Box>
         </Modal>
@@ -360,6 +398,133 @@ function SearchModalInput({
                 value={queryText}
                 onChange={event => onQueryTextChange(event.currentTarget.value)}
             />
+        </Box>
+    );
+}
+
+function SearchModalResultList({
+    results,
+    selectedPeek,
+    switchPeek,
+}: {
+    results: ReadonlyArray<SearchResult>;
+    selectedPeek: PeekSwitcherStatePeek<{entityId: SearchEntityId}> | null;
+    switchPeek: Memo<
+        (peekData: {spacePath: string; extra: {entityId: SearchEntityId}} | null) => Promise<void>
+    >;
+}) {
+    const {space} = useSpaceContext();
+
+    return (
+        <VirtualizedScrollView
+            itemCount={results.length}
+            bufferedItemHeight={minSearchResultViewHeight}
+            renderItem={useCallback(
+                (index: number) => {
+                    const result = results[index]!;
+
+                    const isFirstEntry = index === 0;
+                    const isLastEntry = index === results.length - 1;
+
+                    return {
+                        key: result.entityId,
+                        minHeight: minSearchResultViewHeight,
+                        node: (
+                            <SearchResultView
+                                result={result}
+                                isSelected={result.entityId === selectedPeek?.extra.entityId}
+                                isFirstEntry={isFirstEntry}
+                                isLastEntry={isLastEntry}
+                                // We use `onPressStart` to select so the selected style is applied immediately.
+                                // We use the selected style to indicate interaction to the user instead of an
+                                // `isPressed` style. The benefit of using selection is the previous item loses
+                                // its style.
+                                onPressStart={() => {
+                                    if (result.entityId !== selectedPeek?.extra.entityId) {
+                                        void switchPeek({
+                                            spacePath: getSearchEntityIdPath(
+                                                space.id,
+                                                result.entityId,
+                                            ),
+                                            extra: {entityId: result.entityId},
+                                        });
+                                    }
+                                }}
+                            />
+                        ),
+                    };
+                },
+                [results, selectedPeek?.extra.entityId, space.id, switchPeek],
+            )}
+        />
+    );
+}
+
+function getSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityId): string {
+    const entityIdObject = parseSearchEntityId(entityId);
+    return actuallyGetSearchEntityIdPath(spaceId, entityIdObject);
+}
+
+function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityIdObject): string {
+    switch (entityId.type) {
+        case "Account": {
+            // NOCOMMIT
+            throw new UnimplementedError("TODO");
+        }
+        case "Document": {
+            return `/s/${spaceId}/documents/${entityId.documentId}`;
+        }
+        case "DocumentComment": {
+            return `/s/${spaceId}/documents/${entityId.documentId}?comments=${entityId.commentThreadId}&comment=${entityId.commentIndex}`;
+        }
+        case "Channel": {
+            // NOCOMMIT
+            throw new UnimplementedError("TODO");
+        }
+        case "Post": {
+            return `/s/${spaceId}/posts/${entityId.postId}`;
+        }
+        case "PostComment": {
+            return `/s/${spaceId}/posts/${entityId.postId}?comment=${entityId.commentIndex}`;
+        }
+        case "Chat": {
+            return `/s/${spaceId}/chat/${entityId.chatId}`;
+        }
+        case "ChatMessage": {
+            return `/s/${spaceId}/chat/${entityId.chatId}?message=${entityId.messageIndex}`;
+        }
+        case "Task": {
+            return `/s/${spaceId}/tasks/${entityId.taskId}`;
+        }
+        case "TaskCollection": {
+            // NOCOMMIT
+            throw new UnimplementedError("TODO");
+        }
+        default:
+            throw exhaustive(entityId);
+    }
+}
+
+function SearchModalPeekContent({peek}: {peek: PeekSwitcherStatePeek<{entityId: SearchEntityId}>}) {
+    const routerResult = usePromise(peek.routerPromise);
+
+    return (
+        <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
+            {!routerResult.isPending ? (
+                <PeekRemixEmbed
+                    peekId={peek.id}
+                    withMobileLayout={true}
+                    router={routerResult.value}
+                />
+            ) : (
+                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
+                    <SpinnerGap
+                        className={spinAnimationClassName}
+                        color={colorSchemeVars["grey-70"]}
+                        size={spacing["6"]}
+                    />
+                </Box>
+            )}
         </Box>
     );
 }

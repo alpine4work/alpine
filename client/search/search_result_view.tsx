@@ -1,4 +1,4 @@
-import {Fragment} from "react";
+import {Fragment, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
@@ -7,12 +7,16 @@ export const minSearchResultViewHeight = "2.75rem";
 
 export function SearchResultView({
     result,
+    isSelected,
     isFirstEntry,
     isLastEntry,
+    onPressStart,
 }: {
     result: SearchResult;
+    isSelected: boolean;
     isFirstEntry: boolean;
     isLastEntry: boolean;
+    onPressStart: () => void;
 }) {
     return (
         <Box
@@ -20,8 +24,21 @@ export function SearchResultView({
             paddingTop={isFirstEntry ? "1" : undefined}
             paddingBottom={isLastEntry ? "1" : undefined}
             style={{minHeight: minSearchResultViewHeight}}
+            onPointerDown={() => {
+                onPressStart?.();
+            }}
         >
-            <Box paddingX="3" borderRadius="md">
+            <Box
+                paddingX="3"
+                borderRadius="md"
+                backgroundColor={isSelected ? "grey-5" : undefined}
+                style={{
+                    // Add an extra pixel of padding so the background color covers the
+                    // border rendered with `boxShadow`.
+                    paddingBottom: 1,
+                    marginBottom: -1,
+                }}
+            >
                 <Box
                     paddingY="3"
                     style={{

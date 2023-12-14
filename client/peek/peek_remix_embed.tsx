@@ -19,6 +19,7 @@ import {
     UNSAFE_mapRouteProperties as mapRouteProperties,
 } from "react-router";
 import {StaticRouterProvider} from "react-router-dom/server.js";
+import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";

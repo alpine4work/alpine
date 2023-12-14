@@ -1,4 +1,4 @@
-import {HydrationState, createPath, resolvePath} from "@remix-run/router";
+import {HydrationState} from "@remix-run/router";
 import {SpinnerGap} from "phosphor-react";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
@@ -42,7 +42,6 @@ import {createInterval} from "~/shared/helpers/async/interval.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
-import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
 export function InboxView({
@@ -53,7 +52,7 @@ export function InboxView({
 }: {
     filter: "New" | "Archive";
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
-    initialPeekData: {peekPath: string; hydrationData: HydrationState} | null;
+    initialPeekData: {spacePath: string; hydrationData: HydrationState} | null;
     onPeekChange: (peek: PeekSwitcherStatePeek<{key: DynamoItemKey | null}> | null) => void;
 }) {
     const {query, updateQueryOptimistically, itemsDeletedByLastChangeForAnimation, tryLoadingMore} =
@@ -77,7 +76,7 @@ export function InboxView({
             for (let i = 0; i < itemCount; i++) {
                 const item = query.getItem(i);
                 if (item.type === "Loaded") {
-                    if (item.item.model.getSpacePath() === spacePath) {
+                    if (item.item.model.getPath() === spacePath) {
                         return item.item.key;
                     }
                 }
@@ -93,14 +92,10 @@ export function InboxView({
         initialPeekData: () => {
             if (!initialPeekData) return null;
 
-            const spacePath = createPath(
-                assertExists(convertPeekPathToSpacePath(resolvePath(initialPeekData.peekPath))),
-            );
-
             return {
-                peekPath: initialPeekData.peekPath,
+                spacePath: initialPeekData.spacePath,
                 hydrationData: initialPeekData.hydrationData,
-                extra: {key: findItemKeyForSpacePathIfExists(spacePath)},
+                extra: {key: findItemKeyForSpacePathIfExists(initialPeekData.spacePath)},
             };
         },
     });
@@ -112,11 +107,7 @@ export function InboxView({
     // included in the initial set of inbox entries.
     useEffect(() => {
         if (activePeek && !activePeek.extra.key) {
-            const initialSpacePath = createPath(
-                assertExists(convertPeekPathToSpacePath(resolvePath(activePeek.initialPeekPath))),
-            );
-
-            const key = findItemKeyForSpacePathIfExists(initialSpacePath);
+            const key = findItemKeyForSpacePathIfExists(activePeek.initialSpacePath);
 
             if (key) {
                 activePeek.setExtra({key});
@@ -204,22 +195,23 @@ export function InboxView({
         }
     }, [query, rememberedSelectedEntryCursor]);
 
-    const selectEntry = (
-        entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null,
-    ): Promise<void> => {
-        if (!entry) {
-            return switchPeek(null);
-        }
+    const selectEntry = useCallback(
+        (entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null): Promise<void> => {
+            if (!entry) {
+                return switchPeek(null);
+            }
 
-        // Don't select the same entry twice in a row since that would cause two
-        // data fetches.
-        if (selectedPeek?.extra.key === entry.key) return Promise.resolve();
+            // Don't select the same entry twice in a row since that would cause two
+            // data fetches.
+            if (selectedEntryKey === entry.key) return Promise.resolve();
 
-        return switchPeek({
-            peekPath: entry.model.getPeekPath(),
-            extra: {key: entry.key},
-        });
-    };
+            return switchPeek({
+                spacePath: entry.model.getPath(),
+                extra: {key: entry.key},
+            });
+        },
+        [selectedEntryKey, switchPeek],
+    );
 
     return (
         <GlobalKeyDownEvent
@@ -299,7 +291,7 @@ export function InboxView({
                             {activePeek && (
                                 <InboxViewPeekContent
                                     // Fully remount whenever the peek changes...
-                                    key={activePeek.extra.key}
+                                    key={activePeek.id}
                                     filter={filter}
                                     peek={activePeek}
                                     entry={activeEntry?.item ?? null}
@@ -333,7 +325,7 @@ function InboxViewEntries({
         item: DynamoGeneralRealtimeItem<InboxEntryModel>;
     }>;
     selectedEntryKey: DynamoItemKey | null;
-    selectEntry: (entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>;
+    selectEntry: Memo<(entry: DynamoGeneralRealtimeItem<InboxEntryModel>) => Promise<void>>;
 }) {
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
     const remPx = useRemPx();
@@ -604,8 +596,10 @@ function InboxViewEntries({
                                             <InboxEntryView
                                                 entry={item.item.model}
                                                 isSelected={selectedEntryKey === item.item.key}
-                                                // We don't have a visual press state for items, so immediately
-                                                // select the entry on press start to give the user some response.
+                                                // We use `onPressStart` to select so the selected style is applied immediately.
+                                                // We use the selected style to indicate interaction to the user instead of an
+                                                // `isPressed` style. The benefit of using selection is the previous item loses
+                                                // its style.
                                                 onPressStart={() => {
                                                     void selectEntry(item.item);
                                                 }}

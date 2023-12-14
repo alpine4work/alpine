@@ -12,7 +12,6 @@ ts_project(
         "//shared/forum",
         "//shared/id",
         "//shared/messaging",
-        "//shared/remix",
         "//shared/schema",
     ],
 )

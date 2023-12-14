@@ -78,12 +78,14 @@ import {
 export const documentContentEditorSidebarWidth = spacing["96"];
 
 export function DocumentContentEditor({
+    withMobileLayout,
     initialDocument,
     initialCommentThreadResult,
     initialScrollToCommentIndex,
     onContentChange,
     onCommentThreadChange,
 }: {
+    withMobileLayout: boolean;
     initialDocument: DocumentModel;
     initialCommentThreadResult: {
         commentThread: DocumentCommentThreadModel;
@@ -99,6 +101,7 @@ export function DocumentContentEditor({
             // If a document prop with a different id + version is passed in then remount
             // our stateful content editor component.
             key={`${initialDocument.id}-${initialDocument.version}`}
+            withMobileLayout={withMobileLayout}
             initialDocument={initialDocument}
             initialCommentThreadResult={initialCommentThreadResult}
             initialScrollToCommentIndex={initialScrollToCommentIndex}
@@ -138,12 +141,14 @@ type DocumentContentEditorSidebarData = {
 };
 
 function DocumentContentEditorStateful({
+    withMobileLayout,
     initialDocument,
     initialCommentThreadResult,
     initialScrollToCommentIndex,
     onContentChange,
     onCommentThreadChange,
 }: {
+    withMobileLayout: boolean;
     initialDocument: DocumentModel;
     initialCommentThreadResult: {
         commentThread: DocumentCommentThreadModel;
@@ -729,6 +734,11 @@ function DocumentContentEditorStateful({
                 <Box
                     ref={useMergedRefs(editorContainerRef, useScrollbar())}
                     id={editorContainerId}
+                    className={
+                        withMobileLayout
+                            ? contentSchemaStyles.docMobileLayoutContainerClassName
+                            : undefined
+                    }
                     data-testid="DocumentContentEditorMain"
                     flexGrow="1"
                     position="relative"

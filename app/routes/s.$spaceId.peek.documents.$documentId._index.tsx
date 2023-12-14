@@ -1,6 +1,12 @@
+import DocumentRoute from "~/app/routes/s.$spaceId.documents.$documentId._index.js";
+import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
+
 export {
     loader,
     meta,
     shouldRevalidate,
-    default,
 } from "~/app/routes/s.$spaceId.documents.$documentId._index.js";
+
+export default function DocumentPeekRoute() {
+    return <DocumentRoute withMobileLayout={usePeekContext()?.withMobileLayout ?? false} />;
+}

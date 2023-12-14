@@ -27,14 +27,13 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
-import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     filter: Schema.enum(["New", "Archive"]),
     entriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
     peekData: Schema.object({
-        peekPath: Schema.string,
+        spacePath: Schema.string,
         hydrationData: Schema.object({
             loaderData: Schema.unknown,
             errors: Schema.unknown,
@@ -92,15 +91,13 @@ export async function loader({params, context, request, serverRoutes: routes}: L
         })(),
     ]);
 
-    const spacePath = entriesResult.items[0]!.model.getSpacePath();
-
     const peekData =
         !_peekData && entriesResult.items.length > 0
             ? await loadInitialPeekDataForServer(
                   context,
                   request,
                   peekRoutes,
-                  resolvePath(spacePath),
+                  resolvePath(entriesResult.items[0]!.model.getPath()),
               )
             : _peekData;
 
@@ -109,7 +106,7 @@ export async function loader({params, context, request, serverRoutes: routes}: L
         entriesResult,
         peekData: peekData
             ? {
-                  peekPath: createPath(peekData.peekPath),
+                  spacePath: createPath(peekData.spacePath),
                   hydrationData: peekData.hydrationData,
                   loadExtraRouteIds: peekData.loadExtraRouteIds,
               }
@@ -188,14 +185,10 @@ export default function InboxRoute() {
                         // base64 encode the initial path to hide the fact that it's a URL.
                         const textEncoder = new TextEncoder();
 
-                        const initialSpacePath = createPath(
-                            assertExists(
-                                convertPeekPathToSpacePath(resolvePath(peek.initialPeekPath)),
-                            ),
-                        );
-
                         const selectedSearchParam = encodeBase64(
-                            textEncoder.encode(initialSpacePath.replace(/^(\/s\/[^/]+\/)/, "")),
+                            textEncoder.encode(
+                                peek.initialSpacePath.replace(/^(\/s\/[^/]+\/)/, ""),
+                            ),
                             "Rfc4648Url",
                         );
 

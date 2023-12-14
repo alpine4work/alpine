@@ -1,8 +1,6 @@
-import {createPath, resolvePath} from "react-router";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {DocumentPreviewModel} from "~/shared/documents/document_model.js";
 import {ChannelPreviewModel} from "~/shared/forum/channel_model.js";
-import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     AccountId,
     ChannelId,
@@ -12,7 +10,6 @@ import {
     PostId,
     SpaceId,
 } from "~/shared/id/types/id_types.js";
-import {convertSpacePathToPeekPath} from "~/shared/remix/peek_path_helpers.js";
 import {createModelUnionSchema} from "~/shared/schema/model/create_model_union_schema.js";
 import {Model} from "~/shared/schema/model/model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -68,12 +65,7 @@ export const InboxEntryKeySchema = Schema.union({
 interface InboxEntryModelInterface {
     readonly type: string;
     getKey(): InboxEntryKey;
-    getSpacePath(): string;
-    getPeekPath(): string;
-}
-
-function getPeekPath(model: {getSpacePath(): string}) {
-    return createPath(assertExists(convertSpacePathToPeekPath(resolvePath(model.getSpacePath()))));
+    getPath(): string;
 }
 
 export class InboxChatEntryModel
@@ -100,12 +92,8 @@ export class InboxChatEntryModel
         return {type: "Chat", chatId: this.chatId};
     }
 
-    public getSpacePath() {
+    public getPath() {
         return `/s/${this.spaceId}/chat/${this.chatId}`;
-    }
-
-    public getPeekPath() {
-        return getPeekPath(this);
     }
 }
 
@@ -136,12 +124,8 @@ export class InboxPostCommentsEntryModel
         return {type: "PostComments", postId: this.postId};
     }
 
-    public getSpacePath() {
+    public getPath() {
         return `/s/${this.spaceId}/posts/${this.postId}`;
-    }
-
-    public getPeekPath() {
-        return getPeekPath(this);
     }
 }
 
@@ -175,12 +159,8 @@ export class InboxChannelPostsEntryModel
         };
     }
 
-    public getSpacePath() {
+    public getPath() {
         return `/s/${this.spaceId}/notifications/channel-posts/${this.channel.id}-${this.bucketGeneration}`;
-    }
-
-    public getPeekPath() {
-        return getPeekPath(this);
     }
 }
 
@@ -213,12 +193,8 @@ export class InboxDocumentCommentThreadEntryModel
         };
     }
 
-    public getSpacePath() {
+    public getPath() {
         return `/s/${this.spaceId}/documents/${this.document.id}/comments/${this.commentThreadId}`;
-    }
-
-    public getPeekPath() {
-        return getPeekPath(this);
     }
 }
 
@@ -252,12 +228,8 @@ export class InboxDocumentNewCommentThreadsEntryModel
         };
     }
 
-    public getSpacePath() {
+    public getPath() {
         return `/s/${this.spaceId}/notifications/document-comment-threads/${this.document.id}-${this.bucketGeneration}`;
-    }
-
-    public getPeekPath() {
-        return getPeekPath(this);
     }
 }
 

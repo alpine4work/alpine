@@ -36,7 +36,6 @@ import {
     printRawColor,
 } from "~/shared/styles/internal/helpers/raw_color.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
-import {peekContainerClassName} from "~/shared/styles/internal/peek.css.js";
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //
@@ -66,6 +65,7 @@ import {peekContainerClassName} from "~/shared/styles/internal/peek.css.js";
 
 const paragraphMargin = spacing["2"];
 const headerTopMargin = "1.5em";
+const headerTopHalfMargin = "0.75em";
 
 export const docClassName = style({
     minHeight: "100%",
@@ -87,6 +87,8 @@ export const docClassName = style({
     fontFeatureSettings: '"liga" 0',
 });
 
+export const docMobileLayoutContainerClassName = style({});
+
 const blockMaxWidthWithoutPadding = spacing["160"];
 const blockPaddingX = spacing["2"];
 
@@ -106,7 +108,7 @@ const blockStyles = {
 };
 
 export const desktopTitlePaddingTop = spacing["24"];
-export const mobileOrPeekTitlePaddingTop = spacing["12"];
+export const mobileTitlePaddingTop = spacing["12"];
 
 export const titleFontSize = fontSizes["800"];
 
@@ -123,14 +125,14 @@ export const titleClassName = style({
     fontFeatureSettings: '"calt" on',
     "@media": {
         [mobilePlatformMediaQuery]: {
-            paddingTop: mobileOrPeekTitlePaddingTop,
-            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileOrPeekTitlePaddingTop})`,
+            paddingTop: mobileTitlePaddingTop,
+            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
         },
     },
     selectors: {
-        [`${peekContainerClassName} &`]: {
-            paddingTop: mobileOrPeekTitlePaddingTop,
-            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileOrPeekTitlePaddingTop})`,
+        [`${docMobileLayoutContainerClassName} &`]: {
+            paddingTop: mobileTitlePaddingTop,
+            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
         },
     },
 });
@@ -180,6 +182,11 @@ export const headingLevel2ClassName = style({
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
+    selectors: {
+        [`${headingLevel1ClassName} + &`]: {
+            marginTop: headerTopHalfMargin,
+        },
+    },
 });
 
 export const headingLevel3FontSize = fontSizes["300"];
@@ -192,6 +199,14 @@ export const headingLevel3ClassName = style({
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
+    selectors: {
+        [`${headingLevel1ClassName} + &`]: {
+            marginTop: headerTopHalfMargin,
+        },
+        [`${headingLevel2ClassName} + &`]: {
+            marginTop: headerTopHalfMargin,
+        },
+    },
 });
 
 const quoteBlockIndentation = spacing["4"];

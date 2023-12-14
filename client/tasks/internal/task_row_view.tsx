@@ -31,8 +31,6 @@ import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
-import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
-import {usePeekStackContext} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -320,8 +318,6 @@ function TaskRowView(
     const context = useAppContext();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
-    const peekContext = usePeekContext();
-    const peekStackContext = usePeekStackContext();
 
     const taskId = cursor !== null ? getTaskQuerySortCursorTaskId(cursor) : null;
     const taskEntry = useStore(taskId !== null ? query.getLoadedTaskEntryStore(taskId) : null);
@@ -1149,17 +1145,7 @@ function TaskRowView(
                                 size="xs"
                                 description="Open"
                                 pressErrorTitle="Couldn’t open task"
-                                onPress={async () => {
-                                    // If we are already in a peek then navigate the peek instead of opening a
-                                    // new one.
-                                    if (peekContext?.withMobileLayout) {
-                                        await navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`);
-                                    } else {
-                                        await peekStackContext.push(
-                                            `/s/${task.getSpaceId()}/tasks/${task.id}`,
-                                        );
-                                    }
-                                }}
+                                onPress={() => navigate(`/s/${task.getSpaceId()}/tasks/${task.id}`)}
                                 onFocusChange={setIsExpandButtonFocused}
                                 onKeyDown={event => handleCellKeyDown("ExpandButton", event)}
                                 onKeyDownCapture={event =>
