@@ -1,5 +1,5 @@
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {Memo, Ref, forwardRef, useCallback, useEffect, useReducer, useRef} from "react";
+import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useReducer, useRef} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -16,6 +16,7 @@ import {
     PeekSwitcherStatePeek,
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {SearchResultView, minSearchResultViewHeight} from "~/client/search/search_result_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
@@ -187,6 +188,7 @@ export function SearchModal({
 }) {
     const context = useAppContext();
     const {space} = useSpaceContext();
+    const rootNavigate = useRootNavigate();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const resultListContainerRef = useRef<HTMLDivElement>(null);
@@ -320,6 +322,7 @@ export function SearchModal({
                             dispatch({type: "ChangeQueryText", queryText: ""});
                             break;
                         }
+
                         case "ArrowUp":
                         case "ArrowDown": {
                             const inputElement = assertExists(inputRef.current);
@@ -366,6 +369,40 @@ export function SearchModal({
                                 spacePath: getSearchEntityIdPath(space.id, result.entityId),
                                 extra: {entityId: result.entityId},
                             });
+                            break;
+                        }
+
+                        // NOCOMMIT: We need some other way to navigate besides `Enter`. Something that works on
+                        // a touch device like an iPad.
+                        case "Enter": {
+                            const inputElement = assertExists(inputRef.current);
+
+                            // Ignore modified arrow up/down events like cmd-down which scrolls.
+                            if (isModifiedKeyboardEvent(event)) break;
+
+                            // If focus is within a text input element (e.g. we have a document peek open)
+                            // then arrow key presses are for text editing.
+                            //
+                            // However, if focus is in our search input element then arrow key presses are
+                            // for navigation.
+                            if (
+                                document.activeElement !== inputElement &&
+                                isTextInputElement(document.activeElement)
+                            ) {
+                                break;
+                            }
+
+                            event.stopPropagation();
+                            event.preventDefault();
+
+                            // If nothing is selected, there's nothing to open.
+                            if (!selectedPeek) break;
+
+                            // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                            // Eventually switch to new page with a loading spinner?
+                            void rootNavigate(
+                                getSearchEntityIdPath(space.id, selectedPeek.extra.entityId),
+                            ).finally(onClose);
                             break;
                         }
                     }
@@ -489,6 +526,8 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                     fontSize: "400",
                     backgroundColor: "transparent",
                 })}
+                // Chrome complains if `<input>` doesn't have an `id` or `name`.
+                id={useId()}
                 placeholder={`Search ${space.name}…`}
                 value={queryText}
                 onChange={event => onQueryTextChange(event.currentTarget.value)}
