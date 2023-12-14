@@ -182,6 +182,11 @@ export function Modal({
                     >
                         <section
                             role="alertdialog"
+                            // It's important the modal is focusable for `<FocusScope contain>`. That way when you click out
+                            // of a focusable element in the modal, focus goes to this element instead of `document.body`. If
+                            // `<FocusScope contain>` sees focus on `document.body` then it will move focus right back to the
+                            // element that was blurred which is not what the user wants.
+                            tabIndex={-1}
                             aria-modal="true"
                             aria-label={ariaLabel}
                             aria-labelledby={ariaLabelledBy}
