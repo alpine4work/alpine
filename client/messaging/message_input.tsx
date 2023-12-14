@@ -26,7 +26,13 @@ import {
 } from "~/client/messaging/message_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -41,10 +47,18 @@ import {MessageModel, OptimisticMessageModel} from "~/shared/messaging/message_m
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
+    messageViewBubbleMinHeight,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {colorSchemeVars, contentViewStyles, sprinkles} from "~/shared/styles/styles.js";
+
+const accountAvatarSize: Spacing = "7";
+const accountAvatarPaddingY: RemLength = `${
+    (parseRemLengthNumber(messageViewBubbleMinHeight) -
+        parseRemLengthNumber(spacing[accountAvatarSize])) /
+    2
+}rem`;
 
 export function MessageInput<RoomKey extends string, Message extends MessageModel<RoomKey>>({
     messageNoun = "message",
@@ -408,8 +422,13 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 })()}
             <Box overflow="hidden" display="flex" paddingX={marginX}>
                 <Box display="flex" alignItems="flex-end">
-                    <Box paddingY="0.5">
-                        <AccountAvatar account={currentAccount} size="7" />
+                    <Box
+                        style={{
+                            paddingTop: accountAvatarPaddingY,
+                            paddingBottom: accountAvatarPaddingY,
+                        }}
+                    >
+                        <AccountAvatar account={currentAccount} size={accountAvatarSize} />
                     </Box>
                 </Box>
                 <FocusRing isVisibleWhenFocusWithin={true}>
@@ -420,6 +439,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                         backgroundColor="grey-5"
                         borderRadius={messageViewBubbleBorderRadius}
                         style={{
+                            minHeight: messageViewBubbleMinHeight,
                             // Use `box-shadow` for border to not contribute to the element's size.
                             //
                             // NOTE(calebmer, 2023-11-27): Added this border to the message input since the
@@ -513,7 +533,12 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                     </Box>
                 </FocusRing>
                 <Box display="flex" alignItems="flex-end">
-                    <Box paddingY="0.5">
+                    <Box
+                        style={{
+                            paddingTop: accountAvatarPaddingY,
+                            paddingBottom: accountAvatarPaddingY,
+                        }}
+                    >
                         <IconButton
                             variant="accent"
                             description={`Send ${messageNoun}`}

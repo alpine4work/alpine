@@ -39,7 +39,7 @@ function TaskDetailNotesField(
         initialNotesVersion,
         initialNotesContent,
         isReadOnly,
-        padding,
+        paddingX,
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
         pushRedoStackEntry,
@@ -48,7 +48,7 @@ function TaskDetailNotesField(
         initialNotesVersion: number;
         initialNotesContent: TaskNotesContentWithReferences;
         isReadOnly: boolean;
-        padding: Spacing;
+        paddingX: Spacing;
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
         pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
@@ -127,7 +127,7 @@ function TaskDetailNotesField(
                 id={labelId}
                 className={sprinkles({
                     display: "inline-block",
-                    paddingX: padding,
+                    paddingX,
                     paddingBottom: "1",
                     color: "grey-60",
                 })}
@@ -138,7 +138,7 @@ function TaskDetailNotesField(
             >
                 Notes
             </span>
-            <FocusRing insetX={padding} isVisibleWhenFocusWithin>
+            <FocusRing insetX={paddingX} isVisibleWhenFocusWithin>
                 {isReadOnly ? (
                     <Box height="full" minHeight={minHeight}>
                         <ContentView
@@ -146,7 +146,7 @@ function TaskDetailNotesField(
                             content={state.editorState.getContent()}
                             placeholder="Add more details…"
                             className={sprinkles({
-                                paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),
+                                paddingX: assertSpacing(`${parseInt(paddingX, 10) - 2}`),
                             })}
                         />
                     </Box>
@@ -159,7 +159,7 @@ function TaskDetailNotesField(
                             onChange={state => client.changeEditorState(state)}
                             placeholder="Add more details…"
                             className={sprinkles({
-                                paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),
+                                paddingX: assertSpacing(`${parseInt(paddingX, 10) - 2}`),
                                 height: "full",
                                 minHeight,
                             })}

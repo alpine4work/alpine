@@ -1,16 +1,19 @@
 import {useRef} from "react";
 import {Box} from "~/client/design/box.js";
-import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
+import {
+    postContentViewMinHeight,
+    postContentViewPaddingY,
+} from "~/client/forum/post_content_view.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {fontSizes, pulseAnimationClassName} from "~/shared/styles/styles.js";
 
 export function PostShimmer({
-    padding,
+    paddingX,
     parentHasMargin,
 }: {
-    padding: Spacing;
+    paddingX: Spacing;
     parentHasMargin: boolean;
 }) {
     const shimmerRef = useRef<HTMLDivElement>(null);
@@ -39,7 +42,12 @@ export function PostShimmer({
             display="flex"
             flexDirection="column"
         >
-            <Box paddingX={padding} paddingTop={padding} display="flex" alignItems="center">
+            <Box
+                paddingX={paddingX}
+                paddingTop={postContentViewPaddingY}
+                display="flex"
+                alignItems="center"
+            >
                 <Box
                     className={pulseAnimationClassName}
                     flexShrink="0"
@@ -82,7 +90,7 @@ export function PostShimmer({
             </Box>
             <Box flexGrow="1" />
             <Box
-                marginX={padding}
+                marginX={paddingX}
                 borderTop="grey-5"
                 height="12"
                 display="flex"

@@ -1,6 +1,8 @@
-import {messageViewMinHeight} from "~/client/messaging/message_view.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {messageInputMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
+import {
+    messageInputMinHeight,
+    messageViewMinHeight,
+} from "~/shared/messaging/messaging_shared_styles.js";
 
 export const documentCommentThreadPreviewHeight = spacing["32"];
 export const documentCommentInputMinHeight = messageInputMinHeight;

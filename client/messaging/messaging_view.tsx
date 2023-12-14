@@ -26,7 +26,6 @@ import {
     MessageView,
     bufferedMessageViewHeight,
     messageViewMarginY,
-    messageViewMinHeight,
 } from "~/client/messaging/message_view.js";
 import {
     MessagingTypingIndicators,
@@ -60,6 +59,7 @@ import {
     StopTypingInMessageInputProcedure,
     UpdateMessageContentProcedure,
 } from "~/shared/messaging/messaging_realtime_protocol.js";
+import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
@@ -370,7 +370,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const padding: Spacing = isMobile ? "3" : "5";
+    const paddingX: Spacing = isMobile ? "3" : "5";
 
     const [messagesWithoutHeader, setMessages] = useState(() => {
         const messages = MessageList.new<Message>({
@@ -587,7 +587,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         getMessageUrl,
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
-                        marginX: padding,
+                        marginX: paddingX,
                     });
                 }
             }
@@ -600,7 +600,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             messageEditing,
             messageNoun,
             messageStartOfSentenceNoun,
-            padding,
+            paddingX,
             randomSeedForShimmer,
             roomDisplayedCreatedTime,
             state,
@@ -663,7 +663,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         );
                 }}
                 restoreStateRef={inputRestoreStateRef}
-                marginX={padding}
+                marginX={paddingX}
             />
         </div>
     );

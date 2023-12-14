@@ -198,7 +198,7 @@ function DocumentCommentThreadListView(
         procedures,
         subscribeToCommentThreadEvents,
         withMobileLayout: _withMobileLayout = false,
-        padding: _padding,
+        paddingX: _paddingX,
     }: {
         documentId: DocumentId;
         content: DocumentContentWithReferences;
@@ -232,14 +232,14 @@ function DocumentCommentThreadListView(
         /**
          * Customize the amount of margin on messages.
          */
-        padding?: Spacing;
+        paddingX?: Spacing;
     },
     ref: Ref<DocumentCommentThreadListViewRef>,
 ) {
     const isMobile = useIsMobile();
     const withMobileLayout = isMobile || _withMobileLayout;
 
-    const padding: Spacing = _padding ?? (isMobile ? "3" : "5");
+    const paddingX: Spacing = _paddingX ?? (isMobile ? "3" : "5");
 
     const {space} = useSpaceContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -648,7 +648,7 @@ function DocumentCommentThreadListView(
                                 window.location.href,
                             );
                         },
-                        marginX: padding,
+                        marginX: paddingX,
                         render: node => (
                             <div
                                 className={sprinkles({
@@ -747,7 +747,7 @@ function DocumentCommentThreadListView(
                             isConnected={isConnected}
                             procedures={procedures}
                             subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                            marginX={padding}
+                            marginX={paddingX}
                             isStickyPositioned={true}
                         />
                     );
@@ -808,7 +808,7 @@ function DocumentCommentThreadListView(
                                                         height: "full",
                                                         maxWidth:
                                                             documentCommentThreadListViewMaxWidth,
-                                                        paddingX: padding,
+                                                        paddingX: paddingX,
                                                         backgroundColor: "grey-0",
                                                         borderBottomRadius: !withMobileLayout
                                                             ? "md"
@@ -892,8 +892,8 @@ function DocumentCommentThreadListView(
                                                         className={sprinkles({
                                                             position: "absolute",
                                                             top: "0",
-                                                            left: padding,
-                                                            right: padding,
+                                                            left: paddingX,
+                                                            right: paddingX,
                                                             borderTop: "grey-5",
                                                         })}
                                                     />
@@ -1037,7 +1037,7 @@ function DocumentCommentThreadListView(
             messageEditing,
             highlightComment,
             handleJumpToComment,
-            padding,
+            paddingX,
             procedures,
             space.id,
             replyingToCommentIndexByCommentThreadId,
@@ -1119,7 +1119,7 @@ function DocumentCommentThreadListView(
                                 isConnected={isConnected}
                                 procedures={procedures}
                                 subscribeToCommentThreadEvents={subscribeToCommentThreadEvents}
-                                marginX={padding}
+                                marginX={paddingX}
                             />
                         );
                     })()}

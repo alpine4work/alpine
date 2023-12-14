@@ -7,7 +7,6 @@ import {
     messageViewActionsWidth,
     messageViewBubbleMergedBorderRadius,
     messageViewMarginY,
-    messageViewMergedMarginY,
 } from "~/client/messaging/message_view.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -17,6 +16,7 @@ import {
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    messageViewMergedMarginY,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {
     contentSchemaStyles,
@@ -212,9 +212,7 @@ export function MessageShimmer<Message extends MessageModel>({
                             style={{
                                 height: `${
                                     messageSize.heightLines *
-                                    parseRemLengthNumber(
-                                        contentSchemaStyles.paragraphFontSize.lineHeight,
-                                    )
+                                    parseRemLengthNumber(contentSchemaStyles.paragraphLineHeight)
                                 }rem`,
                             }}
                         />

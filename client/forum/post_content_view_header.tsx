@@ -4,8 +4,11 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
+import {Spacing} from "~/shared/design/spacing.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
+
+export const postContentViewHeaderHeight: Spacing = "8";
 
 export function PostContentViewHeader({
     post,
@@ -17,7 +20,7 @@ export function PostContentViewHeader({
     const {isHovered: isChannelHovered, hoverProps: channelHoverProps} = useHover({});
 
     return (
-        <Box display="flex" alignItems="center">
+        <Box height={postContentViewHeaderHeight} display="flex" alignItems="center">
             <AccountAvatar account={post.author} size="8" />
             <Box flexGrow="1" paddingX="3" overflow="hidden">
                 <Box fontSize="75" fontStyle="truncate" color="grey-70">

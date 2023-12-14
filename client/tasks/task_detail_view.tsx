@@ -92,6 +92,7 @@ import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 export const taskDetailViewMaxWidth: Spacing = "160";
+const taskDetailViewPaddingTop: Spacing = "5";
 
 export function TaskDetailView({
     taskSubscription,
@@ -605,7 +606,7 @@ function TaskDetailViewMain(
         handleCommitPromise(commitPromise);
     };
 
-    const padding: Spacing = isMobile ? "3" : "5";
+    const paddingX: Spacing = isMobile ? "3" : "5";
 
     // Naming nit: An "input" is some editable component without a label. A "field"
     // is the combination of both a label and an input.
@@ -851,9 +852,9 @@ function TaskDetailViewMain(
             >
                 <ContextMenuActions actions={contextMenuActions}>
                     <Box
-                        paddingTop={padding}
+                        paddingTop={taskDetailViewPaddingTop}
                         paddingBottom="8"
-                        paddingX={padding}
+                        paddingX={paddingX}
                         display="flex"
                         flexDirection="column"
                         gap="3"
@@ -879,8 +880,8 @@ function TaskDetailViewMain(
                         )}
                         <Box
                             position="absolute"
-                            top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
-                            right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                            top={assertSpacing(`${parseInt(taskDetailViewPaddingTop, 10) - 2}`)}
+                            right={assertSpacing(`${parseInt(paddingX, 10) - 2}`)}
                         >
                             <MenuButton actions={contextMenuActions}>
                                 <IconButton size="md" description="More" withoutTooltip={true}>
@@ -931,7 +932,7 @@ function TaskDetailViewMain(
                     </Box>
                 </ContextMenuActions>
                 <Box
-                    paddingX={padding}
+                    paddingX={paddingX}
                     display="grid"
                     gap="5"
                     style={{
@@ -1115,7 +1116,7 @@ function TaskDetailViewMain(
                     initialNotesVersion={initialNotesVersion}
                     initialNotesContent={initialNotesContent}
                     isReadOnly={isReadOnly}
-                    padding={padding}
+                    paddingX={paddingX}
                     pushUndoStackEntry={pushUndoStackEntry}
                     pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
                     pushRedoStackEntry={pushRedoStackEntry}
@@ -1129,7 +1130,7 @@ function TaskDetailViewMain(
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: "3",
-                                    paddingX: padding,
+                                    paddingX: paddingX,
                                     paddingBottom: "2",
                                     color: "grey-60",
                                 })}

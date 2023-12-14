@@ -9,7 +9,10 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {PostContentViewHeader} from "~/client/forum/post_content_view_header.js";
+import {
+    PostContentViewHeader,
+    postContentViewHeaderHeight,
+} from "~/client/forum/post_content_view_header.js";
 import {PostCommentsState} from "~/client/forum/post_list.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {MessageList} from "~/client/messaging/message_list.js";
@@ -17,7 +20,13 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {Spacing, assertSpacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    assertSpacing,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {
     PostCommentModel,
     PostModel,
@@ -28,15 +37,26 @@ import {concatIterables} from "~/shared/helpers/iterable/concat_iterables.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {getPostCommentAuthors} from "~/shared/rpc/forum_rpc_definitions.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
-export const postContentViewMinHeight = "10rem";
+const postContentViewFooterHeight: Spacing = "12";
+
+export const postContentViewPaddingY: Spacing = "5";
+
+export const postContentViewMinHeight: RemLength = addRemLengths(
+    spacing[postContentViewPaddingY],
+    spacing[postContentViewHeaderHeight],
+    spacing[postContentViewPaddingY],
+    contentSchemaStyles.paragraphLineHeight,
+    spacing[postContentViewPaddingY],
+    spacing[postContentViewFooterHeight],
+);
 
 export function PostContentView({
     post,
     postComments,
     postCommentsState,
-    padding,
+    paddingX,
     shouldShowChannel,
     onEditPost,
     onTogglePostComments,
@@ -45,7 +65,7 @@ export function PostContentView({
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
-    padding: Spacing;
+    paddingX: Spacing;
     shouldShowChannel: boolean;
     onEditPost: () => void;
     onTogglePostComments: () => void;
@@ -55,12 +75,12 @@ export function PostContentView({
 
     return (
         <Box style={{minHeight: postContentViewMinHeight}}>
-            <Box position="relative" paddingTop={padding} paddingX={padding}>
+            <Box position="relative" paddingTop={postContentViewPaddingY} paddingX={paddingX}>
                 <PostContentViewHeader post={post} shouldShowChannel={shouldShowChannel} />
                 <Box
                     position="absolute"
-                    top={assertSpacing(`${parseInt(padding, 10) - 2}`)}
-                    right={assertSpacing(`${parseInt(padding, 10) - 2}`)}
+                    top={assertSpacing(`${parseInt(postContentViewPaddingY, 10) - 2}`)}
+                    right={assertSpacing(`${parseInt(paddingX, 10) - 2}`)}
                 >
                     <MenuButton
                         actions={[
@@ -94,8 +114,8 @@ export function PostContentView({
             <ContentView
                 content={post.content}
                 className={sprinkles({
-                    paddingX: assertSpacing(`${parseInt(padding, 10) - 2}`),
-                    paddingY: padding,
+                    paddingX: assertSpacing(`${parseInt(paddingX, 10) - 2}`),
+                    paddingY: postContentViewPaddingY,
                 })}
                 contentUpdatedTime={post.contentUpdatedTime}
             />
@@ -103,7 +123,7 @@ export function PostContentView({
                 post={post}
                 postComments={postComments}
                 postCommentsState={postCommentsState}
-                padding={padding}
+                paddingX={paddingX}
                 onTogglePostComments={onTogglePostComments}
                 onLoadInitialPostComments={onLoadInitialPostComments}
             />
@@ -115,28 +135,28 @@ function PostContentViewFooter({
     post,
     postComments,
     postCommentsState,
-    padding,
+    paddingX,
     onTogglePostComments,
     onLoadInitialPostComments,
 }: {
     post: PostModel;
     postComments: MessageList<PostCommentModel>;
     postCommentsState: PostCommentsState;
-    padding: Spacing;
+    paddingX: Spacing;
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
     return (
         <Box
             data-testid={`PostContentViewFooter:${post.id}`}
-            marginX={padding}
+            marginX={paddingX}
             borderTop="grey-5"
             borderBottom={
                 postCommentsState !== "Closed" && postComments.getItemCount() > 0
                     ? "grey-5"
                     : "transparent"
             }
-            height="12"
+            height={postContentViewFooterHeight}
             display="flex"
             alignItems="center"
         >

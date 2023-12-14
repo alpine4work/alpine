@@ -2,11 +2,7 @@ import {Key, Memo, RefObject, useRef} from "react";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageList, MessageListItem} from "~/client/messaging/message_list.js";
-import {
-    messageViewMarginY,
-    messageViewMergedMarginY,
-    shouldMergeMessages,
-} from "~/client/messaging/message_view.js";
+import {messageViewMarginY, shouldMergeMessages} from "~/client/messaging/message_view.js";
 import {messagingTypingIndicatorsMinHeight} from "~/client/messaging/messaging_typing_indicators.js";
 import {VirtualizedScrollViewRef} from "~/client/virtualized/virtualized_scroll_view.js";
 import {RemLength, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
@@ -14,6 +10,7 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {MessageModel} from "~/shared/messaging/message_model.js";
+import {messageViewMergedMarginY} from "~/shared/messaging/messaging_shared_styles.js";
 
 export function useScrollToNewMessages<Message extends MessageModel>({
     viewRef,

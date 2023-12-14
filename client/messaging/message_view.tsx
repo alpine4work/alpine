@@ -50,6 +50,7 @@ import {
     messageViewBubbleBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
+    messageViewMergedMarginY,
     minMessageViewTimestampDividerElapsedMinutes,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {
@@ -65,8 +66,6 @@ import {
 } from "~/shared/styles/styles.js";
 
 const {paragraphFontSize} = contentSchemaStyles;
-
-export const messageViewMinHeight: RemLength = "2.125rem";
 
 /**
  * The buffered height we use for virtualized message views.
@@ -91,7 +90,6 @@ export const messageViewReplyPreviewOpacity = 0.6;
 export const messageViewReplyPreviewBubbleOpacity = 0.7;
 export const defaultMessageViewMarginX: Spacing = "5";
 export const messageViewMarginY: Spacing = "3";
-export const messageViewMergedMarginY: Spacing = "0.5";
 
 export const getMessageBubbleMarginLeft = (marginX: Spacing) =>
     addRemLengths(spacing[marginX], spacing["7"], spacing["2"]);

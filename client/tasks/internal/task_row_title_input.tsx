@@ -35,7 +35,7 @@ import {useTaskTitleModelYDoc} from "~/client/tasks/internal/use_task_title_mode
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStoreTaskEntry} from "~/client/tasks/task_client_store.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
-import {RemLength, Spacing, spacing} from "~/shared/design/spacing.js";
+import {RemLength, Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
@@ -54,6 +54,12 @@ import {
 } from "~/shared/tasks/task_title.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
+
+const taskRowTitleInputPaddingY: RemLength = `${
+    (parseRemLengthNumber(spacing[taskRowViewMinHeight]) -
+        parseRemLengthNumber(contentSchemaStyles.paragraphLineHeight)) /
+    2
+}rem`;
 
 export type TaskRowTitleInputRef = {
     getSelection(): Selection;
@@ -76,13 +82,14 @@ const taskRowTitleInputSingleLineClassName = `ProseMirror ${sprinkles({
     height: taskRowTitleInputSingleLineHeight,
     overflowY: "hidden",
     overflowX: "scroll",
-    paddingY: "2",
     backgroundColor: "transparent",
     userSelect: "text",
 })}`;
 
 const taskRowTitleInputSingleLineStyle: CSSProperties = {
     ...contentSchemaStyles.paragraphFontSize,
+    paddingTop: taskRowTitleInputPaddingY,
+    paddingBottom: taskRowTitleInputPaddingY,
     // Make sure we have room to render the cursor.
     minWidth: "1ch",
     // Turn off text wrapping. This component emulates a single-line input.
@@ -99,13 +106,14 @@ const taskRowTitleInputMultilineClassName = `ProseMirror ${sprinkles({
     display: "inline-block",
     maxWidth: "full",
     minHeight: taskRowTitleInputSingleLineHeight,
-    paddingY: "2",
     backgroundColor: "transparent",
     userSelect: "text",
 })}`;
 
 const taskRowTitleInputMultilineStyle: CSSProperties = {
     ...contentSchemaStyles.paragraphFontSize,
+    paddingTop: taskRowTitleInputPaddingY,
+    paddingBottom: taskRowTitleInputPaddingY,
     // Make sure we have room to render the cursor.
     minWidth: "1ch",
     // `display: inline-block` creates an inline layout which adds extra space

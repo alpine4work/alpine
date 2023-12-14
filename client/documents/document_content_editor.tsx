@@ -1092,7 +1092,7 @@ function DocumentContentEditorSidebar({
                                 withMobileLayout={true}
                                 // Slightly reduce the amount of margin on messages in a comment thread
                                 // because we have less space.
-                                padding="4"
+                                paddingX="4"
                             />
                         ),
                     [

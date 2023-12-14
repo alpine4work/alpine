@@ -58,15 +58,15 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
             ? [currentAccount]
             : chat.accounts.filter(account => account.id !== currentAccount.id);
 
-    const padding: Spacing = isMobile ? "3" : "5";
+    const paddingX: Spacing = isMobile ? "3" : "5";
 
     return (
         <Box
             data-testid="ChatViewTopBar"
             flexShrink="0"
             borderBottom="grey-10"
-            paddingX={padding}
-            paddingY="3"
+            paddingX={paddingX}
+            paddingY="4"
         >
             <Box height="6" display="flex" alignItems="center" gap="2">
                 <Box paddingX="0.5">

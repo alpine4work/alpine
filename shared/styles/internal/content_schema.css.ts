@@ -54,7 +54,6 @@ import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder
 // - Strikethrough on h1 feels too thin relative to text
 // - On mobile, does hitting enter to create a new line capitalize? With
 //   auto-capitalization on and off.
-// - Yasmin's suggestions
 // - Bold labels in dark mode don't have enough contrast? See
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/wshttcjr5egq22e11k92tq1z7m
 // - Checkboxes are misaligned with new line height
@@ -63,9 +62,9 @@ import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder
 //   writing:
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
-const paragraphMargin = spacing["2"];
-const headerTopMargin = "1.5em";
-const headerTopHalfMargin = "0.75em";
+export const paragraphLineHeight = "1.375rem";
+const paragraphMargin: RemLength = `${parseRemLengthNumber(paragraphLineHeight) / 2}rem`;
+const paragraphReducedMargin: RemLength = `${parseRemLengthNumber(paragraphMargin) / 2}rem`;
 
 export const docClassName = style({
     minHeight: "100%",
@@ -114,13 +113,13 @@ export const titleFontSize = fontSizes["800"];
 
 export const titleClassName = style({
     ...blockStyles,
-    ...fontStyles.bold,
+    ...fontStyles["semi-bold"],
     ...titleFontSize,
     paddingTop: desktopTitlePaddingTop,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: `calc(${titleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
-    marginBottom: paragraphMargin,
+    marginBottom: paragraphReducedMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
@@ -143,8 +142,7 @@ export const paragraphFontSize: {
     lineHeight: RemLength;
 } = {
     ...fontSizes["100"],
-    // We use an ~1.5x line height for paragraph content.
-    lineHeight: "1.25rem",
+    lineHeight: paragraphLineHeight,
 };
 
 export const paragraphClassName = style({
@@ -154,57 +152,73 @@ export const paragraphClassName = style({
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: paragraphFontSize.lineHeight,
-    marginTop: paragraphMargin,
+    marginTop: paragraphReducedMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
 });
 
-export const headingLevel1FontSize = fontSizes["500"];
+const heading1TopMargin = spacing["10"];
+const heading2TopMargin = spacing["8"];
+const heading3TopMargin = spacing["6"];
+const heading4TopMargin = spacing["4"];
+
+export const headingLevel1FontSize = fontSizes["600"];
 
 export const headingLevel1ClassName = style({
     ...blockStyles,
-    ...fontStyles.bold,
+    ...fontStyles["semi-bold"],
     ...headingLevel1FontSize,
-    marginTop: headerTopMargin,
-    marginBottom: paragraphMargin,
+    marginTop: heading1TopMargin,
+    marginBottom: paragraphReducedMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
+    selectors: {
+        [`${titleClassName} + &`]: {
+            marginTop: heading2TopMargin,
+        },
+    },
 });
 
 export const headingLevel2FontSize = fontSizes["400"];
 
 export const headingLevel2ClassName = style({
     ...blockStyles,
-    ...fontStyles.bold,
+    ...fontStyles["semi-bold"],
     ...headingLevel2FontSize,
-    marginTop: headerTopMargin,
-    marginBottom: paragraphMargin,
+    marginTop: heading2TopMargin,
+    marginBottom: paragraphReducedMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     selectors: {
+        [`${titleClassName} + &`]: {
+            marginTop: heading3TopMargin,
+        },
         [`${headingLevel1ClassName} + &`]: {
-            marginTop: headerTopHalfMargin,
+            marginTop: heading3TopMargin,
         },
     },
 });
 
-export const headingLevel3FontSize = fontSizes["300"];
+export const headingLevel3FontSize = fontSizes["200"];
 
 export const headingLevel3ClassName = style({
     ...blockStyles,
-    ...fontStyles.bold,
+    ...fontStyles["semi-bold"],
     ...headingLevel3FontSize,
-    marginTop: headerTopMargin,
-    marginBottom: paragraphMargin,
+    marginTop: heading3TopMargin,
+    marginBottom: paragraphReducedMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     selectors: {
+        [`${titleClassName} + &`]: {
+            marginTop: heading4TopMargin,
+        },
         [`${headingLevel1ClassName} + &`]: {
-            marginTop: headerTopHalfMargin,
+            marginTop: heading4TopMargin,
         },
         [`${headingLevel2ClassName} + &`]: {
-            marginTop: headerTopHalfMargin,
+            marginTop: heading4TopMargin,
         },
     },
 });
@@ -394,8 +408,8 @@ export const dividerClassName = style({
     maxWidth: blockMaxWidthWithoutPadding,
     paddingLeft: 0,
     paddingRight: 0,
-    marginTop: headerTopMargin,
-    marginBottom: headerTopMargin,
+    marginTop: heading1TopMargin,
+    marginBottom: heading1TopMargin,
     borderColor: colorSchemeVars["grey-10"],
 });
 

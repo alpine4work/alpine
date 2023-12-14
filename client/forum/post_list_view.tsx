@@ -35,11 +35,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {useMessageEditing} from "~/client/messaging/message_editing.js";
 import {MessageShimmer} from "~/client/messaging/message_shimmer.js";
-import {
-    MessageView,
-    messageViewMarginY,
-    messageViewMinHeight,
-} from "~/client/messaging/message_view.js";
+import {MessageView, messageViewMarginY} from "~/client/messaging/message_view.js";
 import {
     MessagingTypingIndicators,
     messagingTypingIndicatorsMinHeight,
@@ -70,6 +66,7 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {areRangesOverlapping} from "~/shared/helpers/geometry/are_ranges_overlapping.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {PostId} from "~/shared/id/types/id_types.js";
+import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.js";
 import {
     getPostCommentsFromEnd,
     getPostCommentsFromStart,
@@ -251,7 +248,7 @@ function PostListView(
     const hasAside = !withMobileLayout && !!aside;
     const hasMargin = !withMobileLayout || hasAside;
 
-    const padding: Spacing = isMobile ? "3" : "5";
+    const paddingX: Spacing = isMobile ? "3" : "5";
 
     const [postsWithoutChannelHeader, setPosts] = useState(() => {
         let posts: PostList;
@@ -744,7 +741,7 @@ function PostListView(
                                             post={item.post}
                                             postComments={item.postComments}
                                             postCommentsState={item.postCommentsState}
-                                            padding={padding}
+                                            paddingX={paddingX}
                                             // If we are rendering in the context of a channel, don't render the channel
                                             // in posts.
                                             shouldShowChannel={
@@ -831,7 +828,7 @@ function PostListView(
                                                     ? highlightPostComment.shouldHighlightRef
                                                     : null
                                             }
-                                            marginX={padding}
+                                            marginX={paddingX}
                                             onJumpToMessage={handleJumpToPostComment}
                                             onReplyToMessage={() => {
                                                 if (item.postComment.isOptimistic) return;
@@ -1048,7 +1045,7 @@ function PostListView(
                                 );
                             }}
                             onJumpToPostComment={handleJumpToPostComment}
-                            padding={padding}
+                            paddingX={paddingX}
                             isStickyPositioned={true}
                         />
                     );
@@ -1116,7 +1113,7 @@ function PostListView(
                                                         className={sprinkles({
                                                             width: "full",
                                                             height: "full",
-                                                            paddingX: padding,
+                                                            paddingX,
                                                             backgroundColor: "grey-0",
                                                             borderBottomRadius: hasMargin
                                                                 ? "md"
@@ -1220,8 +1217,8 @@ function PostListView(
                                                             className={sprinkles({
                                                                 position: "absolute",
                                                                 top: "0",
-                                                                left: padding,
-                                                                right: padding,
+                                                                left: paddingX,
+                                                                right: paddingX,
                                                                 borderTop: "grey-5",
                                                             })}
                                                         />
@@ -1421,11 +1418,11 @@ function PostListView(
                                         flex: postViewFlex,
                                     }}
                                 >
-                                    <PostShimmer padding={padding} parentHasMargin={hasMargin} />
+                                    <PostShimmer paddingX={paddingX} parentHasMargin={hasMargin} />
                                     <Spacer space={postListViewMarginY} />
-                                    <PostShimmer padding={padding} parentHasMargin={hasMargin} />
+                                    <PostShimmer paddingX={paddingX} parentHasMargin={hasMargin} />
                                     <Spacer space={postListViewMarginY} />
-                                    <PostShimmer padding={padding} parentHasMargin={hasMargin} />
+                                    <PostShimmer paddingX={paddingX} parentHasMargin={hasMargin} />
                                     <div
                                         className={sprinkles({
                                             display: "flex",
@@ -1462,7 +1459,7 @@ function PostListView(
             posts,
             hasMargin,
             hasAside,
-            padding,
+            paddingX,
             channelHeader?.channel.id,
             isSingleMobileLayoutPostWithPinnedCommentInput,
             loadInitialPostComments,
@@ -1676,7 +1673,7 @@ function PostListView(
                                         },
                                     );
                                 }}
-                                padding={padding}
+                                paddingX={paddingX}
                                 onJumpToPostComment={handleJumpToPostComment}
                             />
                         );

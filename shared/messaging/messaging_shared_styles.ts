@@ -2,14 +2,25 @@
 // `client/messaging` by packages that don't want to take a dependency on
 // `client/messaging`. For example `client/content`.
 
-import {RemLength, Spacing} from "~/shared/design/spacing.js";
-
-export const messageViewMinHeight: RemLength = "2.125rem";
+import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacing.js";
+import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export const messageInputMinHeight: RemLength = "3.5rem";
 export const messageViewBubbleBorderRadius = "xl" as const;
-export const messageViewBubblePaddingX: Spacing = "0.5";
-export const messageViewBubblePaddingY: Spacing = "1.5";
+export const messageViewBubblePaddingX: Spacing = "1";
+export const messageViewBubblePaddingY: Spacing = "2";
+export const messageViewMergedMarginY: Spacing = "0.5";
+
+export const messageViewBubbleMinHeight: RemLength = addRemLengths(
+    spacing[messageViewBubblePaddingY],
+    contentSchemaStyles.paragraphLineHeight,
+    spacing[messageViewBubblePaddingY],
+);
+
+export const messageViewMinHeight: RemLength = addRemLengths(
+    messageViewBubbleMinHeight,
+    spacing[messageViewMergedMarginY],
+);
 
 /**
  * The minimum number of minutes between when we insert timestamp dividers into

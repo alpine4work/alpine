@@ -35,7 +35,7 @@ export function PostCommentInput({
     replyingToPostComment,
     onClearReplyingToPostComment,
     onJumpToPostComment,
-    padding,
+    paddingX,
     isStickyPositioned,
 }: {
     post: PostModel;
@@ -49,7 +49,7 @@ export function PostCommentInput({
     replyingToPostComment: PostCommentModel | null;
     onClearReplyingToPostComment: () => void;
     onJumpToPostComment: (postComment: PostCommentModel) => void;
-    padding: Spacing;
+    paddingX: Spacing;
     isStickyPositioned?: boolean;
 }) {
     const context = useAppContext();
@@ -156,7 +156,7 @@ export function PostCommentInput({
             }}
             messageEditing={postCommentEditing}
             replyingToMessage={replyingToPostComment}
-            marginX={padding}
+            marginX={paddingX}
             onClearReplyingToMessage={onClearReplyingToPostComment}
             onJumpToMessage={onJumpToPostComment}
             onShowTypingIndicator={() => {
