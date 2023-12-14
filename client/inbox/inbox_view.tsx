@@ -1,16 +1,9 @@
-import {
-    HydrationState,
-    MemoryHistory,
-    createMemoryHistory,
-    createPath,
-    resolvePath,
-} from "@remix-run/router";
+import {HydrationState, createPath, resolvePath} from "@remix-run/router";
 import {SpinnerGap} from "phosphor-react";
 import {Memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
-import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {DynamoGeneralRealtimeIndexQuery} from "~/client/dynamo/dynamo_general_realtime_index_query.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -30,12 +23,11 @@ import {InboxPeekContextProvider} from "~/client/inbox/inbox_peek_context.js";
 import {InboxViewEntriesEmpty} from "~/client/inbox/inbox_view_entries_empty.js";
 import {InboxViewTopBar} from "~/client/inbox/inbox_view_top_bar.js";
 import {useInboxState} from "~/client/inbox/use_inbox_state.js";
-import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
+import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {
-    PeekRemixEmbed,
-    PeekRemixEmbedRouter,
-    usePeekRemixEmbedRouter,
-} from "~/client/peek/peek_remix_embed.js";
+    PeekSwitcherStatePeek,
+    usePeekSwitcherState,
+} from "~/client/peek/use_peek_switcher_state.js";
 import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
@@ -46,37 +38,12 @@ import {
     DynamoGeneralRealtimeItem,
 } from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {DynamoIndexCursor, DynamoItemKey} from "~/shared/dynamo/dynamo_opaque_strings.js";
-import {InternalError} from "~/shared/error/error.js";
 import {createInterval} from "~/shared/helpers/async/interval.js";
-import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
-import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {generateId} from "~/shared/id/id.js";
-import {PeekId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
-import {
-    convertPeekPathToSpacePath,
-    convertSpacePathToPeekPath,
-} from "~/shared/remix/peek_path_helpers.js";
+import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
-
-export type InboxViewPeek = {
-    readonly id: PeekId;
-    readonly key: DynamoItemKey | null;
-    readonly initialPath: string;
-    readonly history: MemoryHistory;
-    readonly routerPromise: PromiseImmediate<PeekRemixEmbedRouter>;
-};
-
-type InboxViewPeekState = {
-    readonly activePeek: InboxViewPeek | null;
-    readonly transition: {
-        readonly peek: InboxViewPeek;
-        readonly pendingPromiseResolver: PromiseResolver<void>;
-    } | null;
-};
 
 export function InboxView({
     filter,
@@ -86,11 +53,9 @@ export function InboxView({
 }: {
     filter: "New" | "Archive";
     initialEntriesResult: DynamoGeneralRealtimeIndexQueryResult<InboxEntryModel>;
-    initialPeekData: {path: string; hydrationData: HydrationState} | null;
-    onPeekChange: (peek: InboxViewPeek | null) => void;
+    initialPeekData: {peekPath: string; hydrationData: HydrationState} | null;
+    onPeekChange: (peek: PeekSwitcherStatePeek<{key: DynamoItemKey | null}> | null) => void;
 }) {
-    const {peekRoutes, createPeekRouter} = usePeekRemixEmbedRouter();
-
     const {query, updateQueryOptimistically, itemsDeletedByLastChangeForAnimation, tryLoadingMore} =
         useInboxState({
             filter,
@@ -106,13 +71,13 @@ export function InboxView({
     //
     // The item that rendered the path in the previous session may be offscreen. So
     // we will only know the corresponding key when it's lazy loaded.
-    const findItemKeyForPathIfExists = useCallback(
-        (initialPath: string): DynamoItemKey | null => {
+    const findItemKeyForSpacePathIfExists = useCallback(
+        (spacePath: string): DynamoItemKey | null => {
             const itemCount = query.getItemCount();
             for (let i = 0; i < itemCount; i++) {
                 const item = query.getItem(i);
                 if (item.type === "Loaded") {
-                    if (createPath(item.item.model.getPath()) === initialPath) {
+                    if (item.item.model.getSpacePath() === spacePath) {
                         return item.item.key;
                     }
                 }
@@ -122,35 +87,22 @@ export function InboxView({
         [query],
     );
 
-    const [peekState, setPeekState] = useState<InboxViewPeekState>(() => {
-        if (!initialPeekData) {
+    const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{
+        key: DynamoItemKey | null;
+    }>({
+        initialPeekData: () => {
+            if (!initialPeekData) return null;
+
+            const spacePath = createPath(
+                assertExists(convertPeekPathToSpacePath(resolvePath(initialPeekData.peekPath))),
+            );
+
             return {
-                activePeek: null,
-                transition: null,
+                peekPath: initialPeekData.peekPath,
+                hydrationData: initialPeekData.hydrationData,
+                extra: {key: findItemKeyForSpacePathIfExists(spacePath)},
             };
-        }
-
-        const initialPath = createPath(
-            assertExists(convertPeekPathToSpacePath(resolvePath(initialPeekData.path))),
-        );
-
-        const history = createMemoryHistory({initialEntries: [initialPeekData.path]});
-
-        return {
-            activePeek: {
-                id: generateId(),
-                key: findItemKeyForPathIfExists(initialPath),
-                initialPath,
-                history,
-                routerPromise: PromiseImmediate.resolve(
-                    createPeekRouter({
-                        history,
-                        hydrationData: initialPeekData.hydrationData,
-                    }),
-                ),
-            },
-            transition: null,
-        };
+        },
     });
 
     // If we don't know the item key for our peek, try searching the query whenever
@@ -159,30 +111,40 @@ export function InboxView({
     // This will happen when we server-side render a peek who's item is not
     // included in the initial set of inbox entries.
     useEffect(() => {
-        if (peekState.activePeek && !peekState.activePeek.key) {
-            const key = findItemKeyForPathIfExists(peekState.activePeek.initialPath);
+        if (activePeek && !activePeek.extra.key) {
+            const initialSpacePath = createPath(
+                assertExists(convertPeekPathToSpacePath(resolvePath(activePeek.initialPeekPath))),
+            );
+
+            const key = findItemKeyForSpacePathIfExists(initialSpacePath);
 
             if (key) {
-                setPeekState(peekState => {
-                    if (!peekState.activePeek || peekState.activePeek.key) {
-                        return peekState;
-                    }
-                    return {
-                        ...peekState,
-                        activePeek: {...peekState.activePeek, key},
-                    };
-                });
+                activePeek.setExtra({key});
             }
         }
-    }, [findItemKeyForPathIfExists, peekState.activePeek]);
+    }, [activePeek, findItemKeyForSpacePathIfExists]);
 
     const activeEntry = useMemo(
-        () =>
-            peekState.activePeek && peekState.activePeek.key
-                ? query.getItemByKeyIfExists(peekState.activePeek.key)
-                : null,
-        [peekState.activePeek, query],
+        () => (activePeek?.extra.key ? query.getItemByKeyIfExists(activePeek.extra.key) : null),
+        [activePeek?.extra.key, query],
     );
+
+    const selectedEntryKey = selectedPeek?.extra.key ?? null;
+
+    const selectedEntry = useMemo(
+        () => (selectedEntryKey ? query.getItemByKeyIfExists(selectedEntryKey) : null),
+        [query, selectedEntryKey],
+    );
+
+    // Whenever a new entry is selected we want to call our `onPeekChange()`
+    // callback which changes the URL.
+    const lastSelectedEntryKeyRef = useRef(selectedEntryKey ?? null);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (lastSelectedEntryKeyRef.current === selectedEntryKey) return;
+        lastSelectedEntryKeyRef.current = selectedEntryKey ?? null;
+
+        onPeekChange(selectedPeek);
+    }, [onPeekChange, selectedEntryKey, selectedPeek]);
 
     const deleteEntryOptimistically = useEvent(
         ({
@@ -201,122 +163,6 @@ export function InboxView({
             });
         },
     );
-
-    /* ========================================================================== *\
-     *                           Inbox entry selection                            *
-    \* ========================================================================== */
-
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    const selectEntry = useEvent((entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null) => {
-        if (!entry) {
-            setPeekState({
-                activePeek: null,
-                transition: null,
-            });
-            return Promise.resolve();
-        }
-
-        // Don't select the same entry twice in a row since that would cause two
-        // data fetches.
-        if ((peekState.transition?.peek ?? peekState.activePeek)?.key === entry.key) {
-            return Promise.resolve();
-        }
-
-        const abortController = new AbortController();
-
-        const spacePath = entry.model.getPath();
-        const peekPath = convertSpacePathToPeekPath(spacePath);
-        if (!peekPath) throw new InternalError("Can only render peek for a space route");
-
-        const history = createMemoryHistory({initialEntries: [peekPath]});
-
-        const routerPromise = (async () => {
-            const hydrationData = await loadInitialPeekDataForClient(
-                peekRoutes,
-                peekPath,
-                abortController.signal,
-            );
-
-            return createPeekRouter({
-                history,
-                hydrationData,
-            });
-        })();
-
-        const pendingPromiseResolver = createPromiseResolver();
-
-        setPeekState({
-            activePeek: peekState.activePeek,
-            transition: {
-                peek: {
-                    id: generateId(),
-                    key: entry.key,
-                    initialPath: typeof spacePath !== "string" ? createPath(spacePath) : spacePath,
-                    history,
-                    routerPromise: PromiseImmediate.resolve(routerPromise),
-                },
-                pendingPromiseResolver,
-            },
-        });
-
-        return pendingPromiseResolver.promise;
-    });
-
-    useEffect(() => {
-        const {transition} = peekState;
-        if (!transition) return;
-
-        let isCancelled = false;
-        let isAccepted = false;
-
-        const acceptTransition = () => {
-            if (isCancelled) return;
-
-            if (isAccepted) return;
-            isAccepted = true;
-
-            transition.pendingPromiseResolver.resolve();
-
-            setPeekState({
-                activePeek: transition.peek,
-                transition: null,
-            });
-        };
-
-        // Accept the transition with whatever comes first:
-        //
-        // - Our data promise resolves
-        // - Our loading indicator delay finishes
-        transition.peek.routerPromise.then(acceptTransition, acceptTransition);
-        const timeout = createTimeout(
-            acceptTransition,
-            delayFullPageTransitionLoadingIndicatorLimitMs,
-        );
-
-        return () => {
-            isCancelled = true;
-            timeout.clear();
-            transition.pendingPromiseResolver.resolve();
-        };
-    }, [peekState]);
-
-    const selectedPeek = peekState.transition?.peek ?? peekState.activePeek;
-    const selectedEntryKey = selectedPeek?.key ?? null;
-
-    const selectedEntry = useMemo(
-        () => (selectedEntryKey ? query.getItemByKeyIfExists(selectedEntryKey) : null),
-        [query, selectedEntryKey],
-    );
-
-    // Whenever a new entry is selected we want to call our `onPeekChange()`
-    // callback which changes the URL.
-    const lastSelectedEntryKeyRef = useRef(selectedEntryKey);
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (lastSelectedEntryKeyRef.current === selectedPeek?.key) return;
-        lastSelectedEntryKeyRef.current = selectedPeek?.key ?? null;
-
-        onPeekChange(selectedPeek);
-    }, [onPeekChange, selectedEntryKey, selectedPeek]);
 
     /* ========================================================================== *\
      *                    Adjacent inbox entries to selection                     *
@@ -357,6 +203,23 @@ export function InboxView({
             return null;
         }
     }, [query, rememberedSelectedEntryCursor]);
+
+    const selectEntry = (
+        entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null,
+    ): Promise<void> => {
+        if (!entry) {
+            return switchPeek(null);
+        }
+
+        // Don't select the same entry twice in a row since that would cause two
+        // data fetches.
+        if (selectedPeek?.extra.key === entry.key) return Promise.resolve();
+
+        return switchPeek({
+            peekPath: entry.model.getPeekPath(),
+            extra: {key: entry.key},
+        });
+    };
 
     return (
         <GlobalKeyDownEvent
@@ -433,19 +296,19 @@ export function InboxView({
                 {useMemo(
                     () => (
                         <Box flexGrow="1" overflow="hidden">
-                            {peekState.activePeek && (
+                            {activePeek && (
                                 <InboxViewPeekContent
                                     // Fully remount whenever the peek changes...
-                                    key={peekState.activePeek.key}
+                                    key={activePeek.extra.key}
                                     filter={filter}
-                                    peek={peekState.activePeek}
+                                    peek={activePeek}
                                     entry={activeEntry?.item ?? null}
                                     deleteEntryOptimistically={deleteEntryOptimistically}
                                 />
                             )}
                         </Box>
                     ),
-                    [activeEntry, deleteEntryOptimistically, filter, peekState.activePeek],
+                    [activeEntry?.item, activePeek, deleteEntryOptimistically, filter],
                 )}
             </Box>
         </GlobalKeyDownEvent>
@@ -829,7 +692,7 @@ function InboxViewPeekContent({
     deleteEntryOptimistically,
 }: {
     filter: "New" | "Archive";
-    peek: InboxViewPeek;
+    peek: PeekSwitcherStatePeek<{key: DynamoItemKey | null}>;
     entry: DynamoGeneralRealtimeItem<InboxEntryModel> | null;
     deleteEntryOptimistically: Memo<
         ({

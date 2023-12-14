@@ -27,13 +27,14 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxEntryModelSchema} from "~/shared/notifications/inbox_model.js";
+import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 
 const LoaderSchema = Schema.object({
     filter: Schema.enum(["New", "Archive"]),
     entriesResult: createDynamoGeneralRealtimeIndexQuerySchema(InboxEntryModelSchema),
     peekData: Schema.object({
-        path: Schema.string,
+        peekPath: Schema.string,
         hydrationData: Schema.object({
             loaderData: Schema.unknown,
             errors: Schema.unknown,
@@ -83,13 +84,15 @@ export async function loader({params, context, request, serverRoutes: routes}: L
             if (!selectedParam) return null;
 
             const textDecoder = new TextDecoder();
-            const selectedPath = resolvePath(
-                textDecoder.decode(decodeBase64(selectedParam, "Rfc4648Url")),
+            const selectedSpacePath = resolvePath(
+                `/s/${spaceId}/${textDecoder.decode(decodeBase64(selectedParam, "Rfc4648Url"))}`,
             );
 
-            return loadInitialPeekDataForServer(context, request, peekRoutes, selectedPath);
+            return loadInitialPeekDataForServer(context, request, peekRoutes, selectedSpacePath);
         })(),
     ]);
+
+    const spacePath = entriesResult.items[0]!.model.getSpacePath();
 
     const peekData =
         !_peekData && entriesResult.items.length > 0
@@ -97,7 +100,7 @@ export async function loader({params, context, request, serverRoutes: routes}: L
                   context,
                   request,
                   peekRoutes,
-                  entriesResult.items[0]!.model.getPath(),
+                  resolvePath(spacePath),
               )
             : _peekData;
 
@@ -106,7 +109,7 @@ export async function loader({params, context, request, serverRoutes: routes}: L
         entriesResult,
         peekData: peekData
             ? {
-                  path: createPath(peekData.peekPath),
+                  peekPath: createPath(peekData.peekPath),
                   hydrationData: peekData.hydrationData,
                   loadExtraRouteIds: peekData.loadExtraRouteIds,
               }
@@ -184,19 +187,23 @@ export default function InboxRoute() {
                     } else {
                         // base64 encode the initial path to hide the fact that it's a URL.
                         const textEncoder = new TextEncoder();
+
+                        const initialSpacePath = createPath(
+                            assertExists(
+                                convertPeekPathToSpacePath(resolvePath(peek.initialPeekPath)),
+                            ),
+                        );
+
                         const selectedSearchParam = encodeBase64(
-                            textEncoder.encode(peek.initialPath),
+                            textEncoder.encode(initialSpacePath.replace(/^(\/s\/[^/]+\/)/, "")),
                             "Rfc4648Url",
                         );
+
                         url.searchParams.set("selected", selectedSearchParam);
                     }
 
                     // Silently update the URL without telling Remix so our component doesn't
                     // re-render unnecessarily.
-                    //
-                    // TODO(calebmer): Globally replacing the URL doesn't work in peeks! Eventually
-                    // migrate this to `useSearchParams()` + `shouldRevalidate` to avoid a server
-                    // fetch.
                     window.history.replaceState(null, "", url);
                 }}
             />

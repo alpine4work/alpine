@@ -1,0 +1,232 @@
+import {HydrationState, MemoryHistory, createMemoryHistory, resolvePath} from "@remix-run/router";
+import {useEffect, useState} from "react";
+import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
+import {PeekRemixEmbedRouter, usePeekRemixEmbedRouter} from "~/client/peek/peek_remix_embed.js";
+import {InternalError} from "~/shared/error/error.js";
+import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
+import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
+import {generateId} from "~/shared/id/id.js";
+import {PeekId} from "~/shared/id/types/id_types.js";
+import {isPeekPath} from "~/shared/remix/peek_path_helpers.js";
+
+export type PeekSwitcherStatePeek<Extra> = {
+    readonly id: PeekId;
+    readonly initialPeekPath: string;
+    readonly history: MemoryHistory;
+    readonly routerPromise: PromiseImmediate<PeekRemixEmbedRouter>;
+    readonly extra: Extra;
+    readonly setExtra: (extra: Extra) => void;
+};
+
+type PeekSwitcherState<Extra> = {
+    readonly activePeek: PeekSwitcherStatePeek<Extra> | null;
+    readonly transition: {
+        readonly peek: PeekSwitcherStatePeek<Extra>;
+        readonly pendingPromiseResolver: PromiseResolver<void>;
+    } | null;
+};
+
+type MaybeThunk<T> = T | (() => T);
+
+/**
+ * An abstraction for building interfaces where you can switch between visible
+ * peeks. Implements the suspense user interface pattern where we delay showing
+ * a loading indicator in the hopes that data will load before the user
+ * notices.
+ *
+ * - `selectedPeek`: The peek that the user has actively selected. We may have
+ *   just started loading the data for this peek. Use this for rendering
+ *   selection in a list to give user immediate feedback for their selection.
+ *
+ * - `activePeek`: The peek that we show to the user. We'll show the old peek
+ *   for a little after switching while we wait for the new peek's data to
+ *   load.
+ *
+ * - `switchPeek`: Function you call to switch the peek. Its promise will
+ *   resolve when the new `selectedPeek` becomes the `activePeek` even if its
+ *   data hasn't finished loading yet.
+ */
+export function usePeekSwitcherState<Extra>({
+    initialPeekData,
+}: {
+    initialPeekData: MaybeThunk<{
+        peekPath: string;
+        hydrationData: HydrationState;
+        extra: Extra;
+    } | null>;
+}): {
+    selectedPeek: PeekSwitcherStatePeek<Extra> | null;
+    activePeek: PeekSwitcherStatePeek<Extra> | null;
+    switchPeek: (peekData: {peekPath: string; extra: Extra} | null) => Promise<void>;
+} {
+    const {peekRoutes, createPeekRouter} = usePeekRemixEmbedRouter();
+
+    const createSetPeekExtra = (id: PeekId) => {
+        return (extra: Extra) => {
+            setPeekState(peekState => {
+                if (peekState.activePeek?.id === id && peekState.activePeek.extra !== extra) {
+                    peekState = {
+                        ...peekState,
+                        activePeek: {...peekState.activePeek, extra},
+                    };
+                }
+
+                if (
+                    peekState.transition?.peek.id === id &&
+                    peekState.transition.peek.extra !== extra
+                ) {
+                    peekState = {
+                        ...peekState,
+                        transition: {
+                            ...peekState.transition,
+                            peek: {...peekState.transition.peek, extra},
+                        },
+                    };
+                }
+
+                return peekState;
+            });
+        };
+    };
+
+    const [peekState, setPeekState] = useState<PeekSwitcherState<Extra>>(() => {
+        const peekData =
+            typeof initialPeekData === "function" ? initialPeekData() : initialPeekData;
+
+        if (!peekData) {
+            return {
+                activePeek: null,
+                transition: null,
+            };
+        }
+
+        const peekPath = resolvePath(peekData.peekPath);
+        if (!isPeekPath(peekPath)) throw new InternalError("Expected peek path");
+
+        const history = createMemoryHistory({initialEntries: [peekData.peekPath]});
+
+        const peekId = generateId<PeekId>();
+
+        const peek: PeekSwitcherStatePeek<Extra> = {
+            id: peekId,
+            initialPeekPath: peekData.peekPath,
+            history,
+            routerPromise: PromiseImmediate.resolve(
+                createPeekRouter({
+                    history,
+                    hydrationData: peekData.hydrationData,
+                }),
+            ),
+            extra: peekData.extra,
+            setExtra: createSetPeekExtra(peekId),
+        };
+
+        return {
+            activePeek: peek,
+            transition: null,
+        };
+    });
+
+    const switchPeek = useEvent(
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        (peekData: {peekPath: string; extra: Extra} | null): Promise<void> => {
+            if (!peekData) {
+                setPeekState({
+                    activePeek: null,
+                    transition: null,
+                });
+                return Promise.resolve();
+            }
+
+            const abortController = new AbortController();
+
+            const peekPath = resolvePath(peekData.peekPath);
+            if (!isPeekPath(peekPath)) throw new InternalError("Expected peek path");
+
+            const history = createMemoryHistory({initialEntries: [peekPath]});
+
+            const routerPromise = (async () => {
+                const hydrationData = await loadInitialPeekDataForClient(
+                    peekRoutes,
+                    peekPath,
+                    abortController.signal,
+                );
+
+                return createPeekRouter({
+                    history,
+                    hydrationData,
+                });
+            })();
+
+            const pendingPromiseResolver = createPromiseResolver();
+
+            const peekId = generateId<PeekId>();
+
+            const peek: PeekSwitcherStatePeek<Extra> = {
+                id: peekId,
+                initialPeekPath: peekData.peekPath,
+                history,
+                routerPromise: PromiseImmediate.resolve(routerPromise),
+                extra: peekData.extra,
+                setExtra: createSetPeekExtra(peekId),
+            };
+
+            setPeekState({
+                activePeek: peekState.activePeek,
+                transition: {
+                    peek,
+                    pendingPromiseResolver,
+                },
+            });
+
+            return pendingPromiseResolver.promise;
+        },
+    );
+
+    useEffect(() => {
+        const {transition} = peekState;
+        if (!transition) return;
+
+        let isCancelled = false;
+        let isAccepted = false;
+
+        const acceptTransition = () => {
+            if (isCancelled) return;
+
+            if (isAccepted) return;
+            isAccepted = true;
+
+            transition.pendingPromiseResolver.resolve();
+
+            setPeekState({
+                activePeek: transition.peek,
+                transition: null,
+            });
+        };
+
+        // Accept the transition with whatever comes first:
+        //
+        // - Our data promise resolves
+        // - Our loading indicator delay finishes
+        transition.peek.routerPromise.then(acceptTransition, acceptTransition);
+        const timeout = createTimeout(
+            acceptTransition,
+            delayFullPageTransitionLoadingIndicatorLimitMs,
+        );
+
+        return () => {
+            isCancelled = true;
+            timeout.clear();
+            transition.pendingPromiseResolver.resolve();
+        };
+    }, [peekState]);
+
+    return {
+        selectedPeek: peekState.transition?.peek ?? peekState.activePeek,
+        activePeek: peekState.activePeek,
+        switchPeek,
+    };
+}
