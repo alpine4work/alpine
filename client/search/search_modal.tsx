@@ -1,11 +1,15 @@
 import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {Memo, useCallback, useEffect, useReducer, useRef} from "react";
+import {Memo, Ref, forwardRef, useCallback, useEffect, useReducer, useRef} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {Modal} from "~/client/design/modal.js";
+import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
+import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
+import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
 import {
@@ -14,7 +18,10 @@ import {
 } from "~/client/peek/use_peek_switcher_state.js";
 import {SearchResultView, minSearchResultViewHeight} from "~/client/search/search_result_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {VirtualizedScrollView} from "~/client/virtualized/virtualized_scroll_view.js";
+import {
+    VirtualizedScrollView,
+    VirtualizedScrollViewRef,
+} from "~/client/virtualized/virtualized_scroll_view.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {
     Spacing,
@@ -40,8 +47,6 @@ import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/style
 // NOCOMMIT: Double check that this renders on top of peeks. Add a test
 
 // NOCOMMIT: Loading spinner
-
-// NOCOMMIT: Escape clears search first then closes
 
 /**
  * The debounce timeout before we'll send a new search request. Picked so that
@@ -183,7 +188,23 @@ export function SearchModal({
     const context = useAppContext();
     const {space} = useSpaceContext();
 
+    const inputRef = useRef<HTMLInputElement>(null);
     const resultListContainerRef = useRef<HTMLDivElement>(null);
+
+    // Immediately focus the search input.
+    //
+    // If the search input has some text (e.g. from the URL) then we select that
+    // text so the user can immediately start a new search.
+    const hasInitiallyMountedRef = useRef(false);
+    useEffect(() => {
+        if (hasInitiallyMountedRef.current) return;
+        hasInitiallyMountedRef.current = true;
+
+        const inputElement = assertExists(inputRef.current);
+
+        inputElement.select();
+        inputElement.focus();
+    }, []);
 
     const [searchState, dispatch] = useReducer(
         reduceSearchState,
@@ -284,82 +305,156 @@ export function SearchModal({
             withoutCloseButton={true}
             onClose={onClose}
         >
-            <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
-                <SearchModalInput
-                    queryText={searchState.queryText}
-                    onQueryTextChange={queryText => dispatch({type: "ChangeQueryText", queryText})}
-                />
+            <GlobalKeyDownEvent
+                onGlobalKeyDown={event => {
+                    switch (event.key) {
+                        // The first escape press should clear search. The second escape press should
+                        // close the modal. It's important that this `<GlobalKeyDownEvent>` is a child
+                        // of `<Modal>`! That way we run our escape handler first.
+                        case "Escape": {
+                            // Let `<Modal>` handle our keypress and close the modal.
+                            if (searchState.queryText === "") break;
+
+                            event.preventDefault();
+                            event.stopPropagation();
+                            dispatch({type: "ChangeQueryText", queryText: ""});
+                            break;
+                        }
+                        case "ArrowUp":
+                        case "ArrowDown": {
+                            const inputElement = assertExists(inputRef.current);
+
+                            // Ignore modified arrow up/down events like cmd-down which scrolls.
+                            if (isModifiedKeyboardEvent(event)) break;
+
+                            // If focus is within a text input element (e.g. we have a document peek open)
+                            // then arrow key presses are for text editing.
+                            //
+                            // However, if focus is in our search input element then arrow key presses are
+                            // for navigation.
+                            if (
+                                document.activeElement !== inputElement &&
+                                isTextInputElement(document.activeElement)
+                            ) {
+                                break;
+                            }
+
+                            event.stopPropagation();
+                            event.preventDefault();
+
+                            // Data hasn't loaded yet, we can't select anything.
+                            if (!searchState.data?.value) break;
+
+                            const index = selectedPeek
+                                ? searchState.data.value.results.findIndex(
+                                      result => result.entityId === selectedPeek.extra.entityId,
+                                  )
+                                : -1;
+
+                            const result =
+                                index !== -1
+                                    ? searchState.data.value.results[
+                                          event.key === "ArrowUp" ? index - 1 : index + 1
+                                      ]
+                                    : searchState.data.value.results[0];
+
+                            // There is no next item. Do nothing. Don't loop around since we may have many
+                            // items so looping would be disorienting.
+                            if (!result) break;
+
+                            void switchPeek({
+                                spacePath: getSearchEntityIdPath(space.id, result.entityId),
+                                extra: {entityId: result.entityId},
+                            });
+                            break;
+                        }
+                    }
+                }}
+            >
                 <Box
-                    flexGrow="1"
                     width="full"
+                    height="full"
                     overflow="hidden"
                     display="flex"
-                    flexDirection="row"
-                    borderTop="grey-10"
+                    flexDirection="column"
                 >
-                    <Box ref={resultListContainerRef} flexGrow="1" height="full" overflow="hidden">
-                        {!searchState.data ? (
-                            <></>
-                        ) : !searchState.data.ok ? (
-                            <Box
-                                maxWidth="128"
-                                marginX="auto"
-                                padding="8"
-                                paddingTop="16"
-                                paddingBottom="8"
-                            >
-                                <ErrorBodyRenderer
-                                    title="Couldn’t get search results"
-                                    error={searchState.data.error}
-                                />
-                            </Box>
-                        ) : (
-                            <SearchModalResultList
-                                results={searchState.data.value.results}
-                                selectedPeek={selectedPeek}
-                                switchPeek={switchPeek}
-                            />
-                        )}
-                    </Box>
+                    <SearchModalInput
+                        ref={inputRef}
+                        queryText={searchState.queryText}
+                        onQueryTextChange={queryText =>
+                            dispatch({type: "ChangeQueryText", queryText})
+                        }
+                    />
                     <Box
-                        flexShrink="0"
-                        width="128"
-                        height="full"
+                        flexGrow="1"
+                        width="full"
                         overflow="hidden"
-                        borderLeft="grey-10"
+                        display="flex"
+                        flexDirection="row"
+                        borderTop="grey-10"
                     >
-                        {activePeek && (
-                            <SearchModalPeekContent
-                                // Fully remount whenever the peek changes...
-                                key={activePeek.id}
-                                peek={activePeek}
-                            />
-                        )}
+                        <Box
+                            ref={resultListContainerRef}
+                            flexGrow="1"
+                            height="full"
+                            overflow="hidden"
+                        >
+                            {!searchState.data ? (
+                                <></>
+                            ) : !searchState.data.ok ? (
+                                <Box
+                                    maxWidth="128"
+                                    marginX="auto"
+                                    padding="8"
+                                    paddingTop="16"
+                                    paddingBottom="8"
+                                >
+                                    <ErrorBodyRenderer
+                                        title="Couldn’t get search results"
+                                        error={searchState.data.error}
+                                    />
+                                </Box>
+                            ) : (
+                                <SearchModalResultList
+                                    results={searchState.data.value.results}
+                                    selectedPeek={selectedPeek}
+                                    switchPeek={switchPeek}
+                                />
+                            )}
+                        </Box>
+                        <Box
+                            flexShrink="0"
+                            width="128"
+                            height="full"
+                            overflow="hidden"
+                            borderLeft="grey-10"
+                        >
+                            {activePeek && (
+                                <SearchModalPeekContent
+                                    // Fully remount whenever the peek changes...
+                                    key={activePeek.id}
+                                    peek={activePeek}
+                                />
+                            )}
+                        </Box>
                     </Box>
                 </Box>
-            </Box>
+            </GlobalKeyDownEvent>
         </Modal>
     );
 }
 
-function SearchModalInput({
-    queryText,
-    onQueryTextChange,
-}: {
-    queryText: string;
-    onQueryTextChange: (queryText: string) => void;
-}) {
+const SearchModalInput = forwardRef(function SearchModalInput(
+    {
+        queryText,
+        onQueryTextChange,
+    }: {
+        queryText: string;
+        onQueryTextChange: (queryText: string) => void;
+    },
+    ref: Ref<HTMLInputElement>,
+) {
     const {space} = useSpaceContext();
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    // Immediately focus the search input.
-    const hasInitiallyMountedRef = useRef(false);
-    useEffect(() => {
-        if (hasInitiallyMountedRef.current) return;
-        hasInitiallyMountedRef.current = true;
-
-        assertExists(inputRef.current).focus();
-    }, []);
 
     const height: Spacing = "12";
     const paddingLeft: Spacing = "10";
@@ -384,7 +479,7 @@ function SearchModalInput({
                 }}
             />
             <input
-                ref={inputRef}
+                ref={ref}
                 className={sprinkles({
                     display: "block",
                     width: "full",
@@ -400,7 +495,7 @@ function SearchModalInput({
             />
         </Box>
     );
-}
+});
 
 function SearchModalResultList({
     results,
@@ -415,8 +510,25 @@ function SearchModalResultList({
 }) {
     const {space} = useSpaceContext();
 
+    const viewRef = useRef<VirtualizedScrollViewRef>(null);
+
+    const lastSelectedEntityIdRef = useRef(selectedPeek?.extra.entityId);
+    useLayoutEffectWithoutServerSideWarning(() => {
+        const view = assertExists(viewRef.current);
+
+        if (lastSelectedEntityIdRef.current === selectedPeek?.extra.entityId) return;
+        lastSelectedEntityIdRef.current = selectedPeek?.extra.entityId;
+
+        // When a new result is selected, make sure it is visible in our scroll window. Scroll to
+        // it if it is not visible.
+        if (selectedPeek?.extra.entityId) {
+            view.scrollToKeyIfExists(`Loaded:${selectedPeek.extra.entityId}`, {withAnchor: true});
+        }
+    }, [selectedPeek?.extra.entityId]);
+
     return (
         <VirtualizedScrollView
+            ref={viewRef}
             itemCount={results.length}
             bufferedItemHeight={minSearchResultViewHeight}
             renderItem={useCallback(
@@ -427,7 +539,7 @@ function SearchModalResultList({
                     const isLastEntry = index === results.length - 1;
 
                     return {
-                        key: result.entityId,
+                        key: `Loaded:${result.entityId}`,
                         minHeight: minSearchResultViewHeight,
                         node: (
                             <SearchResultView

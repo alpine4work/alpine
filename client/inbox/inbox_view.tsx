@@ -352,7 +352,6 @@ function InboxViewEntries({
     // https://w3c.github.io/aria/#aria-setsize
     const ariaSetsize = query.getItemCountWithoutLoadingIndicator() === itemCount ? itemCount : -1;
 
-    // Whenever a new entry is selected we want to scroll to that entry
     const lastSelectedEntryKeyRef = useRef(selectedEntryKey);
     useLayoutEffectWithoutServerSideWarning(() => {
         const view = assertExists(viewRef.current);
