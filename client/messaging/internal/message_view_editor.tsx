@@ -19,7 +19,11 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
-import {messageViewBubbleBorderRadius} from "~/shared/messaging/messaging_shared_styles.js";
+import {
+    messageViewBubbleBorderRadius,
+    messageViewBubblePaddingX,
+    messageViewBubblePaddingY,
+} from "~/shared/messaging/messaging_shared_styles.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export type MessageViewEditorRef = {
@@ -75,8 +79,8 @@ function MessageViewEditor<RoomKey extends string>(
                     maxWidth="160"
                     overflow="hidden"
                     display="inline-block"
-                    paddingX="0.5"
-                    paddingY="1.5"
+                    paddingX={messageViewBubblePaddingX}
+                    paddingY={messageViewBubblePaddingY}
                     backgroundColor="grey-5"
                     borderTopLeftRadius={
                         !shouldMergeWithPreviousMessage

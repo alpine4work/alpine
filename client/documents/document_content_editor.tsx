@@ -1,5 +1,5 @@
 import {AnimationControls, spring, timeline} from "motion";
-import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
+import {CaretDown, CaretUp, DotsThree, SpinnerGap, X} from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -8,6 +8,7 @@ import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
+import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -39,9 +40,15 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
+import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
-import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {
+    addRemLengths,
+    convertRemLengthToPx,
+    spacing,
+    subtractRemLengths,
+} from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
@@ -159,7 +166,7 @@ function DocumentContentEditorStateful({
     onContentChange?: (content: DocumentContent) => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
-    const {id: documentId} = initialDocument;
+    const {id: documentId, spaceId} = initialDocument;
 
     const isInitialAppRender = useIsInitialAppRender();
     const editorRef = useRef<ContentEditorRef>(null);
@@ -702,25 +709,25 @@ function DocumentContentEditorStateful({
         }, [isInitialAppRender, scrollToEditorRect, sidebarState]);
     }
 
+    const contextMenuActions: Array<Array<MenuAction>> = [
+        [
+            {
+                label: "Undo",
+                isDisabled: editorState.undoDepth() === 0,
+                keyboardShortcutHint: isMac ? "⌘+Z" : "Ctrl+Z",
+                onPress: () => assertExists(editorRef.current).dispatchCommand(undo),
+            },
+            {
+                label: "Redo",
+                isDisabled: editorState.redoDepth() === 0,
+                keyboardShortcutHint: isMac ? "⌘+Y" : "Ctrl+Y",
+                onPress: () => assertExists(editorRef.current).dispatchCommand(redo),
+            },
+        ],
+    ];
+
     return (
-        <ContextMenuActions
-            actions={[
-                [
-                    {
-                        label: "Undo",
-                        isDisabled: editorState.undoDepth() === 0,
-                        keyboardShortcutHint: isMac ? "⌘+Z" : "Ctrl+Z",
-                        onPress: () => assertExists(editorRef.current).dispatchCommand(undo),
-                    },
-                    {
-                        label: "Redo",
-                        isDisabled: editorState.redoDepth() === 0,
-                        keyboardShortcutHint: isMac ? "⌘+Y" : "Ctrl+Y",
-                        onPress: () => assertExists(editorRef.current).dispatchCommand(redo),
-                    },
-                ],
-            ]}
-        >
+        <ContextMenuActions actions={contextMenuActions}>
             <Box
                 ref={containerResizeRef}
                 flexGrow="1"
@@ -752,6 +759,57 @@ function DocumentContentEditorStateful({
                                 : "100%",
                     }}
                 >
+                    <Box
+                        position="absolute"
+                        top="3"
+                        zIndex="10"
+                        style={{
+                            right: subtractRemLengths(
+                                addRemLengths(
+                                    spacing[documentPaddingX],
+                                    contentSchemaStyles.blockPaddingX,
+                                ),
+                                spacing["2"],
+                            ),
+                        }}
+                    >
+                        <MenuButton
+                            // TODO(calebmer): This more button has some design issues:
+                            //
+                            // 1. It's not sticky, it doesn't stay around when you scroll
+                            // 2. It's misaligned with the document comment sidebar
+                            //
+                            // However, it is aligned with the post more button and task more button which
+                            // looks great in surfaces like search.
+                            //
+                            // I presume there will eventually need to be more stuff we add to document
+                            // headers. Reconsider the design of this button at that time.
+                            //
+                            // Also worth noting that I'd like to add the same design touch as Notion where
+                            // as you're typing all chrome UI fades away so you can focus on the content.
+                            // When you wiggle your mouse the chrome UI returns.
+                            actions={[
+                                [
+                                    {
+                                        label: "Copy link",
+                                        pressErrorTitle: "Couldn’t copy document link",
+                                        onPress: async () => {
+                                            const url = new URL(
+                                                `/s/${spaceId}/documents/${documentId}`,
+                                                window.location.href,
+                                            );
+                                            await writeTextToClipboard(url.toString());
+                                        },
+                                    },
+                                ],
+                                ...contextMenuActions,
+                            ]}
+                        >
+                            <IconButton size="md" description="More" withoutTooltip={true}>
+                                <DotsThree />
+                            </IconButton>
+                        </MenuButton>
+                    </Box>
                     <OverlayScopeContextProvider>
                         <ContentEditor
                             ref={editorRef}
@@ -762,7 +820,9 @@ function DocumentContentEditorStateful({
                                 const createCommentThread: {
                                     commentThreadId: DocumentCommentThreadId;
                                     initialCommentContent: MessageContentWithReferences;
-                                    openCommentThreadPromiseRef: {current: Promise<void> | null};
+                                    openCommentThreadPromiseRef: {
+                                        current: Promise<void> | null;
+                                    };
                                 } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
                                 if (
                                     createCommentThread &&

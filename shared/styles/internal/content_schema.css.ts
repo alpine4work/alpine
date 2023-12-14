@@ -84,7 +84,7 @@ export const docClassName = style({
 export const docMobileLayoutContainerClassName = style({});
 
 const blockMaxWidthWithoutPadding = spacing["160"];
-const blockPaddingX = spacing["2"];
+export const blockPaddingX = spacing["2"];
 
 export const blockMaxWidth = addRemLengths(
     blockPaddingX,

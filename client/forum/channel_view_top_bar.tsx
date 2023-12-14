@@ -76,7 +76,7 @@ export function ChannelViewTopBar({
                         actions={[
                             {
                                 label: "Copy link",
-                                pressErrorTitle: "Couldn’t copy post link",
+                                pressErrorTitle: "Couldn’t copy channel link",
                                 onPress: async () => {
                                     const url = new URL(
                                         `/s/${channel.spaceId}/channels/${channel.id}`,
