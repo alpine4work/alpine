@@ -4379,3 +4379,144 @@ test("correctly chunks long document content by sentences", async () => {
         },
     ]);
 });
+
+test("correctly chunks mathematical looking content", async () => {
+    const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();
+    const getAccountIfExists = async () => null;
+
+    expect(
+        await testGetFullSearchContentChunk(
+            schema.nodeFromJSON({
+                type: "doc",
+                content: [
+                    {
+                        type: "paragraph",
+                        content: [
+                            {
+                                type: "text",
+                                text: "where 1 ≤ i ≤ m and 1 ≤ j ≤ p. For example, the underlined entry 2340 in the product is calculated as (2 × 1000) + (3 × 100) + (4 × 10) = 2340:",
+                            },
+                        ],
+                    },
+                    {
+                        type: "paragraph",
+                        content: [
+                            {
+                                type: "text",
+                                text: "<math>",
+                            },
+                        ],
+                    },
+                    {
+                        type: "paragraph",
+                        content: [
+                            {
+                                type: "text",
+                                text: "\\begin{align} \\begin{bmatrix} \\underline{2} & \\underline 3 & \\underline 4 \\\\ 1 & 0 & 0 \\\\ \\end{bmatrix}",
+                            },
+                        ],
+                    },
+                    {
+                        type: "paragraph",
+                        content: [
+                            {
+                                type: "text",
+                                text: "\\begin{bmatrix} 0 & \\underline{1000} \\\\ 1 & \\underline{100} \\\\ 0 & \\underline{10} \\\\ \\end{bmatrix} &= \\begin{bmatrix} 3 & \\underline{2340} \\\\ 0 & 1000 \\\\ \\end{bmatrix}. \\end{align} </math>",
+                            },
+                        ],
+                    },
+                ],
+            }),
+            {tokenizer, getAccountIfExists},
+        ),
+    ).toEqual({
+        text: `\
+where 1 ≤ i ≤ m and 1 ≤ j ≤ p. For example, the underlined entry 2340 in the product is calculated as (2 × 1000) + (3 × 100) + (4 × 10) = 2340:
+
+\\<math>
+
+\\\\begin{align} \\\\begin{bmatrix} \\\\underline{2} & \\\\underline 3 & \\\\underline 4 \\\\\\\\ 1 & 0 & 0 \\\\\\\\ \\\\end{bmatrix}
+
+\\\\begin{bmatrix} 0 & \\\\underline{1000} \\\\\\\\ 1 & \\\\underline{100} \\\\\\\\ 0 & \\\\underline{10} \\\\\\\\ \\\\end{bmatrix} &= \\\\begin{bmatrix} 3 & \\\\underline{2340} \\\\\\\\ 0 & 1000 \\\\\\\\ \\\\end{bmatrix}. \\\\end{align} \\</math>`,
+        isGroup: true,
+        context: {
+            sectionHeading: null,
+        },
+        tokenCount: 213,
+        childChunks: [
+            {
+                isGroup: true,
+                context: {
+                    sectionHeading: null,
+                },
+                tokenCount: 53,
+                childChunks: [
+                    {
+                        isGroup: false,
+                        tokenCount: 49,
+                        context: {
+                            sectionHeading: null,
+                        },
+                        sentenceChunks: [
+                            {
+                                text: "where 1 ≤ i ≤ m and 1 ≤ j ≤ p. For example, the underlined entry 2340 in the product is calculated as (2 × 1000) + (3 × 100) + (4 × 10) = 2340:",
+                                tokenCount: 49,
+                            },
+                        ],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                    },
+                    {
+                        isGroup: false,
+                        tokenCount: 4,
+                        context: {
+                            sectionHeading: null,
+                        },
+                        sentenceChunks: [
+                            {
+                                text: "\\<math>",
+                                tokenCount: 4,
+                            },
+                        ],
+                        lineMarginTop: 2,
+                        lineMarginBottom: 2,
+                    },
+                ],
+            },
+            {
+                isGroup: false,
+                tokenCount: 54,
+                context: {
+                    sectionHeading: null,
+                },
+                sentenceChunks: [
+                    {
+                        text: "\\\\begin{align} \\\\begin{bmatrix} \\\\underline{2} & \\\\underline 3 & \\\\underline 4 \\\\\\\\ 1 & 0 & 0 \\\\\\\\ \\\\end{bmatrix}",
+                        tokenCount: 54,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+            {
+                isGroup: false,
+                tokenCount: 106,
+                context: {
+                    sectionHeading: null,
+                },
+                sentenceChunks: [
+                    {
+                        text: "\\\\begin{bmatrix} 0 & \\\\underline{1000} \\\\\\\\ 1 & \\\\underline{100} \\\\\\\\ 0 & \\\\underline{10} \\\\\\\\ \\\\end{bmatrix} &= \\\\begin{bmatrix} 3 & \\\\underline{2340} \\\\\\\\ 0 & 1000 \\\\\\\\ \\\\end{bmatrix}.",
+                        tokenCount: 95,
+                    },
+                    {
+                        text: "\\\\end{align} \\</math>",
+                        tokenCount: 11,
+                    },
+                ],
+                lineMarginTop: 2,
+                lineMarginBottom: 2,
+            },
+        ],
+    });
+});

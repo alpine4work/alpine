@@ -116,3 +116,133 @@ test("properly highlights content with `<em>` HTML tags", () => {
         ],
     });
 });
+
+// NOTE(calebmer): Reproduces an error I saw in development with a Wikipedia
+// dataset I downloaded to my computer.
+//
+// Dataset: https://huggingface.co/datasets/euirim/goodwiki
+// Source Wikipedia article: https://en.wikipedia.org/wiki/Matrix_(mathematics)
+test("parses math-like content with highlights", () => {
+    expect(
+        parseSearchContent(
+            `\
+For example, the <em>underlined</em> entry 2340 in the product is calculated as (2 × 1000) + (3 × 100) + (4 × 10) = 2340:
+
+<math>
+
+\\\\begin{align} \\\\begin{bmatrix} \\\\<em>underline</em>{2} & \\\\<em>underline</em> 3 & \\\\<em>underline</em> 4 \\\\\\\\ 1 & 0 & 0 \\\\\\\\ \\\\end{bmatrix}
+
+\\\\begin{bmatrix} 0 & \\\\<em>underline</em>{1000} \\\\\\\\ 1 & \\\\<em>underline</em>{100} \\\\\\\\ 0 & \\\\<em>underline</em>{10} \\\\\\\\ \\\\end{bmatrix} &= \\\\begin{bmatrix} 3 & \\\\\\<em>underline</em>{2340} \\\\\\\\ 0 & 1000 \\\\\\\\ \\\\end{bmatrix}.`,
+            {shouldParseEmphasisHtmlTagAsHighlight: true},
+        ).toJSON(),
+    ).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [
+                    {type: "text", text: "For example, the "},
+                    {
+                        type: "text",
+                        marks: [
+                            {
+                                type: "highlight",
+                                attrs: {color: "orange"},
+                            },
+                        ],
+                        text: "underlined",
+                    },
+                    {
+                        type: "text",
+                        text: " entry 2340 in the product is calculated as (2 × 1000) + (3 × 100) + (4 × 10) = 2340:",
+                    },
+                ],
+            },
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "<math>"}],
+            },
+            {
+                type: "paragraph",
+                content: [
+                    {type: "text", text: "\\begin{align} \\begin{bmatrix} \\"},
+                    {
+                        type: "text",
+                        marks: [
+                            {
+                                type: "highlight",
+                                attrs: {color: "orange"},
+                            },
+                        ],
+                        text: "underline",
+                    },
+                    {type: "text", text: "{2} & \\"},
+                    {
+                        type: "text",
+                        marks: [
+                            {
+                                type: "highlight",
+                                attrs: {color: "orange"},
+                            },
+                        ],
+                        text: "underline",
+                    },
+                    {type: "text", text: " 3 & \\"},
+                    {
+                        type: "text",
+                        marks: [
+                            {
+                                type: "highlight",
+                                attrs: {color: "orange"},
+                            },
+                        ],
+                        text: "underline",
+                    },
+                    {type: "text", text: " 4 \\\\ 1 & 0 & 0 \\\\ \\end{bmatrix}"},
+                ],
+            },
+            {
+                type: "paragraph",
+                content: [
+                    {type: "text", text: "\\begin{bmatrix} 0 & \\"},
+                    {
+                        type: "text",
+                        marks: [
+                            {
+                                type: "highlight",
+                                attrs: {color: "orange"},
+                            },
+                        ],
+                        text: "underline",
+                    },
+                    {type: "text", text: "{1000} \\\\ 1 & \\"},
+                    {
+                        type: "text",
+                        marks: [
+                            {
+                                type: "highlight",
+                                attrs: {color: "orange"},
+                            },
+                        ],
+                        text: "underline",
+                    },
+                    {type: "text", text: "{100} \\\\ 0 & \\"},
+                    {
+                        type: "text",
+                        marks: [
+                            {
+                                type: "highlight",
+                                attrs: {color: "orange"},
+                            },
+                        ],
+                        text: "underline",
+                    },
+                    {
+                        type: "text",
+                        text: "{10} \\\\ \\end{bmatrix} &= \\begin{bmatrix} 3 & \\<em>underline{2340} \\\\ 0 & 1000 \\\\ \\end{bmatrix}.",
+                    },
+                ],
+            },
+        ],
+    });
+});

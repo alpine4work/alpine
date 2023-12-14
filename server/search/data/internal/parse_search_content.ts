@@ -203,7 +203,7 @@ export function parseSearchContent(
             // `chunkSearchContent()` should not output HTML. In case user
             // content is not properly escaped, include the raw HTML.
             case "html": {
-                return [schema.text(inputNode.value)];
+                return [schema.nodes.paragraph.create({}, [schema.text(inputNode.value)])];
             }
 
             // `chunkSearchContent()` should not output these node types. In case user
