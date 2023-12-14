@@ -660,6 +660,9 @@ class TaskActionTransactionIndexState {
             });
 
             for (const {job, delaySeconds} of jobs) {
+                // NOCOMMIT: The job reads from `TaskRealtimeService`. Instead, we should be
+                // reading from OpenSearch since we may have a race condition where we index
+                // before `TaskRealtimeService` sees the actions?
                 state._context.jobs.send(job, {delaySeconds});
             }
 
