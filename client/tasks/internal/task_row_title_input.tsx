@@ -17,12 +17,12 @@ import {
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {createTaskEntryAccessStore} from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
@@ -262,6 +262,7 @@ function TaskRowTitleInput(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const sprinkles = null;
 
+    const {isAppleDevice} = useClientInfo();
     const isInitialAppRender = useIsInitialAppRender();
 
     const viewRef = useRef<
@@ -306,7 +307,7 @@ function TaskRowTitleInput(
                 break;
             }
             case "ArrowUp": {
-                if (isMac ? event.metaKey : event.ctrlKey) {
+                if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                     event.preventDefault();
                     event.stopPropagation();
 
@@ -343,7 +344,7 @@ function TaskRowTitleInput(
                 break;
             }
             case "ArrowDown": {
-                if (isMac ? event.metaKey : event.ctrlKey) {
+                if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                     event.preventDefault();
                     event.stopPropagation();
 

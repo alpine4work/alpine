@@ -21,12 +21,12 @@ import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {InputWithAutoGrowingWidth} from "~/client/helpers/input_with_auto_growing_width.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {createDisplayTaskCollectionsStore} from "~/client/tasks/internal/create_display_task_collections_store.js";
@@ -127,6 +127,7 @@ function TaskCollectionsInput(
     },
     ref: Ref<TaskCollectionsInputRef>,
 ) {
+    const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
@@ -429,7 +430,7 @@ function TaskCollectionsInput(
                             event.preventDefault();
                             event.stopPropagation();
 
-                            if (isMac ? event.metaKey : event.ctrlKey) {
+                            if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                                 collectionRefs[0]!.current!.focus();
                             } else {
                                 collectionRefs[collectionRefs.length - 1]!.current!.focus();
@@ -481,7 +482,7 @@ function TaskCollectionsInput(
 
                     if (index === 0) {
                         onArrowLeftLeaveKeyDown?.();
-                    } else if (isMac ? event.metaKey : event.ctrlKey) {
+                    } else if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         collectionRefs[0]?.current?.focus();
                     } else {
                         collectionRefs[index - 1]?.current?.focus();
@@ -493,7 +494,7 @@ function TaskCollectionsInput(
                 case "ArrowRight": {
                     event.preventDefault();
                     event.stopPropagation();
-                    if (isMac ? event.metaKey : event.ctrlKey) {
+                    if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         inputRef.current?.focus();
                     } else if (index + 1 < collectionRefs.length) {
                         collectionRefs[index + 1]?.current?.focus();

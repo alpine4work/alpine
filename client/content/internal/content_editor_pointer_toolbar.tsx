@@ -37,10 +37,10 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.j
 import {Overlay, OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {Tooltip, TooltipRef, TooltipState} from "~/client/design/tooltip.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {useConstant} from "~/client/helpers/lifecycle/use_constant.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {ContentProsemirrorSchema} from "~/shared/content/content_schema.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -499,6 +499,8 @@ function ContentEditorPointerToolbarButtons({
     onHighlightSelectorOpen: () => void;
     onHighlightSelectorClose: () => void;
 }) {
+    const {isAppleDevice} = useClientInfo();
+
     const shouldDisableTooltips = isLinkInputOpen || isHighlightSelectorOpen;
 
     const {isBold, isItalic, isStrike, activeLinkMark, activeHighlightMark} = useMemo(() => {
@@ -554,7 +556,7 @@ function ContentEditorPointerToolbarButtons({
         <>
             <ContentEditorPointerToolbarButton
                 description="Bold"
-                keyboardShortcutHint={isMac ? "⌘+B" : "Ctrl+B"}
+                keyboardShortcutHint={isAppleDevice ? "⌘+B" : "Ctrl+B"}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -565,7 +567,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
                 description="Italicize"
-                keyboardShortcutHint={isMac ? "⌘+I" : "Ctrl+I"}
+                keyboardShortcutHint={isAppleDevice ? "⌘+I" : "Ctrl+I"}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -576,7 +578,7 @@ function ContentEditorPointerToolbarButtons({
             </ContentEditorPointerToolbarButton>
             <ContentEditorPointerToolbarButton
                 description="Strikethrough"
-                keyboardShortcutHint={isMac ? "⌘+Shift+X" : "Ctrl+Shift+X"}
+                keyboardShortcutHint={isAppleDevice ? "⌘+Shift+X" : "Ctrl+Shift+X"}
                 viewRef={viewRef}
                 isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                 sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -713,7 +715,7 @@ function ContentEditorPointerToolbarButtons({
                 <ContentEditorPointerToolbarButton
                     dividerLeft
                     description="Comment"
-                    keyboardShortcutHint={isMac ? "⌘+Shift+C" : "Ctrl+Shift+C"}
+                    keyboardShortcutHint={isAppleDevice ? "⌘+Shift+C" : "Ctrl+Shift+C"}
                     viewRef={viewRef}
                     isTooltipDisabledWithoutAnimation={shouldDisableTooltips}
                     sharedTooltipLifecycleRef={sharedTooltipLifecycleRef}
@@ -871,6 +873,8 @@ function ContentEditorPointerToolbarLinkButton({
     dividerLeft?: boolean;
     dividerRight?: boolean;
 }) {
+    const {isAppleDevice} = useClientInfo();
+
     const wasJustClosedByOverlayRef = useRef(false);
 
     const range = useMemo(
@@ -931,7 +935,7 @@ function ContentEditorPointerToolbarLinkButton({
                     dividerLeft={dividerLeft}
                     dividerRight={dividerRight}
                     description="Link"
-                    keyboardShortcutHint={isMac ? "⌘+K" : "Ctrl+K"}
+                    keyboardShortcutHint={isAppleDevice ? "⌘+K" : "Ctrl+K"}
                     isActive={isLinkInputOpen || !!activeLinkMark}
                     isTooltipDisabledWithoutAnimation={
                         isTooltipDisabledWithoutAnimation || isLinkInputOpen
@@ -990,6 +994,8 @@ function ContentEditorPointerToolbarHighlightButton({
     dividerRight?: boolean;
     dividerLeft?: boolean;
 }) {
+    const {isAppleDevice} = useClientInfo();
+
     const wasJustClosedByOverlayRef = useRef(false);
 
     const [isTooltipOpenAndNotAnimating, setIsTooltipOpenAndNotAnimating] = useState(false);
@@ -1027,7 +1033,7 @@ function ContentEditorPointerToolbarHighlightButton({
                     dividerRight={dividerRight}
                     dividerLeft={dividerLeft}
                     description="Highlight"
-                    keyboardShortcutHint={isMac ? "⌘+Shift+H" : "Ctrl+Shift+H"}
+                    keyboardShortcutHint={isAppleDevice ? "⌘+Shift+H" : "Ctrl+Shift+H"}
                     isActive={isHighlightSelectorOpen || !!activeHighlightMark}
                     isTooltipDisabledWithoutAnimation={
                         isTooltipDisabledWithoutAnimation || isHighlightSelectorOpen

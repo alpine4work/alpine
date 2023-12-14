@@ -21,7 +21,6 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -316,7 +315,7 @@ function TaskRowView(
 
     const navigate = useNavigate();
     const context = useAppContext();
-    const {timeZone} = useClientInfo();
+    const {timeZone, isAppleDevice} = useClientInfo();
     const {currentAccount} = useSpaceContext();
 
     const taskId = cursor !== null ? getTaskQuerySortCursorTaskId(cursor) : null;
@@ -661,7 +660,7 @@ function TaskRowView(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    if (isMac ? event.metaKey : event.ctrlKey) {
+                    if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         // Even though title isn't technically the first column, it's the first
                         // editable column so we put the user there.
                         focusCell("Title");
@@ -689,7 +688,7 @@ function TaskRowView(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    if (isMac ? event.metaKey : event.ctrlKey) {
+                    if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusCell(columns[columns.length - 1]!);
                     } else {
                         focusNextCell(column);
@@ -714,7 +713,7 @@ function TaskRowView(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    if (isMac ? event.metaKey : event.ctrlKey) {
+                    if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusFirstVisibleTaskCell(column);
                     } else {
                         focusPreviousTaskCell(column);
@@ -739,7 +738,7 @@ function TaskRowView(
                     event.preventDefault();
                     event.stopPropagation();
 
-                    if (isMac ? event.metaKey : event.ctrlKey) {
+                    if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                         focusLastVisibleTaskCell(column);
                     } else {
                         focusNextTaskCell(column);

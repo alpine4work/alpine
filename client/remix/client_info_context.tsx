@@ -8,7 +8,7 @@ import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {getCurrentTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
 import {BrowserId} from "~/shared/id/types/id_types.js";
-import {ClientInfo, defaultClientInfo} from "~/shared/remix/client_info.js";
+import {ClientInfo, defaultClientInfo, isAppleDeviceUserAgent} from "~/shared/remix/client_info.js";
 
 const clientInfo = new Lazy(
     (): ClientInfo => ({
@@ -16,6 +16,8 @@ const clientInfo = new Lazy(
         screenHeight: window.screen.height,
         timeZone: getCurrentTimeZone(),
         locale: "en-US",
+        isAppleDevice:
+            typeof navigator !== "undefined" ? isAppleDeviceUserAgent(navigator.userAgent) : false,
     }),
 );
 

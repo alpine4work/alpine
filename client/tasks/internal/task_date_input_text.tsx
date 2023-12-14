@@ -10,7 +10,6 @@ import {
     getNextFocusableElementIfExists,
 } from "~/client/design/helpers/get_next_focusable_element.js";
 import {Overlay} from "~/client/design/overlay.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -359,6 +358,7 @@ function TaskDateInputTextSegment({
     focusStart: () => void;
     focusEnd: () => void;
 }) {
+    const {isAppleDevice} = useClientInfo();
     const ref = useRef<HTMLDivElement>(null);
     const {segmentProps} = useDateSegment(segment, state, ref);
     const [isFocused, setIsFocused] = useState(false);
@@ -424,12 +424,12 @@ function TaskDateInputTextSegment({
                         onArrowRightLeaveKeyDown?.();
                     } else if (
                         event.key === "ArrowLeft" &&
-                        (isMac ? event.metaKey : event.ctrlKey)
+                        (isAppleDevice ? event.metaKey : event.ctrlKey)
                     ) {
                         focusStart();
                     } else if (
                         event.key === "ArrowRight" &&
-                        (isMac ? event.metaKey : event.ctrlKey)
+                        (isAppleDevice ? event.metaKey : event.ctrlKey)
                     ) {
                         focusEnd();
                     } else {

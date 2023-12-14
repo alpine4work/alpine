@@ -1,5 +1,5 @@
 import {PressEvent} from "@react-types/shared";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 
 /**
  * Is this a click event that on an `<a>` element would open the URL in a
@@ -9,5 +9,8 @@ import {isMac} from "~/client/helpers/browser/is_mac.js";
 export function isOpenLinkInSeparateTabPointerEvent(
     event: PointerEvent | MouseEvent | PressEvent,
 ): boolean {
-    return ("button" in event && event.button === 1) || (isMac ? event.metaKey : event.ctrlKey);
+    return (
+        ("button" in event && event.button === 1) ||
+        (getClientInfoWithoutListening().isAppleDevice ? event.metaKey : event.ctrlKey)
+    );
 }

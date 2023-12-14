@@ -19,6 +19,7 @@ import {
     ClientInfoSchema,
     defaultClientInfo,
     defaultMobileClientInfo,
+    isAppleDeviceUserAgent,
 } from "~/shared/remix/client_info.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
@@ -208,16 +209,26 @@ export class LoaderContextModule extends ContextModuleBase {
      */
     public getClientInfo(): ClientInfo {
         if (!this._state.clientInfo) {
+            const userAgentHeader = this._request.headers.get("user-agent") ?? "";
+
             const clientInfoCookieString = this._parseCookieHeader()?.["client-info"];
 
-            let clientInfo = defaultClientInfo;
+            let clientInfo;
             if (clientInfoCookieString) {
                 try {
-                    clientInfo = ClientInfoSchema.deserialize(JSON.parse(clientInfoCookieString));
+                    const rawClientInfo = JSON.parse(clientInfoCookieString);
+
+                    // NOTE(calebmer, 2023-12-14): Client info cookies before this date won't have
+                    // `isAppleDevice`. Add it with a default value based on the `User-Agent` header.
+                    rawClientInfo.isAppleDevice ??= isAppleDeviceUserAgent(userAgentHeader);
+
+                    clientInfo = ClientInfoSchema.deserialize(rawClientInfo);
                 } catch {
                     // Ignore any errors when parsing the client info cookie.
                 }
-            } else {
+            }
+
+            if (!clientInfo) {
                 // Device detection with user-agent parsing is generally bad and should be
                 // avoided. However, in the case where we don't yet have a client info cookie
                 // we use the user agent as a hint to determine what our default when
@@ -229,9 +240,18 @@ export class LoaderContextModule extends ContextModuleBase {
                 // mobile device][1].
                 //
                 // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
-                if (/Mobi/i.test(this._request.headers.get("user-agent") ?? "")) {
+                if (/Mobi/i.test(userAgentHeader)) {
                     clientInfo = defaultMobileClientInfo;
+                } else {
+                    clientInfo = defaultClientInfo;
                 }
+
+                // Update the default `clientInfo` with `isAppleDevice` based on the
+                // `User-Agent` header.
+                clientInfo = {
+                    ...clientInfo,
+                    isAppleDevice: isAppleDeviceUserAgent(userAgentHeader),
+                };
             }
 
             this._state.clientInfo = clientInfo;

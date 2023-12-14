@@ -2,7 +2,7 @@ import classNames from "classnames";
 import {Ref, forwardRef, useId, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export type TextInputProps = {
@@ -110,6 +110,7 @@ function TextInput(
     }: TextInputProps,
     ref: Ref<HTMLInputElement>,
 ) {
+    const {isAppleDevice} = useClientInfo();
     const id = useId();
 
     return (
@@ -169,9 +170,9 @@ function TextInput(
                             !event.altKey &&
                             !event.shiftKey &&
                             // Ctrl+Enter on non-MacOS platforms should trigger the callback
-                            (!isMac || !event.ctrlKey) &&
+                            (!isAppleDevice || !event.ctrlKey) &&
                             // Cmd+Enter on MacOS platforms should trigger the callback
-                            (isMac || !event.metaKey)
+                            (isAppleDevice || !event.metaKey)
                         ) {
                             event.preventDefault();
                             event.stopPropagation();

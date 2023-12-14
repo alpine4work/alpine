@@ -18,7 +18,7 @@ import {EditorState, Plugin, TextSelection, Transaction} from "prosemirror-state
 import {EditorView} from "prosemirror-view";
 import {contentEditorQuickUndoCommand} from "~/client/content/content_editor_state.js";
 import {createToggleMarkCommand} from "~/client/content/internal/content_editor_prosemirror_helpers.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {ContentMention} from "~/shared/content/content_mention.js";
 import {ContentProsemirrorSchema, maxListItemIndentation} from "~/shared/content/content_schema.js";
 
@@ -810,9 +810,12 @@ export function buildKeymapPlugin(
     // Based on the [ProseMirror base MacOS keybinding][1] map and the [MacOS
     // keyboard shortcut][2] documentation.
     //
+    // We're ok not adding these keybindings on the server. It doesn't influence
+    // server rendered HTML.
+    //
     // [1]: https://github.com/ProseMirror/prosemirror-commands/blob/3126d5c625953ba590c5d3a0db7f1009f46f1571/src/commands.js#L588
     // [2]: https://support.apple.com/en-us/HT201236
-    if (isMac) {
+    if (typeof window !== "undefined" && getClientInfoWithoutListening().isAppleDevice) {
         keys.set("Alt-Backspace", wordBackspaceCommand);
         keys.set("Alt-Delete", deleteCommand);
         keys.set("Ctrl-h", wordBackspaceCommand);

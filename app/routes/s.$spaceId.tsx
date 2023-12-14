@@ -5,10 +5,10 @@ import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useRouteError} 
 import {Box} from "~/client/design/box.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
 import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {PeekStackContextProvider} from "~/client/peek/peek_stack.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
@@ -109,6 +109,8 @@ export default function SpaceLayoutRoute() {
         attachDevConsoleForAccountInProduction(currentAccount);
     }, [currentAccount]);
 
+    const clientInfo = useClientInfo();
+
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
@@ -137,7 +139,7 @@ export default function SpaceLayoutRoute() {
                         if (
                             (!document.activeElement ||
                                 !isTextInputElement(document.activeElement)) &&
-                            (isMac ? event.metaKey : event.ctrlKey)
+                            (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
                         ) {
                             event.preventDefault();
                             event.stopPropagation();

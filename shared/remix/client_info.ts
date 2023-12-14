@@ -1,4 +1,5 @@
 import {mobileMaxScreenWidth} from "~/shared/design/spacing.js";
+import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -9,6 +10,53 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * request.
  */
 export type ClientInfo = SchemaType<typeof ClientInfoSchema>;
+
+/**
+ * Default client info to use in tests or in server-side rendering before we
+ * set the client info cookie.
+ */
+export const defaultClientInfo = {
+    /**
+     * The default screen width we use when server-side rendering when we don't
+     * know what the user's actual screen width is. 1920px is the width of the
+     * [largest common screen resolution][1] so that should cover the majority of
+     * devices.
+     *
+     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
+     */
+    screenWidth: 1920,
+
+    /**
+     * The default screen height we use when server-side rendering when we don't
+     * know what the user's actual screen height is. 1080px is the height of the
+     * [largest common screen resolution][1] so that should cover the majority of
+     * devices.
+     *
+     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
+     */
+    screenHeight: 1080,
+
+    /**
+     * We use the New York time zone when we haven't gotten the client's actual
+     * time zone since that's where our company is based.
+     */
+    timeZone: defaultTimeZone,
+
+    /**
+     * We use English as the default locale when we haven't gotten the client's
+     * actual locale since we are a US company.
+     */
+    locale: "en-US" as const,
+
+    /**
+     * Default to assuming we're running on an Apple device. We make this
+     * assumption since our company's recommended developer machines are Apple
+     * machines.
+     */
+    isAppleDevice: true,
+};
+
+assertAssignableTypes<typeof defaultClientInfo, ClientInfo>();
 
 export const ClientInfoSchema = Schema.object({
     /**
@@ -51,46 +99,17 @@ export const ClientInfoSchema = Schema.object({
      * locale here, though, to help us easily track where in the product the locale
      * needs to be dynamic.
      */
-    locale: Schema.value("en-US").default("en-US"),
+    locale: Schema.value("en-US").default(defaultClientInfo.locale),
+
+    /**
+     * Is this an Apple operating system device? Could be MacOS, iOS, or iPadOS.
+     * Primarily used for determining whether keyboard shortcuts use the "cmd" key
+     * or "ctrl" key.
+     *
+     * If false the device could be Windows or Linux.
+     */
+    isAppleDevice: Schema.boolean.default(defaultClientInfo.isAppleDevice),
 });
-
-/**
- * Default client info to use in tests or in server-side rendering before we
- * set the client info cookie.
- */
-export const defaultClientInfo: ClientInfo = {
-    /**
-     * The default screen width we use when server-side rendering when we don't
-     * know what the user's actual screen width is. 1920px is the width of the
-     * [largest common screen resolution][1] so that should cover the majority of
-     * devices.
-     *
-     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
-     */
-    screenWidth: 1920,
-
-    /**
-     * The default screen height we use when server-side rendering when we don't
-     * know what the user's actual screen height is. 1080px is the height of the
-     * [largest common screen resolution][1] so that should cover the majority of
-     * devices.
-     *
-     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
-     */
-    screenHeight: 1080,
-
-    /**
-     * We use the New York time zone when we haven't gotten the client's actual
-     * time zone since that's where our company is based.
-     */
-    timeZone: defaultTimeZone,
-
-    /**
-     * We use English as the default locale when we haven't gotten the client's
-     * actual locale since we are a US company.
-     */
-    locale: "en-US",
-};
 
 /**
  * Default client info for mobile browsers. On the server if there is no client
@@ -113,3 +132,29 @@ export const defaultMobileClientInfo: ClientInfo = {
      */
     screenHeight: 926,
 };
+
+/**
+ * Is this `User-Agent` header for an Apple device?
+ *
+ * Device detection with user-agent parsing is generally bad and should be
+ * avoided. User agents can be spoofed and browser/device vendors may add
+ * strings for other browser/device vendors to trick sites into enabling
+ * certain features (e.g. "AppleWebKit" is in almost every user agent for
+ * historical reasons).
+ *
+ * However, `User-Agent` testing is the only way to figure out whether the user
+ * is coming from an Apple device from the server so we gotta do it.
+ *
+ * [MDN has recommendations for `User-Agent` testing if you must do it][1].
+ * [DeviceAtlas has a handy resource of user agent strings for various
+ * devices][2].
+ *
+ * This function should return true for Mac laptops, iPhones, iPads and other
+ * Apple hardware but nothing else (assuming a well-formed user agent string).
+ *
+ * [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
+ * [2]: https://deviceatlas.com/blog/list-of-user-agent-strings
+ */
+export function isAppleDeviceUserAgent(userAgent: string): boolean {
+    return /Mac|iPhone|iPad/.test(userAgent);
+}

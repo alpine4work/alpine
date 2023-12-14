@@ -16,7 +16,6 @@ import {useOutsidePress} from "~/client/design/helpers/use_outside_interaction.j
 import {MenuAction, MenuItem, defaultMenuWidth} from "~/client/design/menu_button.js";
 import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
@@ -24,6 +23,7 @@ import {useElementWithRef} from "~/client/helpers/refs/use_element_with_ref.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
@@ -105,6 +105,8 @@ type ContextMenuState =
       };
 
 export function ContextMenuManager() {
+    const {isAppleDevice} = useClientInfo();
+
     const [contextMenuState, setContextMenuState] = useState<ContextMenuState>({
         isOpen: false,
         shouldAnimateOut: false,
@@ -155,7 +157,7 @@ export function ContextMenuManager() {
                     {
                         label: "Cut",
                         isDisabled: !isTextSelected,
-                        keyboardShortcutHint: isMac ? "⌘+X" : "Ctrl+X",
+                        keyboardShortcutHint: isAppleDevice ? "⌘+X" : "Ctrl+X",
                         onPress: () => {
                             document.execCommand("cut");
                         },
@@ -163,14 +165,14 @@ export function ContextMenuManager() {
                     {
                         label: "Copy",
                         isDisabled: !isTextSelected,
-                        keyboardShortcutHint: isMac ? "⌘+C" : "Ctrl+C",
+                        keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
                         onPress: () => {
                             document.execCommand("copy");
                         },
                     },
                     {
                         label: "Paste",
-                        keyboardShortcutHint: isMac ? "⌘+V" : "Ctrl+V",
+                        keyboardShortcutHint: isAppleDevice ? "⌘+V" : "Ctrl+V",
                         onPress: () => {
                             // TODO(calebmer): Enable support for pasting in desktop app wrapper. When we
                             // have a desktop app wrapper also ask the user if they want to install the app
@@ -207,7 +209,7 @@ export function ContextMenuManager() {
                     actions.unshift([
                         {
                             label: "Copy",
-                            keyboardShortcutHint: isMac ? "⌘+C" : "Ctrl+C",
+                            keyboardShortcutHint: isAppleDevice ? "⌘+C" : "Ctrl+C",
                             onPress: () => {
                                 document.execCommand("copy");
                             },
@@ -237,7 +239,7 @@ export function ContextMenuManager() {
         return () => {
             document.removeEventListener("contextmenu", handleContextMenu);
         };
-    }, []);
+    }, [isAppleDevice]);
 
     const [shouldShowPasteWarningDialog, setShouldShowPasteWarningDialog] = useState(false);
 
@@ -296,9 +298,9 @@ export function ContextMenuManager() {
             )}
             {shouldShowPasteWarningDialog && (
                 <ModalDialog
-                    title={`Can only paste with ${isMac ? "⌘+V" : "Ctrl+V"}`}
+                    title={`Can only paste with ${isAppleDevice ? "⌘+V" : "Ctrl+V"}`}
                     description={`For security purposes, your browser only allows pasting with the keyboard shortcut ${
-                        isMac ? "⌘+V" : "Ctrl+V"
+                        isAppleDevice ? "⌘+V" : "Ctrl+V"
                     }. Try again but instead of right clicking use the keyboard shortcut.`}
                     primaryButtonLabel="Ok"
                     onPrimaryButtonPress={() => setShouldShowPasteWarningDialog(false)}

@@ -5,10 +5,10 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {useShowToast} from "~/client/design/toast.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {inboxEntryWidth} from "~/client/inbox/inbox_entry_view.js";
 import {InboxViewTopBarModeToggleButton} from "~/client/inbox/inbox_view_top_bar_mode_toggle_button.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
@@ -154,6 +154,7 @@ function InboxViewTopBarArchiveButton({
         options: {withAnimation: boolean},
     ) => void;
 }) {
+    const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const showToast = useShowToast();
     const {space} = useSpaceContext();
@@ -167,7 +168,7 @@ function InboxViewTopBarArchiveButton({
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
-                if (event.key === "d" && (isMac ? event.metaKey : event.ctrlKey)) {
+                if (event.key === "d" && (isAppleDevice ? event.metaKey : event.ctrlKey)) {
                     event.preventDefault();
                     event.stopPropagation();
 
@@ -192,7 +193,7 @@ function InboxViewTopBarArchiveButton({
                 height="6"
                 paddingX="2"
                 icon={<Check />}
-                keyboardShortcutHint={isMac ? "⌘+D" : "Ctrl+D"}
+                keyboardShortcutHint={isAppleDevice ? "⌘+D" : "Ctrl+D"}
                 isDisabled={isDisabled}
                 pressErrorTitle="Can’t go to next notification"
                 onPress={async () => {

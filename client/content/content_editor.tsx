@@ -45,10 +45,10 @@ import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/con
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
@@ -631,6 +631,8 @@ function ContentEditor<Content extends ContentWithReferences>(
             handlePaste,
 
             handleKeyDown(_view, event) {
+                const {isAppleDevice} = getClientInfoWithoutListening();
+
                 // Implement keyboard shortcuts when the mention floater is open:
                 const floaterState = getContentEditorFloaterState(view.state);
                 if (floaterState.type === "Mention") {
@@ -644,7 +646,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                     !event.altKey &&
                     !event.shiftKey &&
                     // Cmd+Enter triggers this on MacOS and Ctrl-Enter triggers this elsewhere
-                    (isMac ? event.metaKey : event.ctrlKey)
+                    (isAppleDevice ? event.metaKey : event.ctrlKey)
                 ) {
                     propsRef.current.onModEnter(event);
                     if (event.defaultPrevented) return true;
@@ -656,9 +658,9 @@ function ContentEditor<Content extends ContentWithReferences>(
                     !event.altKey &&
                     !event.shiftKey &&
                     // Ctrl+Enter on non-MacOS platforms should trigger the callback
-                    (!isMac || !event.ctrlKey) &&
+                    (!isAppleDevice || !event.ctrlKey) &&
                     // Cmd+Enter on MacOS platforms should trigger the callback
-                    (isMac || !event.metaKey) &&
+                    (isAppleDevice || !event.metaKey) &&
                     // On a physical keyboard where the user has access to Shift+Enter we sometimes
                     // want enter to send the message or otherwise save what's being edited. On a
                     // virtual, mobile, keyboard (like the iOS touchscreen keyboard) we want enter

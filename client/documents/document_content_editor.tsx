@@ -31,7 +31,6 @@ import {
     SubscribeToCommentThreadEventsFunction,
     useDocumentContentEditorWebSocket,
 } from "~/client/documents/use_document_content_editor_web_socket.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
@@ -42,7 +41,7 @@ import {usePromise} from "~/client/helpers/use_promise.js";
 import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
@@ -169,6 +168,7 @@ function DocumentContentEditorStateful({
     const {id: documentId, spaceId} = initialDocument;
 
     const isInitialAppRender = useIsInitialAppRender();
+    const {isAppleDevice} = useClientInfo();
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -714,13 +714,13 @@ function DocumentContentEditorStateful({
             {
                 label: "Undo",
                 isDisabled: editorState.undoDepth() === 0,
-                keyboardShortcutHint: isMac ? "⌘+Z" : "Ctrl+Z",
+                keyboardShortcutHint: isAppleDevice ? "⌘+Z" : "Ctrl+Z",
                 onPress: () => assertExists(editorRef.current).dispatchCommand(undo),
             },
             {
                 label: "Redo",
                 isDisabled: editorState.redoDepth() === 0,
-                keyboardShortcutHint: isMac ? "⌘+Y" : "Ctrl+Y",
+                keyboardShortcutHint: isAppleDevice ? "⌘+Y" : "Ctrl+Y",
                 onPress: () => assertExists(editorRef.current).dispatchCommand(redo),
             },
         ],
@@ -1006,6 +1006,8 @@ function DocumentContentEditorSidebar({
     onClose: () => void;
     openCommentThread: (commentThreadId: DocumentCommentThreadId) => Promise<void>;
 }) {
+    const {isAppleDevice} = useClientInfo();
+
     const previousCommentThreadButtonRef = useRef<HTMLButtonElement>(null);
     const nextCommentThreadButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -1040,7 +1042,7 @@ function DocumentContentEditorSidebar({
                 if (
                     event.key === "," &&
                     event.shiftKey &&
-                    (isMac ? event.metaKey : event.ctrlKey)
+                    (isAppleDevice ? event.metaKey : event.ctrlKey)
                 ) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1053,7 +1055,7 @@ function DocumentContentEditorSidebar({
                 if (
                     event.key === "." &&
                     event.shiftKey &&
-                    (isMac ? event.metaKey : event.ctrlKey)
+                    (isAppleDevice ? event.metaKey : event.ctrlKey)
                 ) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -1077,7 +1079,7 @@ function DocumentContentEditorSidebar({
                             ref={previousCommentThreadButtonRef}
                             size="xs"
                             description="Previous thread"
-                            keyboardShortcutHint={isMac ? "⌘+Shift+," : "Ctrl+Shift+,"}
+                            keyboardShortcutHint={isAppleDevice ? "⌘+Shift+," : "Ctrl+Shift+,"}
                             isDisabled={!previousCommentThreadId}
                             pressErrorTitle="Can’t go to previous thread"
                             onPress={async () => {
@@ -1091,7 +1093,7 @@ function DocumentContentEditorSidebar({
                             ref={nextCommentThreadButtonRef}
                             size="xs"
                             description="Next thread"
-                            keyboardShortcutHint={isMac ? "⌘+Shift+." : "Ctrl+Shift+."}
+                            keyboardShortcutHint={isAppleDevice ? "⌘+Shift+." : "Ctrl+Shift+."}
                             isDisabled={!nextCommentThreadId}
                             pressErrorTitle="Can’t go to next thread"
                             onPress={async () => {

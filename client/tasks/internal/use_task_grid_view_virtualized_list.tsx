@@ -25,7 +25,6 @@ import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {isMac} from "~/client/helpers/browser/is_mac.js";
 import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
@@ -333,6 +332,7 @@ export function useTaskGridViewVirtualizedList({
      */
     pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
 } {
+    const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
     const remPx = useRemPx();
 
@@ -872,13 +872,13 @@ export function useTaskGridViewVirtualizedList({
     const onGlobalKeyDown = (event: KeyboardEvent) => {
         switch (event.key) {
             case "z": {
-                if (isMac ? event.metaKey : event.ctrlKey) {
+                if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                     event.preventDefault();
                     event.stopPropagation();
 
                     if (event.shiftKey) {
                         redo();
-                    } else if ((isMac ? !event.ctrlKey : !event.metaKey) && !event.altKey) {
+                    } else if ((isAppleDevice ? !event.ctrlKey : !event.metaKey) && !event.altKey) {
                         undo();
                     }
                     break;
@@ -887,12 +887,12 @@ export function useTaskGridViewVirtualizedList({
             }
             // https://en.wikipedia.org/wiki/Control-Y
             case "y": {
-                if (isMac ? event.metaKey : event.ctrlKey) {
+                if (isAppleDevice ? event.metaKey : event.ctrlKey) {
                     event.preventDefault();
                     event.stopPropagation();
 
                     if (
-                        (isMac ? !event.ctrlKey : !event.metaKey) &&
+                        (isAppleDevice ? !event.ctrlKey : !event.metaKey) &&
                         !event.altKey &&
                         !event.shiftKey
                     ) {
