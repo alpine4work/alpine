@@ -41,12 +41,8 @@ import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder
 //
 // - Link underline is too close to the link
 // - Link dark mode color too dark (light mode color feels right?)
-// - Single line bullets have so much margin between them
 // - Blobs still a little too overpowering of content
 // - Blobs that are just on the cusp of merging or not merging look weird to me? idk
-// - Selection style bar is a little too far from text selection
-// - Is bold text too bold?
-// - Bullet in bulleted list is a little low
 // - Pressing a link should change the style of the link somehow as feedback.
 //   At least on mobile
 // - When there is a spellcheck squiggle on a link with an underline, the
@@ -56,7 +52,6 @@ import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder
 //   auto-capitalization on and off.
 // - Bold labels in dark mode don't have enough contrast? See
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/wshttcjr5egq22e11k92tq1z7m
-// - Checkboxes are misaligned with new line height
 // - Documents feel like they need a tighter width and more whitespace (more
 //   line height + more space between paragraphs). Thinking about this while
 //   writing:
@@ -315,7 +310,11 @@ export const checkListItemContentClassName = style({});
 // to click.
 export const checkListItemCheckboxContainerClassName = style({
     position: "absolute",
-    top: 0,
+    top: `${
+        (parseRemLengthNumber(paragraphLineHeight) -
+            parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize])) /
+        2
+    }rem`,
     left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
         parseRemLengthNumber(listItemIndentation) / 2 -
         (parseRemLengthNumber(spacing[checkListItemCheckboxDesktopSize]) +
@@ -325,13 +324,15 @@ export const checkListItemCheckboxContainerClassName = style({
     borderRadius: "100%",
     paddingLeft: spacing["1"],
     paddingRight: spacing["1"],
-    paddingTop: spacing["0.5"],
-    paddingBottom: spacing["0.5"],
     cursor: "default",
     userSelect: "none",
     "@media": {
         [mobilePlatformMediaQuery]: {
-            top: `-${spacing["0.5"]}`,
+            top: `${
+                (parseRemLengthNumber(paragraphLineHeight) -
+                    parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize])) /
+                2
+            }rem`,
             left: `calc(${blockPaddingX} + (${listItemIndentationVar} * ${listItemIndentation}) + ${
                 parseRemLengthNumber(listItemIndentation) / 2 -
                 (parseRemLengthNumber(spacing[checkListItemCheckboxMobileSize]) +
