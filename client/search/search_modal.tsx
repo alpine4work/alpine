@@ -46,8 +46,6 @@ import {
 import {SearchResult} from "~/shared/search/search_result.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
-// NOCOMMIT: Double check that this renders on top of peeks. Add a test
-
 // NOCOMMIT: Loading spinner
 
 // NOCOMMIT: If you've selected something and new search results came in, try

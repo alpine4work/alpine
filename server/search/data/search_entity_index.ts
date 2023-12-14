@@ -791,7 +791,6 @@ export async function searchByKeyword(
             ? parseSearchContent(rawBodyTextSnippet, {shouldParseEmphasisHtmlTagAsHighlight: true})
             : null;
 
-        // NOCOMMIT: Use this function for notifications too!
         const bodyTextSnippet = bodySnippet
             ? printContentSingleLineTextSnippetWithHighlighting(
                   {doc: bodySnippet, references: emptyContentReferences},
