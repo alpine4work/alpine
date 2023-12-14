@@ -1,5 +1,5 @@
 import {MagnifyingGlass} from "phosphor-react";
-import {useEffect, useState} from "react";
+import {Component, ReactNode, useEffect, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
@@ -96,12 +96,39 @@ export function SpaceLayoutTopBarSearchInput({space}: {space: SpaceModel}) {
                     </Box>
                 </Box>
                 {searchState && (
-                    <SearchModal
-                        initialQueryText={searchState.initialQueryText}
-                        onClose={() => setSearchState(null)}
-                    />
+                    <SearchModalErrorBoundary>
+                        <SearchModal
+                            initialQueryText={searchState.initialQueryText}
+                            onClose={() => setSearchState(null)}
+                        />
+                    </SearchModalErrorBoundary>
                 )}
             </Box>
         </GlobalKeyDownEvent>
     );
+}
+
+/**
+ * Protect against infinite error loops with `<SearchModal>`. If
+ * `<SearchModal>` errs on initial render while rendering we'll re-render at
+ * the nearest error boundary which will attempt to render `<SearchModal>`
+ * again because `search` is in the URL causing an infinite error loop. With
+ * this error boundary if `<SearchModal>` errs, we make sure not to render it
+ * again by clearing `search` from the URL.
+ */
+class SearchModalErrorBoundary extends Component<{children: ReactNode}> {
+    public override componentDidCatch(error: unknown) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("search");
+
+        // Silently update the URL without telling Remix so our components don't
+        // re-render unnecessarily.
+        window.history.replaceState(null, "", url);
+
+        throw error;
+    }
+
+    public override render() {
+        return this.props.children;
+    }
 }

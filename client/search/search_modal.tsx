@@ -35,6 +35,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Result} from "~/shared/helpers/control/result.js";
+import {Id, generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {searchByKeyword} from "~/shared/rpc/search_rpc_definitions.js";
 import {
@@ -48,6 +49,10 @@ import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/style
 // NOCOMMIT: Double check that this renders on top of peeks. Add a test
 
 // NOCOMMIT: Loading spinner
+
+// NOCOMMIT: If you've selected something and new search results came in, try
+// to maintain that selection but move it to the top or something? In case you
+// see what you're looking for but the network is being slow.
 
 /**
  * The debounce timeout before we'll send a new search request. Picked so that
@@ -74,17 +79,23 @@ const searchWordTypingDebounceMs = (() => {
     return Math.floor(millisecondsPerCharacter);
 })();
 
-type SearchStateRequest = {
-    readonly queryText: string;
-};
-
 type SearchState = {
     readonly queryText: string;
     readonly wordTypingTimeoutTime: number | null;
     readonly pendingRequest: SearchStateRequest | null;
+    readonly response: SearchStateResponse | null;
+};
+
+type SearchStateRequest = {
+    readonly queryText: string;
+};
+
+type SearchStateResponse = {
+    readonly key: Id;
+    readonly request: SearchStateRequest;
     readonly data: Result<{
         readonly results: ReadonlyArray<SearchResult>;
-    }> | null;
+    }>;
 };
 
 function getInitialSearchState(initialQueryText: string): SearchState {
@@ -94,7 +105,7 @@ function getInitialSearchState(initialQueryText: string): SearchState {
         queryText: initialQueryText,
         wordTypingTimeoutTime: null,
         pendingRequest: queryWords.length > 0 ? {queryText: initialQueryText} : null,
-        data: null,
+        response: null,
     };
 }
 
@@ -108,10 +119,12 @@ type SearchAction =
       }
     | {
           readonly type: "ReceiveResponse";
-          readonly request: SearchStateRequest;
-          readonly data: Result<{
-              readonly results: ReadonlyArray<SearchResult>;
-          }>;
+          readonly response: {
+              readonly request: SearchStateRequest;
+              readonly data: Result<{
+                  readonly results: ReadonlyArray<SearchResult>;
+              }>;
+          };
       };
 
 function reduceSearchState(oldState: SearchState, action: SearchAction): SearchState {
@@ -133,9 +146,18 @@ function reduceSearchState(oldState: SearchState, action: SearchAction): SearchS
             // send a query with their new word once they're done typing.
             //
             // This way we send intermediate searches to our server with completed words.
-            if (isTypingNewLastWord) {
+            // It makes the product feel responsive to see results as you type. But since
+            // our search backend doesn't support prefix searches we can only search on
+            // complete words.
+            if (
+                isTypingNewLastWord &&
+                // If we already have the data we'd search with an intermediate search request
+                // then don't send a new request. This happens if you've typed a word, stopped,
+                // the search has loaded, then type a new word.
+                oldState.queryText.trim() !== oldState.response?.request.queryText
+            ) {
                 newPendingRequest =
-                    oldQueryWords.length > 0 ? {queryText: oldState.queryText} : null;
+                    oldQueryWords.length > 0 ? {queryText: oldState.queryText.trim()} : null;
                 newWordTypingTimeoutTime = Date.now() + searchWordTypingDebounceMs;
             }
             // For other edits, wait for a debounce timeout so we know the user is done
@@ -151,7 +173,7 @@ function reduceSearchState(oldState: SearchState, action: SearchAction): SearchS
                 wordTypingTimeoutTime: newWordTypingTimeoutTime,
                 pendingRequest: newPendingRequest,
                 // If the search query is deleted, then clear search result data.
-                data: newQueryWords.length === 0 ? null : oldState.data,
+                response: newQueryWords.length === 0 ? null : oldState.response,
             };
         }
         case "WordTypingTimeout": {
@@ -161,17 +183,20 @@ function reduceSearchState(oldState: SearchState, action: SearchAction): SearchS
             return {
                 ...oldState,
                 wordTypingTimeoutTime: null,
-                pendingRequest: queryWords.length > 0 ? {queryText} : null,
+                pendingRequest: queryWords.length > 0 ? {queryText: queryText.trim()} : null,
             };
         }
         case "ReceiveResponse": {
             // We only accept responses for our current pending request.
-            if (oldState.pendingRequest !== action.request) return oldState;
+            if (oldState.pendingRequest !== action.response.request) return oldState;
 
             return {
                 ...oldState,
                 pendingRequest: null,
-                data: action.data,
+                response: {
+                    ...action.response,
+                    key: generateId(),
+                },
             };
         }
         default:
@@ -279,23 +304,31 @@ export function SearchModal({
             output => {
                 dispatch({
                     type: "ReceiveResponse",
-                    request,
-                    data: {ok: true, value: output},
+                    response: {
+                        request,
+                        data: {ok: true, value: output},
+                    },
                 });
             },
             error => {
                 dispatch({
                     type: "ReceiveResponse",
-                    request,
-                    data: {ok: false, error},
+                    response: {
+                        request,
+                        data: {ok: false, error},
+                    },
                 });
             },
         );
     }, [context, searchState.pendingRequest, space.id]);
 
-    const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{entityId: SearchEntityId}>(
-        {initialPeekData: null},
-    );
+    const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{
+        entityId: SearchEntityId;
+    }>({
+        // Reset our peek state if the search response changes.
+        key: searchState.response?.key,
+        initialPeekData: null,
+    });
 
     return (
         <Modal
@@ -305,6 +338,11 @@ export function SearchModal({
             maxHeight="192"
             borderRadius="lg"
             withoutCloseButton={true}
+            // Don't animate the search modal open. The search modal is generally opened by
+            // a user with direct intent to search. The search modal is a critical part of
+            // the Alpine workflow. Slowing down the search workflow for even a 200ms
+            // animation will make the product feel less snappy.
+            withoutOpenAnimation={true}
             onClose={onClose}
         >
             <GlobalKeyDownEvent
@@ -346,20 +384,20 @@ export function SearchModal({
                             event.preventDefault();
 
                             // Data hasn't loaded yet, we can't select anything.
-                            if (!searchState.data?.value) break;
+                            if (!searchState.response?.data.value) break;
 
                             const index = selectedPeek
-                                ? searchState.data.value.results.findIndex(
+                                ? searchState.response.data.value.results.findIndex(
                                       result => result.entityId === selectedPeek.extra.entityId,
                                   )
                                 : -1;
 
                             const result =
                                 index !== -1
-                                    ? searchState.data.value.results[
+                                    ? searchState.response.data.value.results[
                                           event.key === "ArrowUp" ? index - 1 : index + 1
                                       ]
-                                    : searchState.data.value.results[0];
+                                    : searchState.response.data.value.results[0];
 
                             // There is no next item. Do nothing. Don't loop around since we may have many
                             // items so looping would be disorienting.
@@ -436,9 +474,9 @@ export function SearchModal({
                             height="full"
                             overflow="hidden"
                         >
-                            {!searchState.data ? (
+                            {!searchState.response ? (
                                 <></>
-                            ) : !searchState.data.ok ? (
+                            ) : !searchState.response.data.ok ? (
                                 <Box
                                     maxWidth="128"
                                     marginX="auto"
@@ -448,12 +486,14 @@ export function SearchModal({
                                 >
                                     <ErrorBodyRenderer
                                         title="Couldn’t get search results"
-                                        error={searchState.data.error}
+                                        error={searchState.response.data.error}
                                     />
                                 </Box>
                             ) : (
                                 <SearchModalResultList
-                                    results={searchState.data.value.results}
+                                    // Reset our result list if the search response changes.
+                                    key={searchState.response?.key}
+                                    results={searchState.response.data.value.results}
                                     selectedPeek={selectedPeek}
                                     switchPeek={switchPeek}
                                 />

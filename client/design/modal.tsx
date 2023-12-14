@@ -31,6 +31,7 @@ export function Modal({
     height = "auto",
     maxHeight = "full",
     borderRadius = "md",
+    withoutOpenAnimation,
     withoutCloseAnimation,
     withoutCloseButton,
 }: {
@@ -82,6 +83,12 @@ export function Modal({
     maxHeight?: Spacing | RemLength | "full";
 
     borderRadius?: "md" | "lg";
+
+    /**
+     * The modal will never animate when opening if set to true. Otherwise we fade
+     * in the modal when opened.
+     */
+    withoutOpenAnimation?: boolean;
 
     /**
      * The modal will never animate when closing if set to true. Otherwise we fade
@@ -163,7 +170,9 @@ export function Modal({
                     backgroundColor="grey-dark"
                     style={{
                         opacity: modalStyles.modalUnderlayOpacity,
-                        animation: modalStyles.modalUnderlayFadeInAnimation,
+                        animation: !withoutOpenAnimation
+                            ? modalStyles.modalUnderlayFadeInAnimation
+                            : undefined,
                     }}
                     // If the underlay is clicked, we close the modal. This element is not
                     // focusable or keyboard accessible. You can hit the "Escape" key as a shortcut
@@ -218,7 +227,9 @@ export function Modal({
                                         : isRemLength(maxHeight)
                                         ? maxHeight
                                         : spacing[maxHeight],
-                                animation: modalStyles.modalOverlayFadeInAnimation,
+                                animation: !withoutOpenAnimation
+                                    ? modalStyles.modalOverlayFadeInAnimation
+                                    : undefined,
                             }}
                         >
                             <Box
@@ -228,7 +239,9 @@ export function Modal({
                                 style={{
                                     animation: isFadingOut
                                         ? modalStyles.modalContentFadeOutAnimation
-                                        : modalStyles.modalContentFadeInAnimation,
+                                        : !withoutOpenAnimation
+                                        ? modalStyles.modalContentFadeInAnimation
+                                        : undefined,
                                 }}
                             >
                                 <OverlayScopeContextProvider

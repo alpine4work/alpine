@@ -1,7 +1,8 @@
 import {HydrationState, MemoryHistory, createMemoryHistory, resolvePath} from "@remix-run/router";
-import {Memo, useEffect, useState} from "react";
+import {Key, Memo, useEffect} from "react";
 import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
 import {PeekRemixEmbedRouter, usePeekRemixEmbedRouter} from "~/client/peek/peek_remix_embed.js";
 import {InternalError} from "~/shared/error/error.js";
@@ -50,8 +51,10 @@ type MaybeThunk<T> = T | (() => T);
  *   data hasn't finished loading yet.
  */
 export function usePeekSwitcherState<Extra>({
+    key = null,
     initialPeekData,
 }: {
+    key?: Key | null;
     initialPeekData: MaybeThunk<{
         spacePath: string;
         hydrationData: HydrationState;
@@ -92,44 +95,48 @@ export function usePeekSwitcherState<Extra>({
         };
     };
 
-    const [peekState, setPeekState] = useState<PeekSwitcherState<Extra>>(() => {
-        const peekData =
-            typeof initialPeekData === "function" ? initialPeekData() : initialPeekData;
+    const [peekState, setPeekState] = useStateWithDependencies(
+        (key): PeekSwitcherState<Extra> => {
+            const peekData =
+                typeof initialPeekData === "function" ? initialPeekData() : initialPeekData;
 
-        if (!peekData) {
+            if (!peekData) {
+                return {
+                    activePeek: null,
+                    transition: null,
+                };
+            }
+
+            const spacePath = resolvePath(peekData.spacePath);
+            const peekPath = convertSpacePathToPeekPath(spacePath);
+            if (!peekPath) throw new InternalError("Invalid space path");
+
+            const history = createMemoryHistory({initialEntries: [peekPath]});
+
+            const peekId = generateId<PeekId>();
+
+            const peek: PeekSwitcherStatePeek<Extra> = {
+                id: peekId,
+                initialSpacePath: peekData.spacePath,
+                history,
+                routerPromise: PromiseImmediate.resolve(
+                    createPeekRouter({
+                        history,
+                        hydrationData: peekData.hydrationData,
+                    }),
+                ),
+                extra: peekData.extra,
+                setExtra: createSetPeekExtra(peekId),
+            };
+
             return {
-                activePeek: null,
+                activePeek: peek,
                 transition: null,
             };
-        }
-
-        const spacePath = resolvePath(peekData.spacePath);
-        const peekPath = convertSpacePathToPeekPath(spacePath);
-        if (!peekPath) throw new InternalError("Invalid space path");
-
-        const history = createMemoryHistory({initialEntries: [peekPath]});
-
-        const peekId = generateId<PeekId>();
-
-        const peek: PeekSwitcherStatePeek<Extra> = {
-            id: peekId,
-            initialSpacePath: peekData.spacePath,
-            history,
-            routerPromise: PromiseImmediate.resolve(
-                createPeekRouter({
-                    history,
-                    hydrationData: peekData.hydrationData,
-                }),
-            ),
-            extra: peekData.extra,
-            setExtra: createSetPeekExtra(peekId),
-        };
-
-        return {
-            activePeek: peek,
-            transition: null,
-        };
-    });
+        },
+        // Reset our state if `key` ever changes.
+        [key],
+    );
 
     const switchPeek = useEvent(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -224,7 +231,7 @@ export function usePeekSwitcherState<Extra>({
             timeout.clear();
             transition.pendingPromiseResolver.resolve();
         };
-    }, [peekState]);
+    }, [peekState, setPeekState]);
 
     return {
         selectedPeek: peekState.transition?.peek ?? peekState.activePeek,
