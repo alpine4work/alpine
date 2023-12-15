@@ -58,8 +58,7 @@ import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
 export const paragraphLineHeight = "1.375rem";
-const paragraphMargin: RemLength = `${parseRemLengthNumber(paragraphLineHeight) / 2}rem`;
-const paragraphReducedMargin: RemLength = `${parseRemLengthNumber(paragraphMargin) / 2}rem`;
+const paragraphMargin = spacing["2"];
 
 export const docClassName = style({
     minHeight: "100%",
@@ -108,13 +107,13 @@ export const titleFontSize = fontSizes["800"];
 
 export const titleClassName = style({
     ...blockStyles,
-    ...fontStyles["semi-bold"],
+    ...fontStyles["bold"],
     ...titleFontSize,
     paddingTop: desktopTitlePaddingTop,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: `calc(${titleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
-    marginBottom: paragraphReducedMargin,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
@@ -147,7 +146,7 @@ export const paragraphClassName = style({
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: paragraphFontSize.lineHeight,
-    marginTop: paragraphReducedMargin,
+    marginTop: paragraphMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
@@ -162,10 +161,10 @@ export const headingLevel1FontSize = fontSizes["600"];
 
 export const headingLevel1ClassName = style({
     ...blockStyles,
-    ...fontStyles["semi-bold"],
+    ...fontStyles["bold"],
     ...headingLevel1FontSize,
     marginTop: heading1TopMargin,
-    marginBottom: paragraphReducedMargin,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     selectors: {
@@ -179,10 +178,10 @@ export const headingLevel2FontSize = fontSizes["400"];
 
 export const headingLevel2ClassName = style({
     ...blockStyles,
-    ...fontStyles["semi-bold"],
+    ...fontStyles["bold"],
     ...headingLevel2FontSize,
     marginTop: heading2TopMargin,
-    marginBottom: paragraphReducedMargin,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     selectors: {
@@ -199,10 +198,10 @@ export const headingLevel3FontSize = fontSizes["200"];
 
 export const headingLevel3ClassName = style({
     ...blockStyles,
-    ...fontStyles["semi-bold"],
+    ...fontStyles["bold"],
     ...headingLevel3FontSize,
     marginTop: heading3TopMargin,
-    marginBottom: paragraphReducedMargin,
+    marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     selectors: {
@@ -464,6 +463,15 @@ export const boldClassName = style({
     selectors: {
         [`${codeClassName} &`]: {
             ...fontStyles["code-bold"],
+        },
+        [`${headingLevel1ClassName} &`]: {
+            ...fontStyles["ultra-bold"],
+        },
+        [`${headingLevel2ClassName} &`]: {
+            ...fontStyles["ultra-bold"],
+        },
+        [`${headingLevel3ClassName} &`]: {
+            ...fontStyles["ultra-bold"],
         },
     },
 });
