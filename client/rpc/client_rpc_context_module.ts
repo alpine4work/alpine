@@ -4,9 +4,11 @@ import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/pro
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
+    RpcHttpBatchCallErrorOutputSchema,
+    RpcHttpBatchCallEventOutputSchema,
     RpcHttpBatchCallInputSchema,
-    RpcHttpBatchCallOutputSchema,
     RpcHttpCallInputSchema,
     RpcHttpCallOutputSchema,
 } from "~/shared/rpc/helpers/rpc_http_schema.js";
@@ -168,10 +170,12 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
                     } else {
                         firstCall.outputPromiseResolver.resolve(callOutput.output);
                     }
-                } else {
+                } else if (!response.ok) {
                     const output = await response
                         .json()
-                        .then((output: any) => RpcHttpBatchCallOutputSchema.deserialize(output))
+                        .then((output: any) =>
+                            RpcHttpBatchCallErrorOutputSchema.deserialize(output),
+                        )
                         .catch(error => {
                             // If we fail to parse the response body as JSON, classify as `Internal`
                             // status code.
@@ -181,31 +185,95 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
                             throw new InternalError(error.message, {cause: error});
                         });
 
-                    if (!output.ok) {
-                        throw output.error;
+                    throw output.error;
+                } else {
+                    const decoder = new TextDecoder();
+                    const reader = assertExists(response.body).getReader();
+
+                    async function* read(): AsyncIterableIterator<string> {
+                        let unfinishedString = "";
+
+                        while (true) {
+                            const result = await reader.read();
+
+                            if (result.value) {
+                                const chunkString = decoder.decode(result.value, {
+                                    stream: !result.done,
+                                });
+
+                                unfinishedString =
+                                    unfinishedString.length === 0
+                                        ? chunkString
+                                        : unfinishedString + chunkString;
+
+                                // If there's a newline in the output that means the content preceding the
+                                // newline has at least one valid event maybe more.
+                                const newLineIndex = chunkString.lastIndexOf("\n");
+                                if (newLineIndex !== -1) {
+                                    const finishedString = unfinishedString.slice(0, newLineIndex);
+                                    unfinishedString = unfinishedString.slice(newLineIndex + 1);
+
+                                    yield* finishedString.split("\n");
+                                }
+                            }
+
+                            if (result.done) {
+                                break;
+                            }
+                        }
+
+                        // Once we're done reading, we assume the last string is also valid JSON.
+                        // Unless the string is empty. Then we assume it's a trailing newline.
+                        if (unfinishedString.length !== 0) {
+                            yield unfinishedString;
+                        }
                     }
 
-                    if (output.calls.length !== callBatch.length)
-                        throw new InternalError(
-                            `Expected ${callBatch.length} call outputs but received ${output.calls.length} call outputs`,
+                    for await (const eventString of read()) {
+                        const event = RpcHttpBatchCallEventOutputSchema.deserialize(
+                            JSON.parse(eventString),
                         );
 
-                    callBatch.forEach((call, index) => {
+                        const call = callBatch[event.index];
+                        const callOutput = event.call;
+
+                        if (!call) {
+                            throw new InternalError(
+                                "Batch request included output for an unknown call",
+                            );
+                        }
+
                         // If anything throws while processing the output for a single call,
                         // reject only that call's promise.
-                        const callOutput = output.calls[index]!;
                         if (!callOutput.ok) {
                             call.outputPromiseResolver.reject(callOutput.error);
                         } else {
                             call.outputPromiseResolver.resolve(callOutput.output);
                         }
-                    });
+                    }
+
+                    for (const call of callBatch) {
+                        if (!call.outputPromiseResolver.isSettled()) {
+                            call.outputPromiseResolver.reject(
+                                new InternalError("Batch request didn't include output for call"),
+                            );
+                        }
+                    }
                 }
             },
         );
     } catch (error) {
+        let hasRejectedCall = false;
+
         for (const call of callBatch) {
-            call.outputPromiseResolver.reject(error);
+            if (!call.outputPromiseResolver.isSettled()) {
+                hasRejectedCall = true;
+                call.outputPromiseResolver.reject(error);
+            }
+        }
+
+        if (!hasRejectedCall) {
+            scheduleUncaughtError(error);
         }
     }
 }

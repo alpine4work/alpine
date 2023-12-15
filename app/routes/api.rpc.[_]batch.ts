@@ -4,9 +4,9 @@ import {InvalidArgumentError, NotFoundError} from "~/shared/error/error.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {
+    RpcHttpBatchCallErrorOutputSchema,
+    RpcHttpBatchCallEventOutputSchema,
     RpcHttpBatchCallInputSchema,
-    RpcHttpBatchCallOutputSchema,
-    RpcHttpCallOutputSchema,
 } from "~/shared/rpc/helpers/rpc_http_schema.js";
 import {SchemaSerializedValue, SchemaType} from "~/shared/schema/schema.js";
 
@@ -23,56 +23,65 @@ export async function action({request, context: loaderContext, span}: LoaderArgs
                 ),
         ]);
 
-        const results = await Promise.allSettled(
-            batchCall.calls.map(
-                async (call): Promise<SchemaType<typeof RpcHttpCallOutputSchema>> => {
-                    try {
-                        const rpcImplementation = getRpcImplementationIfExists(call.name);
-                        if (!rpcImplementation)
-                            throw new NotFoundError("Could not find an implementation for RPC");
+        if (batchCall.calls.length < 1) {
+            throw new InvalidArgumentError("Expected at least one call in batch");
+        }
 
-                        const output = await rpcImplementation.execute(context, call.input);
+        const outputPromises = batchCall.calls.map(call => {
+            const rpcImplementation = getRpcImplementationIfExists(call.name);
+            if (!rpcImplementation)
+                throw new NotFoundError("Could not find an implementation for RPC");
 
-                        return {
-                            ok: true,
-                            output,
-                        };
-                    } catch (error) {
-                        return {
-                            ok: false,
-                            error,
-                        };
-                    }
-                },
-            ),
-        );
+            const outputPromise = rpcImplementation.execute(context, call.input);
 
-        const calls = results.map(result => {
-            if (result.status === "rejected") throw result.reason;
-            return result.value;
+            // Make sure to extend the context's lifetime until the RPC finishes executing.
+            context.process.waitUntil(outputPromise);
+
+            return outputPromise;
         });
 
-        const status =
-            calls.length === 0
-                ? 200
-                : calls.reduce(
-                      (status, call) =>
-                          Math.min(status, call.ok ? 200 : isSystemError(call.error) ? 500 : 400),
-                      500,
-                  );
+        // We stream call results to the client with in the ndjson format.
+        // https://github.com/ndjson/ndjson-spec
+        const stream = new ReadableStream({
+            type: "bytes",
+            start: async controller => {
+                const encoder = new TextEncoder();
 
-        return new Response(
-            JSON.stringify(
-                RpcHttpBatchCallOutputSchema.serialize({
-                    ok: true,
-                    calls,
-                }),
-            ),
-            {
-                status,
-                headers: {"content-type": "application/json"},
+                await runAllPromises(
+                    outputPromises.map(async (outputPromise, index) => {
+                        let event: SchemaType<typeof RpcHttpBatchCallEventOutputSchema>;
+
+                        try {
+                            const output = await outputPromise;
+
+                            event = {
+                                index,
+                                call: {ok: true, output},
+                            };
+                        } catch (error) {
+                            event = {
+                                index,
+                                call: {ok: false, error},
+                            };
+                        }
+
+                        controller.enqueue(
+                            encoder.encode(
+                                JSON.stringify(RpcHttpBatchCallEventOutputSchema.serialize(event)) +
+                                    "\n",
+                            ),
+                        );
+                    }),
+                );
+
+                controller.close();
             },
-        );
+        });
+
+        return new Response(stream, {
+            status: 200,
+            headers: {"content-type": "application/x-ndjson"},
+        });
     } catch (error) {
         span.addException(error);
 
@@ -80,7 +89,7 @@ export async function action({request, context: loaderContext, span}: LoaderArgs
 
         return new Response(
             JSON.stringify(
-                RpcHttpBatchCallOutputSchema.serialize({
+                RpcHttpBatchCallErrorOutputSchema.serialize({
                     ok: false,
                     error,
                 }),

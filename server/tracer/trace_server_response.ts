@@ -76,6 +76,7 @@ export async function traceServerResponse(
             const requestBodyReader = request.body.getReader();
 
             const newRequestBody = new ReadableStream<Uint8Array>({
+                type: "bytes",
                 start: controller => {
                     const read = () => {
                         requestBodyReader.read().then(
@@ -121,7 +122,7 @@ export async function traceServerResponse(
             });
         }
 
-        const response = await action(span, request);
+        let response = await action(span, request);
 
         span.addData({
             http: {
@@ -137,7 +138,60 @@ export async function traceServerResponse(
             },
         });
 
-        finishSpan();
+        // Measure the uncompressed response body size by creating an intermediate
+        // readable stream on top of the response body.
+        //
+        // Also, we want to finish the span when the body stops streaming. Not when the
+        // `action()` function resolves.
+        if (!response.body) {
+            finishSpan();
+        } else {
+            let responseUncompressedContentLength = 0;
+            const responseBodyReader = response.body.getReader();
+
+            const actuallyFinishSpan = () => {
+                if (span.isFinished()) return;
+
+                span.addData({
+                    http: {
+                        response: {
+                            uncompressedContentLength: responseUncompressedContentLength,
+                        },
+                    },
+                });
+
+                finishSpan();
+            };
+
+            const newResponseBody = new ReadableStream<Uint8Array>({
+                type: "bytes",
+                start: controller => {
+                    const read = () => {
+                        responseBodyReader.read().then(
+                            ({done, value}) => {
+                                if (done) {
+                                    controller.close();
+                                    actuallyFinishSpan();
+                                } else {
+                                    responseUncompressedContentLength += value.length;
+                                    controller.enqueue(value);
+                                    read();
+                                }
+                            },
+                            error => controller.error(error),
+                        );
+                    };
+
+                    read();
+                },
+                cancel: () => {
+                    actuallyFinishSpan();
+                },
+            });
+
+            response = new Response(newResponseBody, response);
+        }
+
         return response;
     } catch (error) {
         span.addException(error);

@@ -21,13 +21,12 @@ export const RpcHttpBatchCallInputSchema = Schema.object({
     calls: Schema.array(RpcHttpCallInputSchema),
 });
 
-export const RpcHttpBatchCallOutputSchema = Schema.result(
-    Schema.object({
-        ok: Schema.value(true),
-        calls: Schema.array(RpcHttpCallOutputSchema),
-    }),
-    Schema.object({
-        ok: Schema.value(false),
-        error: ErrorSchema,
-    }),
-);
+export const RpcHttpBatchCallErrorOutputSchema = Schema.object({
+    ok: Schema.value(false),
+    error: ErrorSchema,
+});
+
+export const RpcHttpBatchCallEventOutputSchema = Schema.object({
+    index: Schema.integer.min(0),
+    call: RpcHttpCallOutputSchema,
+});

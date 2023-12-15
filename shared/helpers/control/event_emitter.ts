@@ -1,3 +1,4 @@
+import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 
 /**
@@ -37,5 +38,28 @@ export class EventEmitter<Event = void> {
         return () => {
             this._listeners.delete(listener);
         };
+    }
+
+    /**
+     * Allow treating the `EventEmitter` as an `AsyncIterable`. Useful for
+     * integrating `EventEmitter` with native platform features.
+     */
+    public async *[Symbol.asyncIterator](): AsyncIterableIterator<Event> {
+        let promiseResolver = createPromiseResolver<Event>();
+
+        const unsubscribe = this.subscribe(event => {
+            const lastPromiseResolver = promiseResolver;
+            promiseResolver = createPromiseResolver();
+            lastPromiseResolver.resolve(event);
+        });
+
+        try {
+            while (true) {
+                const event = await promiseResolver.promise;
+                yield event;
+            }
+        } finally {
+            unsubscribe();
+        }
     }
 }
