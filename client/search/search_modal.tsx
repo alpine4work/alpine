@@ -566,6 +566,7 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                 })}
                 // Chrome complains if `<input>` doesn't have an `id` or `name`.
                 id={useId()}
+                autoComplete="off"
                 placeholder={`Search ${space.name}…`}
                 value={queryText}
                 onChange={event => onQueryTextChange(event.currentTarget.value)}
