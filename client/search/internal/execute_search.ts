@@ -145,6 +145,19 @@ export function executeSearch(
     );
 }
 
+/**
+ * Fuse search results from separate systems with [reciprocal rank fusion][1].
+ * Reciprocal rank fusion is a simple formula that's been shown to perform
+ * better than methods requiring training for combining the search results of
+ * different systems.
+ *
+ * [ElasticSearch provides reciprocal rank fusion out of the box][2] for
+ * combining search results. ElasticSearch's documentation also provides some
+ * sample code for how the formula works.
+ *
+ * [1]: https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf
+ * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/rrf.html
+ */
 function fuseSearchResults(
     resultSets: Array<ReadonlyArray<SearchResult>>,
 ): ReadonlyArray<SearchResult> {
