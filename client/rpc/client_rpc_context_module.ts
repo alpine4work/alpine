@@ -201,14 +201,19 @@ async function executeRpcs(callBatch: Array<RpcCall>): Promise<void> {
                                     stream: !result.done,
                                 });
 
+                                // If there's a newline in the output that means the content preceding the
+                                // newline has at least one valid event maybe more.
+                                let newLineIndex = chunkString.lastIndexOf("\n");
+
+                                if (newLineIndex !== -1) {
+                                    newLineIndex += unfinishedString.length;
+                                }
+
                                 unfinishedString =
                                     unfinishedString.length === 0
                                         ? chunkString
                                         : unfinishedString + chunkString;
 
-                                // If there's a newline in the output that means the content preceding the
-                                // newline has at least one valid event maybe more.
-                                const newLineIndex = chunkString.lastIndexOf("\n");
                                 if (newLineIndex !== -1) {
                                     const finishedString = unfinishedString.slice(0, newLineIndex);
                                     unfinishedString = unfinishedString.slice(newLineIndex + 1);

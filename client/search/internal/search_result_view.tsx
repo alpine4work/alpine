@@ -75,7 +75,26 @@ export function SearchResultView({
                             : undefined,
                     }}
                 >
-                    <Box fontSize="100" fontStyle="semi-bold" paddingBottom="0.5">
+                    <Box
+                        overflow="hidden"
+                        fontSize="100"
+                        fontStyle="semi-bold"
+                        paddingBottom="0.5"
+                        style={{
+                            minHeight: fontSizes["100"].lineHeight,
+                            // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
+                            // except IE.
+                            // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            lineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            textOverflow: "ellipsis",
+                            // Render contextual alternate glyphs. Particularly important that we render
+                            // the right "@" for mentions.
+                            fontFeatureSettings: '"calt" on',
+                        }}
+                    >
                         {result.title}
                     </Box>
                     <Box

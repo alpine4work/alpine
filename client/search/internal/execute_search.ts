@@ -2,8 +2,10 @@ import {AppContext} from "~/client/context/app_context.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
 import {Store} from "~/client/helpers/store/store.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {searchByKeywords, searchBySemantics} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 
 /**
@@ -131,8 +133,61 @@ export function executeSearch(
             return {
                 isPending: semanticSearchState.status === "pending",
                 isError: false,
-                results: keywordSearchState.value.results,
+                results:
+                    semanticSearchState.status !== "pending"
+                        ? fuseSearchResults([
+                              keywordSearchState.value.results,
+                              semanticSearchState.value.results,
+                          ])
+                        : keywordSearchState.value.results,
             };
         },
     );
+}
+
+function fuseSearchResults(
+    resultSets: Array<ReadonlyArray<SearchResult>>,
+): ReadonlyArray<SearchResult> {
+    // NOCOMMIT: Allow configuring in debug mode. We choose a low value like 5
+    // since we can get a lot of results from our keyword result set. A low
+    // rated keyword result plus a low rated semantic result should not bubble up
+    // to the first position.
+    const rankConstant = 5;
+
+    const newResultByEntityId = new Map<SearchEntityId, {rescore: number; result: SearchResult}>();
+
+    for (const results of resultSets) {
+        let lastScore: number | null = null;
+
+        for (let resultIndex = 0; resultIndex < results.length; resultIndex++) {
+            const result = results[resultIndex]!;
+
+            assert(
+                lastScore === null || lastScore >= result.score,
+                "Search results must be in descending score order",
+            );
+            lastScore = result.score;
+
+            const newResult = newResultByEntityId.get(result.entityId);
+
+            const oldRescore = newResult?.rescore ?? 0;
+            const newRescore = oldRescore + 1 / (rankConstant + (resultIndex + 1));
+
+            if (newResult !== undefined) {
+                newResult.rescore = newRescore;
+            } else {
+                newResultByEntityId.set(result.entityId, {rescore: newRescore, result});
+            }
+        }
+    }
+
+    const fusedResults: Array<SearchResult> = [];
+
+    for (const {rescore, result} of newResultByEntityId.values()) {
+        fusedResults.push({...result, score: rescore});
+    }
+
+    fusedResults.sort((a, b) => b.score - a.score);
+
+    return fusedResults;
 }
