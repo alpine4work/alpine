@@ -1,10 +1,10 @@
 import {MagnifyingGlass} from "phosphor-react";
-import {Component, ReactNode, useEffect, useState} from "react";
+import {Component, ReactNode, useEffect, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
+import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {SearchModal} from "~/client/search/search_modal.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
@@ -21,7 +21,6 @@ import {SpaceModel} from "~/shared/spaces/space_model.js";
 // finding a different keyboard shortcut we can use across the operating
 // system when we have a desktop app.
 export function SpaceLayoutTopBarSearchInput({space}: {space: SpaceModel}) {
-    const {isAppleDevice} = useClientInfo();
     const isInitialAppRender = useIsInitialAppRender();
 
     const [searchState, setSearchState] = useState<{initialQueryText: string} | null>(null);
@@ -52,24 +51,28 @@ export function SpaceLayoutTopBarSearchInput({space}: {space: SpaceModel}) {
         },
     });
 
+    const lastShiftKeyDownTimeRef = useRef<number | null>(null);
+
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
-                if (
-                    event.key === "s" &&
-                    !event.altKey &&
-                    !event.shiftKey &&
-                    (isAppleDevice
-                        ? event.metaKey && !event.ctrlKey
-                        : event.ctrlKey && !event.metaKey)
-                ) {
+                if (event.key === "Shift" && !event.altKey && !event.metaKey && !event.ctrlKey) {
                     event.preventDefault();
                     event.stopPropagation();
 
-                    setSearchState(searchState => {
-                        if (searchState) return searchState;
-                        return {initialQueryText: ""};
-                    });
+                    const currentTime = Date.now();
+                    const lastShiftKeyDownTime = lastShiftKeyDownTimeRef.current;
+                    lastShiftKeyDownTimeRef.current = currentTime;
+
+                    if (
+                        lastShiftKeyDownTime !== null &&
+                        currentTime - lastShiftKeyDownTime < doubleClickDelayMs
+                    ) {
+                        setSearchState(searchState => {
+                            if (searchState) return searchState;
+                            return {initialQueryText: ""};
+                        });
+                    }
                 }
             }}
         >
@@ -92,7 +95,7 @@ export function SpaceLayoutTopBarSearchInput({space}: {space: SpaceModel}) {
                     <MagnifyingGlass size={spacing["3"]} />
                     <Box fontStyle="truncate">Search {space.name}</Box>
                     <Box fontSize="50" color="grey-30">
-                        {isAppleDevice ? "⌘+S" : "Ctrl+S"}
+                        Shift+Shift
                     </Box>
                 </Box>
                 {searchState && (
