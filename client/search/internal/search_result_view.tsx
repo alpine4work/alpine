@@ -1,5 +1,6 @@
 import {Fragment} from "react";
 import {Box} from "~/client/design/box.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 import {colorSchemeVars, fontSizes, sprinkles} from "~/shared/styles/styles.js";
@@ -79,7 +80,6 @@ export function SearchResultView({
                         overflow="hidden"
                         fontSize="100"
                         fontStyle="semi-bold"
-                        paddingBottom="0.5"
                         style={{
                             minHeight: fontSizes["100"].lineHeight,
                             // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
@@ -97,6 +97,7 @@ export function SearchResultView({
                     >
                         {result.title}
                     </Box>
+                    <Spacer space="0.5" />
                     <Box
                         overflow="hidden"
                         color="grey-50"
