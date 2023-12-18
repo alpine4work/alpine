@@ -154,7 +154,7 @@ export abstract class Store<Value> {
      * `store.map(value => { ... })` but this form has the ability for you to map
      * multiple stores at once whereas the class method form does not.
      */
-    public static map<Stores extends ReadonlyArray<Store<any>>, NewValue>(
+    public static map<const Stores extends ReadonlyArray<Store<any>>, NewValue>(
         ...args: [
             ...Stores,
             (
