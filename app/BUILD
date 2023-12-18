@@ -51,6 +51,8 @@ ts_project(
         "//server/documents/data",
         "//server/emails",
         "//server/forum/data",
+        "//server/language_models/all_mini_lm_l6_v2",
+        "//server/language_models/cohere_embed_english_v3",
         "//server/node",
         "//server/notifications/data",
         "//server/remix",

@@ -168,6 +168,7 @@ async function createArtifacts() {
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
                 `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
+                `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
                 `--inspectorPort=${appDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
             ],

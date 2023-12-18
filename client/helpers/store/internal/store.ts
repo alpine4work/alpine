@@ -175,7 +175,7 @@ export abstract class Store<Value> {
      * Same as the static `Store.map()` method but you can pass in an array of
      * dynamic length instead of a static number of store arguments.
      */
-    public static mapMany<Stores extends ReadonlyArray<Store<any>>, NewValue>(
+    public static mapMany<const Stores extends ReadonlyArray<Store<any>>, NewValue>(
         stores: Stores,
         map: (values: {
             readonly [K in keyof Stores]: StoreType<Stores[K]>;

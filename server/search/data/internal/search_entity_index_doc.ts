@@ -345,6 +345,12 @@ export type SearchEntitySemanticIndexDoc = OpensearchIndexTypeType<
 export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
     fields: {
         /**
+         * The title of the chunked entity. Copied here in addition to the keyword
+         * index so we can load the title when searching.
+         */
+        title: new OpensearchIndexKeywordType().nullable().store(),
+
+        /**
          * Embedding chunks are represented as a nested OpenSearch fields. Nested
          * OpenSearch fields index each object as a separate internal doc
          * under-the-hood. What's really nice about a nested field is we can update all

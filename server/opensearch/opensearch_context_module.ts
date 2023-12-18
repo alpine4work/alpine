@@ -310,7 +310,7 @@ export class OpensearchContextModule
                 readonly [key: string]: Array<{
                     readonly offset: number;
                     readonly fields: {
-                        readonly [Key in OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
+                        readonly [Key in keyof OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
                             OpensearchIndexStoredFieldsType<Index>[Key]
                         >;
                     };

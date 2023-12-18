@@ -1,5 +1,6 @@
 import {DynamoActorServiceName} from "~/server/accounts/dynamo_actor_context_module.js";
 import {ServerActionContextModules} from "~/server/context/server_action_context.js";
+import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -15,6 +16,7 @@ export type RpcServerActionContext = Context<RpcServerActionContextModules>;
 export type RpcServerActionContextModules = ServerActionContextModules & {
     notifications: NotificationsContextModuleBase;
     tasks: TaskContextModule;
+    languageModel: LanguageModelContextModule;
 };
 
 export type RpcImplementation = {

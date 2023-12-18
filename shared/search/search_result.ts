@@ -9,6 +9,7 @@ export type SearchResult = SchemaType<typeof SearchResultSchema>;
 
 export const SearchResultSchema = Schema.object({
     entityId: SearchEntityIdSchema,
+    score: Schema.float, // NOCOMMIT: In debug mode we need more info?
     title: Schema.string.nullable(),
     bodyTextSnippet: Schema.array(
         Schema.object({

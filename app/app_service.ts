@@ -16,6 +16,9 @@ import {ServerProcessContextModules} from "~/server/context/server_process_conte
 import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_module.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
+import {AllMiniLmL6V2LanguageModel} from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
+import {CohereEmbedEnglishV3LanguageModel} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_model.js";
+import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {
     createServerProcessContext,
     serverProcessContextParseOptions,
@@ -100,6 +103,7 @@ runService({
         shouldSeedDynamo: {type: "boolean"},
         ecsCluster: {type: "string"},
         taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
+        allMiniLmL6V2LanguageModel: {type: "string"},
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
@@ -117,6 +121,19 @@ runService({
         });
 
         const awsSigner = new AwsRequestSigner();
+
+        const languageModel =
+            process.env.NODE_ENV === "production"
+                ? new CohereEmbedEnglishV3LanguageModel({
+                      // NOCOMMIT: Cohere API key in production
+                      apiKey: assertExists(null as string | null),
+                  })
+                : await AllMiniLmL6V2LanguageModel.new(
+                      assertExists(
+                          options.allMiniLmL6V2LanguageModel,
+                          "`allMiniLmL6V2LanguageModel` option is required in development",
+                      ),
+                  );
 
         const processContext = createServerProcessContext({
             tracer,
@@ -251,6 +268,7 @@ runService({
                             tokenAgent,
                             dangerouslyEscalateToSystemContext,
                         }),
+                        languageModel: new LanguageModelContextModule(languageModel),
                     },
                     context => {
                         // The first time our server process runs in development, seed DynamoDB with

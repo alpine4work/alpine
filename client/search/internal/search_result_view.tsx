@@ -1,9 +1,34 @@
-import {Fragment, useState} from "react";
+import {Fragment} from "react";
 import {Box} from "~/client/design/box.js";
+import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {SearchResult} from "~/shared/search/search_result.js";
-import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, fontSizes, sprinkles} from "~/shared/styles/styles.js";
 
-export const minSearchResultViewHeight = "2.75rem";
+/**
+ * Minimum height of the body text snippet in a search result. We show at least
+ * two lines.
+ *
+ * The minimum height of our `<SearchResultView>` determines the size of our
+ * search request. More items in our search request means higher search
+ * latency. At least 2 lines means we need to load less data to fill the
+ * virtualization window.
+ */
+const minSearchBodyTextSnippetLineCount = 2;
+
+const searchBodyTextSnippetFontSize = "50";
+
+const minSearchBodyTextSnippetHeight: RemLength = `${
+    parseRemLengthNumber(fontSizes[searchBodyTextSnippetFontSize].lineHeight) *
+    minSearchBodyTextSnippetLineCount
+}rem`;
+
+export const minSearchResultViewHeight = addRemLengths(
+    spacing["3"],
+    fontSizes["100"].lineHeight,
+    spacing["0.5"],
+    minSearchBodyTextSnippetHeight,
+    spacing["3"],
+);
 
 export function SearchResultView({
     result,
@@ -55,21 +80,21 @@ export function SearchResultView({
                     </Box>
                     <Box
                         overflow="hidden"
-                        maxHeight="7"
                         color="grey-50"
-                        fontSize="50"
+                        fontSize={searchBodyTextSnippetFontSize}
                         style={{
                             // Truncate after 3 lines of text. Unofficial syntax that works in all browsers
                             // except IE.
                             // https://stackoverflow.com/questions/3922739/limit-text-length-to-n-lines-using-css
                             display: "-webkit-box",
-                            WebkitLineClamp: 2,
-                            lineClamp: 2,
+                            WebkitLineClamp: 3,
+                            lineClamp: 3,
                             WebkitBoxOrient: "vertical",
                             textOverflow: "ellipsis",
                             // Render contextual alternate glyphs. Particularly important that we render
                             // the right "@" for mentions.
                             fontFeatureSettings: '"calt" on',
+                            minHeight: minSearchBodyTextSnippetHeight,
                         }}
                     >
                         {result.bodyTextSnippet.map(({isHighlighted, text}, index) => {

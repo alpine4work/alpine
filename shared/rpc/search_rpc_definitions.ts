@@ -3,8 +3,20 @@ import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchResultSchema} from "~/shared/search/search_result.js";
 
-export const searchByKeyword = defineRpc({
-    name: "searchByKeyword",
+export const searchByKeywords = defineRpc({
+    name: "searchByKeywords",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        queryText: Schema.string,
+        limit: Schema.integer,
+    },
+    output: {
+        results: Schema.array(SearchResultSchema),
+    },
+});
+
+export const searchBySemantics = defineRpc({
+    name: "searchBySemantics",
     input: {
         spaceId: Schema.id<SpaceId>(),
         queryText: Schema.string,

@@ -100,14 +100,25 @@ export function printContentSingleLineTextSnippetWithHighlighting(
         const typeName = node.type.name as ContentBlockNodeTypeName | "title";
 
         switch (typeName) {
-            case "title":
-            case "heading":
             case "paragraph": {
                 for (const childNode of node.content.content) {
                     printInlineNode(childNode);
                 }
 
                 breakPunctuation = ".";
+                break;
+            }
+            case "title":
+            case "heading": {
+                for (const childNode of node.content.content) {
+                    printInlineNode(childNode);
+                }
+
+                // Use a colon after headings to introduce the following content. Headings
+                // typically aren't quite proper sentences. Often they're nouns describing the
+                // following section. Colons are similarly used to introduce the content which
+                // follows so let's use that.
+                breakPunctuation = ":";
                 break;
             }
             case "quoteBlock": {

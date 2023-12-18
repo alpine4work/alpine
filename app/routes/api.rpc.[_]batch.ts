@@ -35,7 +35,9 @@ export async function action({request, context: loaderContext, span}: LoaderArgs
             const outputPromise = rpcImplementation.execute(context, call.input);
 
             // Make sure to extend the context's lifetime until the RPC finishes executing.
-            context.process.waitUntil(outputPromise);
+            // Errors are passed to the client. We don't need to report them as uncaught
+            // `waitUntil()` errors.
+            context.process.waitUntil(outputPromise.catch(() => {}));
 
             return outputPromise;
         });

@@ -255,7 +255,7 @@ export interface OpensearchClientInterface {
                 readonly [key: string]: Array<{
                     readonly offset: number;
                     readonly fields: {
-                        readonly [Key in OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
+                        readonly [Key in keyof OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
                             OpensearchIndexStoredFieldsType<Index>[Key]
                         >;
                     };
@@ -1813,7 +1813,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                 readonly [key: string]: Array<{
                     readonly offset: number;
                     readonly fields: {
-                        readonly [Key in OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
+                        readonly [Key in keyof OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
                             OpensearchIndexStoredFieldsType<Index>[Key]
                         >;
                     };

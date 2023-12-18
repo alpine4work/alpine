@@ -3,6 +3,7 @@ import {parse as parseCookieHeader, serialize as serializeSetCookieHeader} from 
 import {differenceInDays, isValid as isValidDate, parseISO} from "date-fns";
 import {Params} from "react-router";
 import {ServerUnknownActionContextModules} from "~/server/context/server_action_context.js";
+import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
 import {LocalRpcContextModule} from "~/server/rpc/local_rpc_context_module.js";
 import {TaskContextModule} from "~/server/tasks/data/task_context_module.js";
@@ -40,6 +41,11 @@ export type LoaderContextModules = MergeObjectIntersection<
          * generally available to a `ServerActionContext`.
          */
         tasks: TaskContextModule;
+
+        /**
+         * The language model we use for tasks like embedding search queries.
+         */
+        languageModel: LanguageModelContextModule;
     }
 >;
 

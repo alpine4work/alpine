@@ -1,9 +1,16 @@
 import murmurhash from "murmurhash";
-import {printContentSingleLineTextSnippetWithHighlighting} from "~/server/content/print_content_single_line_text_snippet.js";
-import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
+import {
+    printContentSingleLineTextSnippet,
+    printContentSingleLineTextSnippetWithHighlighting,
+} from "~/server/content/print_content_single_line_text_snippet.js";
+import {
+    ServerSessionActionContext,
+    ServerSessionActionContextModules,
+} from "~/server/context/server_action_context.js";
 import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
+import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {
     OpensearchClientDocWithIdAndVersion,
     OpensearchGetDocWithoutSourceCommand,
@@ -32,6 +39,7 @@ import {
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/search_entity_index_system_action_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
+import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -195,6 +203,7 @@ assertEqualTypes<
 assertEqualTypes<
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntitySemanticIndexDocType>,
     {
+        title: string;
         "embeddingChunks.text": string;
         "embeddingChunks.preambleEndIndex": number;
         "embeddingChunksVectorCache.allMiniLmL6V2": ReadonlyMap<number, ReadonlyArray<number>>;
@@ -520,6 +529,7 @@ export async function processIndexSearchEntityJob(
             > = {
                 id: entityId,
                 version: oldDocForSemanticIndex?.version ?? null,
+                title: entity.title,
                 embeddingChunks,
                 embeddingChunksVectorCache: {
                     allMiniLmL6V2: null,
@@ -663,7 +673,7 @@ export async function processIndexSearchEntityJob(
  * doesn't support prefix matching of the last word which you'd need to build
  * type-ahead functionality.
  */
-export async function searchByKeyword(
+export async function searchByKeywords(
     context: ServerSessionActionContext,
     {
         spaceId,
@@ -800,8 +810,186 @@ export async function searchByKeyword(
 
         return {
             entityId: doc.id,
+            score: doc.score,
             title: doc.fields.title?.[0] ?? null,
             bodyTextSnippet,
+        };
+    });
+
+    return {results};
+}
+
+/**
+ * Search for entities in a space by their semantic meaning. This uses a
+ * language model to embed the query and compare it against embeddings of other
+ * content throughout the space. So you can search by meaning, not just words.
+ *
+ * An example is you're looking for a document titled "Marketing Q3 QBR" (QBR
+ * standing for "Quarterly Business Review"). You know there's some review doc
+ * but you don't know what it's called. So you search "marketing team monthly
+ * business review". Language models are capable of figuring out "monthly
+ * business review" and "QBR" mean similar things so you find the right
+ * matching document.
+ */
+// TODO(calebmer, #security): I suspect that this function is quite susceptible
+// to timing attacks. For example, let's say you work at company X and search
+// "company Y acquires company X". If private documents or chat messages exist
+// talking about an acquisition your search may take a long time because we
+// find these entities, skip over them since they don't match the filters, then
+// try the next nearest entity. So from a search taking a long time you can
+// infer OpenSearch is doing work to check and throw out chunks.
+//
+// This can be worse since OpenSearch doesn't appear to partition KNN indexes.
+// So when doing a KNN search you're also considering embeddings in other
+// spaces! So you may be able to devise a prompt to figure out private
+// information in another company's space!
+//
+// To fix this we could have this function always wait at least 300ms or
+// whatever p90 performance is. We show keyword search results to the user
+// first so it's ok if semantic search results are a bit slower. Once we have
+// some experience with this function in production, evaluate the timing
+// attack risk.
+export async function searchBySemantics(
+    context: Context<
+        ServerSessionActionContextModules & {
+            languageModel: LanguageModelContextModule;
+        }
+    >,
+    {
+        spaceId,
+        queryText,
+        limit,
+    }: {
+        spaceId: SpaceId;
+        queryText: string;
+        limit: number;
+    },
+): Promise<{
+    results: Array<SearchResult>;
+}> {
+    // NOCOMMIT: Tests (include authorization tests)
+    await authorizeSpaceAccess(context, spaceId);
+
+    const [queryEmbeddingVector] = await context.languageModel.model.embed(
+        context.tracer.getTracer(),
+        [queryText],
+        {
+            inputType: "SearchQuery",
+        },
+    );
+
+    assert(queryEmbeddingVector);
+
+    const docs = await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, spaceId, {
+        size: limit,
+        storedFields: ["title"],
+        sort: ["_score"],
+        query: {
+            nested: {
+                path: "embeddingChunks",
+                inner_hits: {
+                    size: 1,
+                    _source: false,
+                    stored_fields: ["embeddingChunks.text", "embeddingChunks.preambleEndIndex"],
+                },
+                query: {
+                    knn: {
+                        [`embeddingChunks.vector.${context.languageModel.model.statics.key}`]: {
+                            vector: new OpensearchQueryValue(
+                                Array.isArray(queryEmbeddingVector)
+                                    ? queryEmbeddingVector
+                                    : Array.from(queryEmbeddingVector),
+                            ),
+                            k: limit,
+
+                            // We filter chunks here (instead of with a boolean filter) to perform
+                            // efficient KNN-filtering which is a hybrid of pre-filtering and
+                            // post-filtering.
+                            // https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
+                            filter: {
+                                bool: {
+                                    // Use filter context to only match content the user is allowed to see. The
+                                    // content must be in our space and must grant access to the account. Either
+                                    // directly or through a default grant.
+                                    filter: [
+                                        {
+                                            term: {
+                                                "embeddingChunks.spaceId": new OpensearchQueryValue(
+                                                    spaceId,
+                                                ),
+                                            },
+                                        },
+                                        {
+                                            bool: {
+                                                minimum_should_match: 1,
+                                                should: [
+                                                    {
+                                                        term: {
+                                                            "embeddingChunks.accessPolicy.accountGrantAccountIds":
+                                                                new OpensearchQueryValue(
+                                                                    context.actor.getAccountId(),
+                                                                ),
+                                                        },
+                                                    },
+                                                    {
+                                                        term: {
+                                                            "embeddingChunks.accessPolicy.defaultGrantType":
+                                                                new OpensearchQueryValue(
+                                                                    SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
+                                                                        "Space",
+                                                                    ),
+                                                                ),
+                                                        },
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    const results = docs.map((doc): SearchResult => {
+        // The highlighted body text we get from OpenSearch is markdown formatted with
+        // `<em>` tags inserted where we need to highlight. To get this in a format we
+        // can render:
+        //
+        // 1. Parse the Markdown back to a ProseMirror node
+        // 2. Print the ProseMirror node to a single line of text
+        let rawBodyTextSnippet =
+            doc.innerHits?.embeddingChunks?.[0]?.fields["embeddingChunks.text"]?.[0];
+
+        const preambleEndIndex =
+            doc.innerHits?.embeddingChunks?.[0]?.fields["embeddingChunks.preambleEndIndex"]?.[0];
+
+        // Remove the preamble from the chunk text.
+        rawBodyTextSnippet =
+            typeof preambleEndIndex === "number"
+                ? rawBodyTextSnippet?.slice(preambleEndIndex)
+                : rawBodyTextSnippet;
+
+        // If the chunk text starts with the document header then remove that.
+        rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\s*#\s+[^\n]+\n/, "");
+
+        const bodySnippet = rawBodyTextSnippet ? parseSearchContent(rawBodyTextSnippet) : null;
+
+        const bodyTextSnippet = bodySnippet
+            ? printContentSingleLineTextSnippet({
+                  doc: bodySnippet,
+                  references: emptyContentReferences,
+              })
+            : "";
+
+        return {
+            entityId: doc.id,
+            score: doc.score,
+            title: doc.fields.title?.[0] ?? null,
+            bodyTextSnippet: [{isHighlighted: false, text: bodyTextSnippet}],
         };
     });
 
