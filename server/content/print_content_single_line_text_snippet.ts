@@ -69,8 +69,13 @@ export function printContentSingleLineTextSnippetWithHighlighting(
 
                 isHighlighted = lastSegment.isHighlighted && isHighlighted;
 
+                // If a sentence is already ended with punctuation, we don't want to add our
+                // break punctuation. If a sentence is ended with punctuation, then a quote
+                // character that also counts.
                 if (
-                    /(?:\p{Sentence_Terminal}|\p{Terminal_Punctuation})\s*$/u.test(lastSegment.text)
+                    /(?:\p{Sentence_Terminal}|\p{Terminal_Punctuation})\s*(?:\p{Pi}|\p{Pf}|["'])*\s*$/u.test(
+                        lastSegment.text,
+                    )
                 ) {
                     actuallyPrint(" ");
                 } else {
