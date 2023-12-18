@@ -187,6 +187,7 @@
         "set-cookie-parser": "^2.5.1",
         "sharp": "^0.32.4",
         "source-map-support": "^0.5.21",
+        "stemmer": "^2.0.1",
         "strip-ansi": "^6.0.1",
         "swr": "2.1.0",
         "toml": "^3.0.0",

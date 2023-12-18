@@ -1,8 +1,5 @@
 import murmurhash from "murmurhash";
-import {
-    printContentSingleLineTextSnippet,
-    printContentSingleLineTextSnippetWithHighlighting,
-} from "~/server/content/print_content_single_line_text_snippet.js";
+import {printContentSingleLineTextSnippetWithHighlighting} from "~/server/content/print_content_single_line_text_snippet.js";
 import {
     ServerSessionActionContext,
     ServerSessionActionContextModules,
@@ -11,6 +8,7 @@ import {TestCheckpoint} from "~/server/helpers/test/test_checkpoint.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
+import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {
     OpensearchClientDocWithIdAndVersion,
     OpensearchGetDocWithoutSourceCommand,
@@ -52,6 +50,7 @@ import {
     defaultUncertaintyWindowMs,
     isDateDefinitelyLessThanWithUncertaintyWindow,
 } from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
@@ -954,6 +953,13 @@ export async function searchBySemantics(
         },
     });
 
+    const queryTokens = new Set(
+        mapIterable(
+            approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(queryText),
+            token => token.text,
+        ),
+    );
+
     const results = docs.map((doc): SearchResult => {
         // The highlighted body text we get from OpenSearch is markdown formatted with
         // `<em>` tags inserted where we need to highlight. To get this in a format we
@@ -976,20 +982,57 @@ export async function searchBySemantics(
         // If the chunk text starts with the document header then remove that.
         rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\s*#\s+[^\n]+\n/, "");
 
-        const bodySnippet = rawBodyTextSnippet ? parseSearchContent(rawBodyTextSnippet) : null;
+        // Emulate OpenSearch highlighting. So if our semantic search chunk text
+        // matches the query words at all the user sees highlighted text as expected.
+        //
+        // As of 2023-12-18 our in-process highlighter doesn't have full compatibility
+        // with OpenSearch's highlighter. For example, we don't support highlighting
+        // tokens that would have been split up by the `word_delimiter_graph` filter
+        // and we don't support highlighting typos from a fuzzy match.
+        //
+        // NOCOMMIT: Test this highlighting! Make sure to test a snippet with a header.
+        if (rawBodyTextSnippet) {
+            let offsetIndex = 0;
+            const highlightTagStart = "<em>";
+            const highlightTagEnd = "</em>";
+
+            for (const token of approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(
+                rawBodyTextSnippet,
+            )) {
+                if (!queryTokens.has(token.text)) continue;
+
+                rawBodyTextSnippet =
+                    rawBodyTextSnippet.slice(0, offsetIndex + token.sourceStartIndex) +
+                    highlightTagStart +
+                    rawBodyTextSnippet.slice(
+                        offsetIndex + token.sourceStartIndex,
+                        offsetIndex + token.sourceStartIndex + token.sourceLength,
+                    ) +
+                    highlightTagEnd +
+                    rawBodyTextSnippet.slice(
+                        offsetIndex + token.sourceStartIndex + token.sourceLength,
+                    );
+
+                offsetIndex += highlightTagStart.length + highlightTagEnd.length;
+            }
+        }
+
+        const bodySnippet = rawBodyTextSnippet
+            ? parseSearchContent(rawBodyTextSnippet, {shouldParseEmphasisHtmlTagAsHighlight: true})
+            : null;
 
         const bodyTextSnippet = bodySnippet
-            ? printContentSingleLineTextSnippet({
-                  doc: bodySnippet,
-                  references: emptyContentReferences,
-              })
-            : "";
+            ? printContentSingleLineTextSnippetWithHighlighting(
+                  {doc: bodySnippet, references: emptyContentReferences},
+                  mark => mark.type.name === "highlight",
+              )
+            : [];
 
         return {
             entityId: doc.id,
             score: doc.score,
             title: doc.fields.title?.[0] ?? null,
-            bodyTextSnippet: [{isHighlighted: false, text: bodyTextSnippet}],
+            bodyTextSnippet,
         };
     });
 
