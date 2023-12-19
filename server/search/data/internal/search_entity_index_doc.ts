@@ -397,7 +397,7 @@ export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
             fields: mapObjectValues(
                 searchEntitySemanticIndexEmbeddingChunkLanguageModels,
                 languageModelClass => {
-                    const isByteDimensionDataType = languageModelClass.dimensionDataType;
+                    const isByteDimensionDataType = languageModelClass.dimensionDataType === "byte";
 
                     return new OpensearchIndexBinaryType()
                         .transform<ReadonlyMap<number, ReadonlyArray<number>>>({

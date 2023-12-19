@@ -303,7 +303,7 @@ function createSearchStateExecutionStack(
 
             const result = get(execution);
 
-            if (result.results) {
+            if (!result.isPending || result.results) {
                 // We only care about the latest execution with results. Throw away all earlier
                 // executions so they can be garbage collected. We will never need to use them
                 // again. Once an execution is not pending, it will never enter a pending state

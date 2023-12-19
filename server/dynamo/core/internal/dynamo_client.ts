@@ -189,9 +189,7 @@ export class DynamoClient {
                           )
                         : undefined,
                 ExpressionAttributeNames:
-                    conditionExpression &&
-                    expressionAttributeNames &&
-                    expressionAttributeNames.size > 0
+                    expressionAttributeNames && expressionAttributeNames.size > 0
                         ? Object.fromEntries(expressionAttributeNames)
                         : undefined,
             });
@@ -700,10 +698,16 @@ export class DynamoClient {
             tableName,
             consistency = "Eventual",
             limit,
+            filterExpression,
+            expressionAttributeValues,
+            expressionAttributeNames,
         }: {
             tableName: string;
             consistency?: DynamoReadConsistency;
             limit?: number;
+            filterExpression?: string;
+            expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
+            expressionAttributeNames?: ReadonlyMap<string, string>;
         },
     ): AsyncIterableIterator<SchemaSerializedObjectValue> {
         let totalScannedCount = 0;
@@ -717,6 +721,20 @@ export class DynamoClient {
                 // then our new limit is 60 since we don't want to exceed our initial limit.
                 Limit: limit !== undefined ? limit - totalScannedCount : undefined,
                 ExclusiveStartKey: lastEvaluatedKey,
+                FilterExpression: filterExpression,
+                ExpressionAttributeValues:
+                    expressionAttributeValues && expressionAttributeValues.size > 0
+                        ? Object.fromEntries(
+                              mapIterable(expressionAttributeValues, ([name, value]) => [
+                                  name,
+                                  intoDynamoAttributeValue(value),
+                              ]),
+                          )
+                        : undefined,
+                ExpressionAttributeNames:
+                    expressionAttributeNames && expressionAttributeNames.size > 0
+                        ? Object.fromEntries(expressionAttributeNames)
+                        : undefined,
             });
 
             totalScannedCount += output.ScannedCount ?? 0;

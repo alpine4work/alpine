@@ -2787,17 +2787,53 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         {
             limit,
             consistency = "Eventual",
+            filter,
         }: {
             limit?: number;
             consistency?: DynamoReadConsistency;
+            filter?: Types["ItemType"];
         } = {},
     ): AsyncIterableIterator<MergeObjectIntersection<Types["Item"]>> {
+        assert(this._initializationState.isInitialized, "Schema has not finished initializing");
+
         const client = await this._getClient(context, false);
+
+        const filterCompilationContext = DynamoConditionExpressionCompilationContext.new();
+        let filterExpressionString: string | undefined;
+
+        if (filter) {
+            const partitionDescription =
+                this._initializationState.description.partitionByType[filter.partitionType];
+            assert(partitionDescription, "Invalid partition");
+            const sortRangeDescription = partitionDescription.sortRangeByType[filter.sortRangeType];
+            assert(sortRangeDescription, "Invalid sort range");
+
+            const hasSortKeyAttributes =
+                Object.keys(sortRangeDescription.sortKeyAttributeByKey).length > 0;
+
+            const partitionTypeString = filterCompilationContext.addVariable(
+                `${filter.partitionType}${dynamoKeySeparator}`,
+            );
+            const sortRangeTypeString = filterCompilationContext.addVariable(
+                hasSortKeyAttributes
+                    ? `${sortRangeDescription.orderKey}${dynamoKeySeparator}${filter.sortRangeType}${dynamoKeySeparator}`
+                    : `${sortRangeDescription.orderKey}${dynamoKeySeparator}${filter.sortRangeType}`,
+            );
+
+            filterExpressionString = `begins_with(partitionKey, ${partitionTypeString}) and ${
+                hasSortKeyAttributes
+                    ? `begins_with(sortKey, ${sortRangeTypeString})`
+                    : `sortKey = ${sortRangeTypeString}`
+            }`;
+        }
 
         const iterator = client.expensiveScan(context.tracer.getTracer(), {
             tableName: this._name,
             consistency,
             limit,
+            filterExpression: filterExpressionString,
+            expressionAttributeValues: new Map(filterCompilationContext.iterateVariables()),
+            expressionAttributeNames: new Map(filterCompilationContext.iterateAttributeNames()),
         });
 
         for await (const serializedItem of iterator) {
