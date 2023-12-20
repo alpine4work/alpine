@@ -18,6 +18,9 @@ assertAssignableTypes<typeof AllMiniLmL6V2LanguageModel, LanguageModelBaseClass>
 
 export const allMiniLmL6V2LanguageModelEmbedTextTestCounter = new TestCounter();
 
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const originalProcessNextTick = process.nextTick;
+
 /**
  * Interface to the `all-MiniLM-L6-v2` model. It is not a very good model
  * (ranked 50 out of 121 as of 2023-11-30 on the [Hugging Face MTEB
@@ -96,7 +99,7 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
      * Embeds some text with this model. Returns a vector for each text.
      */
     public embed(tracer: TracerBase, texts: Iterable<string>): Promise<Iterable<Iterable<number>>> {
-        return tracer.withSpan("all-MiniLM-L6-v2 embed", span => {
+        return tracer.withSpan("all-MiniLM-L6-v2 embed", async span => {
             const textArray = Array.isArray(texts) ? texts : Array.from(texts);
 
             allMiniLmL6V2LanguageModelEmbedTextTestCounter.incrementForTest(
@@ -108,10 +111,39 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
                 common: {count: textArray.length},
             });
 
-            return this._extractor(textArray, {
-                pooling: "mean",
-                normalize: true,
-            });
+            // NOTE(calebmer): [Annoyingly, `onnxruntime-node` calls `process.nextTick()`][1]
+            // before running the model with a native library that runs synchronously. They
+            // probably call `process.nextTick()` to create the illusion of asynchrony.
+            // Anyway, when Jest fake timers are on (`jest.useFakeTimers()`) we wait
+            // forever at the `process.nextTick()` call. To avoid this, let's install the
+            // original unmocked `process.nextTick()` function when we perform our
+            // embedding so it doesn't wait for Jest.
+            //
+            // If other code is running concurrently it may use the unmocked
+            // `process.nextTick()` which is a tradeoff we accept to not have to think
+            // about fake timers when calling `embed()`.
+            //
+            // [1]: https://github.com/microsoft/onnxruntime/blob/8931854528b1b2a3f320d012c78d37186fbbdab8/js/node/lib/backend.ts#L39
+            let embeddingsPromise;
+            let previousProcessNextTick: typeof process.nextTick | null = null;
+            try {
+                if (import.meta.jest && process.nextTick !== originalProcessNextTick) {
+                    // eslint-disable-next-line @typescript-eslint/unbound-method
+                    previousProcessNextTick = process.nextTick;
+                    process.nextTick = originalProcessNextTick;
+                }
+
+                embeddingsPromise = await this._extractor(textArray, {
+                    pooling: "mean",
+                    normalize: true,
+                });
+            } finally {
+                if (previousProcessNextTick !== null) {
+                    process.nextTick = previousProcessNextTick;
+                }
+            }
+
+            return embeddingsPromise;
         });
     }
 }

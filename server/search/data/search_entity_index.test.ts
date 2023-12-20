@@ -6,15 +6,12 @@ import {
     sendChatMessage,
 } from "~/server/chat/data/chat_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
-import {afterTestEnds} from "~/server/dynamo/test_helpers/after_test_ends.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createChannel, createPost, updateChannelName} from "~/server/forum/data/forum_table.js";
-import {JobQueueConsumer} from "~/server/jobs/queue/job_queue_consumer.js";
 import {
     AllMiniLmL6V2LanguageModel,
     allMiniLmL6V2LanguageModelEmbedTextTestCounter,
 } from "~/server/language_models/all_mini_lm_l6_v2/all_mini_lm_l6_v2_language_model.js";
-import {LanguageModelBase} from "~/server/language_models/core/language_model_base.js";
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
@@ -38,50 +35,55 @@ import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_le
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
+beforeEach(() => {
+    import.meta.jest.useFakeTimers();
+});
+
+afterEach(() => {
+    const hadNoTimers = import.meta.jest.getTimerCount() === 0;
+    import.meta.jest.clearAllTimers();
+    import.meta.jest.useRealTimers();
+    assert(hadNoTimers, "Expected all timers to be cleaned up by the end of each test");
+});
+
 const schema = DocumentContentProsemirrorSchema;
 const {SearchEntityKeywordIndex, SearchEntitySemanticIndex} = getSearchEntityIndexesForTest();
 
-const context = createTestContext({
-    shouldStartOpensearch: true,
-    shouldSendJobsToSqs: true,
+let languageModel: AllMiniLmL6V2LanguageModel;
+beforeAll(async () => {
+    languageModel = await AllMiniLmL6V2LanguageModel.new();
 });
 
-function startTestJobConsumer({languageModel}: {languageModel: LanguageModelBase}) {
-    const consumer = JobQueueConsumer.start(context, {
-        queueUrl: context.getSqsLocalJobQueueUrl(),
-        processJob: async (actionContext, job, jobStartTime) => {
-            switch (job.type) {
-                case "IndexSearchEntity": {
-                    await processIndexSearchEntityJob(
-                        actionContext.clone({
-                            tasks: new TestTaskContextModule({
-                                shouldSkipIndexing: !context.isOpensearchEnabled,
-                                dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
-                            }),
-                            languageModel: new LanguageModelContextModule(languageModel),
+const context = createTestContext({
+    shouldStartOpensearch: true,
+    processJob: async (actionContext, job, jobStartTime) => {
+        switch (job.type) {
+            case "IndexSearchEntity": {
+                await processIndexSearchEntityJob(
+                    actionContext.clone({
+                        tasks: new TestTaskContextModule({
+                            shouldSkipIndexing: !context.isOpensearchEnabled,
+                            dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
                         }),
-                        job,
-                        jobStartTime,
-                    );
-                    break;
-                }
-                default: {
-                    // Ignore other jobs...
-                    break;
-                }
+                        languageModel: new LanguageModelContextModule(languageModel),
+                    }),
+                    job,
+                    jobStartTime,
+                );
+                break;
             }
-        },
-    });
-
-    afterTestEnds(async () => {
-        consumer.stop();
-        await ProcessContextModule.waitForTestTasks();
-    });
-}
+            default: {
+                // Ignore all other jobs...
+                break;
+            }
+        }
+    },
+});
 
 test("can index and reindex a document", async () => {
     const space = await TestSpace.create(context);
@@ -130,19 +132,8 @@ test("can index and reindex a document", async () => {
         }),
     ).toEqual([]);
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -162,7 +153,13 @@ test("can index and reindex a document", async () => {
                 },
             },
         }),
-    ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
+    ).toEqual([
+        {
+            id: `Document:${document.id}`,
+            score: expect.any(Number),
+            fields: {},
+        },
+    ]);
 
     expect(
         await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
@@ -184,19 +181,8 @@ test("can index and reindex a document", async () => {
 
     await document.type(session, " A new sentence, wow.");
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -216,7 +202,7 @@ test("can index and reindex a document", async () => {
                 },
             },
         }),
-    ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
+    ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number), fields: {}}]);
 
     expect(
         await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, space.id, {
@@ -234,7 +220,7 @@ test("can index and reindex a document", async () => {
                 },
             },
         }),
-    ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
+    ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number), fields: {}}]);
 });
 
 test("can highlight a document", async () => {
@@ -246,19 +232,8 @@ test("can highlight a document", async () => {
         body: "This is a document. Very cool.",
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     await context.opensearch.refresh(SearchEntityKeywordIndex);
 
@@ -288,6 +263,7 @@ test("can highlight a document", async () => {
         {
             id: `Document:${document.id}`,
             score: expect.any(Number),
+            fields: {},
             highlight: {body: ["Very <em>cool</em>."]},
         },
     ]);
@@ -310,19 +286,8 @@ test("will skip indexing if already indexed", async () => {
         ),
     ).toEqual(null);
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(Date.now() - 2 * 60 * 1000),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     const {primaryTerm, sequenceNumber: sequenceNumberBase} = assertExists(
         (
@@ -490,7 +455,7 @@ test("will correctly index during race condition (scenario 1)", async () => {
                 },
             },
         }),
-    ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
+    ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number), fields: {}}]);
 });
 
 test("will correctly index during race condition (scenario 2)", async () => {
@@ -566,12 +531,10 @@ test("will correctly index during race condition (scenario 2)", async () => {
                 },
             },
         }),
-    ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number)}]);
+    ).toEqual([{id: `Document:${document.id}`, score: expect.any(Number), fields: {}}]);
 });
 
 test("goes from no embeddings to some embeddings to no embeddings again", async () => {
-    const languageModel = await AllMiniLmL6V2LanguageModel.new();
-
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -580,21 +543,8 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
         body: "This is a document. Very cool.",
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -618,21 +568,8 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
         " Add enough content that we'll need to embed. Should have more than thirty five tokens. I think I need another sentence.",
     );
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -659,21 +596,8 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
 
     await document.update(session, newInvertedSteps);
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -698,8 +622,6 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
 });
 
 test("goes from no embeddings to some embeddings to no embeddings again with race conditions", async () => {
-    const languageModel = await AllMiniLmL6V2LanguageModel.new();
-
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -838,8 +760,6 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
 test("generates embeddings and only regenerates embeddings for chunks that changed", async () => {
     const {getCount} = allMiniLmL6V2LanguageModelEmbedTextTestCounter.recordForTest();
 
-    const languageModel = await AllMiniLmL6V2LanguageModel.new();
-
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -861,21 +781,8 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
         content: wikipediaYoutubeDocumentContent.get(),
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     expect(getCount()).toEqual(3);
 
@@ -911,21 +818,8 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
         new ReplaceStep(2700, 2710, new Slice(Fragment.from(schema.text("ASDASDASDA")), 0, 0)),
     ]);
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     expect(getCount()).toEqual(4);
 
@@ -962,8 +856,6 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
 });
 
 test("returns the right chunk when searching for embeddings", async () => {
-    const languageModel = await AllMiniLmL6V2LanguageModel.new();
-
     const embedQuery = async (query: string) => {
         const [vector] = await languageModel.embed(context.tracer.getTracer(), query);
         assert(vector);
@@ -980,21 +872,8 @@ test("returns the right chunk when searching for embeddings", async () => {
         content: wikipediaYoutubeDocumentContent.get(),
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     await context.opensearch.refresh(SearchEntitySemanticIndex);
 
@@ -1033,6 +912,7 @@ test("returns the right chunk when searching for embeddings", async () => {
         {
             id: `Document:${document.id}`,
             score: expect.any(Number),
+            fields: {},
             innerHits: {
                 embeddingChunks: [
                     {
@@ -1058,8 +938,6 @@ YouTube began as a venture capital–funded technology startup. Between November
 });
 
 test("can search based on vector embeddings", async () => {
-    const languageModel = await AllMiniLmL6V2LanguageModel.new();
-
     const embedQuery = async (query: string) => {
         const [vector] = await languageModel.embed(context.tracer.getTracer(), query);
         assert(vector);
@@ -1099,37 +977,8 @@ test("can search based on vector embeddings", async () => {
         ),
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document1.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
-
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Document",
-                documentId: document2.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     await context.opensearch.refresh(SearchEntitySemanticIndex);
 
@@ -1158,8 +1007,8 @@ test("can search based on vector embeddings", async () => {
             },
         }),
     ).toEqual([
-        {id: `Document:${document1.id}`, score: expect.any(Number)},
-        {id: `Document:${document2.id}`, score: expect.any(Number)},
+        {id: `Document:${document1.id}`, score: expect.any(Number), fields: {}},
+        {id: `Document:${document2.id}`, score: expect.any(Number), fields: {}},
     ]);
 
     expect(
@@ -1192,16 +1041,12 @@ test("can search based on vector embeddings", async () => {
             },
         }),
     ).toEqual([
-        {id: `Document:${document2.id}`, score: expect.any(Number)},
-        {id: `Document:${document1.id}`, score: expect.any(Number)},
+        {id: `Document:${document2.id}`, score: expect.any(Number), fields: {}},
+        {id: `Document:${document1.id}`, score: expect.any(Number), fields: {}},
     ]);
 });
 
 test("will reindex if a dependency changes", async () => {
-    const languageModel = await AllMiniLmL6V2LanguageModel.new();
-
-    startTestJobConsumer({languageModel});
-
     const space = await TestSpace.create(context);
     const session = await space.createSession();
 
@@ -1210,21 +1055,8 @@ test("will reindex if a dependency changes", async () => {
         name: "Test",
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Channel",
-                channelId: channel.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     const post1 = await createPost(session.action(), {
         channelId: channel.id,
@@ -1233,22 +1065,6 @@ test("will reindex if a dependency changes", async () => {
         ),
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Post",
-                postId: post1.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
-
     const post2 = await createPost(session.action(), {
         channelId: channel.id,
         content: createSimplePostContent(
@@ -1256,84 +1072,80 @@ test("will reindex if a dependency changes", async () => {
         ),
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Post",
-                postId: post2.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     await context.opensearch.refresh(SearchEntitySemanticIndex);
 
     expect(
-        await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, space.id, {
-            size: 100,
-            query: {
-                nested: {
-                    path: "embeddingChunks",
-                    query: {
-                        term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
-                    },
-                    inner_hits: {
-                        size: 100,
-                        _source: false,
-                        stored_fields: ["embeddingChunks.text"],
+        (
+            await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+                size: 100,
+                query: {
+                    nested: {
+                        path: "embeddingChunks",
+                        query: {
+                            term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
+                        },
+                        inner_hits: {
+                            size: 100,
+                            _source: false,
+                            stored_fields: ["embeddingChunks.text"],
+                        },
                     },
                 },
-            },
-        }),
-    ).toEqual([
-        {
-            id: `Post:${post1.id}`,
-            score: expect.any(Number),
-            innerHits: {
-                embeddingChunks: [
-                    {
-                        offset: 0,
-                        fields: {
-                            "embeddingChunks.text": [
-                                `This is a post in the “Test” channel:
+            })
+        ).sort((doc1, doc2) => defaultCompareStrings(doc1.id, doc2.id)),
+    ).toEqual(
+        [
+            {
+                id: `Post:${post1.id}`,
+                score: expect.any(Number),
+                fields: {},
+                innerHits: {
+                    embeddingChunks: [
+                        {
+                            offset: 0,
+                            fields: {
+                                "embeddingChunks.text": [
+                                    `This is a post in the “Test” channel:
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras et lorem a lorem laoreet condimentum. Duis feugiat nec risus hendrerit convallis. Aenean luctus ipsum sagittis elit accumsan suscipit.`,
-                            ],
+                                ],
+                            },
                         },
-                    },
-                ],
+                    ],
+                },
             },
-        },
-        {
-            id: `Post:${post2.id}`,
-            score: expect.any(Number),
-            innerHits: {
-                embeddingChunks: [
-                    {
-                        offset: 0,
-                        fields: {
-                            "embeddingChunks.text": [
-                                `This is a post in the “Test” channel:
+            {
+                id: `Post:${post2.id}`,
+                score: expect.any(Number),
+                fields: {},
+                innerHits: {
+                    embeddingChunks: [
+                        {
+                            offset: 0,
+                            fields: {
+                                "embeddingChunks.text": [
+                                    `This is a post in the “Test” channel:
 
 Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.`,
-                            ],
+                                ],
+                            },
                         },
-                    },
-                ],
+                    ],
+                },
             },
-        },
-    ]);
+        ].sort((doc1, doc2) => defaultCompareStrings(doc1.id, doc2.id)),
+    );
 
     const pause1Promise = processSearchEntityJobFinishedTestCheckpoint.pauseForTest(
-        `Post:${post1.id}`,
+        `Channel:${channel.id}`,
     );
     const pause2Promise = processSearchEntityJobFinishedTestCheckpoint.pauseForTest(
+        `Post:${post1.id}`,
+    );
+    const pause3Promise = processSearchEntityJobFinishedTestCheckpoint.pauseForTest(
         `Post:${post2.id}`,
     );
 
@@ -1342,82 +1154,75 @@ Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat s
         name: "Lorem Ipsum",
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space).clone({
-            languageModel: new LanguageModelContextModule(languageModel),
-        }),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "Channel",
-                channelId: channel.id,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
 
     (await pause1Promise).unpause();
     (await pause2Promise).unpause();
+    (await pause3Promise).unpause();
 
     await context.opensearch.refresh(SearchEntitySemanticIndex);
 
     expect(
-        await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, space.id, {
-            size: 100,
-            query: {
-                nested: {
-                    path: "embeddingChunks",
-                    query: {
-                        term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
-                    },
-                    inner_hits: {
-                        size: 100,
-                        _source: false,
-                        stored_fields: ["embeddingChunks.text"],
+        (
+            await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, space.id, {
+                size: 100,
+                query: {
+                    nested: {
+                        path: "embeddingChunks",
+                        query: {
+                            term: {"embeddingChunks.spaceId": new OpensearchQueryValue(space.id)},
+                        },
+                        inner_hits: {
+                            size: 100,
+                            _source: false,
+                            stored_fields: ["embeddingChunks.text"],
+                        },
                     },
                 },
-            },
-        }),
-    ).toEqual([
-        {
-            id: `Post:${post1.id}`,
-            score: expect.any(Number),
-            innerHits: {
-                embeddingChunks: [
-                    {
-                        offset: 0,
-                        fields: {
-                            "embeddingChunks.text": [
-                                `This is a post in the “Lorem Ipsum” channel:
+            })
+        ).sort((doc1, doc2) => defaultCompareStrings(doc1.id, doc2.id)),
+    ).toEqual(
+        [
+            {
+                id: `Post:${post1.id}`,
+                score: expect.any(Number),
+                fields: {},
+                innerHits: {
+                    embeddingChunks: [
+                        {
+                            offset: 0,
+                            fields: {
+                                "embeddingChunks.text": [
+                                    `This is a post in the “Lorem Ipsum” channel:
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque pellentesque erat quam, id varius lacus dapibus id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras et lorem a lorem laoreet condimentum. Duis feugiat nec risus hendrerit convallis. Aenean luctus ipsum sagittis elit accumsan suscipit.`,
-                            ],
+                                ],
+                            },
                         },
-                    },
-                ],
+                    ],
+                },
             },
-        },
-        {
-            id: `Post:${post2.id}`,
-            score: expect.any(Number),
-            innerHits: {
-                embeddingChunks: [
-                    {
-                        offset: 0,
-                        fields: {
-                            "embeddingChunks.text": [
-                                `This is a post in the “Lorem Ipsum” channel:
+            {
+                id: `Post:${post2.id}`,
+                score: expect.any(Number),
+                fields: {},
+                innerHits: {
+                    embeddingChunks: [
+                        {
+                            offset: 0,
+                            fields: {
+                                "embeddingChunks.text": [
+                                    `This is a post in the “Lorem Ipsum” channel:
 
 Donec euismod augue dolor, eget feugiat arcu ultrices et. Vestibulum consequat sollicitudin lectus. Donec ultricies, odio in tempus commodo, lacus elit lacinia turpis, vel pretium risus sapien at libero. Morbi tristique finibus sem, quis ullamcorper eros feugiat mattis.`,
-                            ],
+                                ],
+                            },
                         },
-                    },
-                ],
+                    ],
+                },
             },
-        },
-    ]);
+        ].sort((doc1, doc2) => defaultCompareStrings(doc1.id, doc2.id)),
+    );
 });
 
 test("deleting a chat message will clear out its indexed content", async () => {
@@ -1438,20 +1243,8 @@ test("deleting a chat message will clear out its indexed content", async () => {
         ),
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "ChatMessage",
-                chatId,
-                messageIndex: 0,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
@@ -1475,20 +1268,8 @@ test("deleting a chat message will clear out its indexed content", async () => {
         messageIndex: 0,
     });
 
-    await processIndexSearchEntityJob(
-        TestTask.systemAction(space),
-        {
-            type: "IndexSearchEntity",
-            spaceId: space.id,
-            update: {
-                type: "ChatMessage",
-                chatId,
-                messageIndex: 0,
-                updatedTraits: {type: "Any"},
-            },
-        },
-        new Date(),
-    );
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
 
     expect(
         await context.opensearch.getDocWithoutSourceIfExists(
