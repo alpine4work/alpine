@@ -5,6 +5,7 @@ import {
     getOrCreateChatForAccounts,
     sendChatMessage,
 } from "~/server/chat/data/chat_table.js";
+import {ServerSessionActionContext} from "~/server/context/server_action_context.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createChannel, createPost, updateChannelName} from "~/server/forum/data/forum_table.js";
@@ -18,27 +19,35 @@ import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/internal/get_search_entity.js";
 import {
     getSearchEntityIndexesForTest,
+    getSearchEntityTitlesIfExist,
     processIndexSearchEntityJob,
     processSearchEntityJobFinishedTestCheckpoint,
+    searchByKeywords,
+    searchBySemantics,
 } from "~/server/search/data/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
+import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
+import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {
     DocumentContentProsemirrorSchema,
     assertDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 import {wikipediaYoutubeDocumentContent} from "~/shared/documents/fixtures/wikipedia_youtube_document_content.js";
+import {PermissionDeniedError} from "~/shared/error/error.js";
 import {createSimplePostContent} from "~/shared/forum/post_content_schema.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {defaultCompareStrings} from "~/shared/helpers/string/default_compare_strings.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentId} from "~/shared/id/types/id_types.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
+import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
@@ -588,6 +597,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
         ),
     ).toEqual({
         id: `Document:${document.id}`,
+        routing: space.id,
         version: expect.any(Object),
         fields: {
             "embeddingChunksVectorCache.allMiniLmL6V2": [new Map([[673655517, expect.any(Array)]])],
@@ -616,6 +626,7 @@ test("goes from no embeddings to some embeddings to no embeddings again", async 
         ),
     ).toEqual({
         id: `Document:${document.id}`,
+        routing: space.id,
         version: expect.any(Object),
         fields: {},
     });
@@ -711,6 +722,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
         ),
     ).toEqual({
         id: `Document:${document.id}`,
+        routing: space.id,
         version: expect.any(Object),
         fields: {
             "embeddingChunksVectorCache.allMiniLmL6V2": [new Map([[673655517, expect.any(Array)]])],
@@ -752,6 +764,7 @@ test("goes from no embeddings to some embeddings to no embeddings again with rac
         ),
     ).toEqual({
         id: `Document:${document.id}`,
+        routing: space.id,
         version: expect.any(Object),
         fields: {},
     });
@@ -795,6 +808,7 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
         ),
     ).toEqual({
         id: `Document:${document.id}`,
+        routing: space.id,
         version: expect.any(Object),
         fields: {
             "embeddingChunksVectorCache.allMiniLmL6V2": [
@@ -832,6 +846,7 @@ test("generates embeddings and only regenerates embeddings for chunks that chang
         ),
     ).toEqual({
         id: `Document:${document.id}`,
+        routing: space.id,
         version: expect.any(Object),
         fields: {
             "embeddingChunksVectorCache.allMiniLmL6V2": [
@@ -1255,6 +1270,7 @@ test("deleting a chat message will clear out its indexed content", async () => {
         ),
     ).toEqual({
         id: `ChatMessage:${chatId}-0`,
+        routing: space.id,
         version: expect.any(Object),
         fields: {
             body: [
@@ -1280,6 +1296,7 @@ test("deleting a chat message will clear out its indexed content", async () => {
         ),
     ).toEqual({
         id: `ChatMessage:${chatId}-0`,
+        routing: space.id,
         version: expect.any(Object),
         fields: {},
     });
@@ -1354,4 +1371,307 @@ Or an ordered list?
         "els",
         "third",
     ]);
+});
+
+test("search by keywords only sees entities the account has access to", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    const document = await TestDocument.create(session1, {title: "test"});
+    const otherDocument = await TestDocument.create(otherSession, {title: "test"});
+    const task1 = await TestTask.create(session1, {title: "test"});
+    const task2 = await TestTask.create(session2, {title: "test"});
+    const task3 = await TestTask.create(session2, {title: "test"});
+    const task4 = await TestTask.create(session2, {title: "test"});
+    const task5 = await TestTask.create(session2, {title: "test"});
+    const collection1 = await TestTaskCollection.createPublic(session2, {name: "test"});
+    const collection2 = await TestTaskCollection.createPrivate(session2, {name: "test"});
+    const collection3 = await TestTaskCollection.createPrivate(session2, {
+        name: "test",
+        otherGrantedAccounts: [session1],
+    });
+
+    await task3.addCollection(session2, collection1);
+    await task4.addCollection(session2, collection2);
+    await task5.addCollection(session2, collection3);
+
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntitySemanticIndex);
+
+    await expect(
+        searchByKeywords(otherSession.action(), {spaceId: space.id, queryText: "test", limit: 100}),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(
+        (
+            await searchByKeywords(otherSession.action(), {
+                spaceId: otherSpace.id,
+                queryText: "test",
+                limit: 100,
+            })
+        ).results
+            .map(result => result.entityId)
+            .sort(defaultCompareStrings),
+    ).toEqual([`Document:${otherDocument.id}`].sort(defaultCompareStrings));
+
+    expect(
+        (
+            await searchByKeywords(session1.action(), {
+                spaceId: space.id,
+                queryText: "test",
+                limit: 100,
+            })
+        ).results
+            .map(result => result.entityId)
+            .sort(defaultCompareStrings),
+    ).toEqual(
+        [
+            `Document:${document.id}`,
+            `Task:${task1.id}`,
+            `Task:${task3.id}`,
+            `Task:${task5.id}`,
+            `TaskCollection:${collection1.id}`,
+            `TaskCollection:${collection3.id}`,
+        ].sort(defaultCompareStrings),
+    );
+
+    expect(
+        (
+            await searchByKeywords(session2.action(), {
+                spaceId: space.id,
+                queryText: "test",
+                limit: 100,
+            })
+        ).results
+            .map(result => result.entityId)
+            .sort(defaultCompareStrings),
+    ).toEqual(
+        [
+            `Document:${document.id}`,
+            `Task:${task2.id}`,
+            `Task:${task3.id}`,
+            `Task:${task4.id}`,
+            `Task:${task5.id}`,
+            `TaskCollection:${collection1.id}`,
+            `TaskCollection:${collection2.id}`,
+            `TaskCollection:${collection3.id}`,
+        ].sort(defaultCompareStrings),
+    );
+});
+
+test("search by semantics only sees entities the account has access to", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    const testBody = createArrayWithLength(100, () => "test").join(" ");
+
+    const document = await TestDocument.create(session1, {body: testBody});
+    const otherDocument = await TestDocument.create(otherSession, {body: testBody});
+    const task1 = await TestTask.create(session1);
+    const task2 = await TestTask.create(session2);
+    const task3 = await TestTask.create(session2);
+    const task4 = await TestTask.create(session2);
+    const task5 = await TestTask.create(session2);
+    const collection1 = await TestTaskCollection.createPublic(session2);
+    const collection2 = await TestTaskCollection.createPrivate(session2);
+    const collection3 = await TestTaskCollection.createPrivate(session2, {
+        otherGrantedAccounts: [session1],
+    });
+
+    for (const taskId of [task1.id, task2.id, task3.id, task4.id, task5.id]) {
+        await updateTaskNotesContent(task1.id === taskId ? session1.action() : session2.action(), {
+            spaceId: space.id,
+            taskId,
+            version: 0,
+            steps: [
+                new ReplaceStep(
+                    1,
+                    1,
+                    new Slice(
+                        new Fragment([TaskNotesContentProsemirrorSchema.text(testBody)]),
+                        0,
+                        0,
+                    ),
+                ),
+            ],
+        });
+    }
+
+    await task3.addCollection(session2, collection1);
+    await task4.addCollection(session2, collection2);
+    await task5.addCollection(session2, collection3);
+
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntitySemanticIndex);
+
+    await expect(
+        searchBySemantics(
+            otherSession
+                .action()
+                .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            {spaceId: space.id, queryText: "test", limit: 100},
+        ),
+    ).rejects.toThrow(PermissionDeniedError);
+
+    expect(
+        (
+            await searchBySemantics(
+                otherSession
+                    .action()
+                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                {
+                    spaceId: otherSpace.id,
+                    queryText: "test",
+                    limit: 100,
+                },
+            )
+        ).results
+            .map(result => result.entityId)
+            .sort(defaultCompareStrings),
+    ).toEqual([`Document:${otherDocument.id}`].sort(defaultCompareStrings));
+
+    expect(
+        (
+            await searchBySemantics(
+                session1
+                    .action()
+                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                {
+                    spaceId: space.id,
+                    queryText: "test",
+                    limit: 100,
+                },
+            )
+        ).results
+            .map(result => result.entityId)
+            .sort(defaultCompareStrings),
+    ).toEqual(
+        [
+            `Document:${document.id}`,
+            `Task:${task1.id}`,
+            `Task:${task3.id}`,
+            `Task:${task5.id}`,
+        ].sort(defaultCompareStrings),
+    );
+
+    expect(
+        (
+            await searchBySemantics(
+                session2
+                    .action()
+                    .clone({languageModel: new LanguageModelContextModule(languageModel)}),
+                {
+                    spaceId: space.id,
+                    queryText: "test",
+                    limit: 100,
+                },
+            )
+        ).results
+            .map(result => result.entityId)
+            .sort(defaultCompareStrings),
+    ).toEqual(
+        [
+            `Document:${document.id}`,
+            `Task:${task2.id}`,
+            `Task:${task3.id}`,
+            `Task:${task4.id}`,
+            `Task:${task5.id}`,
+        ].sort(defaultCompareStrings),
+    );
+});
+
+test("get search entities only sees entities the account has access to", async () => {
+    const space = await TestSpace.create(context);
+    const otherSpace = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const otherSession = await otherSpace.createSession();
+
+    const document = await TestDocument.create(session1, {title: "test"});
+    const otherDocument = await TestDocument.create(otherSession, {title: "test"});
+    const task1 = await TestTask.create(session1, {title: "test"});
+    const task2 = await TestTask.create(session2, {title: "test"});
+    const task3 = await TestTask.create(session2, {title: "test"});
+    const task4 = await TestTask.create(session2, {title: "test"});
+    const task5 = await TestTask.create(session2, {title: "test"});
+    const collection1 = await TestTaskCollection.createPublic(session2, {name: "test"});
+    const collection2 = await TestTaskCollection.createPrivate(session2, {name: "test"});
+    const collection3 = await TestTaskCollection.createPrivate(session2, {
+        name: "test",
+        otherGrantedAccounts: [session1],
+    });
+
+    await task3.addCollection(session2, collection1);
+    await task4.addCollection(session2, collection2);
+    await task5.addCollection(session2, collection3);
+
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntitySemanticIndex);
+
+    const getSearchEntityIds = async (context: ServerSessionActionContext, space: TestSpace) => {
+        const entities = await getSearchEntityTitlesIfExist(context, {
+            spaceId: space.id,
+            entityIds: [
+                `Document:${document.id}`,
+                `Document:${otherDocument.id}`,
+                `Task:${task1.id}`,
+                `Task:${task2.id}`,
+                `Task:${task3.id}`,
+                `Task:${task4.id}`,
+                `Task:${task5.id}`,
+                `TaskCollection:${collection1.id}`,
+                `TaskCollection:${collection2.id}`,
+                `TaskCollection:${collection3.id}`,
+            ],
+        });
+
+        return filterMapArray(entities, entity => entity?.id ?? null).sort(defaultCompareStrings);
+    };
+
+    await expect(getSearchEntityIds(otherSession.action(), space)).rejects.toThrow(
+        PermissionDeniedError,
+    );
+
+    expect(await getSearchEntityIds(otherSession.action(), otherSpace)).toEqual(
+        [`Document:${otherDocument.id}`].sort(defaultCompareStrings),
+    );
+
+    expect(await getSearchEntityIds(session1.action(), space)).toEqual(
+        [
+            `Document:${document.id}`,
+            `Task:${task1.id}`,
+            `Task:${task3.id}`,
+            `Task:${task5.id}`,
+            `TaskCollection:${collection1.id}`,
+            `TaskCollection:${collection3.id}`,
+        ].sort(defaultCompareStrings),
+    );
+
+    expect(await getSearchEntityIds(session2.action(), space)).toEqual(
+        [
+            `Document:${document.id}`,
+            `Task:${task2.id}`,
+            `Task:${task3.id}`,
+            `Task:${task4.id}`,
+            `Task:${task5.id}`,
+            `TaskCollection:${collection1.id}`,
+            `TaskCollection:${collection2.id}`,
+            `TaskCollection:${collection3.id}`,
+        ].sort(defaultCompareStrings),
+    );
 });

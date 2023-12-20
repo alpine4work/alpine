@@ -162,6 +162,8 @@ export class OpensearchContextModule
             realtime?: boolean;
         },
     ): Promise<{
+        readonly id: OpensearchIndexDocIdType<Index>;
+        readonly routing: OpensearchIndexRoutingType<Index>;
         readonly version: OpensearchClientDocVersion | null;
         readonly fields: {
             readonly [Key in StoredFieldKeys]?: ReadonlyArray<

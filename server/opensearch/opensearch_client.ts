@@ -124,6 +124,8 @@ export interface OpensearchClientInterface {
             realtime?: boolean;
         },
     ): Promise<{
+        readonly id: OpensearchIndexDocIdType<Index>;
+        readonly routing: OpensearchIndexRoutingType<Index>;
         readonly version: OpensearchClientDocVersion | null;
         readonly fields: {
             readonly [Key in StoredFieldKeys]?: ReadonlyArray<
@@ -471,7 +473,7 @@ export class OpensearchGetDocCommand<
 
 export class OpensearchGetDocWithoutSourceCommand<
     Index extends OpensearchIndex<any, any, any, any, any>,
-    StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index> & string,
+    const StoredFieldKeys extends keyof OpensearchIndexStoredFieldsType<Index> & string,
 > extends OpensearchMultiGetDocCommandBase<
     Index,
     {
@@ -513,10 +515,12 @@ export class OpensearchGetDocWithoutSourceCommand<
         _id: string;
         _seq_no: number;
         _primary_term: number;
+        _routing: string;
         _source?: JsonValue;
         fields?: {[key: string]: Array<JsonValue>};
     }): {
         readonly id: OpensearchIndexDocIdType<Index>;
+        readonly routing: OpensearchIndexRoutingType<Index>;
         readonly version: OpensearchClientDocVersion | null;
         readonly fields: {
             readonly [Key in StoredFieldKeys]?: ReadonlyArray<
@@ -538,6 +542,7 @@ export class OpensearchGetDocWithoutSourceCommand<
 
         return {
             id: rawDoc._id as any,
+            routing: rawDoc._routing as any,
             version: {
                 sequenceNumber: rawDoc._seq_no,
                 primaryTerm: rawDoc._primary_term,
@@ -1132,6 +1137,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         } = {},
     ): Promise<{
         readonly id: OpensearchIndexDocIdType<Index>;
+        readonly routing: OpensearchIndexRoutingType<Index>;
         readonly version: OpensearchClientDocVersion | null;
         readonly fields: {
             readonly [Key in StoredFieldKeys]?: ReadonlyArray<
@@ -1176,6 +1182,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                           | {
                                 found: true;
                                 _id: string;
+                                _routing: string;
                                 fields?: {[key: string]: Array<JsonValue>};
                             }
                       )) = await response.json();
@@ -1275,7 +1282,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                                   _seq_no: number;
                                   _primary_term: number;
                               } & (
-                                  | {found: false}
+                                  | {found?: false; error?: OpensearchError}
                                   | {
                                         found: true;
                                         _source?: JsonValue;
@@ -1306,7 +1313,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     _seq_no: number;
                     _primary_term: number;
                 } & (
-                    | {found: false}
+                    | {found?: false; error?: OpensearchError}
                     | {
                           found: true;
                           _source?: JsonValue;
@@ -1317,7 +1324,15 @@ export class OpensearchClient implements OpensearchClientInterface {
         >();
 
         for (const bodyDoc of body.docs) {
-            if (!bodyDoc.found) continue;
+            if (!bodyDoc.found) {
+                if (bodyDoc.error) {
+                    const errorType = bodyDoc.error.root_cause?.[0]?.type ?? bodyDoc.error.type;
+                    throw new UnknownError(`OpenSearch multi-get documents failed: ${errorType}`, {
+                        cause: body.error,
+                    });
+                }
+                continue;
+            }
 
             getOrSetDefaultMapValue(docByIdByIndex, bodyDoc._index, () => new Map()).set(
                 bodyDoc._id,

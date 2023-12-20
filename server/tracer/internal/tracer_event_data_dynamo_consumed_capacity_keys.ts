@@ -20,11 +20,13 @@ export const tracerEventDataDynamoConsumedCapacityKeys = [
     "Documents",
     "Forum",
     "Inbox",
+    "SearchEntities",
     "Spaces",
     "TaskActions",
     "Tasks",
     "Chat_Index1",
     "Forum_Index1",
     "Inbox_Index1",
+    "SearchEntities_Index1",
     "TaskActions_Index1",
 ];

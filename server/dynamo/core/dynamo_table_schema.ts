@@ -141,7 +141,9 @@ type DynamoTableSchemaInitializationState =
           readonly indexDescriptions: Array<{
               readonly projection: "KeysOnly" | "All";
               readonly overloadByName: {
-                  [name: string]: DynamoTableSchemaTypes.Index.OverloadDescription;
+                  [name: string]: DynamoTableSchemaTypes.Index.OverloadDescription & {
+                      readonly canReusePartitionKey: boolean;
+                  };
               };
           }>;
 
@@ -631,10 +633,15 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                                         const indexNumber = i + 1;
 
                                         return [
-                                            {
-                                                AttributeName: `index${indexNumber}PartitionKey`,
-                                                AttributeType: "S",
-                                            },
+                                            ...(indexDescription.partitionKeyBehavior.type ===
+                                            "Reused"
+                                                ? []
+                                                : [
+                                                      {
+                                                          AttributeName: `index${indexNumber}PartitionKey`,
+                                                          AttributeType: "S",
+                                                      },
+                                                  ]),
                                             {
                                                 AttributeName: `index${indexNumber}SortKey`,
                                                 AttributeType: "S",
@@ -664,7 +671,11 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                                                   IndexName: `Index${indexNumber}`,
                                                   KeySchema: [
                                                       {
-                                                          AttributeName: `index${indexNumber}PartitionKey`,
+                                                          AttributeName:
+                                                              indexDescription.partitionKeyBehavior
+                                                                  .type === "Reused"
+                                                                  ? "partitionKey"
+                                                                  : `index${indexNumber}PartitionKey`,
                                                           KeyType: "HASH",
                                                       },
                                                       {
@@ -1102,15 +1113,26 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             `${item.partitionType}#${item.sortRangeType}`,
         );
         if (indexConfigs) {
-            for (const indexConfig of indexConfigs) {
+            for (let i = 0; i < indexConfigs.length; i++) {
+                const indexConfig = indexConfigs[i]!;
+                const indexDescription = this._initializationState.description.indexes[i]!;
+
                 // If a filter function is defined then don't add index keys for items that
                 // return `false`. This will exclude those items from our index.
                 if (indexConfig.filter === null || indexConfig.filter(item)) {
-                    const indexPartitionKey = this._serializeIndexPartitionKey(indexConfig, item);
-                    const indexSortKey = this._serializeItemIndexSortKey(indexConfig, item);
+                    // If the index key is reused, don't add an index partition key attribute.
+                    if (indexDescription.partitionKeyBehavior.type !== "Reused") {
+                        const indexPartitionKey = this._serializeIndexPartitionKey(
+                            indexConfig,
+                            indexDescription,
+                            item,
+                        );
 
-                    serializedItem[`index${indexConfig.indexNumber}PartitionKey`] =
-                        indexPartitionKey;
+                        serializedItem[`index${indexConfig.indexNumber}PartitionKey`] =
+                            indexPartitionKey;
+                    }
+
+                    const indexSortKey = this._serializeItemIndexSortKey(indexConfig, item);
                     serializedItem[`index${indexConfig.indexNumber}SortKey`] = indexSortKey;
                 }
             }
@@ -2699,6 +2721,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             isStartSortKeyExclusive,
             isEndSortKeyExclusive,
             limit,
+            pageLimit,
             descending,
             consistency = "Eventual",
         }: {
@@ -2710,6 +2733,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             // Required to specify a limit or the `All` string. So if you intentionally
             // want everything you have to say so.
             limit: number | "All";
+            pageLimit?: number;
             descending?: boolean;
             consistency?: DynamoReadConsistency;
         },
@@ -2746,6 +2770,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
             },
             consistency,
             limit: limit !== "All" ? limit : undefined,
+            pageLimit,
             descending,
         });
 
@@ -2959,14 +2984,28 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     isEndSortKeyExclusive,
                     afterItemKey,
                     limit,
+                    pageLimit,
                     descending,
                 },
             ) {
+                assert(schema._initializationState.isInitialized);
+                const indexDescription =
+                    schema._initializationState.description.indexes[indexConfig.indexNumber - 1]!;
+
                 const client = await schema._getClient(context, false);
-                const serializedPartitionKey = schema._serializeIndexPartitionKey(
-                    indexConfig,
-                    partitionKey,
-                );
+
+                const serializedPartitionKey =
+                    indexDescription.partitionKeyBehavior.type === "Reused"
+                        ? schema._serializePartitionKey({
+                              ...partitionKey,
+                              partitionType: indexDescription.partitionKeyBehavior.partitionType,
+                          })
+                        : schema._serializeIndexPartitionKey(
+                              indexConfig,
+                              indexDescription,
+                              partitionKey,
+                          );
+
                 const serializedStartSortKey = startSortKey
                     ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
                           indexConfig,
@@ -2982,17 +3021,26 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                       )
                     : undefined;
 
-                const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
+                const partitionKeyAttributeName =
+                    indexDescription.partitionKeyBehavior.type === "Reused"
+                        ? "partitionKey"
+                        : `index${indexConfig.indexNumber}PartitionKey`;
+
                 const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
 
                 let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
                 if (afterItemKey) {
                     const serializedAfterPrimaryKey = schema._serializeItemKey(afterItemKey);
 
-                    const serializedAfterPartitionKey = schema._serializeIndexPartitionKey(
-                        indexConfig,
-                        afterItemKey,
-                    );
+                    const serializedAfterPartitionKey =
+                        indexDescription.partitionKeyBehavior.type === "Reused"
+                            ? serializedAfterPrimaryKey.partitionKey
+                            : schema._serializeIndexPartitionKey(
+                                  indexConfig,
+                                  indexDescription,
+                                  afterItemKey,
+                              );
+
                     const serializedAfterSortKey = schema._serializeItemIndexSortKey(
                         indexConfig,
                         afterItemKey,
@@ -3023,6 +3071,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     lastEvaluatedKey,
                     consistency: "Eventual",
                     limit: limit !== "All" ? limit : undefined,
+                    pageLimit,
                     descending,
                 });
 
@@ -3042,6 +3091,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                         ).key,
                         ...schema._deserializeIndexKey(
                             indexConfig,
+                            indexDescription,
                             indexPartitionKey,
                             indexSortKey,
                         ),
@@ -3116,14 +3166,28 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     isEndSortKeyExclusive,
                     afterItemKey,
                     limit,
+                    pageLimit,
                     descending,
                 },
             ) {
+                assert(schema._initializationState.isInitialized);
+                const indexDescription =
+                    schema._initializationState.description.indexes[indexConfig.indexNumber - 1]!;
+
                 const client = await schema._getClient(context, false);
-                const serializedPartitionKey = schema._serializeIndexPartitionKey(
-                    indexConfig,
-                    partitionKey,
-                );
+
+                const serializedPartitionKey =
+                    indexDescription.partitionKeyBehavior.type === "Reused"
+                        ? schema._serializePartitionKey({
+                              ...partitionKey,
+                              partitionType: indexDescription.partitionKeyBehavior.partitionType,
+                          })
+                        : schema._serializeIndexPartitionKey(
+                              indexConfig,
+                              indexDescription,
+                              partitionKey,
+                          );
+
                 const serializedStartSortKey = startSortKey
                     ? schema._serializeIndexSortKeyBoundWithoutPrimaryKey(
                           indexConfig,
@@ -3139,17 +3203,26 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                       )
                     : undefined;
 
-                const partitionKeyAttributeName = `index${indexConfig.indexNumber}PartitionKey`;
+                const partitionKeyAttributeName =
+                    indexDescription.partitionKeyBehavior.type === "Reused"
+                        ? "partitionKey"
+                        : `index${indexConfig.indexNumber}PartitionKey`;
+
                 const sortKeyAttributeName = `index${indexConfig.indexNumber}SortKey`;
 
                 let lastEvaluatedKey: SchemaSerializedObjectValue | undefined;
                 if (afterItemKey) {
                     const serializedAfterPrimaryKey = schema._serializeItemKey(afterItemKey);
 
-                    const serializedAfterPartitionKey = schema._serializeIndexPartitionKey(
-                        indexConfig,
-                        afterItemKey,
-                    );
+                    const serializedAfterPartitionKey =
+                        indexDescription.partitionKeyBehavior.type === "Reused"
+                            ? serializedAfterPrimaryKey.partitionKey
+                            : schema._serializeIndexPartitionKey(
+                                  indexConfig,
+                                  indexDescription,
+                                  afterItemKey,
+                              );
+
                     const serializedAfterSortKey = schema._serializeItemIndexSortKey(
                         indexConfig,
                         afterItemKey,
@@ -3180,6 +3253,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     lastEvaluatedKey,
                     consistency: "Eventual",
                     limit: limit !== "All" ? limit : undefined,
+                    pageLimit,
                     descending,
                 });
 
@@ -3211,7 +3285,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
                     Object.assign(
                         item,
-                        schema._deserializeIndexKey(indexConfig, indexPartitionKey, indexSortKey),
+                        schema._deserializeIndexKey(
+                            indexConfig,
+                            indexDescription,
+                            indexPartitionKey,
+                            indexSortKey,
+                        ),
                     );
 
                     yield item;
@@ -3263,6 +3342,8 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         }
 
         const itemTypeSet = new Set<string>();
+        const partitionTypeSet = new Set<string>();
+        let canReusePartitionKey = true;
 
         for (const {partitionType, sortRangeType} of itemTypes) {
             const partitionConfig = this._partitionConfigByName.get(partitionType);
@@ -3274,6 +3355,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
             assert(!itemTypeSet.has(itemType), "Item types must be unique");
             itemTypeSet.add(itemType);
+            partitionTypeSet.add(partitionType);
 
             for (const attributeKey of Object.keys(partitionKeyAttributes)) {
                 assert(
@@ -3292,9 +3374,27 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                     quote`Attribute ${attributeKey} does not exist in sort range ${sortRangeType} of partition ${partitionType}`,
                 );
             }
+
+            canReusePartitionKey &&=
+                isDeepEqual(
+                    Object.keys(partitionKeyAttributes),
+                    Object.keys(partitionConfig.partitionKeyAttributes),
+                ) &&
+                Object.entries(partitionKeyAttributes).every(([key, keyAttribute]) =>
+                    isDeepEqual(
+                        keyAttribute.description,
+                        partitionConfig.partitionKeyAttributes[key]!.description,
+                    ),
+                );
         }
 
-        const indexOverloadDescription: DynamoTableSchemaTypes.Index.OverloadDescription = {
+        // Can only reuse the partition key if only one type of partition is
+        // represented in the index.
+        canReusePartitionKey &&= partitionTypeSet.size === 1;
+
+        const indexOverloadDescription: DynamoTableSchemaTypes.Index.OverloadDescription & {
+            readonly canReusePartitionKey: boolean;
+        } = {
             itemTypes,
             partitionKeyAttributeByKey: mapObjectValues(
                 partitionKeyAttributes,
@@ -3304,6 +3404,7 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
                 sortKeyAttributes,
                 keyAttribute => keyAttribute!.description,
             ),
+            canReusePartitionKey,
         };
 
         let addedToIndexNumber: number | null = null;
@@ -3317,22 +3418,37 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
         ] of this._initializationState.indexDescriptions.entries()) {
             const targetIndexNumber = i + 1;
             const targetItemTypeSet = new Set<string>();
+            const targetPartitionTypeSet = new Set<string>();
 
             // Can't reuse a physical index with a different projection.
             if (targetIndexDescription.projection !== projection) continue;
 
+            let targetCanReusePartitionKey = true;
+
             for (const targetIndexOverloadDescription of Object.values(
                 targetIndexDescription.overloadByName,
             )) {
+                targetCanReusePartitionKey &&= targetIndexOverloadDescription.canReusePartitionKey;
+
                 for (const {
                     partitionType,
                     sortRangeType,
                 } of targetIndexOverloadDescription.itemTypes) {
                     targetItemTypeSet.add(`${partitionType}#${sortRangeType}`);
+                    targetPartitionTypeSet.add(partitionType);
                 }
             }
 
-            if (iterableEvery(itemTypeSet, itemType => !targetItemTypeSet.has(itemType))) {
+            if (
+                iterableEvery(itemTypeSet, itemType => !targetItemTypeSet.has(itemType)) &&
+                // Can only reuse an index if we have the same reuse partition key setting AND
+                // the index is for the same partition type as us.
+                canReusePartitionKey === targetCanReusePartitionKey &&
+                (!canReusePartitionKey ||
+                    iterableEvery(partitionTypeSet, partitionType =>
+                        targetPartitionTypeSet.has(partitionType),
+                    ))
+            ) {
                 targetIndexDescription.overloadByName[name] = indexOverloadDescription;
                 addedToIndexNumber = targetIndexNumber;
                 break;
@@ -3381,8 +3497,12 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     private _serializeIndexPartitionKey(
         indexConfig: DynamoTableSchemaIndexInternalConfig,
+        indexDescription: DynamoTableSchemaTypes.Index.Description,
         item: {[key: string]: unknown},
     ) {
+        // Should handle reused partition keys in the caller of this function.
+        assert(indexDescription.partitionKeyBehavior.type !== "Reused");
+
         const indexPartitionKeyEntries = [indexConfig.name];
         for (const [attributeKey, attributeSchema] of Object.entries(
             indexConfig.partitionKeyAttributes,
@@ -3516,27 +3636,32 @@ export class DynamoTableSchema<Types extends DynamoTableSchemaTypesBase> {
 
     private _deserializeIndexKey(
         indexConfig: DynamoTableSchemaIndexInternalConfig,
+        indexDescription: DynamoTableSchemaTypes.Index.Description,
         partitionKey: string,
         sortKey: string,
     ) {
-        const partitionKeyEntries = partitionKey.split(dynamoKeySeparator);
-        const sortKeyEntries = sortKey.split(dynamoKeySeparator);
-
-        const indexName = partitionKeyEntries[0];
-        assert(indexName === indexConfig.name, "Invalid index partition key");
-
         const key: any = {};
 
-        let partitionKeyEntryIndex = 1;
-        for (const [attributeKey, attributeSchema] of Object.entries(
-            indexConfig.partitionKeyAttributes,
-        )) {
-            const partitionKeyEntry = partitionKeyEntries[partitionKeyEntryIndex++];
-            assert(partitionKeyEntry !== undefined, "Invalid index partition key");
-            key[attributeKey] = attributeSchema.deserialize(
-                partitionKeyEntry as DynamoKeyAttribute,
-            );
+        // The main `partitionKey` should be deserialized by the caller to this function.
+        if (indexDescription.partitionKeyBehavior.type !== "Reused") {
+            const partitionKeyEntries = partitionKey.split(dynamoKeySeparator);
+
+            const indexName = partitionKeyEntries[0];
+            assert(indexName === indexConfig.name, "Invalid index partition key");
+
+            let partitionKeyEntryIndex = 1;
+            for (const [attributeKey, attributeSchema] of Object.entries(
+                indexConfig.partitionKeyAttributes,
+            )) {
+                const partitionKeyEntry = partitionKeyEntries[partitionKeyEntryIndex++];
+                assert(partitionKeyEntry !== undefined, "Invalid index partition key");
+                key[attributeKey] = attributeSchema.deserialize(
+                    partitionKeyEntry as DynamoKeyAttribute,
+                );
+            }
         }
+
+        const sortKeyEntries = sortKey.split(dynamoKeySeparator);
 
         let sortKeyEntryIndex = 0;
         for (const [attributeKey, attributeSchema] of Object.entries(
@@ -4116,6 +4241,7 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
             // Required to specify a limit or the `All` string. So if you intentionally
             // want everything you have to say so.
             limit: number | "All";
+            pageLimit?: number;
             descending?: boolean;
         },
     ): AsyncIterableIterator<MergeObjectIntersection<QueryItem & IndexPartitionKey & IndexSortKey>>;
@@ -4179,7 +4305,14 @@ export interface DynamoTableSchemaIndex<QueryItem, ItemKey, IndexPartitionKey, I
  */
 function getAndCheckDynamoTableSchemaDescriptions(
     config: DynamoTableSchemaTypes.ConfigBase,
-    indexDescriptions: ReadonlyArray<DynamoTableSchemaTypes.Index.Description>,
+    indexDescriptions: ReadonlyArray<{
+        readonly projection: "KeysOnly" | "All";
+        readonly overloadByName: {
+            [name: string]: DynamoTableSchemaTypes.Index.OverloadDescription & {
+                readonly canReusePartitionKey: boolean;
+            };
+        };
+    }>,
 ): {
     lastDescription: DynamoTableSchemaTypes.Description | null;
     description: DynamoTableSchemaTypes.Description;
@@ -4355,7 +4488,62 @@ function getAndCheckDynamoTableSchemaDescriptions(
                 return [partitionConfig.name, partitionDescription];
             }),
         ),
-        indexes: indexDescriptions,
+        indexes: indexDescriptions.map((indexDescription, index) => {
+            const lastIndexDescription = lastDescription?.indexes[index];
+
+            // If the last index description uses a `Separate` partition key (e.g. indexes
+            // created before we added this reused partition key feature) then continue to
+            // use a `Separate` partition key.
+            const doesLastIndexDescriptionHaveSeparatePartitionKey =
+                !!lastIndexDescription &&
+                (lastIndexDescription.partitionKeyBehavior?.type ?? "Separate") === "Separate";
+
+            const canReusePartitionKeySet = new Set(
+                Object.values(indexDescription.overloadByName).map(
+                    indexOverloadDescription => indexOverloadDescription.canReusePartitionKey,
+                ),
+            );
+            assert(
+                canReusePartitionKeySet.size === 1,
+                "All overloads in index must have the same `canReusePartitionKey` setting",
+            );
+
+            const partitionTypeSet = new Set(
+                Object.values(indexDescription.overloadByName).flatMap(indexOverloadDescription =>
+                    indexOverloadDescription.itemTypes.map(({partitionType}) => partitionType),
+                ),
+            );
+
+            let partitionKeyBehavior: {type: "Separate"} | {type: "Reused"; partitionType: string};
+
+            if (!canReusePartitionKeySet.has(true)) {
+                partitionKeyBehavior = {type: "Separate"};
+            } else {
+                assert(
+                    partitionTypeSet.size === 1,
+                    "All overloads in index reusing partition key must have the same `partitionType`",
+                );
+
+                if (doesLastIndexDescriptionHaveSeparatePartitionKey) {
+                    partitionKeyBehavior = {type: "Separate"};
+                } else {
+                    partitionKeyBehavior = {
+                        type: "Reused",
+                        partitionType: Array.from(partitionTypeSet)[0]!,
+                    };
+                }
+            }
+
+            return {
+                projection: indexDescription.projection,
+                partitionKeyBehavior,
+                overloadByName: mapObjectValues(
+                    indexDescription.overloadByName,
+                    ({canReusePartitionKey, ...indexOverloadDescription}) =>
+                        indexOverloadDescription,
+                ),
+            };
+        }),
     };
 
     // If we have a description saved, then verify our new description is backwards
@@ -4500,6 +4688,17 @@ function checkDynamoTableSchemaIndexDescriptionBackwardsCompatibility(
     if (lastDescription.projection !== nextDescription.projection) {
         throw new InvalidArgumentError(
             `Can't change index attribute projection from \`${lastDescription.projection}\` to \`${nextDescription.projection}\``,
+        );
+    }
+
+    if (
+        (lastDescription.partitionKeyBehavior?.type ?? "Separate") !==
+        (nextDescription.partitionKeyBehavior?.type ?? "Separate")
+    ) {
+        throw new InvalidArgumentError(
+            `Can't change index partition key from \`${
+                lastDescription.partitionKeyBehavior?.type ?? "Separate"
+            }\` to \`${nextDescription.partitionKeyBehavior?.type ?? "Separate"}\``,
         );
     }
 

@@ -9,8 +9,6 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 
-const originalSetTimeout = setTimeout;
-
 /**
  * An implementation of `JobSenderBase` that runs in the current
  * process in test environments instead of going through SQS. This trades the

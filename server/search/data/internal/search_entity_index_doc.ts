@@ -63,6 +63,29 @@ const SearchEntityIndexAccessPolicyType = OpensearchIndexObjectType.new({
     },
 });
 
+const SearchEntityIndexAccessPolicyStoredType = OpensearchIndexObjectType.new({
+    fields: {
+        accountGrantAccountIds: new OpensearchIndexArrayType(
+            new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
+        )
+            .store()
+            .transform<ReadonlySet<AccountId>>({
+                serialize: accountIds => Array.from(accountIds),
+                deserialize: accountIds => new Set(accountIds),
+            }),
+        defaultGrantType: new OpensearchIndexByteType({isFilterable: true})
+            .transform<SearchEntityIndexDefaultGrantType>({
+                serialize: type => SearchEntityIndexDefaultGrantTypeIntegerMapping.into(type),
+                deserialize: type =>
+                    SearchEntityIndexDefaultGrantTypeIntegerMapping.from(
+                        SearchEntityIndexDefaultGrantTypeIntegerMapping.assert(type),
+                    ),
+            })
+            .nullable()
+            .store(),
+    },
+});
+
 export type SearchEntityKeywordIndexDoc = OpensearchIndexTypeType<
     typeof SearchEntityKeywordIndexDocType
 >;
@@ -88,7 +111,7 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
          * Determines who is allowed to view this search entity. We filter against this
          * property when we search.
          */
-        accessPolicy: SearchEntityIndexAccessPolicyType,
+        accessPolicy: SearchEntityIndexAccessPolicyStoredType,
 
         /**
          * Other entities that this search entity depends on.

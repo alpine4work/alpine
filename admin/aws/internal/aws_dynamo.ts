@@ -65,7 +65,10 @@ export class AwsDynamo {
                         All: ProjectionType.ALL,
                     }[indexDescription.projection],
                     partitionKey: {
-                        name: `index${indexNumber}PartitionKey`,
+                        name:
+                            indexDescription.partitionKeyBehavior.type === "Reused"
+                                ? "partitionKey"
+                                : `index${indexNumber}PartitionKey`,
                         type: AttributeType.STRING,
                     },
                     sortKey: {

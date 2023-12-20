@@ -468,6 +468,9 @@ export namespace DynamoTableSchemaTypes {
          */
         export type Description = {
             readonly projection: "KeysOnly" | "All";
+            readonly partitionKeyBehavior:
+                | {readonly type: "Separate"}
+                | {readonly type: "Reused"; readonly partitionType: string};
             readonly overloadByName: {
                 readonly [name: string]: OverloadDescription;
             };

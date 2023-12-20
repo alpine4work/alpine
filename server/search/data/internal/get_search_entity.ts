@@ -17,11 +17,6 @@ import {
     isSearchEntityDependencyIdAlsoEntityId,
     isSearchEntityIdAlsoEntityDependencyId,
 } from "~/server/search/core/search_entity_dependency_id.js";
-import {
-    SearchEntityId,
-    SearchEntityIdObject,
-    printSearchEntityId,
-} from "~/shared/search/search_entity_id.js";
 import {chunkSearchContent} from "~/server/search/data/internal/chunk_search_content.js";
 import {
     SearchEntityIndexAccessPolicy,
@@ -59,8 +54,14 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {MessageContent} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload} from "~/shared/messaging/message_model.js";
+import {
+    SearchEntityId,
+    SearchEntityIdObject,
+    printSearchEntityId,
+} from "~/shared/search/search_entity_id.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
 export type SearchEntity = {
@@ -869,12 +870,10 @@ async function getTaskSearchEntity(
         };
     }
 
+    const title = addFallbackToTaskTitle(task.getTitle().getText());
+
     const truncatedTitle = new Lazy(() =>
-        truncateTokens(
-            state.tokenizer,
-            task.getTitle().getText(),
-            searchEntityEmbeddingPreambleTitleTokenCount,
-        ),
+        truncateTokens(state.tokenizer, title, searchEntityEmbeddingPreambleTitleTokenCount),
     );
 
     const truncatedSectionHeading = new LazyMap((sectionHeading: string) =>
@@ -889,8 +888,7 @@ async function getTaskSearchEntity(
         tokenizer: state.tokenizer,
         getAccountIfExists: state.getAccountIfExists,
         getChunkPreamble: ({context, isInitialChunk}) => {
-            if (isInitialChunk)
-                return {text: `# ${task.getTitle().getText()}`, lineMarginBottom: 2};
+            if (isInitialChunk) return {text: `# ${title}`, lineMarginBottom: 2};
 
             return {
                 text: `This is from the “${truncatedTitle.get()}” task${
@@ -906,7 +904,7 @@ async function getTaskSearchEntity(
     return {
         id: `Task:${taskId}`,
         accessPolicy: {accountGrantAccountIds, defaultGrantType},
-        title: task.getTitle().getText(),
+        title,
         body: getFullText(),
         embeddingChunks,
     };

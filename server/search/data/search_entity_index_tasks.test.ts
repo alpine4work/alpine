@@ -2,13 +2,11 @@ import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {OpensearchGetDocWithoutSourceCommand} from "~/server/opensearch/opensearch_client.js";
-import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
-import {SearchEntityIndexDefaultGrantTypeIntegerMapping} from "~/server/search/data/internal/search_entity_index_doc.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
     processSearchEntityJobUpdateDependentEntitiesTestCounter,
+    searchByKeywords,
 } from "~/server/search/data/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -21,9 +19,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
-
-import.meta.jest.useFakeTimers();
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();
@@ -192,6 +189,8 @@ test("will only index a task once if update happened within the timeout", async 
         body: "",
     });
 
+    import.meta.jest.runAllTimers();
+
     // Make sure there are no more jobs in the queue.
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
@@ -315,7 +314,7 @@ test("will index a task again if update happened after timeout with more updates
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("will not schedule another indexing job if task title is updated after creation", async () => {
+test("will schedule another indexing job if task assignee is updated after creation", async () => {
     const space = await TestSpace.create(context);
     const session1 = await space.createSession();
     const session2 = await space.createSession();
@@ -365,6 +364,16 @@ test("will not schedule another indexing job if task title is updated after crea
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
+    expect(await getIndexedSearchEntity(task)).toEqual({
+        title: "Hollywoo Stars and Celebrities",
+        body: "",
+    });
+
+    import.meta.jest.advanceTimersByTime(30 * 1000);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect(indexSearchEntityJobCount).toEqual(2);
     expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
@@ -404,7 +413,7 @@ test("will schedule another indexing job if task authorization is updated after 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "",
@@ -415,7 +424,7 @@ test("will schedule another indexing job if task authorization is updated after 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "",
@@ -425,7 +434,7 @@ test("will schedule another indexing job if task authorization is updated after 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "",
@@ -436,7 +445,7 @@ test("will schedule another indexing job if task authorization is updated after 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "",
@@ -446,7 +455,7 @@ test("will schedule another indexing job if task authorization is updated after 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
         body: "",
@@ -456,7 +465,7 @@ test("will schedule another indexing job if task authorization is updated after 
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(3);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(2);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
         body: "",
@@ -496,7 +505,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "",
@@ -507,7 +516,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "",
@@ -517,7 +526,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "",
@@ -528,7 +537,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(1);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities",
         body: "",
@@ -538,7 +547,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
         body: "",
@@ -552,7 +561,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(2);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(0);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
         body: "",
@@ -562,7 +571,7 @@ test("will not schedule another indexing job if task authorization is updated tw
     await ProcessContextModule.waitForTestTasks();
 
     expect(indexSearchEntityJobCount).toEqual(3);
-    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(2);
+    expect(getUpdateAuthorizationDependentEntitiesCount()).toEqual(1);
     expect(await getIndexedSearchEntity(task)).toEqual({
         title: "Hollywoo Stars and Celebrities: What Do They Know? Do They Know Things? Let’s Find Out.",
         body: "",
@@ -588,14 +597,17 @@ test("tasks update their access policies appropriately after indexing", async ()
         publicCollection,
         sharedCollection,
     ] = await runAllPromises([
-        TestTask.create(session1),
-        TestTask.create(session1, {title: "foobar"}),
-        TestTask.create(session1),
-        TestTask.create(session1),
-        TestTask.create(session1),
-        TestTaskCollection.createPrivate(session1),
-        TestTaskCollection.createPublic(session1, {name: "buzqux"}),
-        TestTaskCollection.createPrivate(session1, {otherGrantedAccounts: [session3.account]}),
+        TestTask.create(session1, {title: "test"}),
+        TestTask.create(session1, {title: "test foobar"}),
+        TestTask.create(session1, {title: "test"}),
+        TestTask.create(session1, {title: "test"}),
+        TestTask.create(session1, {title: "test"}),
+        TestTaskCollection.createPrivate(session1, {name: "test"}),
+        TestTaskCollection.createPublic(session1, {name: "test buzqux"}),
+        TestTaskCollection.createPrivate(session1, {
+            name: "test",
+            otherGrantedAccounts: [session3.account],
+        }),
     ]);
 
     await runAllPromises([
@@ -623,44 +635,14 @@ test("tasks update their access policies appropriately after indexing", async ()
     const getSearchEntityIds = async (session: TestSpaceSession) => {
         await context.opensearch.refresh(SearchEntityKeywordIndex);
 
-        const docs = await context.opensearch.searchWithoutSource(
-            SearchEntityKeywordIndex,
-            space.id,
-            {
-                size: 100,
-                query: {
-                    bool: {
-                        filter: {
-                            bool: {
-                                must: [{term: {spaceId: new OpensearchQueryValue(space.id)}}],
-                                minimum_should_match: 1,
-                                should: [
-                                    {
-                                        term: {
-                                            "accessPolicy.accountGrantAccountIds":
-                                                new OpensearchQueryValue(session.account.id),
-                                        },
-                                    },
-                                    {
-                                        term: {
-                                            "accessPolicy.defaultGrantType":
-                                                new OpensearchQueryValue(
-                                                    SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
-                                                        "Space",
-                                                    ),
-                                                ),
-                                        },
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                },
-            },
-        );
+        const {results} = await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "test",
+            limit: 100,
+        });
 
-        return docs
-            .map(doc => doc.id)
+        return results
+            .map(result => result.entityId)
             .sort(
                 (id1, id2) =>
                     assertExists(taskSearchEntityIdOrder.findIndex(id => id === id1)) -
@@ -886,7 +868,7 @@ test("tasks update their access policies appropriately after indexing", async ()
         id: `Task:${parentTask1.id}`,
         version: expect.any(Object),
         fields: {
-            title: ["foobar"],
+            title: ["test foobar"],
         },
     });
 
@@ -945,7 +927,7 @@ test("tasks update their access policies appropriately after indexing", async ()
         id: `Task:${parentTask1.id}`,
         version: expect.any(Object),
         fields: {
-            title: ["foobar"],
+            title: ["test foobar"],
         },
     });
 
@@ -986,7 +968,7 @@ test("tasks update their access policies appropriately after indexing", async ()
         id: `TaskCollection:${publicCollection.id}`,
         version: expect.any(Object),
         fields: {
-            title: ["buzqux"],
+            title: ["test buzqux"],
         },
     });
 
@@ -1074,7 +1056,7 @@ test("tasks update their access policies appropriately after indexing", async ()
         id: `TaskCollection:${publicCollection.id}`,
         version: expect.any(Object),
         fields: {
-            title: ["buzqux"],
+            title: ["test buzqux"],
         },
     });
 

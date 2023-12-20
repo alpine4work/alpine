@@ -59,18 +59,13 @@ export class TestDocument {
         } & (
             | {
                   title?: string;
-                  body: string;
+                  body?: string;
                   content?: undefined;
               }
             | {
                   content: DocumentContent;
                   title?: undefined;
                   body?: undefined;
-              }
-            | {
-                  title?: undefined;
-                  body?: undefined;
-                  content?: undefined;
               }
         ) = {},
     ): Promise<TestDocument> {

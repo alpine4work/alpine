@@ -14,6 +14,7 @@ ts_project(
         },
     },
     visibility = [
+        "//admin/dynamo:__pkg__",
         "//server/jobs/queue:__pkg__",
         "//server/rpc:__pkg__",
     ],
@@ -22,6 +23,7 @@ ts_project(
         "//:node_modules/@types/mdast",
         "//:node_modules/@xenova/transformers",
         "//:node_modules/compromise",
+        "//:node_modules/date-fns",
         "//:node_modules/fs-extra",
         "//:node_modules/mdast-util-from-markdown",
         "//:node_modules/mdast-util-gfm-strikethrough",
@@ -30,6 +32,7 @@ ts_project(
         "//:node_modules/prosemirror-model",
         "//server/chat/data",
         "//server/documents/data",
+        "//server/dynamo/core",
         "//server/forum/data",
         "//server/helpers/node",
         "//server/language_models/all_mini_lm_l6_v2",

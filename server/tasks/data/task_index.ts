@@ -428,10 +428,9 @@ class TaskActionTransactionIndexState {
                     // right version number if we didn't read the previous task so our bulk update
                     // will fail if the task is being updated instead of created.
                     if (!oldTask || !newLastIndexSearchEntityJob) {
-                        // Nothing depends on this entity when it's created. Don't bother trying to
-                        // reindex dependencies.
                         const updatedTraits: TaskIndexSearchEntityJob["updatedTraits"] = {
-                            type: "None",
+                            type: "Some",
+                            traits: [],
                         };
 
                         newLastIndexSearchEntityJob = {

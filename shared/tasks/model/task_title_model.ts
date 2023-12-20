@@ -17,7 +17,7 @@ import {
 
 export const emptyTaskTitleModel = new Lazy(() => TaskTitleModel.new(emptyTaskTitle.get()));
 
-export const taskFallbackTitle = "Untitled task";
+export const taskFallbackTitle = "Untitled";
 
 /**
  * Return the title string and if the title is empty then return a fallback

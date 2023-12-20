@@ -27,6 +27,7 @@ import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core
 import {getSearchEntity} from "~/server/search/data/internal/get_search_entity.js";
 import {parseSearchContent} from "~/server/search/data/internal/parse_search_content.js";
 import {
+    SearchEntityIndexDefaultGrantType,
     SearchEntityIndexDefaultGrantTypeIntegerMapping,
     SearchEntityKeywordIndexDoc,
     SearchEntityKeywordIndexDocType,
@@ -52,7 +53,7 @@ import {
 } from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
-import {SpaceId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {
     SearchEntityId,
     parseSearchEntityId,
@@ -192,6 +193,8 @@ const SearchEntitySemanticIndex = new OpensearchIndex<
 assertEqualTypes<
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntityKeywordIndexDocType>,
     {
+        "accessPolicy.accountGrantAccountIds": AccountId;
+        "accessPolicy.defaultGrantType": SearchEntityIndexDefaultGrantType;
         lastReadStartTime: Date;
         title: string;
         body: string;
@@ -686,10 +689,7 @@ export async function searchByKeywords(
 ): Promise<{
     results: Array<SearchResult>;
 }> {
-    // NOCOMMIT: Tests (include authorization tests)
     await authorizeSpaceAccess(context, spaceId);
-
-    // NOCOMMIT: If in debug mode, add `explain`
 
     // NOCOMMIT: Allow the client to configure this in debug mode
     const titleBoost = 4;
@@ -866,7 +866,6 @@ export async function searchBySemantics(
 ): Promise<{
     results: Array<SearchResult>;
 }> {
-    // NOCOMMIT: Tests (include authorization tests)
     await authorizeSpaceAccess(context, spaceId);
 
     const [queryEmbeddingVector] = await context.languageModel.model.embed(
@@ -1037,4 +1036,50 @@ export async function searchBySemantics(
     });
 
     return {results};
+}
+
+/**
+ * Get the titles of the provided search entities if the search entity exists
+ * and the account has access to the search entity.
+ */
+export async function getSearchEntityTitlesIfExist(
+    context: ServerSessionActionContext,
+    {spaceId, entityIds}: {spaceId: SpaceId; entityIds: ReadonlyArray<SearchEntityId>},
+): Promise<ReadonlyArray<{id: SearchEntityId; title: string | null} | null>> {
+    await authorizeSpaceAccess(context, spaceId);
+
+    const docs = await context.opensearch.multiGetDocsIfExist(
+        entityIds.map(
+            entityId =>
+                new OpensearchGetDocWithoutSourceCommand(
+                    SearchEntityKeywordIndex,
+                    spaceId,
+                    entityId,
+                    {
+                        storedFields: [
+                            "title",
+                            "accessPolicy.accountGrantAccountIds",
+                            "accessPolicy.defaultGrantType",
+                        ],
+                    },
+                ),
+        ),
+    );
+
+    return docs.map(doc => {
+        if (!doc) return null;
+        if (doc.routing !== spaceId) return null;
+
+        const isAccessAuthorized =
+            doc.fields["accessPolicy.defaultGrantType"]?.[0] === "Space" ||
+            doc.fields["accessPolicy.accountGrantAccountIds"]?.includes(
+                context.actor.getAccountId(),
+            );
+
+        if (!isAccessAuthorized) return null;
+
+        const title = doc.fields.title?.[0] ?? null;
+
+        return {id: doc.id, title};
+    });
 }

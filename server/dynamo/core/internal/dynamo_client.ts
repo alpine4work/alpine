@@ -588,6 +588,7 @@ export class DynamoClient {
             lastEvaluatedKey: _lastEvaluatedKey,
             consistency = "Eventual",
             limit,
+            pageLimit,
             descending = false,
         }: {
             tableName: string;
@@ -606,6 +607,7 @@ export class DynamoClient {
             lastEvaluatedKey?: SchemaSerializedObjectValue;
             consistency?: DynamoReadConsistency;
             limit?: number;
+            pageLimit?: number;
             descending?: boolean;
         },
     ): AsyncIterableIterator<SchemaSerializedObjectValue> {
@@ -653,13 +655,22 @@ export class DynamoClient {
             : undefined;
 
         do {
+            // If we have a limit of 100 and we scanned 40 rows in our previous queries,
+            // then our new limit is 60 since we don't want to exceed our total limit.
+            const remainingLimit = limit !== undefined ? limit - totalScannedCount : undefined;
+
             const output = await this._client.Query(tracer, {
                 TableName: tableName,
                 IndexName: indexName,
                 ConsistentRead: consistency === "Strong",
-                // If we have a limit of 100 and we scanned 40 rows in our previous queries,
-                // then our new limit is 60 since we don't want to exceed our initial limit.
-                Limit: limit !== undefined ? limit - totalScannedCount : undefined,
+                // If a `pageLimit` was configured then as we paginate, each page will be sized
+                // as `pageLimit` so we don't read a full 1 MB per page.
+                Limit:
+                    pageLimit !== undefined
+                        ? remainingLimit !== undefined
+                            ? Math.min(pageLimit, remainingLimit)
+                            : pageLimit
+                        : remainingLimit,
                 ScanIndexForward: !descending,
                 KeyConditionExpression: keyConditionExpression,
                 ExpressionAttributeValues: expressionAttributeValues,

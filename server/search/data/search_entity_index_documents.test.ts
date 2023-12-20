@@ -4,7 +4,6 @@ import {DocumentContentCacheForUpdate} from "~/server/documents/data/documents_t
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {OpensearchGetDocWithoutSourceCommand} from "~/server/opensearch/opensearch_client.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {
     getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
@@ -16,13 +15,12 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {DocumentContentProsemirrorSchema} from "~/shared/documents/document_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 
 // Needs to be before `afterEach()` hook where we err if there are remaining
 // timers since the constructor adds an `afterEach()` hook to clear timers
 // within this class.
 const otherCache = new DocumentContentCacheForUpdate();
-
-import.meta.jest.useFakeTimers();
 
 beforeEach(() => {
     import.meta.jest.useFakeTimers();

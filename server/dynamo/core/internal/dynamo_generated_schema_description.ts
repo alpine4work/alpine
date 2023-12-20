@@ -947,6 +947,9 @@ export const dynamoGeneratedSchemaDescription: {
             "indexes": [
                 {
                     "projection": "KeysOnly",
+                    "partitionKeyBehavior": {
+                        "type": "Separate"
+                    },
                     "overloadByName": {
                         "AccountChats": {
                             "itemTypes": [
@@ -1026,6 +1029,65 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "String"
                                         },
                                         "optional": false
+                                    },
+                                    "lastIndexSearchEntityJob": {
+                                        "valueSchema": {
+                                            "type": "Object",
+                                            "propertySchemaByKey": {
+                                                "sendTime": {
+                                                    "valueSchema": {
+                                                        "type": "Date"
+                                                    },
+                                                    "optional": false
+                                                },
+                                                "updatedTraits": {
+                                                    "valueSchema": {
+                                                        "type": "Union",
+                                                        "typeKey": "type",
+                                                        "variantSchemaByTypeValue": {
+                                                            "Any": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "type": {
+                                                                        "valueSchema": {
+                                                                            "type": "Value",
+                                                                            "value": "Any"
+                                                                        },
+                                                                        "optional": false
+                                                                    }
+                                                                }
+                                                            },
+                                                            "Some": {
+                                                                "type": "Object",
+                                                                "propertySchemaByKey": {
+                                                                    "type": {
+                                                                        "valueSchema": {
+                                                                            "type": "Value",
+                                                                            "value": "Some"
+                                                                        },
+                                                                        "optional": false
+                                                                    },
+                                                                    "traits": {
+                                                                        "valueSchema": {
+                                                                            "type": "Array",
+                                                                            "itemSchema": {
+                                                                                "type": "Enum",
+                                                                                "values": [
+                                                                                    "Title"
+                                                                                ]
+                                                                            }
+                                                                        },
+                                                                        "optional": false
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "optional": false
+                                                }
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {
@@ -3061,6 +3123,9 @@ export const dynamoGeneratedSchemaDescription: {
             "indexes": [
                 {
                     "projection": "KeysOnly",
+                    "partitionKeyBehavior": {
+                        "type": "Separate"
+                    },
                     "overloadByName": {
                         "ChannelPosts": {
                             "itemTypes": [
@@ -3698,6 +3763,9 @@ export const dynamoGeneratedSchemaDescription: {
             "indexes": [
                 {
                     "projection": "All",
+                    "partitionKeyBehavior": {
+                        "type": "Separate"
+                    },
                     "overloadByName": {
                         "InboxEntries": {
                             "itemTypes": [
@@ -3745,6 +3813,100 @@ export const dynamoGeneratedSchemaDescription: {
                                     "schema": {
                                         "type": "Date"
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        },
+        "SearchEntities": {
+            "name": "SearchEntities",
+            "partitionByType": {
+                "Account": {
+                    "id": 0,
+                    "partitionKeyAttributeByKey": {
+                        "spaceId": {
+                            "type": "Id"
+                        },
+                        "accountId": {
+                            "type": "Id"
+                        }
+                    },
+                    "sortRangeByType": {
+                        "SearchEntityAffinity": {
+                            "id": 0,
+                            "orderKey": "a0",
+                            "sortKeyAttributeByKey": {
+                                "entityId": {
+                                    "type": "LabelString"
+                                }
+                            },
+                            "attributesSchema": {
+                                "type": "Object",
+                                "propertySchemaByKey": {
+                                    "points": {
+                                        "valueSchema": {
+                                            "type": "Float"
+                                        },
+                                        "optional": false
+                                    },
+                                    "pointsBucket": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "lastUpdatedTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    },
+                                    "updateLockVersion": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": true
+                                    },
+                                    "expirationTime": {
+                                        "valueSchema": {
+                                            "type": "Integer"
+                                        },
+                                        "optional": false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "indexes": [
+                {
+                    "projection": "All",
+                    "partitionKeyBehavior": {
+                        "type": "Reused",
+                        "partitionType": "Account"
+                    },
+                    "overloadByName": {
+                        "AccountAffinitiveSearchEntities": {
+                            "itemTypes": [
+                                {
+                                    "partitionType": "Account",
+                                    "sortRangeType": "SearchEntityAffinity"
+                                }
+                            ],
+                            "partitionKeyAttributeByKey": {
+                                "spaceId": {
+                                    "type": "Id"
+                                },
+                                "accountId": {
+                                    "type": "Id"
+                                }
+                            },
+                            "sortKeyAttributeByKey": {
+                                "pointsBucket": {
+                                    "type": "Integer"
                                 }
                             }
                         }
@@ -4781,6 +4943,9 @@ export const dynamoGeneratedSchemaDescription: {
             "indexes": [
                 {
                     "projection": "KeysOnly",
+                    "partitionKeyBehavior": {
+                        "type": "Separate"
+                    },
                     "overloadByName": {
                         "UnprocessedActionTransactions": {
                             "itemTypes": [
