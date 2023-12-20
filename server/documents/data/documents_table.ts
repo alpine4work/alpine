@@ -1077,10 +1077,14 @@ export async function getDocumentContent(
     context: ServerActionContext,
     documentId: DocumentId,
     options?: {consistency?: DynamoReadConsistency},
-): Promise<DocumentContent> {
+): Promise<{createdTime: Date; content: DocumentContent}> {
     const internalDocument = await getInternalDocumentIfExists(context, documentId, options);
     if (!internalDocument) throw new NotFoundError("Document not found");
-    return internalDocument.content;
+
+    return {
+        createdTime: internalDocument.attributes.createdTime,
+        content: internalDocument.content,
+    };
 }
 
 /**
@@ -3083,7 +3087,7 @@ export async function getDocumentCommentPayload(
         commentIndex: number;
         consistency?: DynamoReadConsistency;
     },
-): Promise<MessagePayload> {
+): Promise<{createdTime: Date; payload: MessagePayload}> {
     const {commentItem} = await getDocumentCommentItem(context, {
         documentId,
         commentThreadId,
@@ -3091,7 +3095,10 @@ export async function getDocumentCommentPayload(
         consistency,
     });
 
-    return commentItem.payload;
+    return {
+        createdTime: commentItem.createdTime,
+        payload: commentItem.payload,
+    };
 }
 
 /**

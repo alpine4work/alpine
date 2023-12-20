@@ -29,7 +29,6 @@ import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
 // NOCOMMIT: Participating accounts list
-// NOCOMMIT: Created time and updated time
 
 export type SearchEntityIndexDefaultGrantType = IntegerMappingStringType<
     typeof SearchEntityIndexDefaultGrantTypeIntegerMapping
@@ -101,6 +100,40 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
             isFilterable: true,
             isSortable: true,
         }),
+
+        /**
+         * When was this search entity created?
+         *
+         * The `createdTime` comes from reading the underlying search entity. So
+         * whatever we get when we read the search entity is what we use here.
+         */
+        createdTime: new OpensearchIndexDateType({
+            // NOTE(calebmer, 2023-12-20): We don't currently have use cases for
+            // filtering/sorting by `createdTime`. But it seems like a pretty basic search
+            // capability to have so adding it to avoid a reindex if we ever need it.
+            isFilterable: true,
+            isSortable: true,
+        }).store(),
+
+        /**
+         * When was the last time this search entity was updated?
+         *
+         * We update this whenever processing a job that updates the entity. This value
+         * always increases and is always larger than `createdTime`. Since we update
+         * this property in a generic way, if the underlying entity is tracking last
+         * update time the `lastUpdatedTime` property here may disagree. Because of
+         * this, if you show this property to the user show it at a low resolution
+         * (e.g. in days vs minutes) to avoid revealing any discrepancy with the
+         * underlying entity.
+         */
+        lastUpdatedTime: new OpensearchIndexDateType({
+            // NOTE(calebmer, 2023-12-20): We don't currently have use cases for
+            // filtering/sorting by `lastUpdatedTime`. But it seems like a pretty basic
+            // search capability to have so adding it to avoid a reindex if we ever
+            // need it.
+            isFilterable: true,
+            isSortable: true,
+        }).store(),
 
         /**
          * The last time where we started the read that produced this search entity.

@@ -193,6 +193,8 @@ const SearchEntitySemanticIndex = new OpensearchIndex<
 assertEqualTypes<
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntityKeywordIndexDocType>,
     {
+        createdTime: Date;
+        lastUpdatedTime: Date;
         "accessPolicy.accountGrantAccountIds": AccountId;
         "accessPolicy.defaultGrantType": SearchEntityIndexDefaultGrantType;
         lastReadStartTime: Date;
@@ -314,7 +316,7 @@ export async function processIndexSearchEntityJob(
                         SearchEntityKeywordIndex,
                         job.spaceId,
                         entityId,
-                        {storedFields: ["lastReadStartTime"]},
+                        {storedFields: ["lastUpdatedTime", "lastReadStartTime"]},
                     ),
                     new OpensearchGetDocWithoutSourceCommand(
                         SearchEntitySemanticIndex,
@@ -335,6 +337,9 @@ export async function processIndexSearchEntityJob(
             const oldDocForKeywordIndex = actualOldDocForKeywordIndex
                 ? {
                       version: actualOldDocForKeywordIndex.version,
+                      lastUpdatedTime: assertExists(
+                          actualOldDocForKeywordIndex.fields.lastUpdatedTime?.[0],
+                      ),
                       lastReadStartTime: assertExists(
                           actualOldDocForKeywordIndex.fields.lastReadStartTime?.[0],
                       ),
@@ -510,6 +515,25 @@ export async function processIndexSearchEntityJob(
                 );
             }
 
+            // The new updated time should:
+            //
+            // - Always be bigger than `createdTime`
+            // - Always be bigger than the last `lastUpdatedTime`
+            // - Use `jobStartTime` since that more accurately represents when the update
+            //   happened rather than the current time (since the job may have been
+            //   delayed)
+            const newLastUpdatedTime = new Date(
+                Math.max(
+                    ...[
+                        jobStartTime.getTime(),
+                        entity.createdTime.getTime(),
+                        ...(oldDocForKeywordIndex
+                            ? [oldDocForKeywordIndex.lastUpdatedTime.getTime()]
+                            : []),
+                    ],
+                ),
+            );
+
             const newDocForKeywordIndex: OpensearchClientDocWithIdAndVersion<
                 SearchEntityId,
                 SearchEntityKeywordIndexDoc
@@ -518,6 +542,8 @@ export async function processIndexSearchEntityJob(
                 version: oldDocForKeywordIndex?.version ?? null,
                 spaceId: job.spaceId,
                 type: job.update.type,
+                createdTime: entity.createdTime,
+                lastUpdatedTime: newLastUpdatedTime,
                 lastReadStartTime: readStartTime,
                 accessPolicy: entity.accessPolicy,
                 dependencyIds: Array.from(dependencyIds),

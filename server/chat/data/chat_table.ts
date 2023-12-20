@@ -1232,6 +1232,7 @@ export async function getChatAccountIds(
     chatId: ChatId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
 ): Promise<{
+    createdTime: Date;
     spaceId: SpaceId;
     accountIds: ReadonlyArray<AccountId>;
 }> {
@@ -1295,6 +1296,7 @@ export async function getChatAccountIds(
     }
 
     return {
+        createdTime: chatItem.createdTime,
         spaceId: chatItem.spaceId,
         accountIds,
     };
@@ -1334,7 +1336,7 @@ export async function getChatMessagePayload(
         messageIndex: number;
         consistency?: DynamoReadConsistency;
     },
-): Promise<MessagePayload> {
+): Promise<{createdTime: Date; payload: MessagePayload}> {
     const [, item] = await runAllPromises([
         authorizeChatAccess(context, chatId),
         ChatTable.getItem(
@@ -1349,7 +1351,10 @@ export async function getChatMessagePayload(
         ),
     ]);
 
-    return item.payload;
+    return {
+        createdTime: item.createdTime,
+        payload: item.payload,
+    };
 }
 
 async function createChatMessageModelFromItem(

@@ -437,6 +437,7 @@ export async function getChannelNameAndDescriptionContent(
 ): Promise<{
     name: string;
     description: MessageContent;
+    createdTime: Date;
 }> {
     const channelItem = await ForumTable.getItem(
         context,
@@ -453,6 +454,7 @@ export async function getChannelNameAndDescriptionContent(
     return {
         name: channelItem.name,
         description: channelItem.description,
+        createdTime: channelItem.createdTime,
     };
 }
 
@@ -738,7 +740,7 @@ export async function getPostContentAndChannel(
     context: ServerActionContext,
     id: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
-): Promise<{content: PostContent; channel: ChannelPreviewModel}> {
+): Promise<{createdTime: Date; content: PostContent; channel: ChannelPreviewModel}> {
     const postItem = await ForumTable.getItem(
         context,
         {
@@ -752,8 +754,9 @@ export async function getPostContentAndChannel(
     const channel = await getChannelPreview(context, postItem.channelId, {consistency});
 
     return {
-        channel,
+        createdTime: postItem.createdTime,
         content: postItem.content,
+        channel,
     };
 }
 
@@ -1181,7 +1184,7 @@ export async function getPostCommentPayload(
         commentIndex: number;
         consistency?: DynamoReadConsistency;
     },
-): Promise<MessagePayload> {
+): Promise<{createdTime: Date; payload: MessagePayload}> {
     const [, item] = await runAllPromises([
         authorizePostAccess(context, postId),
         ForumTable.getItem(
@@ -1196,7 +1199,7 @@ export async function getPostCommentPayload(
         ),
     ]);
 
-    return item.payload;
+    return {createdTime: item.createdTime, payload: item.payload};
 }
 
 async function createPostCommentModelFromItem(
