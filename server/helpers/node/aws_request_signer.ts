@@ -74,6 +74,11 @@ export class AwsRequestSigner {
     }> {
         if (this._currentState === null) {
             this._currentState = this._fetchState(span);
+
+            // If there was an error, we should retry next call.
+            this._currentState.catch(() => {
+                this._currentState = null;
+            });
         }
 
         const state = await this._currentState;
