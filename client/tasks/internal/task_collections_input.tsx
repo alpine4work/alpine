@@ -191,6 +191,7 @@ function TaskCollectionsInput(
     });
 
     const {shouldShowSearchLoadingIndicator, items} = useTaskCollectionComboBoxSearchState({
+        store: referencesSubscription.store,
         inputValue: inputState.value,
         // Only load items when our overlay is open.
         shouldLoadItems,

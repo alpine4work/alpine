@@ -5,17 +5,20 @@ import {MenuButton} from "~/client/design/menu_button.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskLayoutTopBarCollectionsButton} from "~/client/tasks/internal/task_layout_top_bar_collections_button.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {colorSchemeVars} from "~/shared/styles/styles.js";
 import {serializeTaskQueryFiltersSearchParam} from "~/shared/tasks/task_query_filter.js";
 import {serializeTaskQuerySortsSearchParam} from "~/shared/tasks/task_query_sort.js";
 
 export function TaskLayoutTopBar({
+    store,
     isNotepadTabActive,
     isCollectionsTabActive,
     isViewsTabActive,
     withoutBorderBottom,
 }: {
+    store: TaskClientStore;
     isNotepadTabActive: boolean;
     isCollectionsTabActive: boolean;
     isViewsTabActive: boolean;
@@ -49,7 +52,10 @@ export function TaskLayoutTopBar({
             >
                 Notepad
             </Button>
-            <TaskLayoutTopBarCollectionsButton isCollectionsTabActive={isCollectionsTabActive} />
+            <TaskLayoutTopBarCollectionsButton
+                store={store}
+                isCollectionsTabActive={isCollectionsTabActive}
+            />
             <MenuButton
                 width="64"
                 iconSize="4"

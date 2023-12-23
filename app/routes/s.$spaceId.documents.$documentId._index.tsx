@@ -1,10 +1,14 @@
 import {ShouldRevalidateFunction, useSearchParams} from "@remix-run/react";
 import {useEffect} from "react";
+import {useAppContext} from "~/client/context/app_context.js";
 import {DocumentContentEditor} from "~/client/documents/document_content_editor.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
+import {markSearchEntityAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_entity_affinity_low_intent_update_interaction.js";
+import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     createDocument,
     getDocument,
@@ -117,9 +121,11 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
 };
 
 export default function DocumentRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
-    const {document, commentThreadResult} = useLoaderDataWithSchema(LoaderSchema);
+    const {document: initialDocument, commentThreadResult} = useLoaderDataWithSchema(LoaderSchema);
     const [searchParams, setSearchParams] = useSearchParams();
     const updateMetaTitle = useUpdateMetaTitle();
+    const context = useAppContext();
+    const {space} = useSpaceContext();
 
     // Remove the `create` search param.
     useEffect(() => {
@@ -133,16 +139,25 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
     const commentIndexString = searchParams.get("comment");
     const commentIndex = commentIndexString ? parseInt(commentIndexString, 10) : null;
 
+    useSearchEntityAffinityViewInteraction(`Document:${initialDocument.id}`);
+
     return (
         <DocumentContentEditor
             // Re-render when the document changes
-            key={document.id}
+            key={initialDocument.id}
             withMobileLayout={withMobileLayout}
-            initialDocument={document}
+            initialDocument={initialDocument}
             initialCommentThreadResult={commentThreadResult}
             initialScrollToCommentIndex={commentIndex}
             onContentChange={content => {
                 updateMetaTitle(`${getDocumentContentTitle(content)}${metaTitlePostfix}`);
+            }}
+            onContentLocalChange={() => {
+                markSearchEntityAffinityLowIntentUpdateInteraction(
+                    context,
+                    space.id,
+                    `Document:${initialDocument.id}`,
+                );
             }}
             onCommentThreadChange={commentThreadId => {
                 const url = new URL(window.location.href);

@@ -17,7 +17,12 @@ import {createMessagePayloadModel} from "~/server/messaging/helpers/create_messa
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
+import {markSearchEntityAffinityInteraction} from "~/server/search/core/search_entity_table.js";
+import {
+    authorizeSpaceAccess,
+    getAccount,
+    isAccountMemberOfSpace,
+} from "~/server/spaces/spaces_table.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {Context} from "~/shared/context/context.js";
 import {
@@ -30,6 +35,7 @@ import {
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isDatePossiblyLessThanWithUncertaintyWindow} from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
@@ -45,6 +51,7 @@ import {MessageChange, getMessageChangeTime} from "~/shared/messaging/message_ch
 import {MessageContent, MessageContentSchema} from "~/shared/messaging/message_content_schema.js";
 import {MessagePayload, MessagePayloadSchema} from "~/shared/messaging/message_model.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {SearchEntityAffinityInteraction} from "~/shared/search/search_entity_affinity_interaction.js";
 
 const ChatTable = DynamoTableSchema.new({
     name: "Chat",
@@ -72,6 +79,19 @@ const ChatTable = DynamoTableSchema.new({
 
                         /** The time at which the chat was created. */
                         createdTime: Schema.date,
+
+                        /**
+                         * If this is a 1:1 chat between two accounts, we include the two accounts in
+                         * the attributes item as an optimization.
+                         *
+                         * You can't depend on `accountIdsForOneOnOne` existing for a chat with two
+                         * accounts! 1:1 chats created before 2023-12-20 will have this set to null.
+                         */
+                        accountIdsForOneOnOne: Schema.array(Schema.id<AccountId>())
+                            .minLength(2)
+                            .maxLength(2)
+                            .nullable()
+                            .default(null),
 
                         /**
                          * Information regarding the chat's messages. Nested in an object so we can
@@ -258,6 +278,7 @@ export async function createChatForTest(
             chatId: id,
             spaceId,
             createdTime,
+            accountIdsForOneOnOne: accountIds.length === 2 ? accountIds : null,
             messagesSummary: {
                 nextMessageIndex: 0,
                 lastChangeTime: null,
@@ -567,6 +588,8 @@ function actuallyGetOrCreateChatForAccounts(
                         chatId,
                         spaceId,
                         createdTime,
+                        accountIdsForOneOnOne:
+                            allSortedAccountIds.length === 2 ? allSortedAccountIds : null,
                         messagesSummary: {
                             nextMessageIndex: 0,
                             lastChangeTime: null,
@@ -727,7 +750,7 @@ export function sendChatMessage(
     createdTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [chatItem] = await runAllPromises([
+        const [{chatItem, chatAccountItem}] = await runAllPromises([
             getChatItemAndAuthorizeAccess(context, chatId),
             (async () => {
                 if (typeof parentMessageIndex !== "number") return;
@@ -781,6 +804,8 @@ export function sendChatMessage(
             ),
         ]);
 
+        const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+
         context.notifications.sendNotificationEvent({
             type: "CreateChatMessage",
             id: generateId(),
@@ -805,6 +830,76 @@ export function sendChatMessage(
                 updatedTraits: {type: "None"},
             },
         });
+
+        // Add affinity points to chat. Unless this is a 1:1 chat. For 1:1 chats we
+        // want to add affinity points to the account we're messaging. That way we
+        // build affinity with the account directly.
+        context.process.waitUntil(async () => {
+            // Small messages are considered low intent updates. This defends against
+            // spamming where a user is sending small one word messages to make a point.
+            const interaction: SearchEntityAffinityInteraction =
+                content.nodeSize < 50 ? {type: "LowIntentUpdate"} : {type: "MediumIntentUpdate"};
+
+            if (chatAccountItem.chatAccountCount !== 2) {
+                await markSearchEntityAffinityInteraction(context, {
+                    spaceId: chatItem.spaceId,
+                    entityId: `Chat:${chatItem.chatId}`,
+                    interaction,
+                });
+            } else {
+                const chatAccountIds =
+                    // If `accountIdsForOneOnOne` is available we can use it, otherwise we need to
+                    // query chat accounts to get our partner's `AccountId`.
+                    chatItem.accountIdsForOneOnOne ??
+                    (
+                        await arrayFromAsyncIterable(
+                            ChatTable.query(context, {
+                                partitionKey: {
+                                    partitionType: "Chat",
+                                    chatId,
+                                },
+                                startSortKey: {
+                                    sortRangeType: "Account",
+                                    accountId: DynamoKeyAttributeSchema.id.getMinValue<AccountId>(),
+                                },
+                                endSortKey: {
+                                    sortRangeType: "Account",
+                                    accountId: DynamoKeyAttributeSchema.id.getMaxValue<AccountId>(),
+                                },
+                                limit: "All",
+                            }),
+                        )
+                    ).map(({accountId}) => accountId);
+
+                const otherChatAccountIds = chatAccountIds.filter(
+                    chatAccountId => chatAccountId !== context.actor.getAccountId(),
+                );
+
+                await markSearchEntityAffinityInteraction(context, {
+                    spaceId: chatItem.spaceId,
+                    entityId: `Account:${assertExists(otherChatAccountIds[0])}`,
+                    interaction,
+                });
+            }
+        });
+
+        // Increase affinity points for all mentioned accounts with a high intent
+        // update since the user clearly wants the attention of the mentioned accounts.
+        //
+        // (If a mentioned account doesn't have access to this message should that
+        // still be a high intent update? For now we say yes since the user is
+        // explicitly choosing to reference them.)
+        for (const mentionedAccountId of mentionedAccountIds) {
+            context.process.waitUntil(async () => {
+                if (await isAccountMemberOfSpace(context, chatItem.spaceId, mentionedAccountId)) {
+                    await markSearchEntityAffinityInteraction(context, {
+                        spaceId: chatItem.spaceId,
+                        entityId: `Account:${mentionedAccountId as AccountId}`,
+                        interaction: {type: "HighIntentUpdate"},
+                    });
+                }
+            });
+        }
 
         return {
             chatId,
@@ -992,7 +1087,7 @@ async function getChatItemIfExistsAndAuthorizeAccess(
     await authorizeSpaceAccess(context, chatItem.spaceId);
     if (!chatAccountItem) throw new PermissionDeniedError("Account does not have access to chat");
 
-    return chatItem;
+    return {chatItem, chatAccountItem};
 }
 
 async function getChatItemAndAuthorizeAccess(context: ServerSessionActionContext, chatId: ChatId) {
@@ -1394,7 +1489,7 @@ export function updateChatMessageContent(
     contentUpdatedTime: Date;
 }> {
     return context.dynamo.retryTransaction(async context => {
-        const [chatItem, chatMessageItem] = await runAllPromises([
+        const [{chatItem}, chatMessageItem] = await runAllPromises([
             getChatItemAndAuthorizeAccess(context, chatId),
             ChatTable.getItem(context, {
                 partitionType: "Chat",
@@ -1482,7 +1577,7 @@ export function deleteChatMessage(
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<{deletedTime: Date}> {
     return context.dynamo.retryTransaction(async context => {
-        const [chatItem, chatMessageItem] = await runAllPromises([
+        const [chatItemAndChatAccountItem, chatMessageItem] = await runAllPromises([
             getChatItemIfExistsAndAuthorizeAccess(context, chatId),
             ChatTable.getItemIfExists(context, {
                 partitionType: "Chat",
@@ -1492,8 +1587,10 @@ export function deleteChatMessage(
             }),
         ]);
 
-        if (!chatItem) throw new NotFoundError("Chat not found");
+        if (!chatItemAndChatAccountItem) throw new NotFoundError("Chat not found");
         if (!chatMessageItem) throw new NotFoundError("Chat message not found");
+
+        const {chatItem} = chatItemAndChatAccountItem;
 
         if (chatMessageItem.authorId !== context.actor.getAccountId())
             throw new PermissionDeniedError("Can only delete chat messages you authored");
@@ -1652,11 +1749,11 @@ export async function getChatMessagesFromStart(
 }> {
     const chatItemPromise = getChatItemAndAuthorizeAccess(context, chatId);
 
-    const [chatItem, {messages, otherReferencedMessages}] = await runAllPromises([
+    const [{chatItem}, {messages, otherReferencedMessages}] = await runAllPromises([
         chatItemPromise,
         getChatMessagesFromStartAssumingAuthorizedChat(context, {
             chatId,
-            getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => chatItemPromise.then(({chatItem: {spaceId}}) => spaceId),
             limit,
             afterMessageIndex,
             beforeMessageIndex,
@@ -1821,11 +1918,11 @@ export async function getChatMessagesFromEnd(
 }> {
     const chatItemPromise = getChatItemAndAuthorizeAccess(context, chatId);
 
-    const [chatItem, {messages, otherReferencedMessages}] = await runAllPromises([
+    const [{chatItem}, {messages, otherReferencedMessages}] = await runAllPromises([
         chatItemPromise,
         getChatMessagesFromEndAssumingAuthorizedChat(context, {
             chatId,
-            getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
+            getSpaceId: () => chatItemPromise.then(({chatItem: {spaceId}}) => spaceId),
             limit,
             afterMessageIndex,
             beforeMessageIndex,
@@ -2013,12 +2110,12 @@ export async function backfillChatMessages(
 }> {
     const chatItemPromise = getChatItemAndAuthorizeAccess(context, chatId);
 
-    const [chatItem, {messages, otherReferencedMessages}, messageChangesResult] =
+    const [{chatItem}, {messages, otherReferencedMessages}, messageChangesResult] =
         await runAllPromises([
             chatItemPromise,
             getChatMessagesFromStartAssumingAuthorizedChat(context, {
                 chatId,
-                getSpaceId: () => chatItemPromise.then(({spaceId}) => spaceId),
+                getSpaceId: () => chatItemPromise.then(({chatItem: {spaceId}}) => spaceId),
                 limit: newMessageLimit,
                 afterMessageIndex: clientMessageCount - 1,
                 beforeMessageIndex: null,
@@ -2028,7 +2125,7 @@ export async function backfillChatMessages(
                 // to new realtime events before starting to backfill.
                 consistency: "Strong",
             }),
-            chatItemPromise.then(chatItem =>
+            chatItemPromise.then(({chatItem}) =>
                 queryChatMessageChangeLogAssumingAuthorizedPost(context, {
                     chatItem,
                     lastMessageChangeTime: clientLastMessageChangeTime,

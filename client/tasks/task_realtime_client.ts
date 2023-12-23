@@ -657,11 +657,11 @@ export class TaskRealtimeClient {
                     // still cleanup our store in case the server partially succeeded.
                     .finally(() => {
                         for (const {query} of oldSubscribedQueries) {
-                            this.store.onQueryUnsubscribed(query);
+                            this.store._onQueryUnsubscribed(query);
                         }
 
                         for (const {taskSubscription} of oldSubscribedTasks) {
-                            this.store.onTaskSubscriptionUnsubscribed(taskSubscription);
+                            this.store._onTaskSubscriptionUnsubscribed(taskSubscription);
                         }
 
                         for (const {collectionSubscription} of oldSubscribedCollections) {

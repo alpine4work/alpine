@@ -1,10 +1,11 @@
 import {useEffect} from "react";
-import {Params} from "react-router";
+import {Params, useParams} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
+import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskDetailView, taskDetailViewMaxWidth} from "~/client/tasks/task_detail_view.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
@@ -19,7 +20,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskId} from "~/shared/id/types/id_types.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
@@ -143,6 +144,9 @@ export async function clientLoader({
 }
 
 export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
+    const {taskId} = useParams();
+    assert(taskId && isId<TaskId>(taskId));
+
     const {
         childrenGridViewExpansionState,
         initialBottomGhostTaskId,
@@ -152,7 +156,9 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
     const {
         queries: [childrenQuery],
         taskSubscriptions: [taskSubscription],
-    } = useTaskStoreLoaderDataWithoutRetaining();
+    } = useTaskStoreLoaderDataWithoutRetaining({
+        searchEntityAffinityIdForLowIntentUpdateInteraction: `Task:${taskId}`,
+    });
     assert(childrenQuery && taskSubscription);
 
     // Retain our queries so they aren't destroyed while we're using them.
@@ -187,6 +193,8 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
         update();
         return taskSubscription.taskEntryStore.subscribe(update);
     }, [taskSubscription.taskEntryStore, updateMetaTitle]);
+
+    useSearchEntityAffinityViewInteraction(`Task:${taskSubscription.taskId}`);
 
     return (
         <Box

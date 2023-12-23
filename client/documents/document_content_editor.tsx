@@ -89,6 +89,7 @@ export function DocumentContentEditor({
     initialCommentThreadResult,
     initialScrollToCommentIndex,
     onContentChange,
+    onContentLocalChange,
     onCommentThreadChange,
 }: {
     withMobileLayout: boolean;
@@ -100,6 +101,7 @@ export function DocumentContentEditor({
     } | null;
     initialScrollToCommentIndex: number | null;
     onContentChange?: (content: DocumentContent) => void;
+    onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
     return (
@@ -112,6 +114,7 @@ export function DocumentContentEditor({
             initialCommentThreadResult={initialCommentThreadResult}
             initialScrollToCommentIndex={initialScrollToCommentIndex}
             onContentChange={onContentChange}
+            onContentLocalChange={onContentLocalChange}
             onCommentThreadChange={onCommentThreadChange}
         />
     );
@@ -152,6 +155,7 @@ function DocumentContentEditorStateful({
     initialCommentThreadResult,
     initialScrollToCommentIndex,
     onContentChange,
+    onContentLocalChange,
     onCommentThreadChange,
 }: {
     withMobileLayout: boolean;
@@ -163,6 +167,7 @@ function DocumentContentEditorStateful({
     } | null;
     initialScrollToCommentIndex: number | null;
     onContentChange?: (content: DocumentContent) => void;
+    onContentLocalChange?: () => void;
     onCommentThreadChange?: (commentThreadId: DocumentCommentThreadId | null) => void;
 }) {
     const {id: documentId, spaceId} = initialDocument;
@@ -835,6 +840,10 @@ function DocumentContentEditorStateful({
                                     // comments have successfully saved.
                                     createCommentThread.openCommentThreadPromiseRef.current =
                                         openCommentThread(createCommentThread.commentThreadId);
+                                }
+
+                                if (transaction.docChanged) {
+                                    onContentLocalChange?.();
                                 }
                             }}
                             aria-label="Document"

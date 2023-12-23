@@ -30,7 +30,7 @@ import {
     taskCollectionOptionSecondaryTextColor,
 } from "~/client/tasks/internal/task_collection_option.js";
 import {useAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
-import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -69,16 +69,17 @@ export function renderTaskCollectionComboBoxItem(item: TaskCollectionComboBoxIte
 }
 
 export function useTaskCollectionComboBoxSearchState({
+    store,
     inputValue,
     shouldLoadItems,
     excludeCollectionIds,
 }: {
+    store: TaskClientStore;
     inputValue: string;
     shouldLoadItems: boolean;
     excludeCollectionIds?: ReadonlySet<TaskCollectionId>;
 }) {
     const {space} = useSpaceContext();
-    const store = useTaskClientStore();
 
     const affinitiveCollectionResults = useAffinitiveTaskCollections({
         isDisabled: !shouldLoadItems,

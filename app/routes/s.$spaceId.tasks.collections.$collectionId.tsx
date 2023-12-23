@@ -8,6 +8,7 @@ import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
+import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
@@ -18,7 +19,6 @@ import {
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     clientLoaderTaskStoreLoaderData,
-    useTaskClientStore,
     useTaskStoreLoaderDataWithoutRetaining,
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -34,8 +34,9 @@ import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {generateId} from "~/shared/id/id.js";
+import {generateId, isId} from "~/shared/id/id.js";
 import {BrowserId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {addTaskCollectionAffinityPoints} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
@@ -326,18 +327,18 @@ function TaskCollectionRouteInner() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const collectionId = Schema.id<TaskCollectionId>().deserialize(
-        useParams().collectionId ?? null,
-    );
-
-    const store = useTaskClientStore();
+    const {collectionId} = useParams();
+    assert(collectionId && isId<TaskCollectionId>(collectionId));
 
     const {collectionState, filterReferences: initialFilterReferences} =
         useLoaderDataWithSchema(LoaderSchema);
     const {
+        store,
         queries: [initialQuery],
         collectionSubscriptions: [collectionSubscription],
-    } = useTaskStoreLoaderDataWithoutRetaining();
+    } = useTaskStoreLoaderDataWithoutRetaining({
+        searchEntityAffinityIdForLowIntentUpdateInteraction: `TaskCollection:${collectionId}`,
+    });
 
     // Retain our `collectionSubscription` so it isn't destroyed while we're
     // using it. But we don't retain `initialQuery`! Instead `initialQuery` is
@@ -400,6 +401,10 @@ function TaskCollectionRouteInner() {
     }, [collectionSubscription?.collectionEntryStore, updateMetaTitle]);
 
     useAddTaskCollectionViewingTimeAffinityPoints(collectionSubscription);
+
+    useSearchEntityAffinityViewInteraction(
+        collectionSubscription ? `TaskCollection:${collectionSubscription.collectionId}` : null,
+    );
 
     return (
         <TaskGridViewDndContext store={store}>

@@ -294,26 +294,7 @@ export class TaskClientStore {
         this._internal.applyUpdateEvent(event);
     }
 
-    public subscribeToBatchUpdate(
-        listener: (update: {
-            taskEntryUpdateById: ReadonlyMap<
-                TaskId,
-                {
-                    readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
-                    readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
-                    readonly newTaskEntry: TaskClientStoreTaskEntry;
-                }
-            >;
-            collectionEntryUpdateById: ReadonlyMap<
-                TaskCollectionId,
-                {
-                    readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
-                    readonly oldCollectionEntry: TaskClientStoreCollectionEntry | null;
-                    readonly newCollectionEntry: TaskClientStoreCollectionEntry;
-                }
-            >;
-        }) => void,
-    ) {
+    public subscribeToBatchUpdate(listener: (update: TaskClientStoreBatchUpdate) => void) {
         return this._internal.subscribeToBatchUpdate(listener);
     }
 
@@ -375,7 +356,11 @@ export class TaskClientStore {
         return this._internal.createAndRetainQueries(queries);
     }
 
-    public onQueryUnsubscribed(query: TaskClientQuery) {
+    /**
+     * Only `TaskRealtimeClient` should call this function. Which is why it's
+     * prefixed with an underscore.
+     */
+    public _onQueryUnsubscribed(query: TaskClientQuery) {
         this._internal.onQueryUnsubscribed(query);
     }
 
@@ -405,7 +390,11 @@ export class TaskClientStore {
         return this._internal.createAndRetainTaskSubscription(taskId);
     }
 
-    public onTaskSubscriptionUnsubscribed(subscription: TaskClientTaskSubscription) {
+    /**
+     * Only `TaskRealtimeClient` should call this function. Which is why it's
+     * prefixed with an underscore.
+     */
+    public _onTaskSubscriptionUnsubscribed(subscription: TaskClientTaskSubscription) {
         this._internal.onTaskSubscriptionUnsubscribed(subscription);
     }
 
@@ -427,7 +416,14 @@ export function setShouldDisableCommitTaskActionTransactionMutexForTest(shouldDi
     shouldDisableCommitTaskActionTransactionMutexForTest = shouldDisable;
 }
 
+export type TaskClientStoreBatchUpdateOrigin =
+    | "ApplyUpdateEvent"
+    | "ApplyOptimisticActions"
+    | "CommitOptimisticActions"
+    | "RevertOptimisticActions";
+
 export type TaskClientStoreBatchUpdate = {
+    readonly origin: TaskClientStoreBatchUpdateOrigin;
     readonly taskEntryUpdateById: ReadonlyMap<
         TaskId,
         {
@@ -781,6 +777,7 @@ export class TaskClientStoreInternal {
         // applying the action we avoid a warning.
         if (event.originClientId === this._clientId) {
             return action({
+                origin: "ApplyUpdateEvent",
                 taskEntryUpdateById: new Map(),
                 collectionEntryUpdateById: new Map(),
             });
@@ -1501,7 +1498,12 @@ export class TaskClientStoreInternal {
             }
         }
 
-        return this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
+        return this._batchUpdateStore(
+            "ApplyUpdateEvent",
+            newTaskEntryById,
+            newCollectionEntryById,
+            action,
+        );
     }
 
     /**
@@ -2519,7 +2521,12 @@ export class TaskClientStoreInternal {
         let releaseCollectionIds: Array<TaskCollectionId>;
 
         try {
-            this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
+            this._batchUpdateStore(
+                "ApplyOptimisticActions",
+                newTaskEntryById,
+                newCollectionEntryById,
+                noop,
+            );
         } finally {
             // Any tasks or collections that were released while updating our store, we
             // want to retain until the optimistic action is committed or rejected. Because
@@ -2934,7 +2941,12 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
+        this._batchUpdateStore(
+            "CommitOptimisticActions",
+            newTaskEntryById,
+            newCollectionEntryById,
+            noop,
+        );
     }
 
     private _revertOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
@@ -3399,10 +3411,16 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
+        this._batchUpdateStore(
+            "RevertOptimisticActions",
+            newTaskEntryById,
+            newCollectionEntryById,
+            noop,
+        );
     }
 
     private _batchUpdateStore<Value>(
+        origin: TaskClientStoreBatchUpdateOrigin,
         newTaskEntryById: ReadonlyMap<TaskId, TaskClientStoreTaskEntry>,
         newCollectionEntryById: ReadonlyMap<TaskCollectionId, TaskClientStoreCollectionEntry>,
         // This action is called after our updates have been applied to the store and
@@ -3597,6 +3615,7 @@ export class TaskClientStoreInternal {
                 }
 
                 const batchUpdate = {
+                    origin,
                     taskEntryUpdateById,
                     collectionEntryUpdateById,
                 };

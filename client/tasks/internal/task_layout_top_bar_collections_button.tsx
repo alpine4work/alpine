@@ -16,6 +16,7 @@ import {
     useTaskCollectionComboBoxSearchState,
 } from "~/client/tasks/internal/task_collection_combo_box_base.js";
 import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {emptyArray} from "~/shared/helpers/array/empty_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -25,8 +26,10 @@ import {TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {greyElevated2ClassName, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskLayoutTopBarCollectionsButton({
+    store,
     isCollectionsTabActive,
 }: {
+    store: TaskClientStore;
     isCollectionsTabActive: boolean;
 }) {
     // Preload task collections the account has an affinity for in case they open
@@ -49,6 +52,7 @@ export function TaskLayoutTopBarCollectionsButton({
                     flexDirection="column"
                 >
                     <TaskLayoutTopBarCollectionsComboBoxOverlay
+                        store={store}
                         onCloseWithoutAnimation={onCloseWithoutAnimation}
                     />
                 </Box>
@@ -68,8 +72,10 @@ export function TaskLayoutTopBarCollectionsButton({
 }
 
 function TaskLayoutTopBarCollectionsComboBoxOverlay({
+    store,
     onCloseWithoutAnimation,
 }: {
+    store: TaskClientStore;
     onCloseWithoutAnimation: () => void;
 }) {
     const navigate = useNavigate();
@@ -79,6 +85,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
     const [inputValue, setInputValue] = useState("");
 
     const {shouldShowSearchLoadingIndicator, items} = useTaskCollectionComboBoxSearchState({
+        store,
         inputValue,
         // The overlay is always open in this component. We always want to load
         // collection data.

@@ -3,6 +3,7 @@ import {ChannelView} from "~/client/forum/channel_view.js";
 import {postContentViewMinHeight} from "~/client/forum/post_content_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
 import {getInitialVirtualizedScrollViewRenderedItemCount} from "~/client/virtualized/virtualized_scroll_view.js";
 import {getChannel} from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -51,6 +52,8 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {channel}}) => [
 
 export default function ChannelRoute() {
     const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
+
+    useSearchEntityAffinityViewInteraction(`Channel:${channel.id}`);
 
     return (
         // Strange format to override the `<SpaceLayoutTopBar>` bottom border with a

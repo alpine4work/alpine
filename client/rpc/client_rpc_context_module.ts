@@ -1,7 +1,7 @@
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {scheduleMicrotask} from "~/shared/helpers/async/schedule_microtask.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -85,7 +85,10 @@ let scheduledRpcCallBatch: Array<RpcCall> | null = null;
 function scheduleRpcCall(call: RpcCall): void {
     if (scheduledRpcCallBatch === null) {
         scheduledRpcCallBatch = [];
-        scheduleMicrotask(() => {
+
+        // Wait to batch RPC calls in a macrotask. This way we can batch any calls
+        // scheduled after microtasks.
+        scheduleMacrotask(() => {
             assert(scheduledRpcCallBatch !== null);
             const callBatch = scheduledRpcCallBatch;
             scheduledRpcCallBatch = null;

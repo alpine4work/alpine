@@ -422,9 +422,9 @@ async function actuallyGetSearchEntity(
 
 async function getAccountSearchEntity(
     state: SearchEntityReadState,
-    accountId: AccountId,
+    accountId: AccountId | ContentMentionAccountId,
 ): Promise<SearchEntity> {
-    const account = await state.getAccount(accountId);
+    const account = await state.getAccount(accountId as AccountId);
 
     return {
         id: `Account:${accountId}`,

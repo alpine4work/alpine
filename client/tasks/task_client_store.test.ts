@@ -223,13 +223,13 @@ function createAutoRetainStore() {
 
         for (const [query, {isUnsubscribing}] of subscriptions.queries) {
             if (!isUnsubscribing) continue;
-            store.onQueryUnsubscribed(query);
+            store._onQueryUnsubscribed(query);
         }
 
         for (const taskSubscriptions of subscriptions.taskSubscriptionsById.values()) {
             for (const [subscription, {isUnsubscribing}] of taskSubscriptions) {
                 if (!isUnsubscribing) continue;
-                store.onTaskSubscriptionUnsubscribed(subscription);
+                store._onTaskSubscriptionUnsubscribed(subscription);
             }
         }
 

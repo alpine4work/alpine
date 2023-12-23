@@ -2,7 +2,6 @@ import {
     SearchEntityDependencyId,
     isSearchEntityIdAlsoEntityDependencyId,
 } from "~/server/search/core/search_entity_dependency_id.js";
-import {SearchEntityIdObject, printSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
@@ -12,6 +11,7 @@ import {
     AccountId,
     ChannelId,
     ChatId,
+    ContentMentionAccountId,
     DocumentCommentThreadId,
     DocumentId,
     PostId,
@@ -19,6 +19,7 @@ import {
     TaskId,
 } from "~/shared/id/types/id_types.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {SearchEntityIdObject, printSearchEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
  * Describes an update to a search entity. This type is the same as
@@ -83,7 +84,7 @@ const searchEntityUpdateSchemaDescription = {
     Account: {
         schema: Schema.object({
             type: Schema.value("Account"),
-            accountId: Schema.id<AccountId>(),
+            accountId: Schema.id<AccountId | ContentMentionAccountId>(),
         }),
         updatableTraits: [],
     },

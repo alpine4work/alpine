@@ -355,6 +355,7 @@ export function TaskQueryCollectionsFilterOperationEditor({
                         // The `useSearchedItems()` callback follows the rules of hooks.
                         // eslint-disable-next-line react-hooks/rules-of-hooks
                         return useTaskQueryCollectionsFilterOperationEditorSearchedItems({
+                            store,
                             searchInputValue,
                             collectionResults,
                         });
@@ -439,9 +440,11 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
 const nullConstStore = new ConstStore(null);
 
 function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
+    store,
     searchInputValue,
     collectionResults,
 }: {
+    store: TaskClientStore;
     searchInputValue: string;
     collectionResults: ReadonlyArray<TaskCollectionModelSearchResult>;
 }) {
@@ -460,6 +463,7 @@ function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
     );
 
     const {shouldShowSearchLoadingIndicator, items} = useTaskCollectionComboBoxSearchState({
+        store,
         inputValue: searchInputValue,
         shouldLoadItems: true,
     });

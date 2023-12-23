@@ -28,6 +28,7 @@ ts_project(
         "//server/helpers",
         "//server/messaging/helpers",
         "//server/notifications/core",
+        "//server/search/core",
         "//server/spaces",
         "//shared/context",
         "//shared/documents",

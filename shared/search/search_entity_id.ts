@@ -38,7 +38,7 @@ export const SearchEntityIdSchema = Schema.string as Schema<SearchEntityId>;
  * Convert `SearchEntityId` to this object with `parseSearchEntityId()`.
  */
 export type SearchEntityIdObject =
-    | {readonly type: "Account"; readonly accountId: AccountId}
+    | {readonly type: "Account"; readonly accountId: AccountId | ContentMentionAccountId}
     | {readonly type: "Document"; readonly documentId: DocumentId}
     | {
           readonly type: "DocumentComment";

@@ -14,7 +14,6 @@ ts_project(
         },
     },
     visibility = [
-        "//admin/dynamo:__pkg__",
         "//server/jobs/queue:__pkg__",
         "//server/rpc:__pkg__",
     ],
@@ -32,7 +31,6 @@ ts_project(
         "//:node_modules/prosemirror-model",
         "//server/chat/data",
         "//server/documents/data",
-        "//server/dynamo/core",
         "//server/forum/data",
         "//server/helpers/node",
         "//server/language_models/all_mini_lm_l6_v2",

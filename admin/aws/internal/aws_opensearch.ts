@@ -46,6 +46,9 @@ export class AwsOpensearch extends Construct {
             version: {version: "OpenSearch_2.11"},
 
             // Free tier OpenSearch instances. Should upgrade as we get real traffic.
+            //
+            // TODO(calebmer): Should also maybe add `masterNodes` when we upgrade
+            // these nodes.
             capacity: {
                 dataNodes: 2,
                 dataNodeInstanceType: "t3.small.search",

@@ -28,6 +28,7 @@ ts_project(
         "//server/dynamo/core",
         "//server/messaging/helpers",
         "//server/notifications/core",
+        "//server/search/core",
         "//server/spaces",
         "//shared/accounts",
         "//shared/context",

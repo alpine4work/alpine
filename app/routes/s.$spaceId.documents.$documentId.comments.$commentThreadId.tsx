@@ -8,6 +8,7 @@ import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
 import {getDocumentAndCommentThreadsWithInitialComments} from "~/server/documents/data/documents_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -89,6 +90,11 @@ export default function DocumentCommentThreadRoute({
 
     const {isConnected, editorState, procedures, subscribeToCommentThreadEvents} =
         useDocumentContentEditorWebSocket(initialDocument);
+
+    // Spending time with a document comment thread contributes affinity points
+    // back to the document. Since the comment thread is discussing the document,
+    // the document is likely an artifact you care about.
+    useSearchEntityAffinityViewInteraction(`Document:${initialDocument.id}`);
 
     return (
         <DocumentCommentThreadListView

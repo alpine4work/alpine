@@ -8,6 +8,8 @@ import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_wit
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {selectChatForAccounts} from "~/server/chat/data/chat_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -77,6 +79,7 @@ export async function loader({request, context: _context, params}: LoaderArgs) {
 
 export default function NewChatRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const loaderData = useLoaderDataWithSchema(LoaderSchema);
+    const {currentAccount} = useSpaceContext();
 
     const location = useLocation();
     const stateKey =
@@ -123,6 +126,24 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
         }, delayLoadingIndicatorLimitMs);
         return () => timeout.clear();
     }, [isAccountPickerPending, setShouldShowAccountPickerPendingSpinner]);
+
+    // If you're spending time in a 1:1 chat, then we give affinity points to the
+    // account you're messaging. Not the chat itself. The page we route you to for
+    // an account in search is currently your 1:1 chat with the account anyways.
+    //
+    // By accruing points to the account we allow chat conversations to affect
+    // account selector type-ahead affinity rankings.
+    useSearchEntityAffinityViewInteraction(
+        loaderData.selectedChat
+            ? loaderData.selectedChat.chat.accounts.length === 2
+                ? `Account:${
+                      loaderData.selectedChat.chat.accounts.filter(
+                          account => account.id !== currentAccount.id,
+                      )[0]!.id
+                  }`
+                : `Chat:${loaderData.selectedChat.chat.id}`
+            : null,
+    );
 
     return (
         <Box

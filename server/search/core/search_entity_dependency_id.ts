@@ -1,4 +1,3 @@
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {
@@ -10,6 +9,7 @@ import {
     TaskCollectionId,
     TaskId,
 } from "~/shared/id/types/id_types.js";
+import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 
 /**
  * Reference to a search entity or some subset of attributes on a search

@@ -12,7 +12,7 @@ DYNAMO_CORE_VISIBILITY = [
     "//server/forum/data",
     "//server/node",
     "//server/notifications/data",
-    "//server/search/data",
+    "//server/search/core",
     "//server/spaces",
     "//server/tasks/data",
 ]

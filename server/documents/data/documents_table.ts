@@ -24,7 +24,12 @@ import {createMessagePayloadModel} from "~/server/messaging/helpers/create_messa
 import {getMessageChangeLogExpirationTimeFromChangeTime} from "~/server/messaging/helpers/get_message_change_log_expiration_time_from_change_time.js";
 import {getNotificationMessageContentSnippet} from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
+import {markSearchEntityAffinityInteraction} from "~/server/search/core/search_entity_table.js";
+import {
+    authorizeSpaceAccess,
+    getAccount,
+    isAccountMemberOfSpace,
+} from "~/server/spaces/spaces_table.js";
 import {getCollaborativelyUpdateContentResult} from "~/shared/content/get_collaboratively_update_content_result.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -588,6 +593,14 @@ export async function createDocument(
         {
             delaySeconds: documentIndexSearchEntityJobDelaySeconds,
         },
+    );
+
+    context.process.waitUntil(
+        markSearchEntityAffinityInteraction(context, {
+            spaceId,
+            entityId: `Document:${id}`,
+            interaction: {type: "HighIntentUpdate"},
+        }),
     );
 
     return {
@@ -1929,6 +1942,22 @@ export async function updateDocumentContent(
                             version: internalDocument.version,
                         },
                         onAfterTransactionExecutedSuccessfully: () => {
+                            // NOTE(calebmer): We don't currently:
+                            //
+                            // 1. Send a notification if an account is mentioned in a document
+                            // 2. Increase affinity scores when mentioning an account in a document
+                            //
+                            // Same with task notes.
+                            //
+                            // This feels correct since writing in a document is a continuous flow. A
+                            // user may have accidentally typed in an account or mentioned in account then
+                            // decided to delete it. Sending notifications while a user is still typing
+                            // doesn't make sense either since the receiver sees a document in a partially
+                            // finished state.
+                            //
+                            // So we treat notifications in document content or task notes content
+                            // basically as styling options with no other effect. Hence no notification or
+                            // affinity boost.
                             if (shouldSendIndexSearchEntityJob) {
                                 context.jobs.send(
                                     {
@@ -2019,6 +2048,10 @@ export async function updateDocumentContent(
                     },
                     {
                         onAfterTransactionExecutedSuccessfully: () => {
+                            const mentionedAccountIds = getMentionedAccountIdsInContent(
+                                createCommentThread.initialCommentContent,
+                            );
+
                             context.notifications.sendNotificationEvent({
                                 type: "CreateDocumentComment",
                                 id: generateId(),
@@ -2028,9 +2061,7 @@ export async function updateDocumentContent(
                                 commentIndex: 0,
                                 createdTime: createCommentThread.createdTime ?? currentTime,
                                 authorId: context.actor.getAccountId(),
-                                mentionedAccountIds: getMentionedAccountIdsInContent(
-                                    createCommentThread.initialCommentContent,
-                                ),
+                                mentionedAccountIds,
                                 contentSnippet: getNotificationMessageContentSnippet(
                                     createCommentThread.initialCommentContent,
                                 ),
@@ -2047,6 +2078,30 @@ export async function updateDocumentContent(
                                     updatedTraits: {type: "Any"},
                                 },
                             });
+
+                            // Increase affinity points for all mentioned accounts with a high intent
+                            // update since the user clearly wants the attention of the mentioned accounts.
+                            //
+                            // (If a mentioned account doesn't have access to this message should that
+                            // still be a high intent update? For now we say yes since the user is
+                            // explicitly choosing to reference them.)
+                            for (const mentionedAccountId of mentionedAccountIds) {
+                                context.process.waitUntil(async () => {
+                                    if (
+                                        await isAccountMemberOfSpace(
+                                            context,
+                                            internalDocument.spaceId,
+                                            mentionedAccountId,
+                                        )
+                                    ) {
+                                        await markSearchEntityAffinityInteraction(context, {
+                                            spaceId: internalDocument.spaceId,
+                                            entityId: `Account:${mentionedAccountId as AccountId}`,
+                                            interaction: {type: "HighIntentUpdate"},
+                                        });
+                                    }
+                                });
+                            }
                         },
                     },
                 ),
@@ -3015,6 +3070,8 @@ export async function createDocumentComment(
             ),
         ]);
 
+        const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+
         context.notifications.sendNotificationEvent({
             type: "CreateDocumentComment",
             id: generateId(),
@@ -3024,7 +3081,7 @@ export async function createDocumentComment(
             commentIndex,
             createdTime,
             authorId,
-            mentionedAccountIds: getMentionedAccountIdsInContent(content),
+            mentionedAccountIds,
             contentSnippet: getNotificationMessageContentSnippet(content),
         });
 
@@ -3039,6 +3096,34 @@ export async function createDocumentComment(
                 updatedTraits: {type: "Any"},
             },
         });
+
+        context.process.waitUntil(
+            markSearchEntityAffinityInteraction(context, {
+                spaceId: documentItem.spaceId,
+                entityId: `Document:${documentItem.documentId}`,
+                interaction: {type: "MediumIntentUpdate"},
+            }),
+        );
+
+        // Increase affinity points for all mentioned accounts with a high intent
+        // update since the user clearly wants the attention of the mentioned accounts.
+        //
+        // (If a mentioned account doesn't have access to this message should that
+        // still be a high intent update? For now we say yes since the user is
+        // explicitly choosing to reference them.)
+        for (const mentionedAccountId of mentionedAccountIds) {
+            context.process.waitUntil(async () => {
+                if (
+                    await isAccountMemberOfSpace(context, documentItem.spaceId, mentionedAccountId)
+                ) {
+                    await markSearchEntityAffinityInteraction(context, {
+                        spaceId: documentItem.spaceId,
+                        entityId: `Account:${mentionedAccountId as AccountId}`,
+                        interaction: {type: "HighIntentUpdate"},
+                    });
+                }
+            });
+        }
 
         return {
             index: commentIndex,

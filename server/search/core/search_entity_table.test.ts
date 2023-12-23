@@ -3,14 +3,14 @@ import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {
     accountAffinitiveSearchEntitiesQueryPageLimit,
-    getAffinitiveSearchEntityIds,
+    internalGetAffinitiveSearchEntityIds as getAffinitiveSearchEntityIds,
     getAffinitiveSearchEntityIdsEarlyReturnTestCounter,
     getCurrentSearchEntityAccountAffinityPoints,
     getSearchEntityAccountAffinityExpirationDuration,
     getSearchEntityAffinityPointsBucket,
     getSearchEntityTableForTest,
     monthDurationMs,
-} from "~/server/search/data/search_entity_table.js";
+} from "~/server/search/core/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";

@@ -2,6 +2,7 @@ import {Params} from "react-router";
 import {useSearchParams} from "react-router-dom";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
+import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
@@ -10,7 +11,6 @@ import {
 } from "~/client/tasks/task_notepad_view.js";
 import {
     clientLoaderTaskStoreLoaderData,
-    useTaskClientStore,
     useTaskStoreLoaderDataWithoutRetaining,
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -212,7 +212,6 @@ export async function clientLoader({
 
 export default function TasksRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const [searchParams, setSearchParams] = useSearchParams();
-    const store = useTaskClientStore();
 
     const {
         key,
@@ -225,9 +224,14 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
     // We don't retain here since the components that consume our queries are
     // expected to retain them.
     const {
+        store,
         queries: [assigneeActiveQuery, initialNotepadPageQuery],
-    } = useTaskStoreLoaderDataWithoutRetaining();
+    } = useTaskStoreLoaderDataWithoutRetaining({
+        searchEntityAffinityIdForLowIntentUpdateInteraction: "TaskNotepad",
+    });
     assert(assigneeActiveQuery && initialNotepadPageQuery);
+
+    useSearchEntityAffinityViewInteraction("TaskNotepad");
 
     return (
         <TaskGridViewDndContext store={store}>

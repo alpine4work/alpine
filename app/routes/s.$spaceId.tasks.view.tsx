@@ -9,7 +9,6 @@ import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.
 import {TaskQueryView} from "~/client/tasks/task_query_view.js";
 import {
     clientLoaderTaskStoreLoaderData,
-    useTaskClientStore,
     useTaskStoreLoaderDataWithoutRetaining,
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {isTaskQueryMissingRequiredFilters} from "~/client/tasks/use_task_query_state.js";
@@ -158,10 +157,15 @@ function TaskQueryRouteInner() {
     const [searchParams, setSearchParams] = useSearchParams();
     const {initialGridViewExpansionState, initialBottomGhostTaskId} =
         useLoaderDataWithSchema(LoaderSchema);
-    const store = useTaskClientStore();
     const {
+        store,
         queries: [initialQuery],
-    } = useTaskStoreLoaderDataWithoutRetaining();
+    } = useTaskStoreLoaderDataWithoutRetaining({
+        // We don't have an entity which can accrue affinity points when looking at a
+        // view. Maybe in the future we should allow users to save named views that
+        // appear in search?
+        searchEntityAffinityIdForLowIntentUpdateInteraction: null,
+    });
 
     const [initialFilters] = useState(() => {
         const filtersString = searchParams.get("filter");

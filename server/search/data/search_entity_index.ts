@@ -23,6 +23,7 @@ import {
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search_entity_job_description.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
+import {internalGetAffinitiveSearchEntityIds} from "~/server/search/core/search_entity_table.js";
 import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
 import {getSearchEntity} from "~/server/search/data/internal/get_search_entity.js";
 import {parseSearchContent} from "~/server/search/data/internal/parse_search_content.js";
@@ -51,9 +52,12 @@ import {
     defaultUncertaintyWindowMs,
     isDateDefinitelyLessThanWithUncertaintyWindow,
 } from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
 import {
     SearchEntityId,
     parseSearchEntityId,
@@ -1107,5 +1111,47 @@ export async function getSearchEntityTitlesIfExist(
         const title = doc.fields.title?.[0] ?? null;
 
         return {id: doc.id, title};
+    });
+}
+
+/**
+ * Get a list of search entities that are most meaningful to the actor. When
+ * the actor interacts with objects in our system, we boost their affinity
+ * score for that object. Affinity scores decay over time so we end up
+ * considering objects the actor interacts with a lot recently as the most
+ * meaningful.
+ */
+export async function getAffinitiveSearchEntities(
+    context: ServerSessionActionContext,
+    {spaceId, limit}: {spaceId: SpaceId; limit: number},
+): Promise<
+    Array<{
+        entityId: SearchEntityAffinityId;
+        points: number;
+        title: string | null;
+    }>
+> {
+    const entityIds = await internalGetAffinitiveSearchEntityIds(context, {spaceId, limit});
+
+    const entityTitles = await getSearchEntityTitlesIfExist(context, {
+        spaceId,
+        entityIds: entityIds.map(({entityId}) => entityId),
+    });
+
+    const entityTitleById = new Map(
+        filterMapIterable(entityTitles, entityTitle =>
+            entityTitle ? [entityTitle.id, entityTitle] : null,
+        ),
+    );
+
+    return filterMapArray(entityIds, ({entityId, points}) => {
+        const entityTitle = entityTitleById.get(entityId);
+        if (!entityTitle) return null;
+
+        return {
+            entityId,
+            points,
+            title: entityTitle.title,
+        };
     });
 }

@@ -9,6 +9,8 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {useBrowserId} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {markSearchEntityAffinityLowIntentUpdateInteraction} from "~/client/search/mark_search_entity_affinity_low_intent_update_interaction.js";
+import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientStore} from "~/client/tasks/task_client_store.js";
@@ -26,7 +28,9 @@ import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {taskStoreLoaderDataKey} from "~/shared/remix/json_with_schema_shared.js";
 import {TaskStoreLoaderDataSchema} from "~/shared/remix/task_store_loader_data.js";
+import {markSearchEntityAffinityInteraction} from "~/shared/rpc/search_rpc_definitions.js";
 import {SchemaSerializedValue} from "~/shared/schema/schema.js";
+import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
 
 const taskRealtimeClientBySpaceIdForClient =
     typeof window !== "undefined"
@@ -139,30 +143,8 @@ export function clientLoaderTaskStoreLoaderData(spaceId: SpaceId, data: SchemaSe
 }
 
 /**
- * Get the task queries loaded by this route's loader if this route loaded any
- * queries. They will be in the same order as you passed your queries into
- * `loadTaskQueryData`.
- */
-export function useTaskStoreLoaderDataWithoutRetaining(): {
-    queries: Array<TaskClientQuery>;
-    taskSubscriptions: Array<TaskClientTaskSubscription>;
-    collectionSubscriptions: Array<TaskClientCollectionSubscription>;
-} {
-    const loaderData = useLoaderData();
-    return (
-        loaderData[taskStoreLoaderDataSymbol] ?? {
-            queries: [],
-            taskSubscriptions: [],
-            collectionSubscriptions: [],
-        }
-    );
-}
-
-const TaskClientStoreContext = createContext<TaskClientStore | null>(null);
-
-/**
- * Get the `TaskClientStore` in our React context. Maybe only be used from a
- * space route.
+ * Get the `TaskClientStore` in our React context. Recommended to only use in
+ * `app/routes`. Otherwise pass the store object down through props.
  */
 export function useTaskClientStore(): TaskClientStore {
     const store = useContext(TaskClientStoreContext);
@@ -175,6 +157,130 @@ export function useTaskClientStore(): TaskClientStore {
 
     return store;
 }
+
+/**
+ * Get the task queries loaded by this route's loader if this route loaded any
+ * queries. They will be in the same order as you passed your queries into
+ * `loadTaskQueryData`.
+ *
+ * We require you to pass in a `SearchEntityAffinityId` we will call
+ * `markSearchEntityAffinityLowIntentUpdateInteraction()` with whenever there's
+ * a local update. We accrue affinity points on update to whatever the focus of
+ * the route is. So if you're editing tasks within a collection, we accrue
+ * affinity points to the collection instead of the task you're editing! We do
+ * this since if you're editing a task in a collection or a task in your
+ * notepad, the collection/notepad is the more important thing to return to.
+ *
+ * While we could put this behavior in another hook, by requiring you to set
+ * the search entity here, we automatically cover all task routes which need to
+ * call this function.
+ */
+export function useTaskStoreLoaderDataWithoutRetaining({
+    searchEntityAffinityIdForLowIntentUpdateInteraction,
+}: {
+    searchEntityAffinityIdForLowIntentUpdateInteraction: SearchEntityAffinityId | null;
+}): {
+    store: TaskClientStore;
+    queries: Array<TaskClientQuery>;
+    taskSubscriptions: Array<TaskClientTaskSubscription>;
+    collectionSubscriptions: Array<TaskClientCollectionSubscription>;
+} {
+    const context = useAppContext();
+    const {space, currentAccount} = useSpaceContext();
+    const store = useTaskClientStore();
+    const loaderData = useLoaderData();
+
+    useEffect(() => {
+        // NOCOMMIT: This is bad, should pass through props so peek doesn't trigger this multiple times
+        return store.subscribeToBatchUpdate(update => {
+            // Make sure we only accrue affinity points for local updates! Realtime updates
+            // from another user should not add affinity points.
+            if (update.origin !== "ApplyOptimisticActions") return;
+
+            const markedEntityIds = new Set<SearchEntityAffinityId>();
+
+            for (const [taskId, {oldTaskEntry, newTaskEntry}] of update.taskEntryUpdateById) {
+                const oldDisplayStatus = oldTaskEntry?.task?.getDisplayStatus() ?? "OpenInactive";
+                const newDisplayStatus = newTaskEntry.task?.getDisplayStatus() ?? "OpenInactive";
+
+                // If the user marks a task they're assigned to as active, count that as a high
+                // intent interaction:
+                if (
+                    oldDisplayStatus !== newDisplayStatus &&
+                    newDisplayStatus === "OpenActive" &&
+                    newTaskEntry.task?.getAssignee()?.assignee.accountId === currentAccount.id
+                ) {
+                    // If this errs it will show up in our telemetry but we don't care about
+                    // it here.
+                    void markSearchEntityAffinityInteraction(context, {
+                        spaceId: space.id,
+                        entityId: `Task:${taskId}`,
+                        interaction: {type: "HighIntentUpdate"},
+                    });
+
+                    markedEntityIds.add(`Task:${taskId}`);
+                }
+            }
+
+            for (const [
+                collectionId,
+                {oldCollectionEntry, newCollectionEntry},
+            ] of update.collectionEntryUpdateById) {
+                // If the user creates a collection, count that as a high intent interaction:
+                if (!oldCollectionEntry && newCollectionEntry) {
+                    // If this errs it will show up in our telemetry but we don't care about
+                    // it here.
+                    void markSearchEntityAffinityInteraction(context, {
+                        spaceId: space.id,
+                        entityId: `TaskCollection:${collectionId}`,
+                        interaction: {type: "HighIntentUpdate"},
+                    });
+
+                    markedEntityIds.add(`TaskCollection:${collectionId}`);
+                }
+            }
+
+            if (
+                searchEntityAffinityIdForLowIntentUpdateInteraction !== null &&
+                // If we already marked the search entity with an interaction, don't do it
+                // again. e.g. If the user marks a task as active within a task peek then only
+                // send a high intent update interaction. If the user marks a task as active
+                // within a collection we send both a low intent updated interaction for the
+                // collection and a high intent update interaction for the task.
+                !markedEntityIds.has(searchEntityAffinityIdForLowIntentUpdateInteraction)
+            ) {
+                markSearchEntityAffinityLowIntentUpdateInteraction(
+                    context,
+                    space.id,
+                    searchEntityAffinityIdForLowIntentUpdateInteraction,
+                );
+            }
+        });
+    }, [
+        context,
+        currentAccount.id,
+        searchEntityAffinityIdForLowIntentUpdateInteraction,
+        space.id,
+        store,
+    ]);
+
+    const {queries, taskSubscriptions, collectionSubscriptions} = loaderData[
+        taskStoreLoaderDataSymbol
+    ] ?? {
+        queries: [],
+        taskSubscriptions: [],
+        collectionSubscriptions: [],
+    };
+
+    return {
+        store,
+        queries,
+        taskSubscriptions,
+        collectionSubscriptions,
+    };
+}
+
+const TaskClientStoreContext = createContext<TaskClientStore | null>(null);
 
 /**
  * The task realtime client lives at the space route (`/s/:spaceId`) so the

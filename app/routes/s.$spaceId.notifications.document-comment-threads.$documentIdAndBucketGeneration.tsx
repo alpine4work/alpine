@@ -7,6 +7,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
 import {getInboxDocumentNewCommentThreadsEntryCommentThreads} from "~/server/notifications/data/notifications_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -97,6 +98,11 @@ export default function DocumentNewCommentThreadsRoute({
 
     const {isConnected, editorState, procedures, subscribeToCommentThreadEvents} =
         useDocumentContentEditorWebSocket(initialDocument);
+
+    // Spending time with document comment threads contributes affinity points
+    // to the document. Since the comment thread is discussing the document,
+    // the document is likely an artifact you care about.
+    useSearchEntityAffinityViewInteraction(`Document:${initialDocument.id}`);
 
     return (
         <DocumentCommentThreadListView

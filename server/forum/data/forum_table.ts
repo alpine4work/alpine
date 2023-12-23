@@ -23,7 +23,12 @@ import {
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
+import {markSearchEntityAffinityInteraction} from "~/server/search/core/search_entity_table.js";
+import {
+    authorizeSpaceAccess,
+    getAccount,
+    isAccountMemberOfSpace,
+} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -300,7 +305,7 @@ export async function seedTestChannels(
  * Create a new channel.
  */
 export async function createChannel(
-    context: ServerActionContext,
+    context: ServerSessionActionContext,
     {spaceId, name}: {spaceId: SpaceId; name: string},
 ): Promise<{
     id: ChannelId;
@@ -331,6 +336,14 @@ export async function createChannel(
             updatedTraits: {type: "None"},
         },
     });
+
+    context.process.waitUntil(
+        markSearchEntityAffinityInteraction(context, {
+            spaceId,
+            entityId: `Channel:${channelItem.channelId}`,
+            interaction: {type: "HighIntentUpdate"},
+        }),
+    );
 
     return {
         id: channelItem.channelId,
@@ -688,6 +701,8 @@ export async function createPost(
 
     await ForumTable.createItem(context, postItem);
 
+    const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+
     context.notifications.sendNotificationEvent({
         type: "CreatePost",
         id: generateId(),
@@ -696,7 +711,7 @@ export async function createPost(
         postId: postItem.postId,
         createdTime: postItem.createdTime,
         authorId: postItem.authorId,
-        mentionedAccountIds: getMentionedAccountIdsInContent(content),
+        mentionedAccountIds,
         contentSnippet: getNotificationPostContentSnippet(content),
     });
 
@@ -711,6 +726,40 @@ export async function createPost(
             updatedTraits: {type: "None"},
         },
     });
+
+    // Posting in a channel accrues affinity points to the channel the post was
+    // made in. Choosing a channel to post in probably means the channel is
+    // relevant to you.
+    //
+    // We don't give posts themselves affinity points. That's because posts are
+    // fairly short lived (a couple days). However, we give channels affinity
+    // points so you could quickly jump to a channel if you're looking for a
+    // certain post inside the channel.
+    context.process.waitUntil(
+        markSearchEntityAffinityInteraction(context, {
+            spaceId: channel.spaceId,
+            entityId: `Channel:${channel.id}`,
+            interaction: {type: "MediumIntentUpdate"},
+        }),
+    );
+
+    // Increase affinity points for all mentioned accounts with a high intent
+    // update since the user clearly wants the attention of the mentioned accounts.
+    //
+    // (If a mentioned account doesn't have access to this message should that
+    // still be a high intent update? For now we say yes since the user is
+    // explicitly choosing to reference them.)
+    for (const mentionedAccountId of mentionedAccountIds) {
+        context.process.waitUntil(async () => {
+            if (await isAccountMemberOfSpace(context, channel.spaceId, mentionedAccountId)) {
+                await markSearchEntityAffinityInteraction(context, {
+                    spaceId: channel.spaceId,
+                    entityId: `Account:${mentionedAccountId as AccountId}`,
+                    interaction: {type: "HighIntentUpdate"},
+                });
+            }
+        });
+    }
 
     return {
         id: postItem.postId,
@@ -1118,6 +1167,8 @@ export async function createPostComment(
             ),
         ]);
 
+        const mentionedAccountIds = getMentionedAccountIdsInContent(content);
+
         context.notifications.sendNotificationEvent({
             type: "CreatePostComment",
             id: generateId(),
@@ -1126,7 +1177,7 @@ export async function createPostComment(
             commentIndex,
             createdTime,
             authorId,
-            mentionedAccountIds: getMentionedAccountIdsInContent(content),
+            mentionedAccountIds,
             contentSnippet: getNotificationMessageContentSnippet(content),
         });
 
@@ -1142,6 +1193,43 @@ export async function createPostComment(
                 updatedTraits: {type: "None"},
             },
         });
+
+        // Creating a comment on a post accrues affinity points to the channel the post
+        // was made in. If you're interacting with a post this probably means the topic
+        // of the post (the channel) is relevant to you as well.
+        //
+        // We don't give posts themselves affinity points. That's because posts are
+        // fairly short lived (a couple days). However, we give channels affinity
+        // points so you could quickly jump to a channel if you're looking for a
+        // certain post inside the channel.
+        context.process.waitUntil(
+            markSearchEntityAffinityInteraction(context, {
+                spaceId: postItem.spaceId,
+                entityId: `Channel:${postItem.channelId}`,
+                interaction:
+                    content.nodeSize < 50
+                        ? {type: "LowIntentUpdate"}
+                        : {type: "MediumIntentUpdate"},
+            }),
+        );
+
+        // Increase affinity points for all mentioned accounts with a high intent
+        // update since the user clearly wants the attention of the mentioned accounts.
+        //
+        // (If a mentioned account doesn't have access to this message should that
+        // still be a high intent update? For now we say yes since the user is
+        // explicitly choosing to reference them.)
+        for (const mentionedAccountId of mentionedAccountIds) {
+            context.process.waitUntil(async () => {
+                if (await isAccountMemberOfSpace(context, postItem.spaceId, mentionedAccountId)) {
+                    await markSearchEntityAffinityInteraction(context, {
+                        spaceId: postItem.spaceId,
+                        entityId: `Account:${mentionedAccountId as AccountId}`,
+                        interaction: {type: "HighIntentUpdate"},
+                    });
+                }
+            });
+        }
 
         return {
             index: commentIndex,

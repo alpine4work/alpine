@@ -7,7 +7,7 @@ import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {usePrettyAbsoluteDateFormatter} from "~/client/design/pretty_absolute_date.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
+import {TaskClientStore} from "~/client/tasks/task_client_store.js";
 import {getSynchronizedSystemClock} from "~/client/tracer/synchronized_system_clock.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
@@ -15,11 +15,13 @@ import {commitTaskActionTransaction} from "~/shared/rpc/tasks_rpc_definitions.js
 import {TaskNotepadPageId, generateTaskNotepadPageId} from "~/shared/tasks/task_notepad_page_id.js";
 
 export function TaskNotepadViewPaginator({
+    store,
     allNotepadPageIds,
     notepadPageId,
     onNotepadPageIdCreate,
     onNotepadPageIdSelect,
 }: {
+    store: TaskClientStore;
     allNotepadPageIds: Lazy<Iterable<TaskNotepadPageId>>;
     notepadPageId: TaskNotepadPageId;
     onNotepadPageIdCreate: (notepadPageId: TaskNotepadPageId) => Promise<void>;
@@ -30,7 +32,6 @@ export function TaskNotepadViewPaginator({
 
     const context = useAppContext();
     const {space, currentAccount} = useSpaceContext();
-    const store = useTaskClientStore();
 
     const formatDateWithoutTime = usePrettyAbsoluteDateFormatter({
         shouldIncludeWeekday: true,

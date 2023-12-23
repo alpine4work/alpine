@@ -7,10 +7,12 @@ import {
 import {Box} from "~/client/design/box.js";
 import {SpaceRouteErrorRenderer} from "~/client/spaces/space_route_error_renderer.js";
 import {TaskLayoutTopBar} from "~/client/tasks/task_layout_top_bar.js";
+import {useTaskClientStore} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export default function TasksLayoutRoute() {
     const error = useRouteError();
+    const store = useTaskClientStore();
 
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
 
@@ -55,6 +57,7 @@ export default function TasksLayoutRoute() {
             flexDirection="column"
         >
             <TaskLayoutTopBar
+                store={store}
                 isNotepadTabActive={isNotepadTabActive}
                 isCollectionsTabActive={isCollectionsTabActive}
                 isViewsTabActive={isViewsTabActive}

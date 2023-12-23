@@ -4,6 +4,7 @@ import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {metaTitlePostfix} from "~/client/remix/use_update_meta_title.js";
+import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
 import {getPostAndInitialComments} from "~/server/forum/data/forum_table.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
@@ -67,6 +68,16 @@ export default function PostRoute({withMobileLayout}: {withMobileLayout?: boolea
 
     const postCommentIndexString = searchParams.get("comment");
     const postCommentIndex = postCommentIndexString ? parseInt(postCommentIndexString, 10) : null;
+
+    // Spending time with a post accrues affinity points to the channel the post
+    // was made in. If you're reading a post and its comments this probably means
+    // the topic of the post (the channel) is relevant to you as well.
+    //
+    // We don't give posts themselves affinity points. That's because posts are
+    // fairly short lived (a couple days). However, we give channels affinity
+    // points so you could quickly jump to a channel if you're looking for a
+    // certain post inside the channel.
+    useSearchEntityAffinityViewInteraction(`Channel:${post.channel.id}`);
 
     return (
         <PostView

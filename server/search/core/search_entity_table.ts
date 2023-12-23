@@ -3,14 +3,13 @@ import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribut
 import {DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
 import {isDynamoConditionCheckError} from "~/server/dynamo/core/is_dynamo_condition_check_error.js";
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
-import {getSearchEntityTitlesIfExist} from "~/server/search/data/search_entity_index.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
-import {SearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
+import {SearchEntityAffinityInteraction} from "~/shared/search/search_entity_affinity_interaction.js";
 
 const SearchEntityTable = DynamoTableSchema.new({
     name: "SearchEntities",
@@ -26,7 +25,7 @@ const SearchEntityTable = DynamoTableSchema.new({
                     name: "SearchEntityAffinity",
                     sortKeyAttributes: {
                         entityId:
-                            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchEntityId>,
+                            DynamoKeyAttributeSchema.labelString as DynamoKeyAttributeSchema<SearchEntityAffinityId>,
                     },
                     withExpirationTime: "Required",
                     attributes: Schema.object({
@@ -122,45 +121,122 @@ export function getSearchEntityAccountAffinityExpirationDuration(points: number)
 }
 
 /**
- * Get a list of search entities that are most meaningful to the actor. When
- * the actor interacts with objects in our system, we boost their affinity
- * score for that object. Affinity scores decay over time so we end up
- * considering objects the actor interacts with a lot recently as the most
- * meaningful.
+ * Add some points to an account's affinity score for an entity. 1 point will
+ * decay to 0 after 3 months (more accurately, 90 days).
+ *
+ * We don't let you directly pass in a point number. Instead you must pass in a
+ * `SearchEntityAffinityInteraction` object. This interaction object abstracts
+ * away the point count so the caller only needs to think about what kind of
+ * interaction it was, not the right point total relative to all other point
+ * counts.
+ *
+ * Sometimes this function is called from the server. Sometimes this function
+ * is called from the client. It doesn't really matter. Wherever is more
+ * convenient is fine. Usually, calling this function after an update on the
+ * server is most convenient since you guarantee an affinity update after the
+ * actual database update. However, sometimes it's useful to throttle calls to
+ * this function (e.g. typing in a document) which is easiest to do on
+ * the client.
  */
-export async function getAffinitiveSearchEntities(
+// TODO(calebmer): I wonder if we should add a "mobile multiplier" to some of
+// these interactions. Since all of these interactions are harder to do on
+// mobile that must mean it's worth more to the user?
+export function markSearchEntityAffinityInteraction(
     context: ServerSessionActionContext,
-    {spaceId, limit}: {spaceId: SpaceId; limit: number},
-): Promise<
-    Array<{
-        entityId: SearchEntityId;
-        points: number;
-        title: string | null;
-    }>
-> {
-    const entityIds = await getAffinitiveSearchEntityIds(context, {spaceId, limit});
-
-    const entityTitles = await getSearchEntityTitlesIfExist(context, {
+    {
         spaceId,
-        entityIds: entityIds.map(({entityId}) => entityId),
+        entityId,
+        interaction,
+    }: {
+        spaceId: SpaceId;
+        entityId: SearchEntityAffinityId;
+        interaction: SearchEntityAffinityInteraction;
+    },
+) {
+    let points: number;
+    switch (interaction.type) {
+        case "View": {
+            points = 1;
+            break;
+        }
+        case "LowIntentUpdate": {
+            points = 0.2;
+            break;
+        }
+        case "MediumIntentUpdate": {
+            points = 1;
+            break;
+        }
+        case "HighIntentUpdate": {
+            points = 3;
+            break;
+        }
+        default:
+            throw exhaustive(interaction);
+    }
+
+    return addSearchEntityAffinityPoints(context, {
+        spaceId,
+        entityId,
+        points,
     });
+}
 
-    const entityTitleById = new Map(
-        filterMapIterable(entityTitles, entityTitle =>
-            entityTitle ? [entityTitle.id, entityTitle] : null,
-        ),
-    );
+async function addSearchEntityAffinityPoints(
+    context: ServerSessionActionContext,
+    {
+        spaceId,
+        entityId,
+        points,
+    }: {
+        spaceId: SpaceId;
+        entityId: SearchEntityAffinityId;
+        points: number;
+    },
+) {
+    // Optimization: We don't authorize whether the actor has access to the entity.
+    // Since this is a personal score it doesn't really matter if the user gives
+    // themselves affinity points to an entity they don't have access to.
 
-    return filterMapArray(entityIds, ({entityId, points}) => {
-        const entityTitle = entityTitleById.get(entityId);
-        if (!entityTitle) return null;
+    const currentTime = Date.now();
 
-        return {
+    await SearchEntityTable.updateItem(
+        context,
+        {
+            partitionType: "Account",
+            sortRangeType: "SearchEntityAffinity",
+            spaceId,
+            accountId: context.actor.getAccountId(),
             entityId,
-            points,
-            title: entityTitle.title,
-        };
-    });
+        },
+        affinityItem => {
+            let newPoints = affinityItem
+                ? getCurrentSearchEntityAccountAffinityPoints(currentTime, affinityItem)
+                : 0;
+
+            newPoints += points;
+
+            const expirationDuration = Math.ceil(
+                getSearchEntityAccountAffinityExpirationDuration(newPoints),
+            );
+            const expirationTime = new Date(currentTime + expirationDuration);
+
+            const newPointsBucket = getSearchEntityAffinityPointsBucket(newPoints);
+
+            return {
+                ...affinityItem,
+                partitionType: "Account",
+                sortRangeType: "SearchEntityAffinity",
+                spaceId,
+                accountId: context.actor.getAccountId(),
+                entityId,
+                points: newPoints,
+                pointsBucket: newPointsBucket,
+                lastUpdatedTime: currentTime,
+                expirationTime,
+            };
+        },
+    );
 }
 
 /**
@@ -184,13 +260,21 @@ export const getAffinitiveSearchEntityIdsEarlyReturnTestCounter = new TestCounte
  * index might be lower as the item's points have decayed. An item may be lower
  * in our index but will never be higher. So we need to search enough of our
  * index to be confident we actually have the top affinitive entities.
+ *
+ * Labeled "internal" since you should be calling
+ * `getAffinitiveSearchEntities()`. This function returns affinitive entities
+ * along with extra information about them like the entity's title. This
+ * function also doesn't filter out entities the account has lost access to!
+ * While this function isn't unsafe with regards to permissions (it's fine to
+ * know the `SearchEntityId` of something you used to have access to) it isn't
+ * the most convenient function.
  */
-export async function getAffinitiveSearchEntityIds(
+export async function internalGetAffinitiveSearchEntityIds(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<
     Array<{
-        entityId: SearchEntityId;
+        entityId: SearchEntityAffinityId;
         points: number;
     }>
 > {
@@ -201,7 +285,7 @@ export async function getAffinitiveSearchEntityIds(
     let lastIterationPointsBucket: number | null = null;
 
     const candidateItems: Array<{
-        entityId: SearchEntityId;
+        entityId: SearchEntityAffinityId;
         points: number;
         pointsBucket: number;
     }> = [];

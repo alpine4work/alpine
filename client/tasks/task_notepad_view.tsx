@@ -341,6 +341,7 @@ export function TaskNotepadView({
                                 Notepad
                             </Box>
                             <TaskNotepadViewPaginator
+                                store={store}
                                 allNotepadPageIds={allNotepadPageIds}
                                 notepadPageId={notepadPageState.notepadPageId}
                                 onNotepadPageIdCreate={notepadPageId => {
@@ -377,12 +378,7 @@ export function TaskNotepadView({
                     </Box>
                 ),
             };
-        }, [
-            allNotepadPageIds,
-            notepadPageState.notepadPageId,
-            setNotepadPageState,
-            withMobileLayout,
-        ]),
+        }, [allNotepadPageIds, notepadPageState.notepadPageId, store, withMobileLayout]),
     });
 
     return (
