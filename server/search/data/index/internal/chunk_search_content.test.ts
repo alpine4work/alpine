@@ -4,9 +4,9 @@ import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/co
 import {
     getFullSearchContentChunk,
     printSearchContentChunk,
-} from "~/server/search/data/internal/chunk_search_content.js";
-import {chunkDocumentSearchContent} from "~/server/search/data/internal/get_search_entity.js";
-import {parseSearchContent} from "~/server/search/data/internal/parse_search_content.js";
+} from "~/server/search/data/index/internal/chunk_search_content.js";
+import {chunkDocumentSearchContent} from "~/server/search/data/index/internal/get_search_entity.js";
+import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
@@ -113,7 +113,9 @@ async function dropUnpreservedNodeStyles(
     if (node.type.name === "text") return node;
 
     const content = await runAllPromises(
-        node.content.content.map(childNode => dropUnpreservedNodeStyles(childNode, options)),
+        createArrayWithLength(node.content.childCount, index =>
+            dropUnpreservedNodeStyles(node.content.child(index), options),
+        ),
     );
 
     if (node.type.name === "checkListItem") {

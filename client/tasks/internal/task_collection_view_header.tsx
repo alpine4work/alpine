@@ -22,7 +22,10 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchEntityAffinityManager,
+} from "~/client/tasks/task_client_store.js";
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
@@ -37,6 +40,7 @@ export function TaskCollectionViewHeader({
     collectionId,
     collectionSubscription,
     createCollection,
+    affinityManager,
 }: {
     isReadOnly: boolean;
     store: TaskClientStore;
@@ -48,6 +52,7 @@ export function TaskCollectionViewHeader({
     // should be read-only.
     collectionSubscription: TaskClientCollectionSubscription | null;
     createCollection: (name: string) => Promise<void>;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
 }) {
     const context = useAppContext();
     const navigate = useNavigate();
@@ -139,7 +144,7 @@ export function TaskCollectionViewHeader({
                                 },
                             ],
                             // Collection changes can't be undone.
-                            {undoManager: null},
+                            {undoManager: null, affinityManager},
                         );
                     } else {
                         store.commitTaskActionTransaction(
@@ -161,7 +166,7 @@ export function TaskCollectionViewHeader({
                                 },
                             ],
                             // Collection changes can't be undone.
-                            {undoManager: null},
+                            {undoManager: null, affinityManager},
                         );
                     }
                 },
@@ -183,7 +188,7 @@ export function TaskCollectionViewHeader({
                             },
                         ],
                         // Collection changes can't be undone.
-                        {undoManager: null},
+                        {undoManager: null, affinityManager},
                     );
 
                     void navigate(-1);
@@ -213,7 +218,7 @@ export function TaskCollectionViewHeader({
                                     },
                                 ],
                                 // Collection changes can't be undone.
-                                {undoManager: null},
+                                {undoManager: null, affinityManager},
                             );
                         }}
                         colorSelectorState={colorSelectorState}
@@ -277,7 +282,7 @@ export function TaskCollectionViewHeader({
                                         },
                                     ],
                                     // Collection changes can't be undone.
-                                    {undoManager: null},
+                                    {undoManager: null, affinityManager},
                                 );
 
                                 setIsEditingName(false);

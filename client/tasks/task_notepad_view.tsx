@@ -12,7 +12,10 @@ import {
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchEntityAffinityManager,
+} from "~/client/tasks/task_client_store.js";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
@@ -45,6 +48,7 @@ export function TaskNotepadView({
     withMobileLayout,
     store,
     assigneeActiveQuery,
+    affinityManager,
     initialQuery,
     initialNotepadPageId,
     allNotepadPageIds: allNotepadPageIdsWithoutNewNotepadPageIds,
@@ -53,6 +57,7 @@ export function TaskNotepadView({
     withMobileLayout: boolean;
     store: TaskClientStore;
     assigneeActiveQuery: TaskClientQuery;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
@@ -283,6 +288,7 @@ export function TaskNotepadView({
         }, [withMobileLayout]),
         store,
         query: queryState.activeQuery.query,
+        affinityManager,
         viewRef: gridViewRef,
         getMoveTaskToQueryActions: (taskId, position) => {
             const time = store.clock.now();
@@ -427,6 +433,7 @@ export function TaskNotepadView({
                                     node: (
                                         <TaskNotepadViewActiveSection
                                             withMobileLayout={withMobileLayout}
+                                            affinityManager={affinityManager}
                                             assigneeActiveQuery={assigneeActiveQuery}
                                             activeDraggableData={activeDraggableData}
                                             overDroppableData={overDroppableData}
@@ -439,6 +446,7 @@ export function TaskNotepadView({
                         },
                         [
                             activeDraggableData,
+                            affinityManager,
                             assigneeActiveQuery,
                             overDroppableData,
                             renderGridViewItem,

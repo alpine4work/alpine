@@ -43,7 +43,7 @@ ts_project(
         "//server/jobs/queue:__pkg__",
         "//server/remix:__pkg__",
         "//server/rpc:__pkg__",
-        "//server/search/data:__pkg__",
+        "//server/search/data/index:__pkg__",
         "//server/tasks:__subpackages__",
     ],
     deps = [

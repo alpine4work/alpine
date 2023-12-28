@@ -4,7 +4,10 @@ import {useIsChildFocusRingVisible} from "~/client/design/focus_ring.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {TaskCollectionsInput} from "~/client/tasks/internal/task_collections_input.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/task_client_store.js";
 import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
@@ -22,6 +25,7 @@ export function TaskRowCollectionsCellOverlay({
     isReadOnly,
     query,
     undoManager,
+    affinityManager,
     task,
     focusPreviousCell,
     cellRef,
@@ -30,6 +34,7 @@ export function TaskRowCollectionsCellOverlay({
     isReadOnly: boolean;
     query: TaskClientQuery;
     undoManager: TaskClientStoreUndoManager;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     task: TaskModel | null;
     focusPreviousCell: () => void;
     cellRef: RefObject<HTMLDivElement>;
@@ -80,6 +85,7 @@ export function TaskRowCollectionsCellOverlay({
                     aria-label="Collections"
                     referencesSubscription={query}
                     undoManager={undoManager}
+                    affinityManager={affinityManager}
                     task={task}
                     areMarginsClickable={true}
                     paddingX="2.5"

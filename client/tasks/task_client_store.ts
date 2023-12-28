@@ -200,6 +200,25 @@ export type TaskClientStoreSubscriptions = {
     >;
 };
 
+export type TaskClientStoreBatchUpdate = {
+    readonly taskEntryUpdateById: ReadonlyMap<
+        TaskId,
+        {
+            readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
+            readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
+            readonly newTaskEntry: TaskClientStoreTaskEntry;
+        }
+    >;
+    readonly collectionEntryUpdateById: ReadonlyMap<
+        TaskCollectionId,
+        {
+            readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
+            readonly oldCollectionEntry: TaskClientStoreCollectionEntry | null;
+            readonly newCollectionEntry: TaskClientStoreCollectionEntry;
+        }
+    >;
+};
+
 export interface TaskClientStoreUndoManager {
     pushUndoStackEntry(entry: {
         undoActions: TaskUndoActions;
@@ -219,6 +238,20 @@ export type TaskClientStoreUpdateTitleActionTransactionBuilder = {
         finally(callback: () => void): void;
     };
 };
+
+/**
+ * An affinity manager object decides which search entity to give affinity
+ * points on some update interaction. For instance, when editing tasks in a
+ * collection we give affinity points to the collection. Not the task being
+ * updated!
+ *
+ * These objects are typically constructed at the route level and passed down
+ * through child components until we reach a
+ * `store.commitTaskActionTransaction()` call.
+ */
+export interface TaskClientStoreSearchEntityAffinityManager {
+    markLowIntentUpdateInteraction(update: TaskClientStoreBatchUpdate): void;
+}
 
 /**
  * The client model store holds all our task data for a space on the client.
@@ -303,6 +336,7 @@ export class TaskClientStore {
         actions: ReadonlyArray<TaskAction>,
         options: {
             undoManager: TaskClientStoreUndoManager | null;
+            affinityManager: TaskClientStoreSearchEntityAffinityManager;
             referencedCollections?: ReadonlyArray<TaskCollectionModel>;
             leaseId?: TaskActionTransactionLeaseId | null;
         },
@@ -313,6 +347,7 @@ export class TaskClientStore {
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
         initialTitleUpdate: TaskTitleUpdate,
+        options: {affinityManager: TaskClientStoreSearchEntityAffinityManager},
     ): {
         add: (titleUpdate: TaskTitleUpdate) => void;
         commit: (context: Context<{rpc: RpcContextModuleBase}>) => {
@@ -322,6 +357,7 @@ export class TaskClientStore {
         return this._internal.getTaskUpdateTitleActionTransactionBuilder(
             taskId,
             initialTitleUpdate,
+            options,
         );
     }
 
@@ -415,32 +451,6 @@ export function setShouldDisableCommitTaskActionTransactionMutexForTest(shouldDi
     assert(import.meta.jest);
     shouldDisableCommitTaskActionTransactionMutexForTest = shouldDisable;
 }
-
-export type TaskClientStoreBatchUpdateOrigin =
-    | "ApplyUpdateEvent"
-    | "ApplyOptimisticActions"
-    | "CommitOptimisticActions"
-    | "RevertOptimisticActions";
-
-export type TaskClientStoreBatchUpdate = {
-    readonly origin: TaskClientStoreBatchUpdateOrigin;
-    readonly taskEntryUpdateById: ReadonlyMap<
-        TaskId,
-        {
-            readonly taskEntryStore: Store<TaskClientStoreTaskEntry>;
-            readonly oldTaskEntry: TaskClientStoreTaskEntry | null;
-            readonly newTaskEntry: TaskClientStoreTaskEntry;
-        }
-    >;
-    readonly collectionEntryUpdateById: ReadonlyMap<
-        TaskCollectionId,
-        {
-            readonly collectionEntryStore: Store<TaskClientStoreCollectionEntry>;
-            readonly oldCollectionEntry: TaskClientStoreCollectionEntry | null;
-            readonly newCollectionEntry: TaskClientStoreCollectionEntry;
-        }
-    >;
-};
 
 export class TaskClientStoreInternal {
     public readonly external: TaskClientStore;
@@ -777,7 +787,6 @@ export class TaskClientStoreInternal {
         // applying the action we avoid a warning.
         if (event.originClientId === this._clientId) {
             return action({
-                origin: "ApplyUpdateEvent",
                 taskEntryUpdateById: new Map(),
                 collectionEntryUpdateById: new Map(),
             });
@@ -1498,12 +1507,7 @@ export class TaskClientStoreInternal {
             }
         }
 
-        return this._batchUpdateStore(
-            "ApplyUpdateEvent",
-            newTaskEntryById,
-            newCollectionEntryById,
-            action,
-        );
+        return this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
     }
 
     /**
@@ -1527,6 +1531,7 @@ export class TaskClientStoreInternal {
         actions: ReadonlyArray<TaskAction>,
         {
             undoManager,
+            affinityManager,
             referencedCollections = [],
             leaseId = null,
         }: {
@@ -1534,6 +1539,9 @@ export class TaskClientStoreInternal {
             // not to pass in `undoManager`. Most of the time you want to pass in
             // `undoManager`. If you pass in null the change can't be undone.
             undoManager: TaskClientStoreUndoManager | null;
+            // This property is required to force callers to pass down a `affinityManager`
+            // object from the route component.
+            affinityManager: TaskClientStoreSearchEntityAffinityManager;
             referencedCollections?: ReadonlyArray<TaskCollectionModel>;
             leaseId?: TaskActionTransactionLeaseId | null;
         },
@@ -1560,6 +1568,9 @@ export class TaskClientStoreInternal {
                             optimisticExtraActions.length > 0
                                 ? [...actions, ...optimisticExtraActions]
                                 : actions,
+                            update => {
+                                affinityManager.markLowIntentUpdateInteraction(update);
+                            },
                         );
                     }
 
@@ -1589,6 +1600,9 @@ export class TaskClientStoreInternal {
                                 optimisticExtraActions.length > 0
                                     ? [...actions, ...optimisticExtraActions]
                                     : actions,
+                                update => {
+                                    affinityManager.markLowIntentUpdateInteraction(update);
+                                },
                             );
                         },
                     );
@@ -1878,6 +1892,7 @@ export class TaskClientStoreInternal {
     public getTaskUpdateTitleActionTransactionBuilder(
         taskId: TaskId,
         initialTitleUpdate: TaskTitleUpdate,
+        {affinityManager}: {affinityManager: TaskClientStoreSearchEntityAffinityManager},
     ): TaskClientStoreUpdateTitleActionTransactionBuilder {
         let isFinished = false;
         let mergedTitleUpdate = initialTitleUpdate;
@@ -1914,7 +1929,12 @@ export class TaskClientStoreInternal {
 
             individualActions.push(action);
 
-            const {release: actuallyRelease} = this._applyOptimisticTaskActions([action]);
+            const {release: actuallyRelease} = this._applyOptimisticTaskActions(
+                [action],
+                update => {
+                    affinityManager.markLowIntentUpdateInteraction(update);
+                },
+            );
             actualReleases.push(actuallyRelease);
         };
 
@@ -2164,8 +2184,21 @@ export class TaskClientStoreInternal {
         return this._commitTaskActionTransactionMutex.waitForUnlock();
     }
 
-    private _applyOptimisticTaskActions(actions: ReadonlyArray<TaskAction>) {
-        if (actions.length === 0) return {pendingActions: [], release: noop};
+    private _applyOptimisticTaskActions<Value>(
+        actions: ReadonlyArray<TaskAction>,
+        action: (batchUpdate: TaskClientStoreBatchUpdate) => Value,
+    ): {
+        actionValue: Value;
+        pendingActions: Array<TaskClientStorePendingAction>;
+        release: () => void;
+    } {
+        if (actions.length === 0) {
+            const actionValue = action({
+                taskEntryUpdateById: new Map(),
+                collectionEntryUpdateById: new Map(),
+            });
+            return {actionValue, pendingActions: [], release: noop};
+        }
 
         const newTaskEntryById = new Map<TaskId, TaskClientStoreTaskEntry>();
         const newCollectionEntryById = new Map<TaskCollectionId, TaskClientStoreCollectionEntry>();
@@ -2520,13 +2553,9 @@ export class TaskClientStoreInternal {
         let releaseTaskIds: Array<TaskId>;
         let releaseCollectionIds: Array<TaskCollectionId>;
 
+        let actionValue;
         try {
-            this._batchUpdateStore(
-                "ApplyOptimisticActions",
-                newTaskEntryById,
-                newCollectionEntryById,
-                noop,
-            );
+            actionValue = this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, action);
         } finally {
             // Any tasks or collections that were released while updating our store, we
             // want to retain until the optimistic action is committed or rejected. Because
@@ -2552,6 +2581,7 @@ export class TaskClientStoreInternal {
         }
 
         return {
+            actionValue,
             pendingActions,
             release: () => {
                 for (const taskId of releaseTaskIds) {
@@ -2941,12 +2971,7 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(
-            "CommitOptimisticActions",
-            newTaskEntryById,
-            newCollectionEntryById,
-            noop,
-        );
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
     }
 
     private _revertOptimisticTaskActions(pendingActions: Iterable<TaskClientStorePendingAction>) {
@@ -3411,16 +3436,10 @@ export class TaskClientStoreInternal {
             }
         }
 
-        this._batchUpdateStore(
-            "RevertOptimisticActions",
-            newTaskEntryById,
-            newCollectionEntryById,
-            noop,
-        );
+        this._batchUpdateStore(newTaskEntryById, newCollectionEntryById, noop);
     }
 
     private _batchUpdateStore<Value>(
-        origin: TaskClientStoreBatchUpdateOrigin,
         newTaskEntryById: ReadonlyMap<TaskId, TaskClientStoreTaskEntry>,
         newCollectionEntryById: ReadonlyMap<TaskCollectionId, TaskClientStoreCollectionEntry>,
         // This action is called after our updates have been applied to the store and

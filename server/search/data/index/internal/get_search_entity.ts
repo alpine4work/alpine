@@ -17,13 +17,13 @@ import {
     isSearchEntityDependencyIdAlsoEntityId,
     isSearchEntityIdAlsoEntityDependencyId,
 } from "~/server/search/core/search_entity_dependency_id.js";
-import {chunkSearchContent} from "~/server/search/data/internal/chunk_search_content.js";
+import {chunkSearchContent} from "~/server/search/data/index/internal/chunk_search_content.js";
 import {
     SearchEntityIndexAccessPolicy,
     SearchEntityIndexDefaultGrantType,
-} from "~/server/search/data/internal/search_entity_index_doc.js";
-import {truncateTokens} from "~/server/search/data/internal/truncate_tokens.js";
-import {SearchEntityIndexSystemActionContext} from "~/server/search/data/search_entity_index_system_action_context.js";
+} from "~/server/search/data/index/internal/search_entity_index_doc.js";
+import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
+import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";

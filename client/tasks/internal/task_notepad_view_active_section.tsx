@@ -17,6 +17,7 @@ import {TaskDeleteConfirmationModalDialog} from "~/client/tasks/internal/task_de
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {TaskNotepadCardView} from "~/client/tasks/internal/task_notepad_card_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientStoreSearchEntityAffinityManager} from "~/client/tasks/task_client_store.js";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
@@ -65,11 +66,13 @@ export {TaskNotepadViewActiveSectionMemo as TaskNotepadViewActiveSection};
 
 function TaskNotepadViewActiveSection({
     withMobileLayout,
+    affinityManager,
     assigneeActiveQuery,
     activeDraggableData,
     overDroppableData,
 }: {
     withMobileLayout: boolean;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     assigneeActiveQuery: TaskClientQuery;
     activeDraggableData: TaskGridViewDraggableData | undefined;
     overDroppableData: TaskGridViewDroppableData | undefined;
@@ -185,6 +188,7 @@ function TaskNotepadViewActiveSection({
                     <TaskNotepadCardView
                         key={taskId}
                         widthStyle={cardWidthStyle}
+                        affinityManager={affinityManager}
                         query={assigneeActiveQuery}
                         taskId={taskId}
                         assigneeActivePosition={assigneeActivePosition}

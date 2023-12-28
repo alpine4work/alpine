@@ -1,4 +1,4 @@
-import {parseSearchContent} from "~/server/search/data/internal/parse_search_content.js";
+import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
 
 // NOTE(calebmer): Most of the test coverage for `parseSearchContent()` is in
 // `chunk_search_content.test.ts` since we check that search content

@@ -1,7 +1,11 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {MenuAction} from "~/client/design/menu_button.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
-import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
@@ -14,6 +18,7 @@ export function getTaskStatusMenuActions({
     currentAccount,
     store,
     undoManager,
+    affinityManager,
     task,
 }: {
     context: AppContext;
@@ -21,6 +26,7 @@ export function getTaskStatusMenuActions({
     currentAccount: AccountModel;
     store: TaskClientStore;
     undoManager: TaskClientStoreUndoManager | null;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     task: TaskModel;
 }): ReadonlyArray<MenuAction> {
     const displayStatus = task.getDisplayStatus();
@@ -80,7 +86,7 @@ export function getTaskStatusMenuActions({
                                     },
                                 },
                             ],
-                            {undoManager},
+                            {undoManager, affinityManager},
                         );
                     },
                 },
@@ -111,7 +117,7 @@ export function getTaskStatusMenuActions({
                                     },
                                 },
                             ],
-                            {undoManager},
+                            {undoManager, affinityManager},
                         );
                     },
                 },
@@ -139,7 +145,7 @@ export function getTaskStatusMenuActions({
                                     },
                                 },
                             ],
-                            {undoManager},
+                            {undoManager, affinityManager},
                         );
                     },
                 },
@@ -170,7 +176,7 @@ export function getTaskStatusMenuActions({
                                     },
                                 },
                             ],
-                            {undoManager},
+                            {undoManager, affinityManager},
                         );
                     },
                 },
@@ -198,7 +204,7 @@ export function getTaskStatusMenuActions({
                                     },
                                 },
                             ],
-                            {undoManager},
+                            {undoManager, affinityManager},
                         );
                     },
                 },
@@ -263,7 +269,7 @@ export function getTaskStatusMenuActions({
                                     },
                                 },
                             ],
-                            {undoManager},
+                            {undoManager, affinityManager},
                         );
                     },
                 },

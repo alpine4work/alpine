@@ -1,5 +1,5 @@
 import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/cohere_embed_english_v3/cohere_embed_english_v3_language_tokenizer.js";
-import {truncateTokens} from "~/server/search/data/internal/truncate_tokens.js";
+import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
 
 test("truncates document titles appropriately", async () => {
     const tokenizer = await CohereEmbedEnglishV3LanguageTokenizer.get();

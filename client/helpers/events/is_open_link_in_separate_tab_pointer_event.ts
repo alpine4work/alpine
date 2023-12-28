@@ -1,5 +1,4 @@
 import {PressEvent} from "@react-types/shared";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 
 /**
  * Is this a click event that on an `<a>` element would open the URL in a
@@ -8,9 +7,10 @@ import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.
  */
 export function isOpenLinkInSeparateTabPointerEvent(
     event: PointerEvent | MouseEvent | PressEvent,
+    clientInfo: {isAppleDevice: boolean},
 ): boolean {
     return (
         ("button" in event && event.button === 1) ||
-        (getClientInfoWithoutListening().isAppleDevice ? event.metaKey : event.ctrlKey)
+        (clientInfo.isAppleDevice ? event.metaKey : event.ctrlKey)
     );
 }

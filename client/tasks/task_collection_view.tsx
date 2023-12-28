@@ -20,7 +20,10 @@ import {
 } from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchEntityAffinityManager,
+} from "~/client/tasks/task_client_store.js";
 import {createTaskQueryViewReadOnlyReasonStore} from "~/client/tasks/task_query_view.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
@@ -55,6 +58,7 @@ export function TaskCollectionView({
     store,
     collectionId,
     collectionSubscription,
+    affinityManager,
     initialQuery,
     initialFilters,
     initialFilterReferences,
@@ -68,6 +72,7 @@ export function TaskCollectionView({
     // If `collectionSubscription` is null, that means we are creating a
     // new collection.
     collectionSubscription: TaskClientCollectionSubscription | null;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
@@ -272,6 +277,7 @@ export function TaskCollectionView({
         viewRef,
         store,
         query: queryState.activeQuery.query,
+        affinityManager,
         getMoveTaskToQueryActions: (taskId, position): Array<TaskAction> => {
             assert(collectionSubscription && queryState.activeQuery.isAvailable);
 
@@ -373,6 +379,7 @@ export function TaskCollectionView({
                                 <TaskCollectionViewHeader
                                     isReadOnly={isReadOnly}
                                     store={store}
+                                    affinityManager={affinityManager}
                                     collectionId={collectionId}
                                     collectionSubscription={collectionSubscription}
                                     createCollection={createCollection}
@@ -406,6 +413,7 @@ export function TaskCollectionView({
                 ),
             };
         }, [
+            affinityManager,
             collectionId,
             collectionSubscription,
             createCollection,

@@ -1,4 +1,5 @@
 import {getOrCreateChatForAccounts, sendChatMessage} from "~/server/chat/data/chat_table.js";
+import {printContentSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestNotificationsContextModule} from "~/server/notifications/data/notifications_context_module.js";
 import {
@@ -87,10 +88,10 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -122,10 +123,10 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -156,10 +157,10 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -182,10 +183,10 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -234,10 +235,10 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -260,10 +261,10 @@ test("messaging creates an inbox entry for all subscribers", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -330,10 +331,10 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -365,10 +366,10 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -399,7 +400,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -407,7 +408,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
                             [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -439,7 +440,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -447,7 +448,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
                             [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -478,7 +479,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -486,7 +487,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -518,7 +519,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -526,7 +527,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -557,7 +558,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -565,7 +566,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -588,7 +589,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -596,7 +597,7 @@ test("mentioning someone in a creates a second loud notification for them", asyn
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -681,10 +682,10 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -707,10 +708,10 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -741,7 +742,7 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -749,7 +750,7 @@ test("mentioning yourself does not create an extra loud notification for yoursel
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -781,7 +782,7 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -789,7 +790,7 @@ test("mentioning yourself does not create an extra loud notification for yoursel
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -829,10 +830,10 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -855,10 +856,10 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -889,7 +890,7 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -897,7 +898,7 @@ test("mentioning yourself does not create an extra loud notification for yoursel
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -929,7 +930,7 @@ test("mentioning yourself does not create an extra loud notification for yoursel
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -937,7 +938,7 @@ test("mentioning yourself does not create an extra loud notification for yoursel
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -1000,10 +1001,10 @@ test("accounts have separate inboxes for each space", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1043,10 +1044,10 @@ test("accounts have separate inboxes for each space", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1069,10 +1070,10 @@ test("accounts have separate inboxes for each space", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.otherSession.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1140,7 +1141,7 @@ test("account can not see mention in chat they don't have access to", async () =
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -1148,7 +1149,7 @@ test("account can not see mention in chat they don't have access to", async () =
                             [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -1188,7 +1189,7 @@ test("account can not see mention in chat they don't have access to", async () =
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -1196,7 +1197,7 @@ test("account can not see mention in chat they don't have access to", async () =
                             [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -1236,7 +1237,7 @@ test("account can not see mention in chat they don't have access to", async () =
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -1244,7 +1245,7 @@ test("account can not see mention in chat they don't have access to", async () =
                             [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -1334,10 +1335,10 @@ test("message notification events processed out of order result in the same late
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -1360,10 +1361,10 @@ test("message notification events processed out of order result in the same late
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -1389,10 +1390,10 @@ test("message notification events processed out of order result in the same late
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -1415,10 +1416,10 @@ test("message notification events processed out of order result in the same late
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -1499,10 +1500,10 @@ test("message notification events processed out of order result in the same late
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1537,10 +1538,10 @@ test("message notification events processed out of order result in the same late
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1610,10 +1611,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1644,7 +1645,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -1652,7 +1653,7 @@ test("loud notifications are always at the top of the inbox", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1665,10 +1666,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1699,10 +1700,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -1715,7 +1716,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -1723,7 +1724,7 @@ test("loud notifications are always at the top of the inbox", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1736,10 +1737,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1770,10 +1771,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -1786,7 +1787,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -1794,7 +1795,7 @@ test("loud notifications are always at the top of the inbox", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1807,10 +1808,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1841,10 +1842,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -1857,10 +1858,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1873,10 +1874,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1907,7 +1908,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message6.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -1915,7 +1916,7 @@ test("loud notifications are always at the top of the inbox", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1928,10 +1929,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -1944,10 +1945,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1978,7 +1979,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message6.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -1986,7 +1987,7 @@ test("loud notifications are always at the top of the inbox", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -1999,10 +2000,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -2015,10 +2016,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message7.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message7"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2049,7 +2050,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message8.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -2057,7 +2058,7 @@ test("loud notifications are always at the top of the inbox", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2070,7 +2071,7 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message6.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -2078,7 +2079,7 @@ test("loud notifications are always at the top of the inbox", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2091,10 +2092,10 @@ test("loud notifications are always at the top of the inbox", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -2168,10 +2169,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2202,7 +2203,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -2210,7 +2211,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2223,10 +2224,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2257,10 +2258,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -2273,7 +2274,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -2281,7 +2282,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2294,10 +2295,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2322,10 +2323,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -2338,7 +2339,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -2346,7 +2347,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2359,10 +2360,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2393,10 +2394,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.sharedSession.account.get(),
         }),
@@ -2409,10 +2410,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -2425,7 +2426,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -2433,7 +2434,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2446,10 +2447,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2480,10 +2481,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.sharedSession.account.get(),
         }),
@@ -2496,10 +2497,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -2512,10 +2513,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2528,10 +2529,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2562,10 +2563,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.sharedSession.account.get(),
         }),
@@ -2578,10 +2579,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message6.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message6"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -2594,10 +2595,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2610,10 +2611,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2644,7 +2645,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message8.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -2652,7 +2653,7 @@ test("observing an inbox freezes loud notifications in place", async () => {
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -2665,10 +2666,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.sharedSession.account.get(),
         }),
@@ -2681,10 +2682,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message5"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2697,10 +2698,10 @@ test("observing an inbox freezes loud notifications in place", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -2767,10 +2768,10 @@ test("sends a loud notification on any message after some period of time", async
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -2801,10 +2802,10 @@ test("sends a loud notification on any message after some period of time", async
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -2827,10 +2828,10 @@ test("sends a loud notification on any message after some period of time", async
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -2861,10 +2862,10 @@ test("sends a loud notification on any message after some period of time", async
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -2887,10 +2888,10 @@ test("sends a loud notification on any message after some period of time", async
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -2931,10 +2932,10 @@ test("sends a loud notification on any message after some period of time", async
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -2957,10 +2958,10 @@ test("sends a loud notification on any message after some period of time", async
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session1.account.get(),
         }),
@@ -3047,7 +3048,7 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3055,7 +3056,7 @@ test("can archive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3068,10 +3069,10 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -3094,7 +3095,7 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3102,7 +3103,7 @@ test("can archive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3115,10 +3116,10 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -3155,7 +3156,7 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3163,7 +3164,7 @@ test("can archive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3176,10 +3177,10 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -3202,7 +3203,7 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3210,7 +3211,7 @@ test("can archive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3247,10 +3248,10 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -3273,7 +3274,7 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3281,7 +3282,7 @@ test("can archive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3327,7 +3328,7 @@ test("can archive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3335,7 +3336,7 @@ test("can archive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3433,7 +3434,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3441,7 +3442,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -3454,7 +3455,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3462,7 +3463,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3475,10 +3476,10 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -3501,7 +3502,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3509,7 +3510,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3522,10 +3523,10 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -3572,7 +3573,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3580,7 +3581,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -3603,7 +3604,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3611,7 +3612,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3648,7 +3649,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3656,7 +3657,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -3679,10 +3680,10 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -3695,7 +3696,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3703,7 +3704,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3740,7 +3741,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3748,7 +3749,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3761,7 +3762,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3769,7 +3770,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -3792,10 +3793,10 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -3808,7 +3809,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3816,7 +3817,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3853,10 +3854,10 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -3869,7 +3870,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3877,7 +3878,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3890,7 +3891,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3898,7 +3899,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -3921,10 +3922,10 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -3937,7 +3938,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -3945,7 +3946,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -3973,10 +3974,10 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -3999,10 +4000,10 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session3.account.get(),
         }),
@@ -4015,7 +4016,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -4023,7 +4024,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -4036,7 +4037,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message5.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -4044,7 +4045,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -4067,10 +4068,10 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message3.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),
@@ -4083,7 +4084,7 @@ test("can unarchive inbox entries", async () => {
             latestMessage: {
                 createdTime: message4.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount2MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -4091,7 +4092,7 @@ test("can unarchive inbox entries", async () => {
                             [scenario.session2.account.id, await scenario.session2.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherChatAccount: expect.any(AccountModel),
         }),
@@ -4142,10 +4143,10 @@ test("notification on an archived entry revives it", async () => {
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -4190,10 +4191,10 @@ test("notification on an archived entry revives it", async () => {
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -4244,10 +4245,10 @@ test("notification on an archived entry from own account does not revive it", as
             latestMessage: {
                 createdTime: message1.createdTime,
                 author: await scenario.session2.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: null,
         }),
@@ -4306,10 +4307,10 @@ test("notification on an archived entry from own account does not revive it", as
             latestMessage: {
                 createdTime: message2.createdTime,
                 author: await scenario.session1.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("message2"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherChatAccount: await scenario.session2.account.get(),
         }),

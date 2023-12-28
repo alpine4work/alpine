@@ -67,7 +67,10 @@ import {
 } from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskUndoStackEntry} from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {
     VirtualizedScrollView,
@@ -97,6 +100,7 @@ const taskDetailViewPaddingTop: Spacing = "5";
 export function TaskDetailView({
     taskSubscription,
     childrenQuery,
+    affinityManager,
     initialChildrenGridViewExpansionState,
     initialBottomGhostTaskId,
     initialNotesVersion,
@@ -104,6 +108,7 @@ export function TaskDetailView({
 }: {
     taskSubscription: TaskClientTaskSubscription;
     childrenQuery: TaskClientQuery;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     initialChildrenGridViewExpansionState: TaskGridViewExpansionState;
     initialBottomGhostTaskId: TaskId;
     initialNotesVersion: number;
@@ -264,6 +269,7 @@ export function TaskDetailView({
             initialGridViewExpansionState: initialChildrenGridViewExpansionState,
             initialBottomGhostTaskId,
         },
+        affinityManager,
         viewRef: childrenGridViewRef,
         getMoveTaskToQueryActions: (taskId, position) => {
             const time1 = store.clock.now();
@@ -309,6 +315,7 @@ export function TaskDetailView({
                 case "Actions": {
                     store.commitTaskActionTransaction(context, entry.undoActions.get(store.clock), {
                         undoManager,
+                        affinityManager,
                         leaseId: entry.leaseId,
                     });
                     break;
@@ -427,6 +434,7 @@ export function TaskDetailView({
                                         <TaskDetailViewMainMemo
                                             ref={mainRef}
                                             taskSubscription={taskSubscription}
+                                            affinityManager={affinityManager}
                                             initialNotesVersion={initialNotesVersion}
                                             initialNotesContent={initialNotesContent}
                                             hasSubtasks={hasSubtasks}
@@ -445,6 +453,7 @@ export function TaskDetailView({
                         [
                             renderChildrenGridViewItem,
                             taskSubscription,
+                            affinityManager,
                             initialNotesVersion,
                             initialNotesContent,
                             hasSubtasks,
@@ -486,6 +495,7 @@ const TaskDetailViewMainMemo = memo(forwardRef(TaskDetailViewMain));
 function TaskDetailViewMain(
     {
         taskSubscription,
+        affinityManager,
         initialNotesVersion,
         initialNotesContent,
         hasSubtasks,
@@ -496,6 +506,7 @@ function TaskDetailViewMain(
         pushRedoStackEntry,
     }: {
         taskSubscription: TaskClientTaskSubscription;
+        affinityManager: TaskClientStoreSearchEntityAffinityManager;
         initialNotesVersion: number;
         initialNotesContent: TaskNotesContentWithReferences;
         hasSubtasks: boolean;
@@ -580,7 +591,9 @@ function TaskDetailViewMain(
                 titleCommitStateRef.current.pendingActionTransactionBuilder.add(titleUpdate);
             } else {
                 titleCommitStateRef.current.pendingActionTransactionBuilder =
-                    store.getTaskUpdateTitleActionTransactionBuilder(taskId, titleUpdate);
+                    store.getTaskUpdateTitleActionTransactionBuilder(taskId, titleUpdate, {
+                        affinityManager,
+                    });
             }
             return;
         }
@@ -600,7 +613,7 @@ function TaskDetailViewMain(
                     },
                 },
             ],
-            {undoManager},
+            {undoManager, affinityManager},
         );
 
         handleCommitPromise(commitPromise);
@@ -785,6 +798,7 @@ function TaskDetailViewMain(
                         currentAccount,
                         store,
                         undoManager,
+                        affinityManager,
                         task,
                     }),
                 );
@@ -865,6 +879,7 @@ function TaskDetailViewMain(
                                 size="5"
                                 store={store}
                                 undoManager={undoManager}
+                                affinityManager={affinityManager}
                                 task={task}
                                 isDisabled={isReadOnly}
                             />
@@ -973,7 +988,7 @@ function TaskDetailViewMain(
                                                 },
                                             },
                                         ],
-                                        {undoManager},
+                                        {undoManager, affinityManager},
                                     );
                                 }}
                             />
@@ -985,6 +1000,7 @@ function TaskDetailViewMain(
                                 ref={collectionsInputRef}
                                 referencesSubscription={taskSubscription}
                                 undoManager={undoManager}
+                                affinityManager={affinityManager}
                                 task={task}
                                 aria-labelledby={ariaLabelledBy}
                                 isReadOnly={isReadOnly}
@@ -1040,7 +1056,7 @@ function TaskDetailViewMain(
                                                         },
                                                     },
                                                 ],
-                                                {undoManager},
+                                                {undoManager, affinityManager},
                                             );
                                         }}
                                         aria-labelledby={ariaLabelledBy}
@@ -1094,7 +1110,7 @@ function TaskDetailViewMain(
                                                         },
                                                     },
                                                 ],
-                                                {undoManager},
+                                                {undoManager, affinityManager},
                                             );
                                         }}
                                         shouldIncludeCalendarIcon={true}

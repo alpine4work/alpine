@@ -1,5 +1,8 @@
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchEntityAffinityManager,
+} from "~/client/tasks/task_client_store.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Context} from "~/shared/context/context.js";
 import {DeadlineExceededError, InternalError} from "~/shared/error/error.js";
@@ -155,6 +158,10 @@ function createTask(
     return TaskModel.createFromAction(store.spaceId, id, time, taskAction, getSortableAccount);
 }
 
+const noopAffinityManager: TaskClientStoreSearchEntityAffinityManager = {
+    markLowIntentUpdateInteraction: () => {},
+};
+
 test("if optimistic task creation is reverted then queries remove the task", async () => {
     const store = new TaskClientStore({
         accountStore,
@@ -237,7 +244,10 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task,
@@ -257,7 +267,10 @@ test("if optimistic task creation is reverted then queries remove the task", asy
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -2233,6 +2246,7 @@ test("references from optimistic task can be removed", async () => {
 
     store.commitTaskActionTransaction(context, [action1, action2, action3, action4], {
         undoManager: null,
+        affinityManager: noopAffinityManager,
     });
 
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
@@ -3768,7 +3782,10 @@ test("optimistic update retains task until resolved", async () => {
         task.id,
     ]);
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(store.getTaskCountForTest()).toEqual(1);
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
@@ -3869,7 +3886,10 @@ test("optimistic update retains task until rejected", async () => {
         task.id,
     ]);
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(store.getTaskCountForTest()).toEqual(1);
     expect(query.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([]);
@@ -4051,7 +4071,10 @@ test("deleting task and all children when subscribed to task and its children", 
 
     const deleteTime = store.clock.now();
 
-    void store.deleteTaskAndAllChildren(context, task1.id, {undoManager: null, time: deleteTime});
+    void store.deleteTaskAndAllChildren(context, task1.id, {
+        undoManager: null,
+        time: deleteTime,
+    });
 
     expect(query1.taskOrderStore.getSnapshot().keys.map(getTaskQuerySortCursorTaskId)).toEqual([
         task1.id,

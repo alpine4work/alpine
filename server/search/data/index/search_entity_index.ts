@@ -23,10 +23,10 @@ import {
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search_entity_job_description.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
-import {internalGetAffinitiveSearchEntityIds} from "~/server/search/core/search_entity_table.js";
+import {internalGetAffinitiveSearchEntityIds} from "~/server/search/data/table/search_entity_table.js";
 import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
-import {getSearchEntity} from "~/server/search/data/internal/get_search_entity.js";
-import {parseSearchContent} from "~/server/search/data/internal/parse_search_content.js";
+import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
+import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
 import {
     SearchEntityIndexDefaultGrantType,
     SearchEntityIndexDefaultGrantTypeIntegerMapping,
@@ -35,8 +35,8 @@ import {
     SearchEntitySemanticIndexDoc,
     SearchEntitySemanticIndexDocType,
     SearchEntitySemanticIndexEmbeddingChunk,
-} from "~/server/search/data/internal/search_entity_index_doc.js";
-import {SearchEntityIndexSystemActionContext} from "~/server/search/data/search_entity_index_system_action_context.js";
+} from "~/server/search/data/index/internal/search_entity_index_doc.js";
+import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Context} from "~/shared/context/context.js";
@@ -1135,7 +1135,8 @@ export async function getAffinitiveSearchEntities(
 
     const entityTitles = await getSearchEntityTitlesIfExist(context, {
         spaceId,
-        entityIds: entityIds.map(({entityId}) => entityId),
+        // NOCOMMIT
+        entityIds: entityIds.map(({entityId}) => entityId) as any,
     });
 
     const entityTitleById = new Map(
@@ -1145,7 +1146,8 @@ export async function getAffinitiveSearchEntities(
     );
 
     return filterMapArray(entityIds, ({entityId, points}) => {
-        const entityTitle = entityTitleById.get(entityId);
+        // NOCOMMIT
+        const entityTitle = entityTitleById.get(entityId as any);
         if (!entityTitle) return null;
 
         return {

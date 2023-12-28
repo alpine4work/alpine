@@ -59,7 +59,11 @@ import {
     useTaskUndoStackState,
 } from "~/client/tasks/internal/use_task_undo_stack_state.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/task_client_store.js";
 import {useHasTaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
     taskRowViewCollectionsColumnWidth,
@@ -217,6 +221,7 @@ export function useTaskGridViewVirtualizedList({
     capabilities,
     store,
     query: rootQueryWithInitialState,
+    affinityManager,
     viewRef,
     getMoveTaskToQueryActions: getMoveTaskToRootQueryActions,
     getMaybeRemoveTaskFromQueryActions: getMaybeRemoveTaskFromRootQueryActions,
@@ -232,6 +237,7 @@ export function useTaskGridViewVirtualizedList({
         initialGridViewExpansionState: TaskGridViewExpansionState;
         initialBottomGhostTaskId: TaskId;
     } | null;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     getMoveTaskToQueryActions: (
         taskId: TaskId,
         position: {type: "End"} | {type: "Above"; taskId: TaskId} | {type: "Below"; taskId: TaskId},
@@ -724,6 +730,7 @@ export function useTaskGridViewVirtualizedList({
                     entry.undoActions.get(store.clock),
                     {
                         undoManager,
+                        affinityManager,
                         leaseId: entry.leaseId,
                     },
                 );
@@ -1793,6 +1800,7 @@ export function useTaskGridViewVirtualizedList({
                                         stateKey={stateKey}
                                         rootQuery={rootQuery}
                                         isRootQueryManuallySorted={isRootQueryManuallySorted}
+                                        affinityManager={affinityManager}
                                         query={rootQuery}
                                         taskKey={bottomGhostTaskId}
                                         cursor={null}
@@ -1872,6 +1880,7 @@ export function useTaskGridViewVirtualizedList({
                                 // If we have a task item then that must mean we have a query.
                                 rootQuery={rootQuery!}
                                 isRootQueryManuallySorted={isRootQueryManuallySorted}
+                                affinityManager={affinityManager}
                                 query={item.query}
                                 taskKey={taskKey}
                                 cursor={item.cursor}
@@ -1937,6 +1946,7 @@ export function useTaskGridViewVirtualizedList({
             }
         };
     }, [
+        affinityManager,
         bottomGhostTaskId,
         capabilities,
         columnHeaderControlsWithMinHeightPx,
@@ -2518,6 +2528,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     stateKey,
     rootQuery,
     isRootQueryManuallySorted,
+    affinityManager,
     query,
     taskKey,
     cursor,
@@ -2543,6 +2554,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
     stateKey: Key | undefined;
     rootQuery: TaskClientQuery;
     isRootQueryManuallySorted: boolean;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     query: TaskClientQuery;
     taskKey: TaskGridViewTaskKey;
     cursor: TaskQuerySortCursor | null;
@@ -2692,7 +2704,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                     taskId ? {type: "Above", taskId} : {type: "End"},
                 ),
             ],
-            {undoManager},
+            {undoManager, affinityManager},
         );
     };
 
@@ -2776,7 +2788,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                             },
                         },
                     ],
-                    {undoManager},
+                    {undoManager, affinityManager},
                 );
 
                 onLayoutEffectCallbacksRef.current.push(() => {
@@ -2809,7 +2821,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                 },
                 ...getMoveTaskToQueryActions(newTaskId, {type: "Below", taskId}),
             ],
-            {undoManager},
+            {undoManager, affinityManager},
         );
 
         onLayoutEffectCallbacksRef.current.push(() => {
@@ -2881,7 +2893,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         // `UpdateParentTaskId` which grants it back.
                         ...maybeRemoveActions,
                     ],
-                    {undoManager},
+                    {undoManager, affinityManager},
                 );
 
                 onLayoutEffectCallbacksRef.current.push(() => {
@@ -2963,7 +2975,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                     // case of conflict.
                     removeAction,
                 ],
-                {undoManager},
+                {undoManager, affinityManager},
             );
         }
         // Move the task to our parent's parent. If we have access to the new parent's
@@ -3012,7 +3024,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         },
                     },
                 ],
-                {undoManager},
+                {undoManager, affinityManager},
             );
         }
 
@@ -3105,7 +3117,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
                         taskAction: {type: "Delete"},
                     },
                 ],
-                {undoManager},
+                {undoManager, affinityManager},
             );
 
             focusPreviousRow(itemIndex);
@@ -3185,6 +3197,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
             query={query}
             isQueryManuallySorted={isQueryManuallySorted}
             undoManager={undoManager}
+            affinityManager={affinityManager}
             cursor={cursor}
             ghostTaskId={ghostTaskId}
             onGhostTaskCreated={events.onGhostTaskCreated}

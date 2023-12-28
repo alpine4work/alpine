@@ -1,5 +1,6 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {AddMarkStep, ReplaceStep} from "prosemirror-transform";
+import {printContentSingleLineTextSnippet} from "~/server/content/print_content_single_line_text_snippet.js";
 import {
     createDocument,
     createDocumentComment,
@@ -122,10 +123,10 @@ test("creating comment threads creates an inbox entry for the document owner", a
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThread1CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("test1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: null,
         }),
@@ -201,10 +202,10 @@ test("creating comment threads creates an inbox entry for the document owner", a
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThread1CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("test1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: null,
         }),
@@ -280,10 +281,10 @@ test("creating comment threads creates an inbox entry for the document owner", a
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThread1CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("test1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: await scenario.session3.account.get(),
         }),
@@ -359,10 +360,10 @@ test("creating comment threads creates an inbox entry for the document owner", a
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThread1CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("test1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: await scenario.session3.account.get(),
         }),
@@ -438,10 +439,10 @@ test("creating comment threads creates an inbox entry for the document owner", a
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThread1CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("test1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: await scenario.session3.account.get(),
         }),
@@ -472,10 +473,10 @@ test("creating comment threads creates an inbox entry for the document owner", a
             firstComment: {
                 author: await scenario.session1.account.get(),
                 createdTime: commentThread5CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("test5"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: null,
         }),
@@ -557,7 +558,7 @@ test("mentioning a user in the initial comment thread creates a comment thread e
             latestComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThread1CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -565,7 +566,7 @@ test("mentioning a user in the initial comment thread creates a comment thread e
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherCommentAuthor: null,
         }),
@@ -640,7 +641,7 @@ test("mentioning a user in the initial comment thread creates a comment thread e
             latestComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThread1CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount1MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -648,7 +649,7 @@ test("mentioning a user in the initial comment thread creates a comment thread e
                             [scenario.session1.account.id, await scenario.session1.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherCommentAuthor: null,
         }),
@@ -669,7 +670,7 @@ test("mentioning a user in the initial comment thread creates a comment thread e
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThread2CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -677,7 +678,7 @@ test("mentioning a user in the initial comment thread creates a comment thread e
                             [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherCommentThreadAuthor: null,
         }),
@@ -716,7 +717,7 @@ test("mentioning a user in the initial comment thread creates a comment thread e
             latestComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThread2CreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: scenario.mentionAccount3MessageContent,
                     references: {
                         ...emptyContentReferences,
@@ -724,7 +725,7 @@ test("mentioning a user in the initial comment thread creates a comment thread e
                             [scenario.session3.account.id, await scenario.session3.account.get()],
                         ]),
                     },
-                },
+                }),
             },
             otherCommentAuthor: null,
         }),
@@ -798,10 +799,10 @@ test("replying creates an inbox entry for subscribers", async () => {
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThreadCreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: null,
         }),
@@ -859,10 +860,10 @@ test("replying creates an inbox entry for subscribers", async () => {
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThreadCreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: null,
         }),
@@ -892,10 +893,10 @@ test("replying creates an inbox entry for subscribers", async () => {
             latestComment: {
                 author: await scenario.session3.account.get(),
                 createdTime: comment2.createdTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment2"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentAuthor: null,
         }),
@@ -944,10 +945,10 @@ test("replying creates an inbox entry for subscribers", async () => {
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThreadCreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: null,
         }),
@@ -986,10 +987,10 @@ test("replying creates an inbox entry for subscribers", async () => {
             latestComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: comment3.createdTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentAuthor: null,
         }),
@@ -1029,10 +1030,10 @@ test("replying creates an inbox entry for subscribers", async () => {
             firstComment: {
                 author: await scenario.session2.account.get(),
                 createdTime: commentThreadCreatedTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment1"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentThreadAuthor: null,
         }),
@@ -1062,10 +1063,10 @@ test("replying creates an inbox entry for subscribers", async () => {
             latestComment: {
                 author: await scenario.session1.account.get(),
                 createdTime: comment4.createdTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentAuthor: await scenario.session3.account.get(),
         }),
@@ -1095,10 +1096,10 @@ test("replying creates an inbox entry for subscribers", async () => {
             latestComment: {
                 author: await scenario.session1.account.get(),
                 createdTime: comment4.createdTime,
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment4"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentAuthor: await scenario.session2.account.get(),
         }),
@@ -1223,10 +1224,10 @@ test("comment notification events processed out of order result in the same late
             latestComment: {
                 createdTime: comment3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentAuthor: null,
         }),
@@ -1256,10 +1257,10 @@ test("comment notification events processed out of order result in the same late
             latestComment: {
                 createdTime: comment3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentAuthor: await scenario.session1.account.get(),
         }),
@@ -1292,10 +1293,10 @@ test("comment notification events processed out of order result in the same late
             latestComment: {
                 createdTime: comment3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentAuthor: null,
         }),
@@ -1325,10 +1326,10 @@ test("comment notification events processed out of order result in the same late
             latestComment: {
                 createdTime: comment3.createdTime,
                 author: await scenario.session3.account.get(),
-                contentSnippet: {
+                contentTextSnippet: printContentSingleLineTextSnippet({
                     doc: createSimpleMessageContent("comment3"),
                     references: emptyContentReferences,
-                },
+                }),
             },
             otherCommentAuthor: await scenario.session1.account.get(),
         }),

@@ -10,7 +10,7 @@ import {
     getSearchEntityAffinityPointsBucket,
     getSearchEntityTableForTest,
     monthDurationMs,
-} from "~/server/search/core/search_entity_table.js";
+} from "~/server/search/data/table/search_entity_table.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {PermissionDeniedError} from "~/shared/error/error.js";

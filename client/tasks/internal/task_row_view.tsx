@@ -68,6 +68,7 @@ import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_b
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {
+    TaskClientStoreSearchEntityAffinityManager,
     TaskClientStoreUndoManager,
     TaskClientStoreUpdateTitleActionTransactionBuilder,
 } from "~/client/tasks/task_client_store.js";
@@ -201,6 +202,7 @@ function TaskRowView(
         query,
         isQueryManuallySorted,
         undoManager,
+        affinityManager,
         cursor,
         ghostTaskId = null,
         onGhostTaskCreated,
@@ -241,6 +243,7 @@ function TaskRowView(
         query: TaskClientQuery;
         isQueryManuallySorted: boolean;
         undoManager: TaskClientStoreUndoManager;
+        affinityManager: TaskClientStoreSearchEntityAffinityManager;
         cursor: TaskQuerySortCursor | null;
         ghostTaskId?: TaskId | null;
         onGhostTaskCreated?: () => void;
@@ -379,6 +382,7 @@ function TaskRowView(
                     query.store.getTaskUpdateTitleActionTransactionBuilder(
                         effectiveTaskId,
                         titleUpdate,
+                        {affinityManager},
                     );
             }
             return;
@@ -870,6 +874,7 @@ function TaskRowView(
                 return query.store.commitTaskActionTransaction(context, getActions(taskId), {
                     ...options,
                     undoManager,
+                    affinityManager,
                 });
             }
 
@@ -904,7 +909,7 @@ function TaskRowView(
                         ...getMoveTaskToQueryActions(ghostTaskId, {type: "End"}),
                         ...getActions(ghostTaskId),
                     ],
-                    {...options, undoManager},
+                    {...options, undoManager, affinityManager},
                 );
 
                 // When we create a new task that occupies our ghost `TaskId` then we need to
@@ -961,6 +966,7 @@ function TaskRowView(
                         currentAccount,
                         store: query.store,
                         undoManager,
+                        affinityManager,
                         task,
                     }),
                 );
@@ -1106,6 +1112,7 @@ function TaskRowView(
                     hasTask ? (
                         <TaskRowViewDragHandle
                             undoManager={undoManager}
+                            affinityManager={affinityManager}
                             task={task}
                             getMaybeRemoveTaskFromQueryActions={getMaybeRemoveTaskFromQueryActions}
                             isHovered={isHovered}
@@ -1173,6 +1180,7 @@ function TaskRowView(
                                 ref={statusButtonRef}
                                 store={query.store}
                                 undoManager={undoManager}
+                                affinityManager={affinityManager}
                                 task={task}
                                 // Disable the ability to tab to this button. Since there are so many tasks and
                                 // the `Tab` keyboard shortcut indents a task, we don't rely on `Tab` for focus
@@ -1324,6 +1332,7 @@ function TaskRowView(
                         isReadOnly={capabilities.isReadOnly}
                         query={query}
                         undoManager={undoManager}
+                        affinityManager={affinityManager}
                         task={task}
                         onCellKeyDown={handleCellKeyDown}
                         onCellKeyDownCapture={handleCellKeyDownCapture}
@@ -1415,11 +1424,13 @@ const taskRowViewDragHandleWidth = addRemLengths(spacing["4"], spacing["0.5"]);
 
 function TaskRowViewDragHandle({
     undoManager,
+    affinityManager,
     task,
     getMaybeRemoveTaskFromQueryActions,
     isHovered,
 }: {
     undoManager: TaskClientStoreUndoManager;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     task: TaskModel | null;
     getMaybeRemoveTaskFromQueryActions: (taskId: TaskId) => Array<TaskAction>;
     isHovered: boolean;
@@ -1438,6 +1449,7 @@ function TaskRowViewDragHandle({
             ? cast<TaskGridViewDraggableData>({
                   type: "Row",
                   undoManager,
+                  affinityManager,
                   taskId: task.id,
                   displayStatus: task.getDisplayStatus(),
                   assigneeAccountId: task.getAssignee()?.assignee.accountId ?? null,

@@ -1,0 +1,25 @@
+load("//admin/typescript:typescript.bzl", "ts_project")
+
+ts_project(
+    name = "table",
+    test_deps = [
+        "//server/documents/test_helpers",
+        "//server/dynamo/test_helpers",
+        "//server/spaces/test_helpers",
+    ],
+    visibility = [
+        "//admin/dynamo:__pkg__",
+        "//server:__subpackages__",
+    ],
+    deps = [
+        "//server/context",
+        "//server/dynamo/core",
+        "//server/search/core",
+        "//server/spaces",
+        "//shared/error",
+        "//shared/helpers",
+        "//shared/id",
+        "//shared/schema",
+        "//shared/search",
+    ],
+)

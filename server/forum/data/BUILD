@@ -20,7 +20,7 @@ ts_project(
         "//app:__pkg__",
         "//server/notifications/data:__pkg__",
         "//server/rpc:__pkg__",
-        "//server/search/data:__pkg__",
+        "//server/search/data/index:__pkg__",
     ],
     deps = [
         "//server/content",
@@ -28,7 +28,7 @@ ts_project(
         "//server/dynamo/core",
         "//server/messaging/helpers",
         "//server/notifications/core",
-        "//server/search/core",
+        "//server/search/data/table",
         "//server/spaces",
         "//shared/accounts",
         "//shared/context",

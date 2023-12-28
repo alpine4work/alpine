@@ -1,5 +1,6 @@
 import {useEffect} from "react";
 import {Params, useParams} from "react-router";
+import {useTaskClientStoreSearchEntityAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {Box} from "~/client/design/box.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -156,9 +157,7 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
     const {
         queries: [childrenQuery],
         taskSubscriptions: [taskSubscription],
-    } = useTaskStoreLoaderDataWithoutRetaining({
-        searchEntityAffinityIdForLowIntentUpdateInteraction: `Task:${taskId}`,
-    });
+    } = useTaskStoreLoaderDataWithoutRetaining();
     assert(childrenQuery && taskSubscription);
 
     // Retain our queries so they aren't destroyed while we're using them.
@@ -194,7 +193,7 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
         return taskSubscription.taskEntryStore.subscribe(update);
     }, [taskSubscription.taskEntryStore, updateMetaTitle]);
 
-    useSearchEntityAffinityViewInteraction(`Task:${taskSubscription.taskId}`);
+    const affinityManager = useTaskClientStoreSearchEntityAffinityManager(`Task:${taskId}`);
 
     return (
         <Box
@@ -220,6 +219,7 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
                         key={taskSubscription.taskId}
                         taskSubscription={taskSubscription}
                         childrenQuery={childrenQuery}
+                        affinityManager={affinityManager}
                         initialChildrenGridViewExpansionState={childrenGridViewExpansionState}
                         initialBottomGhostTaskId={initialBottomGhostTaskId}
                         initialNotesVersion={initialNotesVersion}

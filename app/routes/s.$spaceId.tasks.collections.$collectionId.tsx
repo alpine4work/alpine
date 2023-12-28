@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import {Params, ShouldRevalidateFunction, useParams} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {useTaskClientStoreSearchEntityAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
@@ -336,9 +337,7 @@ function TaskCollectionRouteInner() {
         store,
         queries: [initialQuery],
         collectionSubscriptions: [collectionSubscription],
-    } = useTaskStoreLoaderDataWithoutRetaining({
-        searchEntityAffinityIdForLowIntentUpdateInteraction: `TaskCollection:${collectionId}`,
-    });
+    } = useTaskStoreLoaderDataWithoutRetaining();
 
     // Retain our `collectionSubscription` so it isn't destroyed while we're
     // using it. But we don't retain `initialQuery`! Instead `initialQuery` is
@@ -402,7 +401,7 @@ function TaskCollectionRouteInner() {
 
     useAddTaskCollectionViewingTimeAffinityPoints(collectionSubscription);
 
-    useSearchEntityAffinityViewInteraction(
+    const affinityManager = useTaskClientStoreSearchEntityAffinityManager(
         collectionSubscription ? `TaskCollection:${collectionSubscription.collectionId}` : null,
     );
 
@@ -412,6 +411,7 @@ function TaskCollectionRouteInner() {
                 store={store}
                 collectionId={collectionId}
                 collectionSubscription={collectionSubscription ?? null}
+                affinityManager={affinityManager}
                 initialQuery={
                     initialQuery && collectionState.type === "Exists"
                         ? {

@@ -216,9 +216,9 @@ test("can read a created document", async () => {
         content: content.toJSON(),
     });
     expect(await getDocumentTitle(context.action(session1), documentId)).toEqual("Foo bar");
-    expect((await getDocumentContent(context.action(session1), documentId)).toJSON()).toEqual(
-        content.toJSON(),
-    );
+    expect(
+        (await getDocumentContent(context.action(session1), documentId)).content.toJSON(),
+    ).toEqual(content.toJSON());
     expect(await getDocumentPreviewIfExists(context.action(session1), documentId)).toEqual({
         id: documentId,
         spaceId: space.id,
@@ -6952,7 +6952,13 @@ describe("Comments", () => {
         async getMessagePayload(context, {roomKey, messageIndex: commentIndex}) {
             const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);
 
-            return getDocumentCommentPayload(context, {documentId, commentThreadId, commentIndex});
+            return (
+                await getDocumentCommentPayload(context, {
+                    documentId,
+                    commentThreadId,
+                    commentIndex,
+                })
+            ).payload;
         },
         async updateMessageContent(context, {roomKey, messageIndex: commentIndex, content}) {
             const [documentId, commentThreadId] = decodeDocumentCommentRoomKey(roomKey);

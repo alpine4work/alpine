@@ -7,7 +7,7 @@ import {
     processIndexSearchEntityJob,
     processSearchEntityJobUpdateDependentEntitiesTestCounter,
     searchByKeywords,
-} from "~/server/search/data/search_entity_index.js";
+} from "~/server/search/data/index/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";

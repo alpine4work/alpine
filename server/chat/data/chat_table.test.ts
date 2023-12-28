@@ -3619,7 +3619,7 @@ testMessagingImplementation<ChatId>(context, {
         return getChatMessage(context, {chatId, messageIndex});
     },
     async getMessagePayload(context, {roomKey: chatId, messageIndex}) {
-        return getChatMessagePayload(context, {chatId, messageIndex});
+        return (await getChatMessagePayload(context, {chatId, messageIndex})).payload;
     },
     async updateMessageContent(context, {roomKey: chatId, messageIndex, content}) {
         return updateChatMessageContent(context, {

@@ -23,7 +23,10 @@ import {TaskCollectionChip} from "~/client/tasks/internal/task_collection_chip.j
 import {TaskRowCollectionsCellOverlay} from "~/client/tasks/internal/task_row_collections_cell_overlay.js";
 import {TaskGridViewColumn} from "~/client/tasks/internal/task_row_view.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/task_client_store.js";
 import {
     taskRowViewCollectionsColumnWidth,
     taskRowViewColumnPaddingX,
@@ -101,6 +104,7 @@ function TaskRowCollectionsCell(
         isReadOnly,
         query,
         undoManager,
+        affinityManager,
         task,
         onCellKeyDown,
         onCellKeyDownCapture,
@@ -111,6 +115,7 @@ function TaskRowCollectionsCell(
         isReadOnly: boolean;
         query: TaskClientQuery;
         undoManager: TaskClientStoreUndoManager;
+        affinityManager: TaskClientStoreSearchEntityAffinityManager;
         task: TaskModel | null;
         onCellKeyDown: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
         onCellKeyDownCapture: Memo<(column: TaskGridViewColumn, event: KeyboardEvent) => void>;
@@ -303,6 +308,7 @@ function TaskRowCollectionsCell(
                     isReadOnly={isReadOnly}
                     query={query}
                     undoManager={undoManager}
+                    affinityManager={affinityManager}
                     task={task}
                     focusPreviousCell={() => focusPreviousCell("Collections")}
                     cellRef={cellRef}

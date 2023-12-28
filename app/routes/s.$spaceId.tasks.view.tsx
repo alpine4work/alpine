@@ -1,6 +1,7 @@
 import {useState} from "react";
 import {Params} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {useTaskClientStoreSearchEntityAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -160,12 +161,7 @@ function TaskQueryRouteInner() {
     const {
         store,
         queries: [initialQuery],
-    } = useTaskStoreLoaderDataWithoutRetaining({
-        // We don't have an entity which can accrue affinity points when looking at a
-        // view. Maybe in the future we should allow users to save named views that
-        // appear in search?
-        searchEntityAffinityIdForLowIntentUpdateInteraction: null,
-    });
+    } = useTaskStoreLoaderDataWithoutRetaining();
 
     const [initialFilters] = useState(() => {
         const filtersString = searchParams.get("filter");
@@ -181,10 +177,16 @@ function TaskQueryRouteInner() {
 
     const {filterReferences: initialFilterReferences} = useLoaderDataWithSchema(LoaderSchema);
 
+    // We don't have an entity which can accrue affinity points when looking at a
+    // view. Maybe in the future we should allow users to save named views that
+    // appear in search?
+    const affinityManager = useTaskClientStoreSearchEntityAffinityManager(null);
+
     return (
         <TaskGridViewDndContext store={store}>
             <TaskQueryView
                 store={store}
+                affinityManager={affinityManager}
                 initialQuery={
                     initialQuery
                         ? {

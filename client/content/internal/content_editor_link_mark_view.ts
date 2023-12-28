@@ -5,6 +5,7 @@ import {handleContentLinkClick} from "~/client/content/internal/handle_content_l
 import {tooltipDelayMs} from "~/client/design/tooltip.js";
 import {isModifiedPointerEvent} from "~/client/helpers/events/is_modified_pointer_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
@@ -41,7 +42,7 @@ export function createContentEditorLinkMarkViewConstructor({
             // need to implement that manually here given the text is editable.
             if (
                 (event.button !== 0 || isModifiedPointerEvent(event)) &&
-                !isOpenLinkInSeparateTabPointerEvent(event)
+                !isOpenLinkInSeparateTabPointerEvent(event, getClientInfoWithoutListening())
             ) {
                 return;
             }

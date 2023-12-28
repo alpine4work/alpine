@@ -27,7 +27,11 @@ import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_prio
 import {createGetTaskActionReferencedSortableAccount} from "~/client/tasks/internal/create_get_task_action_referenced_sortable_account.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {disableTaskGridViewAnimationsForTaskIdUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
-import {TaskClientStore, TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/task_client_store.js";
 import {taskRowViewMinHeight} from "~/client/tasks/task_row_shared_styles.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -52,6 +56,7 @@ export type TaskGridViewDraggableData =
     | {
           readonly type: "Row";
           readonly undoManager: TaskClientStoreUndoManager;
+          readonly affinityManager: TaskClientStoreSearchEntityAffinityManager;
           readonly taskId: TaskId;
           readonly displayStatus: TaskDisplayStatus;
           readonly title: TaskTitleModel;
@@ -61,6 +66,7 @@ export type TaskGridViewDraggableData =
     | {
           readonly type: "Card";
           readonly undoManager?: undefined;
+          readonly affinityManager: TaskClientStoreSearchEntityAffinityManager;
           readonly taskId: TaskId;
           readonly displayStatus: TaskDisplayStatus;
           readonly assigneeAccountId: AccountId | null;
@@ -250,6 +256,7 @@ export function TaskGridViewDndContext({
                         if (!wouldCreateCircularDependency) {
                             store.commitTaskActionTransaction(context, actions, {
                                 undoManager: activeData.undoManager,
+                                affinityManager: activeData.affinityManager,
                             });
                         }
                         break;
@@ -304,9 +311,10 @@ export function TaskGridViewDndContext({
                 const actions = overData.getDropActions(activeData, position);
 
                 store.commitTaskActionTransaction(context, actions, {
-                    // Dragging/dropping a row can be undone but dragging/dropping a card is
-                    // currently unsupported.
+                    // Dragging/dropping a row can be undone but we don't currently support undoing
+                    // a drag/drop for a card.
                     undoManager: activeData.undoManager ?? null,
+                    affinityManager: activeData.affinityManager,
                 });
                 break;
             }

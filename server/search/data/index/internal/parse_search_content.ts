@@ -3,7 +3,7 @@ import {fromMarkdown} from "mdast-util-from-markdown";
 import {gfmStrikethroughFromMarkdown} from "mdast-util-gfm-strikethrough";
 import {gfmStrikethrough} from "micromark-extension-gfm-strikethrough";
 import {Fragment, Node} from "prosemirror-model";
-import {newLineRegExp} from "~/server/search/data/internal/chunk_search_content.js";
+import {newLineRegExp} from "~/server/search/data/index/internal/chunk_search_content.js";
 import {HighlightColor} from "~/shared/design/highlight_color.js";
 import {
     DocumentContent,

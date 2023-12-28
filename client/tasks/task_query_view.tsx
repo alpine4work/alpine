@@ -25,7 +25,10 @@ import {
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {useTaskGridViewVirtualizedList} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStore} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStore,
+    TaskClientStoreSearchEntityAffinityManager,
+} from "~/client/tasks/task_client_store.js";
 import {taskRowViewPaddingX} from "~/client/tasks/task_row_shared_styles.js";
 import {useTaskQueryState} from "~/client/tasks/use_task_query_state.js";
 import {
@@ -156,6 +159,7 @@ export function createTaskQueryViewReadOnlyReasonStore({
 
 export function TaskQueryView({
     store,
+    affinityManager,
     initialQuery,
     initialFilters,
     initialFilterReferences,
@@ -164,6 +168,7 @@ export function TaskQueryView({
     onSortsChange,
 }: {
     store: TaskClientStore;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     initialQuery: {
         query: TaskClientQuery;
         initialGridViewExpansionState: TaskGridViewExpansionState;
@@ -295,6 +300,7 @@ export function TaskQueryView({
         ),
         viewRef,
         store,
+        affinityManager,
         query: queryState.activeQuery.query,
         // NOTE(calebmer): Currently, all updates which use this are disabled in
         // auto-sorted views:

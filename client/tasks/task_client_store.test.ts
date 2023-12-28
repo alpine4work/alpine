@@ -3,6 +3,7 @@ import {getAccountClientStoreForClient} from "~/client/accounts/account_client_s
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
 import {
     TaskClientStore,
+    TaskClientStoreSearchEntityAffinityManager,
     setShouldDisableCommitTaskActionTransactionMutexForTest,
 } from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
@@ -284,6 +285,10 @@ function createCollection(
 ) {
     return TaskCollectionModel.createFromAction(store.spaceId, id, time, collectionAction);
 }
+
+const noopAffinityManager: TaskClientStoreSearchEntityAffinityManager = {
+    markLowIntentUpdateInteraction: () => {},
+};
 
 test("backfills an authorized task", () => {
     const store = createAutoRetainStore();
@@ -1416,7 +1421,10 @@ test("applies commit action calls optimistically", async () => {
         },
     } satisfies TaskAction;
 
-    store.commitTaskActionTransaction(context, [action], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action, getSortableAccount),
@@ -1460,7 +1468,10 @@ test("can create tasks optimistically", async () => {
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -1528,7 +1539,10 @@ test("can create then update tasks optimistically", async () => {
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -1550,7 +1564,10 @@ test("can create then update tasks optimistically", async () => {
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -1650,7 +1667,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -1672,7 +1692,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -1797,7 +1820,10 @@ test("can create then update tasks optimistically after an action from the serve
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -1819,7 +1845,10 @@ test("can create then update tasks optimistically after an action from the serve
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -1925,7 +1954,10 @@ test("can create then update tasks optimistically our of order", async () => {
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: null,
@@ -1940,7 +1972,10 @@ test("can create then update tasks optimistically our of order", async () => {
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -2065,7 +2100,10 @@ test("can create then update tasks optimistically out of order after an action f
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -2080,7 +2118,10 @@ test("can create then update tasks optimistically out of order after an action f
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -2194,7 +2235,10 @@ test("can create then update tasks optimistically out of order with more non-cre
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -2209,7 +2253,10 @@ test("can create then update tasks optimistically out of order with more non-cre
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -2227,7 +2274,10 @@ test("can create then update tasks optimistically out of order with more non-cre
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -2360,7 +2410,10 @@ test("resolving task optimistic update after garbage collection is ok", async ()
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -2382,7 +2435,10 @@ test("resolving task optimistic update after garbage collection is ok", async ()
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -2496,7 +2552,10 @@ test("regular task actions are added to optimistic state", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -2608,7 +2667,10 @@ test("regular task actions are added to optimistic state with multiple actions",
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -2651,7 +2713,10 @@ test("regular task actions are added to optimistic state with multiple actions",
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -2766,7 +2831,10 @@ test("regular task actions are added to optimistic state with multiple actions t
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -2809,7 +2877,10 @@ test("regular task actions are added to optimistic state with multiple actions t
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -2898,7 +2969,10 @@ test("regular actions are added to optimistic state when task is not backfilled"
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -2989,7 +3063,10 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -3030,7 +3107,10 @@ test("regular actions are added to optimistic state with multiple actions when t
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -3117,7 +3197,10 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -3158,7 +3241,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -3253,7 +3339,10 @@ test("regular actions are added to optimistic state when task is created optimis
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task,
@@ -3271,7 +3360,10 @@ test("regular actions are added to optimistic state when task is created optimis
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -3420,7 +3512,10 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task,
@@ -3438,7 +3533,10 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -3491,7 +3589,10 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -3642,7 +3743,10 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task,
@@ -3660,7 +3764,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -3713,7 +3820,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -3850,7 +3960,10 @@ test("three optimistic actions when task is not backfilled", async () => {
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -3865,7 +3978,10 @@ test("three optimistic actions when task is not backfilled", async () => {
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -3883,7 +3999,10 @@ test("three optimistic actions when task is not backfilled", async () => {
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -3981,7 +4100,10 @@ test("backfilling a task when none exists and there are optimistic actions works
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -4109,7 +4231,10 @@ test("backfilling a task when one is already backfilled and there are optimistic
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -4233,7 +4358,10 @@ test("backfilling a task when there are optimistic actions but no previously bac
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action3, getSortableAccount),
@@ -4251,7 +4379,10 @@ test("backfilling a task when there are optimistic actions but no previously bac
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -4379,7 +4510,10 @@ test("applies task commit action calls optimistically (rejected)", async () => {
         },
     } satisfies TaskAction;
 
-    store.commitTaskActionTransaction(context, [action], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action, getSortableAccount),
@@ -4423,7 +4557,10 @@ test("can create tasks optimistically (rejected)", async () => {
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -4487,7 +4624,10 @@ test("can create then update tasks optimistically (rejected)", async () => {
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -4509,7 +4649,10 @@ test("can create then update tasks optimistically (rejected)", async () => {
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -4594,7 +4737,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -4616,7 +4762,10 @@ test("can create then update tasks optimistically and resolve commits out of ord
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -4734,7 +4883,10 @@ test("can create then update tasks optimistically after an action from the serve
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -4756,7 +4908,10 @@ test("can create then update tasks optimistically after an action from the serve
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -4843,7 +4998,10 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: null,
@@ -4858,7 +5016,10 @@ test("can create then update tasks optimistically our of order (rejected)", asyn
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -4976,7 +5137,10 @@ test("can create then update tasks optimistically out of order after an action f
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -4991,7 +5155,10 @@ test("can create then update tasks optimistically out of order after an action f
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -5094,7 +5261,10 @@ test("can create then update tasks optimistically out of order with more non-cre
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -5109,7 +5279,10 @@ test("can create then update tasks optimistically out of order with more non-cre
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: null,
@@ -5127,7 +5300,10 @@ test("can create then update tasks optimistically out of order with more non-cre
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action2.taskId)).toEqual({
         task: createTask(store, {
@@ -5244,7 +5420,10 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -5266,7 +5445,10 @@ test("resolving task optimistic update after garbage collection is ok (rejected)
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, action1.taskId)).toEqual({
         task: createTask(store, {
@@ -5380,7 +5562,10 @@ test("regular task actions are added to optimistic state (rejected)", async () =
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -5490,7 +5675,10 @@ test("regular task actions are added to optimistic state with multiple actions (
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -5533,7 +5721,10 @@ test("regular task actions are added to optimistic state with multiple actions (
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -5639,7 +5830,10 @@ test("regular task actions are added to optimistic state with multiple actions t
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -5682,7 +5876,10 @@ test("regular task actions are added to optimistic state with multiple actions t
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -5764,7 +5961,10 @@ test("regular actions are added to optimistic state when task is not backfilled 
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -5855,7 +6055,10 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -5896,7 +6099,10 @@ test("regular actions are added to optimistic state with multiple actions when t
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -5980,7 +6186,10 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6021,7 +6230,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6113,7 +6325,10 @@ test("regular actions are added to optimistic state when task is created optimis
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task,
@@ -6131,7 +6346,10 @@ test("regular actions are added to optimistic state when task is created optimis
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -6273,7 +6491,10 @@ test("regular actions are added to optimistic state with multiple actions when t
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task,
@@ -6291,7 +6512,10 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -6344,7 +6568,10 @@ test("regular actions are added to optimistic state with multiple actions when t
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -6478,7 +6705,10 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task,
@@ -6496,7 +6726,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -6549,7 +6782,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -6671,7 +6907,10 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6686,7 +6925,10 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6704,7 +6946,10 @@ test("three optimistic actions when task is not backfilled (rejected)", async ()
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6796,7 +7041,10 @@ test("backfilling a task when none exists and there are optimistic actions works
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -6922,7 +7170,10 @@ test("backfilling a task when one is already backfilled and there are optimistic
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action2, getSortableAccount),
@@ -7044,7 +7295,10 @@ test("backfilling a task when there are optimistic actions but no previously bac
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task.applyAction(action3, getSortableAccount),
@@ -7062,7 +7316,10 @@ test("backfilling a task when there are optimistic actions but no previously bac
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -7193,7 +7450,10 @@ test("create task applied after optimistic updates", async () => {
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -7234,7 +7494,10 @@ test("create task applied after optimistic updates", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -7332,7 +7595,10 @@ test("create task applied after optimistic updates that are resolved out of orde
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -7373,7 +7639,10 @@ test("create task applied after optimistic updates that are resolved out of orde
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -7474,7 +7743,10 @@ test("create task applied after optimistic updates (rejected)", async () => {
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -7515,7 +7787,10 @@ test("create task applied after optimistic updates (rejected)", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -7606,7 +7881,10 @@ test("create task applied after optimistic updates that are resolved out of orde
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: null,
@@ -7647,7 +7925,10 @@ test("create task applied after optimistic updates that are resolved out of orde
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getTaskEntryIfExists(store, task.id)).toEqual({
         task: task
@@ -7728,7 +8009,10 @@ test("can create then update collections optimistically", async () => {
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -7750,7 +8034,10 @@ test("can create then update collections optimistically", async () => {
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -7853,7 +8140,10 @@ test("can create then update collections optimistically and resolve commits out 
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -7875,7 +8165,10 @@ test("can create then update collections optimistically and resolve commits out 
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -8003,7 +8296,10 @@ test("can create then update collections optimistically after an action from the
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -8025,7 +8321,10 @@ test("can create then update collections optimistically after an action from the
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -8134,7 +8433,10 @@ test("can create then update collections optimistically our of order", async () 
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: null,
@@ -8149,7 +8451,10 @@ test("can create then update collections optimistically our of order", async () 
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -8277,7 +8582,10 @@ test("can create then update collections optimistically out of order after an ac
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -8292,7 +8600,10 @@ test("can create then update collections optimistically out of order after an ac
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -8409,7 +8720,10 @@ test("can create then update collections optimistically out of order with more n
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -8424,7 +8738,10 @@ test("can create then update collections optimistically out of order with more n
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -8442,7 +8759,10 @@ test("can create then update collections optimistically out of order with more n
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -8578,7 +8898,10 @@ test("resolving collection optimistic update after garbage collection is ok", as
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -8600,7 +8923,10 @@ test("resolving collection optimistic update after garbage collection is ok", as
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -8714,7 +9040,10 @@ test("regular collection actions are added to optimistic state", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -8822,7 +9151,10 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -8863,7 +9195,10 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
@@ -8967,7 +9302,10 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -9008,7 +9346,10 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
@@ -9088,7 +9429,10 @@ test("regular actions are added to optimistic state when collection is not backf
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -9179,7 +9523,10 @@ test("regular actions are added to optimistic state with multiple actions when c
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -9220,7 +9567,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -9307,7 +9657,10 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -9348,7 +9701,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -9446,7 +9802,10 @@ test("regular actions are added to optimistic state when collection is created o
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection,
@@ -9464,7 +9823,10 @@ test("regular actions are added to optimistic state when collection is created o
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -9610,7 +9972,10 @@ test("regular actions are added to optimistic state with multiple actions when c
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection,
@@ -9628,7 +9993,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -9679,7 +10047,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
@@ -9819,7 +10190,10 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection,
@@ -9837,7 +10211,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -9888,7 +10265,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
@@ -10013,7 +10393,10 @@ test("three optimistic actions when collection is not backfilled", async () => {
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -10028,7 +10411,10 @@ test("three optimistic actions when collection is not backfilled", async () => {
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -10046,7 +10432,10 @@ test("three optimistic actions when collection is not backfilled", async () => {
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -10144,7 +10533,10 @@ test("backfilling a collection when none exists and there are optimistic actions
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -10268,7 +10660,10 @@ test("backfilling a collection when one is already backfilled and there are opti
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -10391,7 +10786,10 @@ test("backfilling a collection when there are optimistic actions but no previous
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3),
@@ -10409,7 +10807,10 @@ test("backfilling a collection when there are optimistic actions but no previous
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3).applyAction(action2),
@@ -10524,7 +10925,10 @@ test("applies collection commit action calls optimistically (rejected)", async (
         },
     } satisfies TaskAction;
 
-    store.commitTaskActionTransaction(context, [action], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action),
@@ -10571,7 +10975,10 @@ test("can create collections optimistically (rejected)", async () => {
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -10638,7 +11045,10 @@ test("can create then update collections optimistically (rejected)", async () =>
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -10660,7 +11070,10 @@ test("can create then update collections optimistically (rejected)", async () =>
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -10748,7 +11161,10 @@ test("can create then update collections optimistically and resolve commits out 
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -10770,7 +11186,10 @@ test("can create then update collections optimistically and resolve commits out 
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -10891,7 +11310,10 @@ test("can create then update collections optimistically after an action from the
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -10913,7 +11335,10 @@ test("can create then update collections optimistically after an action from the
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11003,7 +11428,10 @@ test("can create then update collections optimistically our of order (rejected)"
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: null,
@@ -11018,7 +11446,10 @@ test("can create then update collections optimistically our of order (rejected)"
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11139,7 +11570,10 @@ test("can create then update collections optimistically out of order after an ac
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -11154,7 +11588,10 @@ test("can create then update collections optimistically out of order after an ac
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11260,7 +11697,10 @@ test("can create then update collections optimistically out of order with more n
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -11275,7 +11715,10 @@ test("can create then update collections optimistically out of order with more n
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: null,
@@ -11293,7 +11736,10 @@ test("can create then update collections optimistically out of order with more n
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action2.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11413,7 +11859,10 @@ test("resolving collection optimistic update after garbage collection is ok (rej
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11435,7 +11884,10 @@ test("resolving collection optimistic update after garbage collection is ok (rej
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, action1.collectionId)).toEqual({
         collection: createCollection(store, {
@@ -11549,7 +12001,10 @@ test("regular collection actions are added to optimistic state (rejected)", asyn
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -11657,7 +12112,10 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -11698,7 +12156,10 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
@@ -11799,7 +12260,10 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -11840,7 +12304,10 @@ test("regular collection actions are added to optimistic state with multiple act
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
@@ -11917,7 +12384,10 @@ test("regular actions are added to optimistic state when collection is not backf
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12008,7 +12478,10 @@ test("regular actions are added to optimistic state with multiple actions when c
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12049,7 +12522,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12133,7 +12609,10 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12174,7 +12653,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12269,7 +12751,10 @@ test("regular actions are added to optimistic state when collection is created o
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection,
@@ -12287,7 +12772,10 @@ test("regular actions are added to optimistic state when collection is created o
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -12430,7 +12918,10 @@ test("regular actions are added to optimistic state with multiple actions when c
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection,
@@ -12448,7 +12939,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -12499,7 +12993,10 @@ test("regular actions are added to optimistic state with multiple actions when c
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
@@ -12633,7 +13130,10 @@ test("regular actions are added to optimistic state with multiple actions that a
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection,
@@ -12651,7 +13151,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -12702,7 +13205,10 @@ test("regular actions are added to optimistic state with multiple actions that a
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3).applyAction(action4),
@@ -12821,7 +13327,10 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12836,7 +13345,10 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12854,7 +13366,10 @@ test("three optimistic actions when collection is not backfilled (rejected)", as
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action4], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action4], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -12946,7 +13461,10 @@ test("backfilling a collection when none exists and there are optimistic actions
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13070,7 +13588,10 @@ test("backfilling a collection when one is already backfilled and there are opti
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2),
@@ -13193,7 +13714,10 @@ test("backfilling a collection when there are optimistic actions but no previous
         authorizationState: null,
     });
 
-    store.commitTaskActionTransaction(context, [action1], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action1], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3),
@@ -13211,7 +13735,10 @@ test("backfilling a collection when there are optimistic actions but no previous
         }),
     });
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action3).applyAction(action2),
@@ -13331,7 +13858,10 @@ test("create collection applied after optimistic updates", async () => {
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13372,7 +13902,10 @@ test("create collection applied after optimistic updates", async () => {
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3),
@@ -13467,7 +14000,10 @@ test("create collection applied after optimistic updates that are resolved out o
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13508,7 +14044,10 @@ test("create collection applied after optimistic updates that are resolved out o
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3),
@@ -13606,7 +14145,10 @@ test("create collection applied after optimistic updates (rejected)", async () =
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13647,7 +14189,10 @@ test("create collection applied after optimistic updates (rejected)", async () =
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3),
@@ -13739,7 +14284,10 @@ test("create collection applied after optimistic updates that are resolved out o
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual(null);
 
-    store.commitTaskActionTransaction(context, [action2], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action2], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: null,
@@ -13780,7 +14328,10 @@ test("create collection applied after optimistic updates that are resolved out o
         authorizationState: expect.objectContaining({value: "Authorized"}),
     });
 
-    store.commitTaskActionTransaction(context, [action3], {undoManager: null});
+    store.commitTaskActionTransaction(context, [action3], {
+        undoManager: null,
+        affinityManager: noopAffinityManager,
+    });
 
     expect(getCollectionEntryIfExists(store, collection.id)).toEqual({
         collection: collection.applyAction(action2).applyAction(action3),

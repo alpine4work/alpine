@@ -16,7 +16,7 @@ import {
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
-import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/internal/get_search_entity.js";
+import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
     getSearchEntityIndexesForTest,
     getSearchEntityTitlesIfExist,
@@ -24,7 +24,7 @@ import {
     processSearchEntityJobFinishedTestCheckpoint,
     searchByKeywords,
     searchBySemantics,
-} from "~/server/search/data/search_entity_index.js";
+} from "~/server/search/data/index/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {updateTaskNotesContent} from "~/server/tasks/data/task_table.js";
@@ -1497,7 +1497,7 @@ test("search by semantics only sees entities the account has access to", async (
                     1,
                     1,
                     new Slice(
-                        new Fragment([TaskNotesContentProsemirrorSchema.text(testBody)]),
+                        Fragment.from([TaskNotesContentProsemirrorSchema.text(testBody)]),
                         0,
                         0,
                     ),

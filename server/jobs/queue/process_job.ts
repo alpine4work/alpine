@@ -1,6 +1,6 @@
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobQueueSystemActionContext} from "~/server/jobs/queue/job_queue_system_action_context.js";
-import {processIndexSearchEntityJob} from "~/server/search/data/search_entity_index.js";
+import {processIndexSearchEntityJob} from "~/server/search/data/index/search_entity_index.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 /**

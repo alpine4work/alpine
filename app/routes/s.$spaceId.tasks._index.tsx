@@ -1,8 +1,8 @@
 import {Params} from "react-router";
 import {useSearchParams} from "react-router-dom";
+import {useTaskClientStoreSearchEntityAffinityManager} from "~/app/helpers/use_task_client_store_search_entity_affinity_manager.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskGridViewDndContext} from "~/client/tasks/task_grid_view_dnd_context.js";
 import {
@@ -226,12 +226,10 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
     const {
         store,
         queries: [assigneeActiveQuery, initialNotepadPageQuery],
-    } = useTaskStoreLoaderDataWithoutRetaining({
-        searchEntityAffinityIdForLowIntentUpdateInteraction: "TaskNotepad",
-    });
+    } = useTaskStoreLoaderDataWithoutRetaining();
     assert(assigneeActiveQuery && initialNotepadPageQuery);
 
-    useSearchEntityAffinityViewInteraction("TaskNotepad");
+    const affinityManager = useTaskClientStoreSearchEntityAffinityManager("TaskNotepad");
 
     return (
         <TaskGridViewDndContext store={store}>
@@ -241,6 +239,7 @@ export default function TasksRoute({withMobileLayout = false}: {withMobileLayout
                 withMobileLayout={withMobileLayout}
                 store={store}
                 assigneeActiveQuery={assigneeActiveQuery}
+                affinityManager={affinityManager}
                 initialQuery={{
                     query: initialNotepadPageQuery,
                     initialGridViewExpansionState: initialNotepadPageGridViewExpansionState,

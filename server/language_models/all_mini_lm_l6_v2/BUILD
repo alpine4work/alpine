@@ -7,7 +7,7 @@ ts_project(
         "//admin/adhoc:__pkg__",
         "//app:__pkg__",
         "//server/jobs/queue:__pkg__",
-        "//server/search/data:__pkg__",
+        "//server/search/data/index:__pkg__",
     ],
     deps = [
         "//:node_modules/@types/fs-extra",

@@ -1,5 +1,5 @@
 import {ServerSystemActionContextModules} from "~/server/context/server_action_context.js";
-import {SearchEntityIndexSystemActionContextModules} from "~/server/search/data/search_entity_index_system_action_context.js";
+import {SearchEntityIndexSystemActionContextModules} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";

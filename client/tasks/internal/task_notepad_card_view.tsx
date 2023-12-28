@@ -21,6 +21,7 @@ import {
     taskNotepadViewActiveSectionCardTranslateDurationMs,
 } from "~/client/tasks/internal/task_notepad_view_active_section.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
+import {TaskClientStoreSearchEntityAffinityManager} from "~/client/tasks/task_client_store.js";
 import {
     TaskGridViewDraggableData,
     TaskGridViewDroppableData,
@@ -37,6 +38,7 @@ export {TaskNotepadCardViewMemo as TaskNotepadCardView};
 
 function TaskNotepadCardView({
     widthStyle,
+    affinityManager,
     query,
     taskId,
     assigneeActivePosition,
@@ -44,6 +46,7 @@ function TaskNotepadCardView({
     deleteTaskAndAllChildren,
 }: {
     widthStyle: string;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
     query: TaskClientQuery;
     taskId: TaskId;
     assigneeActivePosition: TaskPosition;
@@ -110,6 +113,7 @@ function TaskNotepadCardView({
         id: useId(),
         data: {
             type: "Card",
+            affinityManager,
             taskId,
             displayStatus,
             assigneeAccountId: task?.getAssignee()?.assignee.accountId ?? null,
@@ -200,6 +204,7 @@ function TaskNotepadCardView({
                 store,
                 // Can't undo changes from the notepad active section.
                 undoManager: null,
+                affinityManager,
                 task,
             }),
         );

@@ -6,7 +6,7 @@ ts_project(
     visibility = [
         "//app:__pkg__",
         "//server/jobs/queue:__pkg__",
-        "//server/search/data:__pkg__",
+        "//server/search/data/index:__pkg__",
     ],
     deps = [
         ":cohere_embed_english_v3_data",

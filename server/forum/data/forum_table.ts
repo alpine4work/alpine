@@ -23,7 +23,7 @@ import {
     getNotificationPostContentSnippet,
 } from "~/server/notifications/core/get_notification_content_snippet.js";
 import {NotificationsContextModuleBase} from "~/server/notifications/core/notifications_context_module_base.js";
-import {markSearchEntityAffinityInteraction} from "~/server/search/core/search_entity_table.js";
+import {markSearchEntityAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {
     authorizeSpaceAccess,
     getAccount,

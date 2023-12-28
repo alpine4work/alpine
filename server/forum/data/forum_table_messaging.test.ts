@@ -73,7 +73,7 @@ testMessagingImplementation<PostId>(context, {
         return getPostComment(context, {postId, commentIndex});
     },
     async getMessagePayload(context, {roomKey: postId, messageIndex: commentIndex}) {
-        return getPostCommentPayload(context, {postId, commentIndex});
+        return (await getPostCommentPayload(context, {postId, commentIndex})).payload;
     },
     async updateMessageContent(context, {roomKey: postId, messageIndex: commentIndex, content}) {
         return updatePostCommentContent(context, {

@@ -49,7 +49,10 @@ import {
 } from "~/client/tasks/internal/task_collection_combo_box_base.js";
 import {usePreloadAffinitiveTaskCollections} from "~/client/tasks/internal/use_affinitive_task_collections.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
-import {TaskClientStoreUndoManager} from "~/client/tasks/task_client_store.js";
+import {
+    TaskClientStoreSearchEntityAffinityManager,
+    TaskClientStoreUndoManager,
+} from "~/client/tasks/task_client_store.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {addRemLengths, spacing} from "~/shared/design/spacing.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
@@ -94,6 +97,7 @@ function TaskCollectionsInput(
     {
         referencesSubscription,
         undoManager,
+        affinityManager,
         task,
         "aria-label": ariaLabel,
         "aria-labelledby": ariaLabelledBy,
@@ -109,6 +113,7 @@ function TaskCollectionsInput(
     }: {
         referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
         undoManager: TaskClientStoreUndoManager;
+        affinityManager: TaskClientStoreSearchEntityAffinityManager;
         task: TaskModel | null;
         "aria-label"?: string;
         "aria-labelledby"?: string;
@@ -163,6 +168,7 @@ function TaskCollectionsInput(
             store.commitTaskActionTransaction(context, getActions(task.id), {
                 ...options,
                 undoManager,
+                affinityManager,
             });
         });
 
