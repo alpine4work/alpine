@@ -230,7 +230,7 @@ function InboxChatEntryView({entry}: {entry: InboxChatEntryModel}) {
                 </Box>
             ) : (
                 <Box>
-                    You send a chat message to{" "}
+                    You sent a chat message to{" "}
                     {entry.chatAccountCount === 1 ? (
                         "yourself"
                     ) : entry.chatAccountCount === 2 && entry.otherChatAccount ? (
