@@ -8,16 +8,22 @@
 /**
  * When a user adds a task to a collection we grant them this many
  * affinity points.
+ *
+ * @deprecated Should migrate to search entity affinity.
  */
 export const addTaskToCollectionAffinityPoints = 0.2;
 
 /**
  * When the user creates a collection we grant them this many affinity points.
+ *
+ * @deprecated Should migrate to search entity affinity.
  */
 export const createTaskCollectionAffinityPoints = 2;
 
 /**
  * For every 5min the user spends viewing a collection we grant them this many
  * affinity points.
+ *
+ * @deprecated Should migrate to search entity affinity.
  */
 export const taskCollectionAffinityPointsPer5MinOfViewingTime = 1;

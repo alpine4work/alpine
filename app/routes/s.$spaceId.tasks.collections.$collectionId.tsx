@@ -9,7 +9,6 @@ import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
-import {useSearchEntityAffinityViewInteraction} from "~/client/search/use_search_entity_view_affinity_interaction.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {TaskClientCollectionSubscription} from "~/client/tasks/task_client_collection_subscription.js";
@@ -479,6 +478,9 @@ function TaskCollectionRouteInner() {
     );
 }
 
+/**
+ * @deprecated Should migrate to search entity affinity.
+ */
 function useAddTaskCollectionViewingTimeAffinityPoints(
     collectionSubscription: TaskClientCollectionSubscription | undefined,
 ) {

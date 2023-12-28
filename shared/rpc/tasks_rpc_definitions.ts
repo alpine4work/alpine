@@ -120,6 +120,9 @@ export const authorizeTaskAccess = defineRpc({
     },
 });
 
+/**
+ * @deprecated Should migrate to search entity affinity.
+ */
 export const addTaskCollectionAffinityPoints = defineRpc({
     name: "addTaskCollectionAffinityPoints",
     input: {
@@ -130,6 +133,9 @@ export const addTaskCollectionAffinityPoints = defineRpc({
     output: {},
 });
 
+/**
+ * @deprecated Should migrate to search entity affinity.
+ */
 export const getAffinitiveTaskCollections = defineRpc({
     name: "getAffinitiveTaskCollections",
     input: {

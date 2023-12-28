@@ -4501,6 +4501,8 @@ export async function assembleTaskCollectionSearchResults(
  *
  * We have constants for how many points correspond to which actions in
  * `task_collection_affinity_constants.ts`.
+ *
+ * @deprecated Should migrate to search entity affinity.
  */
 export async function addTaskCollectionAffinityPoints(
     context: ServerSessionActionContext,
@@ -4568,6 +4570,8 @@ export async function addTaskCollectionAffinityPoints(
  * Affinitive is the adjective form of "affinity". I learned this from ChatGPT,
  * thanks! (Though ChatGPT did warn me that affinitive is an uncommon word
  * people may not be familiar with.)
+ *
+ * @deprecated Should migrate to search entity affinity.
  */
 export async function getAffinitiveTaskCollections(
     context: ServerSessionActionContext,
