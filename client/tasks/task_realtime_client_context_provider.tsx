@@ -171,7 +171,7 @@ export function useTaskStoreLoaderDataWithoutRetaining(): {
 
     const loaderData = useLoaderData();
 
-    const {queries, taskSubscriptions, collectionSubscriptions} = loaderData[
+    const {queries, taskSubscriptions, collectionSubscriptions} = (loaderData ?? {})[
         taskStoreLoaderDataSymbol
     ] ?? {
         queries: [],

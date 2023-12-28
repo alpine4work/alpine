@@ -3634,7 +3634,6 @@ export class TaskClientStoreInternal {
                 }
 
                 const batchUpdate = {
-                    origin,
                     taskEntryUpdateById,
                     collectionEntryUpdateById,
                 };

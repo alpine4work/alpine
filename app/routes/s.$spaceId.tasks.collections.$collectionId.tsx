@@ -23,6 +23,7 @@ import {
 } from "~/client/tasks/task_realtime_client_context_provider.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
+import {markSearchEntityAffinityInteraction} from "~/server/search/data/table/search_entity_table.js";
 import {getTaskQueryFilterReferences} from "~/server/tasks/data/get_task_query_filter_references.js";
 import {
     authorizeTaskCollectionAccess,
@@ -135,6 +136,17 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
                     },
                 },
             ]);
+
+            // NOTE(calebmer): Normally affinity points for committing task actions is
+            // added on the client through the `affinityManager` object. Since we create
+            // the collection on the server here, we need to manually add affinity points.
+            context.process.waitUntil(
+                markSearchEntityAffinityInteraction(context, {
+                    spaceId,
+                    entityId: `TaskCollection:${collectionId}`,
+                    interaction: {type: "HighIntentUpdate"},
+                }),
+            );
         } catch (error) {
             if (!(error instanceof FailedPreconditionError)) {
                 throw error;

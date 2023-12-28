@@ -56,6 +56,12 @@ export function useTaskClientStoreSearchEntityAffinityManager(
                     {oldCollectionEntry, newCollectionEntry},
                 ] of update.collectionEntryUpdateById) {
                     // If the user creates a collection, count that as a high intent interaction:
+                    //
+                    // NOTE(calebmer): When creating a task collection from the task dropdown menu,
+                    // then `commitTaskActionTransaction()` is called on the server instead of on
+                    // the client so `affinityManager` doesn't see it. Make sure to add affinity
+                    // points in the `s.$spaceId.tasks.collections.$collectionId.tsx` Remix loader
+                    // as well.
                     if (!oldCollectionEntry && newCollectionEntry) {
                         // If this errs it will show up in our telemetry but we don't care about
                         // it here.
