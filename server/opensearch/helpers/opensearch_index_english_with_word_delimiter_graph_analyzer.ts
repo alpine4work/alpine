@@ -4,7 +4,6 @@ import {
     OpensearchIndexAnalysisCustomAnalyzer,
     OpensearchIndexAnalysisCustomFilter,
 } from "~/server/opensearch/opensearch_index_analysis.js";
-import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 
 /**
  * We add the `word_delimiter_graph` filter to the [default English language
@@ -100,11 +99,17 @@ const englishStopWords = new Set([
 export function approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(
     text: string,
 ) {
+    const tokens: Array<{
+        sourceStartIndex: number;
+        sourceLength: number;
+        text: string;
+    }> = [];
+
     // `standard` tokenizer. See:
     // https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-standard-analyzer.html
     const spans = findUnicodeDefaultWordBoundarySpans(text);
 
-    const tokens = filterMapIterable(spans, span => {
+    for (const span of spans) {
         let text = span.text;
 
         // Remove whitespace spans. See:
@@ -112,7 +117,7 @@ export function approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterG
         // https://unicode.org/reports/tr29/#Default_Word_Boundaries
         // eslint-disable-next-line no-control-regex
         if (/^[\u000D\u000A\u000B\u000C\u0085\u2028\u2029]|\p{Zs}+$/u.test(text)) {
-            return null;
+            continue;
         }
 
         // `stemmer` filter with `possessive_english` language. See:
@@ -135,7 +140,7 @@ export function approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterG
         // `stop` filter with `_english_` stopwords list. See:
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-stop-tokenfilter.html
         if (englishStopWords.has(text)) {
-            return null;
+            continue;
         }
 
         // `stemmer` filter with `english` language. Uses the Porter stemming
@@ -144,12 +149,20 @@ export function approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterG
         // https://snowballstem.org/algorithms/porter/stemmer.html
         text = stemmer(text);
 
-        return {
+        // Throw out non-alphanumeric tokens like `word_delimiter_graph`. We don't
+        // currently split at letter-number transitions or case transitions like
+        // `word_delimiter_graph`.
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-word-delimiter-graph-tokenfilter.html
+        if (/^[^\p{Ll}\p{Lm}\p{Lo}\p{Lt}\p{Lu}\p{Nd}|\p{Nl}|\p{No}]+$/u.test(text)) {
+            continue;
+        }
+
+        tokens.push({
             sourceStartIndex: span.start,
-            sourceLength: span.length,
+            sourceLength: text.length,
             text,
-        };
-    });
+        });
+    }
 
     return tokens;
 }

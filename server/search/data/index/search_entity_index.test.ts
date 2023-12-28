@@ -1373,6 +1373,81 @@ Or an ordered list?
     ]);
 });
 
+test("contractions stay when analyzing text", async () => {
+    expect(
+        await context.opensearch
+            .analyze(
+                SearchEntityKeywordIndex,
+                opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
+                "Grossman commented on his non-conservative play style in a 2017 interview stating, \"Coach Spurrier instilled in me, don't check down if the big play's there. So that’s kind of how I was born. I always wanted to shoot a three-pointer in basketball, hit a home run in baseball. I don't know why, that's just, like, who I am.\" During Week 12 of the 2006 season, Grossman threw a game-ending interception while attempting a deep pass to Rashied Davis.",
+            )
+            .then(tokens => tokens.map(({token}) => token)),
+    ).toEqual([
+        "grossman",
+        "comment",
+        "hi",
+        "non",
+        "conserv",
+        "plai",
+        "style",
+        "2017",
+        "interview",
+        "state",
+        "coach",
+        "spurrier",
+        "instil",
+        "me",
+        "don",
+        "t",
+        "check",
+        "down",
+        "big",
+        "plai",
+        "so",
+        "kind",
+        "how",
+        "i",
+        "born",
+        "i",
+        "alwai",
+        "want",
+        "shoot",
+        "three",
+        "pointer",
+        "basketbal",
+        "hit",
+        "home",
+        "run",
+        "basebal",
+        "i",
+        "don",
+        "t",
+        "know",
+        "why",
+        "just",
+        "like",
+        "who",
+        "i",
+        "am",
+        "dure",
+        "week",
+        "12",
+        "2006",
+        "season",
+        "grossman",
+        "threw",
+        "game",
+        "end",
+        "intercept",
+        "while",
+        "attempt",
+        "deep",
+        "pass",
+        "rashi",
+        "davi",
+    ]);
+});
+
 test("search by keywords only sees entities the account has access to", async () => {
     const space = await TestSpace.create(context);
     const otherSpace = await TestSpace.create(context);
