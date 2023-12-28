@@ -48,6 +48,12 @@ const SearchEntityTable = DynamoTableSchema.new({
                          * to apply to `points`.
                          */
                         lastUpdatedTime: Schema.integer,
+
+                        /**
+                         * The last time this search entity was viewed. Useful for showing the user a
+                         * "last opened" date.
+                         */
+                        lastViewedTime: Schema.date.nullable().default(null),
                     }),
                 },
             ],
@@ -179,6 +185,7 @@ export function markSearchEntityAffinityInteraction(
         spaceId,
         entityId,
         points,
+        shouldUpdateLastViewedTime: interaction.type === "View",
     });
 }
 
@@ -188,10 +195,12 @@ async function addSearchEntityAffinityPoints(
         spaceId,
         entityId,
         points,
+        shouldUpdateLastViewedTime,
     }: {
         spaceId: SpaceId;
         entityId: SearchEntityAffinityId;
         points: number;
+        shouldUpdateLastViewedTime: boolean;
     },
 ) {
     // Optimization: We don't authorize whether the actor has access to the entity.
@@ -233,6 +242,9 @@ async function addSearchEntityAffinityPoints(
                 points: newPoints,
                 pointsBucket: newPointsBucket,
                 lastUpdatedTime: currentTime,
+                lastViewedTime: shouldUpdateLastViewedTime
+                    ? new Date(currentTime)
+                    : affinityItem?.lastViewedTime ?? null,
                 expirationTime,
             };
         },
