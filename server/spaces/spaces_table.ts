@@ -555,6 +555,11 @@ export async function getSpace(
  *
  * Returns in `AccountId` order.
  */
+// TODO(calebmer): Should eventually migrate this to the search system. When
+// you initially open an account picker it should show affinitive accounts
+// first (based on search entity affinity points). Then you search that list.
+// Though if a space has <100 accounts we probably still want to load the
+// entire list of accounts to the client instead of searching in OpenSearch.
 export async function expensivelyGetAllSpaceAccounts(
     context: ServerActionContext,
     spaceId: SpaceId,
