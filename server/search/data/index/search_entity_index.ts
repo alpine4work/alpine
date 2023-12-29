@@ -1043,8 +1043,6 @@ export async function searchBySemantics(
             // with OpenSearch's highlighter. For example, we don't support highlighting
             // tokens that would have been split up by the `word_delimiter_graph` filter
             // and we don't support highlighting typos from a fuzzy match.
-            //
-            // NOCOMMIT: Test this highlighting! Make sure to test a snippet with a header.
             if (rawBodyTextSnippet) {
                 let offsetIndex = 0;
                 const highlightTagStart = "<em>";

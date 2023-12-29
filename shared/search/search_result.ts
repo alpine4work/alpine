@@ -28,7 +28,7 @@ export const SearchResultMediaSchema = Schema.union({
 
 export const SearchResultSchema = Schema.object({
     entityId: SearchEntityOrEntityAffinityIdSchema,
-    score: Schema.float, // NOCOMMIT: In debug mode we need more info?
+    score: Schema.float,
     title: Schema.string.nullable(),
     bodyTextSnippet: Schema.array(
         Schema.object({

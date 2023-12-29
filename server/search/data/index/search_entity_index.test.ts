@@ -18,8 +18,8 @@ import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/ope
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
-    getSearchEntityIndexesForTest,
     getSearchEntitiesTitleAndMediaIfExist,
+    getSearchEntityIndexesForTest,
     processIndexSearchEntityJob,
     processSearchEntityJobFinishedTestCheckpoint,
     searchByKeywords,
@@ -1749,4 +1749,52 @@ test("get search entities only sees entities the account has access to", async (
             `TaskCollection:${collection3.id}`,
         ].sort(defaultCompareStrings),
     );
+});
+
+test("search by semantics will highlight matching words", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {
+        title: "This is a test",
+        body: `The body also contains the word “test.” Nice. ${createArrayWithLength(
+            100,
+            () => "test",
+        ).join(" ")}`,
+    });
+
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+    await context.opensearch.refresh(SearchEntitySemanticIndex);
+
+    expect(
+        await searchBySemantics(
+            session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
+            {spaceId: space.id, queryText: "test", limit: 100},
+        ),
+    ).toEqual({
+        results: [
+            {
+                entityId: `Document:${document.id}`,
+                score: expect.any(Number),
+                title: "This is a test",
+                bodyTextSnippet: [
+                    {text: "The body also contains the word “", isHighlighted: false},
+                    {text: "test", isHighlighted: true},
+                    {text: ".” Nice. ", isHighlighted: false},
+                    ...createArrayWithLength(100, i =>
+                        i === 0
+                            ? [{text: "test", isHighlighted: true}]
+                            : [
+                                  {text: " ", isHighlighted: false},
+                                  {text: "test", isHighlighted: true},
+                              ],
+                    ).flat(),
+                ],
+                media: null,
+            },
+        ],
+    });
 });

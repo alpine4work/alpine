@@ -161,7 +161,6 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
     }
 }
 
-// NOCOMMIT: Real limit
 const affinitiveSearchEntitiesLimit = 40;
 
 /**

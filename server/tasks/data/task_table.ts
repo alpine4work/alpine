@@ -248,8 +248,8 @@ const TaskTable = DynamoTableSchema.new({
                  *
                  * [1]: https://en.wikipedia.org/wiki/Exponential_decay#Natural_sciences
                  */
-                // NOCOMMIT: Get rid of custom task collection affinity and search and replace
-                // with our search system?
+                // TODO(calebmer): Get rid of custom task collection affinity and search and replace
+                // with our search system.
                 {
                     name: "TaskCollectionAffinity",
                     sortKeyAttributes: {
