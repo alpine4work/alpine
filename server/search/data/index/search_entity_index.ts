@@ -1221,8 +1221,6 @@ export async function getAffinitiveSearchEntities(
         ),
     );
 
-    // NOCOMMIT: Don't update view time in search
-
     const results = await runAllPromises(
         filterMapArray(
             entityIds,

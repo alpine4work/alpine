@@ -1,5 +1,6 @@
 import {useEffect} from "react";
 import {useAppContext} from "~/client/context/app_context.js";
+import {usePeekContext} from "~/client/peek/peek_remix_embed.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {MonotonicClock} from "~/shared/helpers/clock/monotonic_clock.js";
@@ -24,11 +25,18 @@ export function useSearchEntityAffinityViewInteraction(entityId: SearchEntityAff
     const context = useAppContext();
     const {space} = useSpaceContext();
 
+    // When rendered in a peek, the peek may disable view interaction tracking. If
+    // you only briefly view a search entity from within the search window's peek,
+    // that shouldn't add to the affinity score.
+    const withoutSearchEntityViewAffinityInteraction =
+        usePeekContext()?.withoutSearchEntityViewAffinityInteraction ?? false;
+
     // Every 5min while our this hook is mounted we add to the entity's
     // affinity score. We don't add to affinity scores while the page is
     // hidden. We resume if the user reopens the page.
     useEffect(() => {
         if (!entityId) return;
+        if (withoutSearchEntityViewAffinityInteraction) return;
 
         const clock = new MonotonicClock(unsynchronizedSystemClock);
 
@@ -131,5 +139,5 @@ export function useSearchEntityAffinityViewInteraction(entityId: SearchEntityAff
                 state = null;
             }
         };
-    }, [context, entityId, space.id]);
+    }, [context, entityId, space.id, withoutSearchEntityViewAffinityInteraction]);
 }

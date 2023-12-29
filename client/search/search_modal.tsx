@@ -490,6 +490,13 @@ function SearchModalPeekContent({peek}: {peek: PeekSwitcherStatePeek<{entityId: 
                 <PeekRemixEmbed
                     peekId={peek.id}
                     withMobileLayout={true}
+                    // Don't record view interactions when looking at a search entity in the search
+                    // modal. The user is discovering an entity to open so may have pretty low
+                    // intent when looking at an entity.
+                    //
+                    // This also means the "last opened" time we show for affinitive search entities
+                    // won't change.
+                    withoutSearchEntityViewAffinityInteraction={true}
                     router={routerResult.value}
                 />
             ) : (

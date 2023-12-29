@@ -19,7 +19,6 @@ import {
     UNSAFE_mapRouteProperties as mapRouteProperties,
 } from "react-router";
 import {StaticRouterProvider} from "react-router-dom/server.js";
-import {Box} from "~/client/design/box.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
@@ -32,6 +31,7 @@ import {convertSpacePathToPeekPath, isPeekPath} from "~/shared/remix/peek_path_h
 export type PeekContext = {
     readonly id: PeekId;
     readonly withMobileLayout: boolean;
+    readonly withoutSearchEntityViewAffinityInteraction: boolean;
 };
 
 const PeekContext = createContext<PeekContext | null>(null);
@@ -220,11 +220,13 @@ export function usePeekRemixEmbedRouter() {
 export function PeekRemixEmbed({
     peekId,
     withMobileLayout,
+    withoutSearchEntityViewAffinityInteraction = false,
     router: originalRouter,
     onGoBackOverflow,
 }: {
     peekId: PeekId;
     withMobileLayout: boolean;
+    withoutSearchEntityViewAffinityInteraction?: boolean;
     router: PeekRemixEmbedRouter;
     onGoBackOverflow?: () => void;
 }) {
@@ -289,7 +291,14 @@ export function PeekRemixEmbed({
 
     return (
         <PeekContext.Provider
-            value={useMemo(() => ({id: peekId, withMobileLayout}), [peekId, withMobileLayout])}
+            value={useMemo(
+                () => ({
+                    id: peekId,
+                    withMobileLayout,
+                    withoutSearchEntityViewAffinityInteraction,
+                }),
+                [peekId, withMobileLayout, withoutSearchEntityViewAffinityInteraction],
+            )}
         >
             <UpdateMetaTitleContextProvider
                 // Ignore title updates in a Remix embed. We currently don't render the title
