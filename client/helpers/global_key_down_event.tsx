@@ -15,7 +15,12 @@ import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_er
 import {assert} from "~/shared/helpers/control/assert.js";
 
 type GlobalKeyDownEventContext = {
-    readonly childListeners: Set<(event: KeyboardEvent) => void>;
+    readonly childListeners: Set<
+        (event: KeyboardEvent & {wasPropagationStopped(): boolean}) => void
+    >;
+    readonly modalChildListeners: Set<
+        (event: KeyboardEvent & {wasPropagationStopped(): boolean}) => void
+    >;
 };
 
 const GlobalKeyDownEventContext = createContext<GlobalKeyDownEventContext | null>(null);
@@ -113,10 +118,11 @@ export function GlobalKeyDownEvent({
     children?: ReactNode;
 }) {
     const parentContext = useContext(GlobalKeyDownEventContext);
-    assert(parentContext, "Expected a parent `<GlobalKeyDownContextProvider>` component");
+    assert(parentContext, "Expected a parent `<GlobalKeyDownRootContextProvider>` component");
 
     const [childContext] = useState<GlobalKeyDownEventContext>(() => ({
         childListeners: new Set(),
+        modalChildListeners: parentContext.modalChildListeners,
     }));
 
     const onGlobalKeyDownRef = useRef(onGlobalKeyDown);
@@ -155,19 +161,107 @@ export function GlobalKeyDownEvent({
     );
 }
 
+/**
+ * When this component is rendered, all sibling `<GlobalKeyDownEvent>`s are disabled.
+ * Only child `<GlobalKeyDownEvent>`s may run. Modals block interactivity of all
+ * elements below. Including global keydown event handling.
+ */
+export function GlobalKeyDownEventModal({children}: {children?: ReactNode}) {
+    const parentContext = useContext(GlobalKeyDownEventContext);
+    assert(parentContext, "Expected a parent `<GlobalKeyDownRootContextProvider>` component");
+
+    const [childContext] = useState<GlobalKeyDownEventContext>(() => ({
+        childListeners: new Set(),
+        modalChildListeners: new Set(),
+    }));
+
+    const listener = useMemo(
+        () => createListener(childContext.childListeners, null, null),
+        [childContext.childListeners],
+    );
+
+    const modalListener = useMemo(
+        () => createListener(childContext.modalChildListeners, null, null),
+        [childContext.modalChildListeners],
+    );
+
+    useEffect(() => {
+        const actualListener = (event: KeyboardEvent & {wasPropagationStopped(): boolean}) => {
+            if (childContext.modalChildListeners.size > 0) {
+                modalListener(event);
+            } else {
+                listener(event);
+            }
+        };
+
+        parentContext.modalChildListeners.add(actualListener);
+        return () => {
+            parentContext.modalChildListeners.delete(actualListener);
+        };
+    }, [
+        childContext.modalChildListeners,
+        listener,
+        modalListener,
+        parentContext.modalChildListeners,
+    ]);
+
+    return (
+        <GlobalKeyDownEventContext.Provider value={childContext}>
+            {children}
+        </GlobalKeyDownEventContext.Provider>
+    );
+}
+
 export function GlobalKeyDownRootContextProvider({children}: {children?: ReactNode}) {
     const parentContext = useContext(GlobalKeyDownEventContext);
     assert(
         !parentContext,
-        "Expected this to be the root `<GlobalKeyDownContextProvider>` component",
+        "Expected this to be the root `<GlobalKeyDownRootContextProvider>` component",
     );
 
     const [childContext] = useState<GlobalKeyDownEventContext>(() => ({
         childListeners: new Set(),
+        modalChildListeners: new Set(),
     }));
 
     useEffect(() => {
+        const modalListener = createListener(childContext.modalChildListeners, null, null);
         const listener = createListener(childContext.childListeners, null, null);
+
+        const actualListener = (baseEvent: KeyboardEvent) => {
+            let wasPropagationStopped = false;
+
+            const event = Object.assign(new KeyboardEvent(baseEvent.type, baseEvent), {
+                wasPropagationStopped: () => wasPropagationStopped,
+            });
+
+            const originalPreventDefault = event.preventDefault.bind(event);
+            const originalStopPropagation = event.stopPropagation.bind(event);
+            const originalStopImmediatePropagation = event.stopImmediatePropagation.bind(event);
+
+            event.preventDefault = () => {
+                baseEvent.preventDefault();
+                originalPreventDefault();
+            };
+
+            event.stopPropagation = () => {
+                wasPropagationStopped = true;
+                baseEvent.stopPropagation();
+                originalStopPropagation();
+            };
+
+            event.stopImmediatePropagation = () => {
+                wasPropagationStopped = true;
+                baseEvent.stopImmediatePropagation();
+                originalStopImmediatePropagation();
+            };
+
+            if (childContext.modalChildListeners.size > 0) {
+                modalListener(event);
+            } else {
+                listener(event);
+            }
+        };
 
         // IMPORTANT: Attaching to `window` instead of `document` is important here!
         // React attaches its `keydown` listener on `document` so if a React handler
@@ -175,11 +269,11 @@ export function GlobalKeyDownRootContextProvider({children}: {children?: ReactNo
         // stop another listener on `document` from being called.
         //
         // See: https://github.com/facebook/react/issues/4335#issuecomment-421705171
-        window.addEventListener("keydown", listener);
+        window.addEventListener("keydown", actualListener);
         return () => {
-            window.removeEventListener("keydown", listener);
+            window.removeEventListener("keydown", actualListener);
         };
-    }, [childContext.childListeners]);
+    }, [childContext.childListeners, childContext.modalChildListeners]);
 
     return (
         <GlobalKeyDownEventContext.Provider value={childContext}>
@@ -203,8 +297,12 @@ function GlobalKeyDownManualContextProvider(
     {children}: {children?: ReactNode},
     ref: Ref<GlobalKeyDownManualContextProviderRef>,
 ) {
+    const parentContext = useContext(GlobalKeyDownEventContext);
+    assert(parentContext, "Expected a parent `<GlobalKeyDownRootContextProvider>` component");
+
     const [childContext] = useState<GlobalKeyDownEventContext>(() => ({
         childListeners: new Set(),
+        modalChildListeners: parentContext.modalChildListeners,
     }));
 
     useImperativeHandle(
@@ -224,58 +322,32 @@ function GlobalKeyDownManualContextProvider(
 }
 
 function createListener(
-    childListeners: Set<(event: KeyboardEvent) => void>,
+    childListeners: Set<(event: KeyboardEvent & {wasPropagationStopped(): boolean}) => void>,
     listener: ((event: KeyboardEvent) => void) | null,
     captureListener: ((event: KeyboardEvent) => void) | null,
 ) {
-    return (event: KeyboardEvent) => {
-        const childEvent = new KeyboardEvent(event.type, event);
-
-        let wasPropagationStopped = false;
-
-        const originalPreventDefault = childEvent.preventDefault.bind(childEvent);
-        const originalStopPropagation = childEvent.stopPropagation.bind(childEvent);
-        const originalStopImmediatePropagation =
-            childEvent.stopImmediatePropagation.bind(childEvent);
-
-        childEvent.preventDefault = () => {
-            event.preventDefault();
-            originalPreventDefault();
-        };
-
-        childEvent.stopPropagation = () => {
-            wasPropagationStopped = true;
-            event.stopPropagation();
-            originalStopPropagation();
-        };
-
-        childEvent.stopImmediatePropagation = () => {
-            wasPropagationStopped = true;
-            event.stopImmediatePropagation();
-            originalStopImmediatePropagation();
-        };
-
+    return (event: KeyboardEvent & {wasPropagationStopped(): boolean}) => {
         if (captureListener !== null) {
             try {
-                captureListener(childEvent);
+                captureListener(event);
             } catch (error) {
                 // Errors in listeners should not stop event handling.
                 scheduleUncaughtError(error);
             }
         }
 
-        if (wasPropagationStopped) return;
+        if (event.wasPropagationStopped()) return;
 
         // We call child listeners in reverse order so that components mounted later
         // have the opportunity to intercept keyboard events first.
         for (const listener of Array.from(childListeners).reverse()) {
-            listener(childEvent);
-            if (wasPropagationStopped) return;
+            listener(event);
+            if (event.wasPropagationStopped()) return;
         }
 
         if (listener !== null) {
             try {
-                listener(childEvent);
+                listener(event);
             } catch (error) {
                 // Errors in listeners should not stop event handling.
                 scheduleUncaughtError(error);
