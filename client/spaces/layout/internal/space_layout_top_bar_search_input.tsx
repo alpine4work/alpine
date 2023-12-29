@@ -5,7 +5,7 @@ import {Box} from "~/client/design/box.js";
 import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
-import {SearchModal} from "~/client/search/search_modal.js";
+import {SearchModal, usePreloadAffinitiveSearchEntities} from "~/client/search/search_modal.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
@@ -52,6 +52,11 @@ export function SpaceLayoutTopBarSearchInput({space}: {space: SpaceModel}) {
     });
 
     const lastShiftKeyDownTimeRef = useRef<number | null>(null);
+
+    // Preload affinitive search entities so they're ready when the search modal
+    // opens. We expect search to be the primary way users navigate around the
+    // product.
+    usePreloadAffinitiveSearchEntities();
 
     return (
         <GlobalKeyDownEvent

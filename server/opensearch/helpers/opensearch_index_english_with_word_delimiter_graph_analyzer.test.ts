@@ -20,7 +20,7 @@ test("removes non-alphanumeric characters", () => {
         },
         {
             sourceStartIndex: 9,
-            sourceLength: 7,
+            sourceLength: 9,
             text: "autocod",
         },
     ]);

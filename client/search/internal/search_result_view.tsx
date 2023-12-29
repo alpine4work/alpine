@@ -13,7 +13,7 @@ import {backgroundColorVar, colorSchemeVars, fontSizes, sprinkles} from "~/share
 
 /**
  * Minimum height of the body text snippet in a search result. We show at least
- * two lines when there's no title and one line when there is a title.
+ * two lines when there's no title and zero lines when there is a title.
  *
  * The minimum height of our `<SearchResultView>` determines the size of our
  * search request. More items in our search request means higher search
@@ -21,7 +21,7 @@ import {backgroundColorVar, colorSchemeVars, fontSizes, sprinkles} from "~/share
  * virtualization window.
  */
 const minSearchBodyTextSnippetLineCount = 2;
-const minSearchBodyTextSnippetLineCountWithTitle = 1;
+const minSearchBodyTextSnippetLineCountWithTitle = 0;
 
 const paddingY = "3";
 const searchTypeDisplayNameFontSize = "50";
@@ -35,6 +35,11 @@ const minSearchBodyTextSnippetHeight: RemLength = `${
     minSearchBodyTextSnippetLineCount
 }rem`;
 
+const minSearchBodyTextSnippetHeightWithTitle: RemLength = `${
+    parseRemLengthNumber(fontSizes[searchBodyTextSnippetFontSize].lineHeight) *
+    minSearchBodyTextSnippetLineCountWithTitle
+}rem`;
+
 const minSearchResultViewHeightWithoutPaddingY = addRemLengths(
     fontSizes[searchTypeDisplayNameFontSize].lineHeight,
     spacing[searchTypeDisplayMarginBottom],
@@ -45,32 +50,6 @@ export const minSearchResultViewHeight = addRemLengths(
     spacing[paddingY],
     minSearchResultViewHeightWithoutPaddingY,
     spacing[paddingY],
-);
-
-const minSearchBodyTextSnippetHeightWithTitle: RemLength = `${
-    parseRemLengthNumber(fontSizes[searchBodyTextSnippetFontSize].lineHeight) *
-    minSearchBodyTextSnippetLineCountWithTitle
-}rem`;
-
-const minSearchResultViewHeightWithTitleWithoutPaddingY = addRemLengths(
-    fontSizes[searchTypeDisplayNameFontSize].lineHeight,
-    spacing[searchTypeDisplayMarginBottom],
-    fontSizes[searchTitleFontSize].lineHeight,
-    spacing[searchTitleMarginBottom],
-    minSearchBodyTextSnippetHeightWithTitle,
-);
-
-const minSearchResultViewHeightWithTitle = addRemLengths(
-    spacing[paddingY],
-    minSearchResultViewHeightWithTitleWithoutPaddingY,
-    spacing[paddingY],
-);
-
-// Make sure our min height when there's a title is greater than our min height
-// when there's not a title.
-assert(
-    parseRemLengthNumber(minSearchResultViewHeightWithTitle) >=
-        parseRemLengthNumber(minSearchResultViewHeight),
 );
 
 export function SearchResultView({
@@ -124,8 +103,13 @@ export function SearchResultView({
                     }}
                 >
                     <Box display="flex" gap="3" alignItems="center">
-                        {result.media && <SearchResultMediaView media={result.media} />}
-                        <Box flexGrow="1">
+                        {result.media && (
+                            <SearchResultMediaView media={result.media} isSelected={isSelected} />
+                        )}
+                        <Box
+                            flexGrow="1"
+                            style={{minHeight: minSearchResultViewHeightWithoutPaddingY}}
+                        >
                             <Box
                                 fontSize={searchTypeDisplayNameFontSize}
                                 color="grey-40"
@@ -321,7 +305,13 @@ function getSearchEntityTypeDisplay(type: SearchEntityIdObject["type"]): {
     }
 }
 
-function SearchResultMediaView({media}: {media: SearchResultMedia}) {
+function SearchResultMediaView({
+    media,
+    isSelected,
+}: {
+    media: SearchResultMedia;
+    isSelected: boolean;
+}) {
     let node: ReactNode;
 
     switch (media.type) {

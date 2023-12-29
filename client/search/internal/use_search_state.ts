@@ -1,4 +1,4 @@
-import {RefObject, useEffect, useReducer} from "react";
+import {RefObject, useEffect, useMemo, useReducer} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -7,6 +7,7 @@ import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
+import {scheduleIdlePreloadRpc, useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {
     ExecuteSearchResult,
     emptyExecuteSearchResult,
@@ -24,6 +25,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {getAffinitiveSearchEntities} from "~/shared/rpc/search_rpc_definitions.js";
 
 /**
  * The debounce timeout before we'll send a new search request. Picked so that
@@ -159,6 +161,32 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
     }
 }
 
+// NOCOMMIT: Real limit
+const affinitiveSearchEntitiesLimit = 40;
+
+/**
+ * Preload affinitive search entities when we have some idle time so that they
+ * are immediately available when the search modal opens.
+ */
+export function usePreloadAffinitiveSearchEntities() {
+    const context = useAppContext();
+    const {space} = useSpaceContext();
+
+    useEffect(() => {
+        scheduleIdlePreloadRpc(context, getAffinitiveSearchEntities, {
+            spaceId: space.id,
+            limit: affinitiveSearchEntitiesLimit,
+        });
+    }, [context, space.id]);
+}
+
+/**
+ * Manage state for our search experience.
+ *
+ * - Loads affinitive search results
+ * - Runs, debounced, search queries whenever the query text changes
+ * - Maintains the old search result while waiting on new results
+ */
 export function useSearchState({
     initialQueryText,
     resultListContainerRef,
@@ -172,6 +200,12 @@ export function useSearchState({
 } {
     const context = useAppContext();
     const {space} = useSpaceContext();
+
+    // NOCOMMIT: Affinitive search entities should boost common results
+    const {output} = useLazyLoadLoadRpc(getAffinitiveSearchEntities, {
+        spaceId: space.id,
+        limit: affinitiveSearchEntitiesLimit,
+    });
 
     const [searchState, dispatch] = useReducer(
         reduceSearchState,
@@ -214,7 +248,35 @@ export function useSearchState({
     const result = useStore(searchState.executionStack);
 
     return {
-        result,
+        result: useMemo((): SearchStateExecutionResult => {
+            // If we have an empty query returning no results from our search execution
+            // stack then show search entities the account has some affinity for.
+            if (
+                result.queryText.length === 0 &&
+                !result.isError &&
+                (!result.results || result.results.length === 0)
+            ) {
+                if (!output) {
+                    return {
+                        key: "AffinitiveSearchEntitiesResult",
+                        queryText: result.queryText,
+                        isPending: true,
+                        isError: false,
+                        results: null,
+                    };
+                } else {
+                    return {
+                        key: "AffinitiveSearchEntitiesResult",
+                        queryText: result.queryText,
+                        isPending: result.isPending,
+                        isError: false,
+                        results: output.results,
+                    };
+                }
+            } else {
+                return result;
+            }
+        }, [output, result]),
         queryText: searchState.queryText,
         onQueryTextChange: (queryText: string) =>
             dispatch({type: "ChangeQueryText", time: Date.now(), queryText}),
@@ -230,9 +292,14 @@ export function useSearchState({
  * The `execute()` function is idempotent. You can call it multiple times and
  * it only sends network requests once.
  */
-type SearchStateExecution = Store<ExecuteSearchResult & {readonly key: string}> & {
+type SearchStateExecution = Store<SearchStateExecutionResult> & {
     readonly queryText: string;
     execute(context: AppContext, options: {spaceId: SpaceId; limit: number}): void;
+};
+
+type SearchStateExecutionResult = ExecuteSearchResult & {
+    readonly key: string;
+    readonly queryText: string;
 };
 
 function createSearchStateExecution(queryText: string): SearchStateExecution {
@@ -260,7 +327,7 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
     }
 
     return Object.assign(
-        store.flat().map(result => ({...result, key})),
+        store.flat().map(result => ({...result, key, queryText})),
         {
             queryText,
             execute,
@@ -282,7 +349,7 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
  * The store returns the result of the latest execution in the stack with
  * search results. The `push()` function immutably creates a new stack.
  */
-type SearchStateExecutionStack = Store<ExecuteSearchResult & {readonly key: string}> & {
+type SearchStateExecutionStack = Store<SearchStateExecutionResult> & {
     readonly latestExecution: SearchStateExecution;
     push(execution: SearchStateExecution): SearchStateExecutionStack;
 };
@@ -297,7 +364,7 @@ function createSearchStateExecutionStack(
         return createSearchStateExecutionStack([...stack, execution]);
     };
 
-    const store = computeStore((get): ExecuteSearchResult & {readonly key: string} => {
+    const store = computeStore((get): SearchStateExecutionResult => {
         for (let i = stack.length - 1; i >= 0; i--) {
             const execution = stack[i]!;
 

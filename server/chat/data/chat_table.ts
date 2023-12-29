@@ -298,18 +298,6 @@ export async function createChatForTest(
         ),
     ]);
 
-    context.jobs.send({
-        type: "IndexSearchEntity",
-        spaceId,
-        update: {
-            type: "Chat",
-            chatId: id,
-            // Nothing depends on this entity when it's created. Don't bother trying to
-            // reindex dependencies.
-            updatedTraits: {type: "None"},
-        },
-    });
-
     return {
         id,
         createdTime,
@@ -631,17 +619,8 @@ function actuallyGetOrCreateChatForAccounts(
                         },
                     );
 
-                    context.jobs.send({
-                        type: "IndexSearchEntity",
-                        spaceId,
-                        update: {
-                            type: "Chat",
-                            chatId,
-                            // Nothing depends on this entity when it's created. Don't bother trying to
-                            // reindex dependencies.
-                            updatedTraits: {type: "None"},
-                        },
-                    });
+                    // NOTE(calebmer): We don't send an `IndexSearchEntity` job for chats until the
+                    // first message is sent to that chat.
 
                     return {
                         type: "FoundItems",
@@ -830,6 +809,20 @@ export function sendChatMessage(
                 updatedTraits: {type: "None"},
             },
         });
+
+        // We don't index a chat for search until the first message is sent to
+        // the chat.
+        if (messageIndex === 0) {
+            context.jobs.send({
+                type: "IndexSearchEntity",
+                spaceId: chatItem.spaceId,
+                update: {
+                    type: "Chat",
+                    chatId,
+                    updatedTraits: {type: "Any"},
+                },
+            });
+        }
 
         // Add affinity points to chat. Unless this is a 1:1 chat. For 1:1 chats we
         // want to add affinity points to the account we're messaging. That way we
@@ -1329,6 +1322,7 @@ export async function getChatAccountIds(
 ): Promise<{
     createdTime: Date;
     spaceId: SpaceId;
+    hasMessages: boolean;
     accountIds: ReadonlyArray<AccountId>;
 }> {
     let chatItem: ChatAttributesItem | undefined;
@@ -1393,6 +1387,7 @@ export async function getChatAccountIds(
     return {
         createdTime: chatItem.createdTime,
         spaceId: chatItem.spaceId,
+        hasMessages: chatItem.messagesSummary.messageCount > 0,
         accountIds,
     };
 }

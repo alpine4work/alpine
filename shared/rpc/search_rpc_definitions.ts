@@ -38,3 +38,14 @@ export const markSearchEntityAffinityInteraction = defineRpc({
     },
     output: {},
 });
+
+export const getAffinitiveSearchEntities = defineRpc({
+    name: "getAffinitiveSearchEntities",
+    input: {
+        spaceId: Schema.id<SpaceId>(),
+        limit: Schema.integer,
+    },
+    output: {
+        results: Schema.array(SearchResultSchema),
+    },
+});

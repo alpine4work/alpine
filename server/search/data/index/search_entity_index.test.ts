@@ -19,7 +19,7 @@ import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.
 import {getDocumentSearchEntityTestCheckpoint} from "~/server/search/data/index/internal/get_search_entity.js";
 import {
     getSearchEntityIndexesForTest,
-    getSearchEntityTitlesIfExist,
+    getSearchEntitiesTitleAndMediaIfExist,
     processIndexSearchEntityJob,
     processSearchEntityJobFinishedTestCheckpoint,
     searchByKeywords,
@@ -1699,7 +1699,7 @@ test("get search entities only sees entities the account has access to", async (
     await context.opensearch.refresh(SearchEntitySemanticIndex);
 
     const getSearchEntityIds = async (context: ServerSessionActionContext, space: TestSpace) => {
-        const entities = await getSearchEntityTitlesIfExist(context, {
+        const entities = await getSearchEntitiesTitleAndMediaIfExist(context, {
             spaceId: space.id,
             entityIds: [
                 `Document:${document.id}`,

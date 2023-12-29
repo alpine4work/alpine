@@ -6,6 +6,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/d3-interpolate",
         "//:node_modules/d3-interpolate",
+        "//:node_modules/date-fns",
         "//shared/helpers",
     ],
 )

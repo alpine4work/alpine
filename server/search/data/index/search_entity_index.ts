@@ -41,6 +41,7 @@ import {internalGetAffinitiveSearchEntityIds} from "~/server/search/data/table/s
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Context} from "~/shared/context/context.js";
+import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
@@ -61,8 +62,8 @@ import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.j
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
 import {
     SearchEntityId,
     parseSearchEntityId,
@@ -1144,10 +1145,16 @@ async function prepareSearchEntityMediaForResult(
  * Get the titles of the provided search entities if the search entity exists
  * and the account has access to the search entity.
  */
-export async function getSearchEntityTitlesIfExist(
+export async function getSearchEntitiesTitleAndMediaIfExist(
     context: ServerSessionActionContext,
     {spaceId, entityIds}: {spaceId: SpaceId; entityIds: ReadonlyArray<SearchEntityId>},
-): Promise<ReadonlyArray<{id: SearchEntityId; title: string | null} | null>> {
+): Promise<
+    ReadonlyArray<{
+        id: SearchEntityId;
+        title: string | null;
+        media: SearchEntityMedia | null;
+    } | null>
+> {
     await authorizeSpaceAccess(context, spaceId);
 
     const docs = await context.opensearch.multiGetDocsIfExist(
@@ -1160,6 +1167,7 @@ export async function getSearchEntityTitlesIfExist(
                     {
                         storedFields: [
                             "title",
+                            "media",
                             "accessPolicy.accountGrantAccountIds",
                             "accessPolicy.defaultGrantType",
                         ],
@@ -1181,8 +1189,9 @@ export async function getSearchEntityTitlesIfExist(
         if (!isAccessAuthorized) return null;
 
         const title = doc.fields.title?.[0] ?? null;
+        const media = doc.fields.media?.[0] ?? null;
 
-        return {id: doc.id, title};
+        return {id: doc.id, title, media};
     });
 }
 
@@ -1196,34 +1205,78 @@ export async function getSearchEntityTitlesIfExist(
 export async function getAffinitiveSearchEntities(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
-): Promise<
-    Array<{
-        entityId: SearchEntityAffinityId;
-        points: number;
-        title: string;
-    }>
-> {
+): Promise<{results: Array<SearchResult>}> {
+    const currentTime = new Date();
+
     const entityIds = await internalGetAffinitiveSearchEntityIds(context, {spaceId, limit});
 
-    const entityTitles = await getSearchEntityTitlesIfExist(context, {
+    const entitiesTitleAndMedia = await getSearchEntitiesTitleAndMediaIfExist(context, {
         spaceId,
-        entityIds: entityIds.map(({entityId}) => entityId),
+        entityIds: filterMapArray(entityIds, ({entityId}): SearchEntityId | null =>
+            entityId !== "TaskNotepad" ? entityId : null,
+        ),
     });
 
-    const entityTitleById = new Map(
-        filterMapIterable(entityTitles, entityTitle =>
-            entityTitle ? [entityTitle.id, entityTitle] : null,
+    const entityTitleAndMediaById = new Map(
+        filterMapIterable(entitiesTitleAndMedia, entityTitleAndMedia =>
+            entityTitleAndMedia ? [entityTitleAndMedia.id, entityTitleAndMedia] : null,
         ),
     );
 
-    return filterMapArray(entityIds, ({entityId, points}) => {
-        const entityTitle = entityTitleById.get(entityId);
-        if (!entityTitle) return null;
+    // NOCOMMIT: Don't update view time in search
 
-        return {
-            entityId,
-            points,
-            title: entityTitle.title,
-        };
-    });
+    const results = await runAllPromises(
+        filterMapArray(
+            entityIds,
+            ({entityId, points, lastViewedTime}): MaybePromise<SearchResult> | null => {
+                const bodyTextSnippet = [
+                    {
+                        isHighlighted: false,
+                        text: lastViewedTime
+                            ? `Last opened ${formatPrettyRelativeDateWithoutFullTimeTooltip(
+                                  currentTime,
+                                  lastViewedTime,
+                                  "Days",
+                              )}`
+                            : "Never opened",
+                    },
+                ];
+
+                if (entityId === "TaskNotepad") {
+                    // NOCOMMIT
+                    return null;
+
+                    return {
+                        entityId,
+                        score: points,
+                        title: "Task notepad",
+                        bodyTextSnippet,
+                        media: null,
+                    };
+                }
+
+                const entityTitleAndMedia = entityTitleAndMediaById.get(entityId);
+                if (!entityTitleAndMedia) return null;
+
+                return Promise.resolve(
+                    entityTitleAndMedia.media
+                        ? prepareSearchEntityMediaForResult(
+                              context,
+                              spaceId,
+                              entityId,
+                              entityTitleAndMedia.media,
+                          )
+                        : null,
+                ).then(media => ({
+                    entityId,
+                    score: points,
+                    title: entityTitleAndMedia.title,
+                    bodyTextSnippet,
+                    media,
+                }));
+            },
+        ),
+    );
+
+    return {results};
 }

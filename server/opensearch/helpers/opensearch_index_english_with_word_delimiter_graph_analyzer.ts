@@ -159,7 +159,7 @@ export function approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterG
 
         tokens.push({
             sourceStartIndex: span.start,
-            sourceLength: text.length,
+            sourceLength: span.length,
             text,
         });
     }

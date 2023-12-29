@@ -37,6 +37,10 @@ import {
 import {SearchResult} from "~/shared/search/search_result.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
+// Export the preload hook from our internal folder so it can be used by code
+// depending on `//client/search`.
+export {usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_search_state.js";
+
 // NOCOMMIT: Loading spinner
 
 // NOCOMMIT: If you've selected something and new search results came in, try

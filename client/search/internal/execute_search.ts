@@ -5,6 +5,7 @@ import {Store} from "~/client/helpers/store/store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {searchByKeywords, searchBySemantics} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
 import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 
@@ -170,7 +171,10 @@ function fuseSearchResults(
     // to the first position.
     const rankConstant = 5;
 
-    const newResultByEntityId = new Map<SearchEntityId, {rescore: number; result: SearchResult}>();
+    const newResultByEntityId = new Map<
+        SearchEntityId | SearchEntityAffinityId,
+        {rescore: number; result: SearchResult}
+    >();
 
     for (const results of resultSets) {
         let lastScore: number | null = null;

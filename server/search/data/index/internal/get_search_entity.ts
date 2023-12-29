@@ -295,7 +295,7 @@ class SearchEntityReadState {
 
     public getChatAccountIds(
         chatId: ChatId,
-    ): Promise<{createdTime: Date; accountIds: ReadonlyArray<AccountId>}> {
+    ): Promise<{createdTime: Date; hasMessages: boolean; accountIds: ReadonlyArray<AccountId>}> {
         this._recordDependencyId(`Chat:${chatId}`);
 
         return getChatAccountIds(this._context, chatId, {
@@ -741,7 +741,28 @@ async function getChatSearchEntity(
     state: SearchEntityReadState,
     chatId: ChatId,
 ): Promise<SearchEntity> {
-    const {createdTime, accountIds} = await state.getChatAccountIds(chatId);
+    const {createdTime, hasMessages, accountIds} = await state.getChatAccountIds(chatId);
+
+    // If the chat has no messages yet, don't index any content. This means the
+    // chat won't show up in search. We don't show the chat in search until it gets
+    // its first message.
+    //
+    // NOCOMMIT: Test this! Also test that chats are reindexed when a message is
+    // sent
+    if (!hasMessages) {
+        return {
+            id: `Chat:${chatId}`,
+            accessPolicy: {
+                accountGrantAccountIds: new Set(accountIds),
+                defaultGrantType: null,
+            },
+            createdTime,
+            title: null,
+            body: null,
+            media: null,
+            embeddingChunks: [],
+        };
+    }
 
     const accounts = await runAllPromises(accountIds.map(accountId => state.getAccount(accountId)));
 

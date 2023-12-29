@@ -1,10 +1,10 @@
-import {differenceInMonths, differenceInYears} from "date-fns";
 import {SpinnerGap} from "phosphor-react";
 import {useEffect, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
+import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {spinAnimationClassName} from "~/shared/styles/styles.js";
@@ -61,9 +61,13 @@ export function TaskCollectionOption({
                 <Box fontStyle="truncate">{collectionResult.collection.getName()}</Box>
                 <Box fontSize="50" color={taskCollectionOptionSecondaryTextColor}>
                     {getTaskCollectionTaskCountSummary(collectionResult)},{" "}
-                    {getTaskCollectionLastUpdateTimeSummary(
-                        collectionResult,
+                    {!collectionResult.lastTaskAddedTime ? " created " : " updated "}
+                    {formatPrettyRelativeDateWithoutFullTimeTooltip(
                         useCurrentTimeRoundedToHour(),
+                        !collectionResult.lastTaskAddedTime
+                            ? new Date(collectionResult.collection.getCreatedTime()[0])
+                            : new Date(collectionResult.lastTaskAddedTime[0]),
+                        "Weeks",
                     )}
                 </Box>
             </Box>
@@ -85,51 +89,5 @@ function getTaskCollectionTaskCountSummary(collectionResult: TaskCollectionModel
         return "Hundreds of tasks";
     } else {
         return "Thousands of tasks";
-    }
-}
-
-function getTaskCollectionLastUpdateTimeSummary(
-    collectionResult: TaskCollectionModelSearchResult,
-    currentTime: Date,
-) {
-    if (!collectionResult.lastTaskAddedTime) {
-        const createdTime = new Date(collectionResult.collection.getCreatedTime()[0]);
-        const years = differenceInYears(currentTime, createdTime);
-
-        if (years === 1) {
-            return "created 1 year ago";
-        } else if (years > 1) {
-            return `created ${years} year ago`;
-        }
-
-        const months = differenceInMonths(currentTime, createdTime);
-
-        if (months === 1) {
-            return "created 1 month ago";
-        } else if (months > 1) {
-            return `created ${months} months ago`;
-        } else {
-            return "created recently";
-        }
-    } else {
-        const lastTaskAddedTime = new Date(collectionResult.lastTaskAddedTime[0]);
-
-        const years = differenceInYears(currentTime, lastTaskAddedTime);
-
-        if (years === 1) {
-            return "last updated 1 year ago";
-        } else if (years > 1) {
-            return `last updated ${years} year ago`;
-        }
-
-        const months = differenceInMonths(currentTime, lastTaskAddedTime);
-
-        if (months === 1) {
-            return "last updated 1 month ago";
-        } else if (months > 1) {
-            return `last updated ${months} months ago`;
-        } else {
-            return "updated recently";
-        }
     }
 }

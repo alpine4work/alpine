@@ -288,6 +288,7 @@ export async function internalGetAffinitiveSearchEntityIds(
     Array<{
         entityId: SearchEntityAffinityId;
         points: number;
+        lastViewedTime: Date | null;
     }>
 > {
     await authorizeSpaceAccess(context, spaceId);
@@ -300,6 +301,7 @@ export async function internalGetAffinitiveSearchEntityIds(
         entityId: SearchEntityAffinityId;
         points: number;
         pointsBucket: number;
+        lastViewedTime: Date | null;
     }> = [];
 
     for await (const item of AccountAffinitiveSearchEntitiesIndex.query(context, {
@@ -340,6 +342,7 @@ export async function internalGetAffinitiveSearchEntityIds(
             entityId: item.entityId,
             points: currentPoints,
             pointsBucket: currentPointsBucket,
+            lastViewedTime: item.lastViewedTime,
         });
 
         // If the item moved buckets and hasn't been updated in half a month, then

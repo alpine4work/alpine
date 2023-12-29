@@ -176,6 +176,9 @@ let scheduledIdlePreloadRpcCallbacks: Array<() => void> | null = null;
  * end up batching multiple `preloadRpc()` calls into one network request which
  * won't happen if you schedule your own idle callbacks.
  */
+// NOCOMMIT: We may be preloading an RPC long in advance. When
+// `useLazyLoadLoadRpc()` is called it should revalidate if it's been a while
+// since we preloaded.
 export function scheduleIdlePreloadRpc<Input, Output extends {}>(
     context: AppContext,
     rpc: RpcDefinition<Input, Output>,
