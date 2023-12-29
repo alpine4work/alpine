@@ -20,10 +20,24 @@ import {
  * When localizing our product we should consider adding additional analyzers
  * for other languages.
  *
+ * One important difference with the [English analyzer][1] is we don't remove
+ * stop words since they can change semantic meaning and removing them may lead
+ * to a loss in query precision. [Read this blog post from 2013][2] for more
+ * information. In 2013 ElasticSearch introduced a parameter `cutoff_frequency`
+ * which provided similar search performance to a query with stop words removed
+ * without reducing precision. [In 2019 `cutoff_frequency` was deprecated][3]
+ * since ElasticSearch out of the box has good performance for queries with
+ * common terms.
+ *
  * [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-lang-analyzer.html#english-analyzer
+ * [2]: https://www.elastic.co/blog/stop-stopping-stop-words-a-look-at-common-terms-query
+ * [3]: https://github.com/elastic/elasticsearch/issues/37096
  */
 export const opensearchIndexEnglishWithWordDelimiterGraphAnalyzer =
-    new OpensearchIndexAnalysisCustomAnalyzer("english_with_word_delimiter_graph", {
+    // Numbered with `_2` to avoid conflicting with our original
+    // `english_with_word_delimiter_graph` analyzer used by
+    // `TaskCollectionNameType`.
+    new OpensearchIndexAnalysisCustomAnalyzer("english_with_word_delimiter_graph_2", {
         tokenizer: "standard",
         filter: [
             new OpensearchIndexAnalysisCustomFilter("english_possessive_stemmer", {
@@ -31,10 +45,6 @@ export const opensearchIndexEnglishWithWordDelimiterGraphAnalyzer =
                 language: "possessive_english",
             }),
             "lowercase",
-            new OpensearchIndexAnalysisCustomFilter("english_stop", {
-                type: "stop",
-                stopwords: "_english_",
-            }),
             new OpensearchIndexAnalysisCustomFilter("english_stemmer", {
                 type: "stemmer",
                 language: "english",
@@ -46,44 +56,6 @@ export const opensearchIndexEnglishWithWordDelimiterGraphAnalyzer =
             }),
         ],
     });
-
-// From:
-// https://github.com/apache/lucene/blob/5d6086e1994d766a3dd39a47b14a8cd80a7280e6/lucene/analysis/common/src/java/org/apache/lucene/analysis/en/EnglishAnalyzer.java#L48-L50
-const englishStopWords = new Set([
-    "a",
-    "an",
-    "and",
-    "are",
-    "as",
-    "at",
-    "be",
-    "but",
-    "by",
-    "for",
-    "if",
-    "in",
-    "into",
-    "is",
-    "it",
-    "no",
-    "not",
-    "of",
-    "on",
-    "or",
-    "such",
-    "that",
-    "the",
-    "their",
-    "then",
-    "there",
-    "these",
-    "they",
-    "this",
-    "to",
-    "was",
-    "will",
-    "with",
-]);
 
 /**
  * Approximately tries to analyze the provided text in JavaScript as if we were
@@ -136,12 +108,6 @@ export function approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterG
         // `lowercase` filter. See:
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-lowercase-tokenfilter.html
         text = text.toLowerCase();
-
-        // `stop` filter with `_english_` stopwords list. See:
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis-stop-tokenfilter.html
-        if (englishStopWords.has(text)) {
-            continue;
-        }
 
         // `stemmer` filter with `english` language. Uses the Porter stemming
         // algorithm. See:

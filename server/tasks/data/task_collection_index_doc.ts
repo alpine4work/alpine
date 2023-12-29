@@ -1,4 +1,7 @@
-import {opensearchIndexEnglishWithWordDelimiterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
+import {
+    OpensearchIndexAnalysisCustomAnalyzer,
+    OpensearchIndexAnalysisCustomFilter,
+} from "~/server/opensearch/opensearch_index_analysis.js";
 import {
     OpensearchIndexArrayType,
     OpensearchIndexBooleanType,
@@ -28,8 +31,39 @@ import {TaskCollectionColorRegister} from "~/shared/tasks/task_collection_color.
 
 const TaskCollectionNameType = createCrdtRegisterOpensearchType(
     LabelStringRegister,
+    // TODO(calebmer): When we replace task collection searching with our search
+    // system, we won't need to analyze collection names anymore. We can switch
+    // this to an un-indexed `keyword` type.
     new OpensearchIndexSearchAsYouTypeType({
-        analyzer: opensearchIndexEnglishWithWordDelimiterGraphAnalyzer,
+        // NOTE(calebmer): This analyzer is the same as
+        // `opensearchIndexEnglishWithWordDelimiterGraphAnalyzer` except stop words
+        // aren't removed. This analyzer was written before we [learned about
+        // `cutoff_frequency`][1] which is a better approach at handling common terms.
+        //
+        // [1]: https://www.elastic.co/blog/stop-stopping-stop-words-a-look-at-common-terms-query
+        analyzer: new OpensearchIndexAnalysisCustomAnalyzer("english_with_word_delimiter_graph", {
+            tokenizer: "standard",
+            filter: [
+                new OpensearchIndexAnalysisCustomFilter("english_possessive_stemmer", {
+                    type: "stemmer",
+                    language: "possessive_english",
+                }),
+                "lowercase",
+                new OpensearchIndexAnalysisCustomFilter("english_stop", {
+                    type: "stop",
+                    stopwords: "_english_",
+                }),
+                new OpensearchIndexAnalysisCustomFilter("english_stemmer", {
+                    type: "stemmer",
+                    language: "english",
+                }),
+                new OpensearchIndexAnalysisCustomFilter("english_word_delimiter_graph", {
+                    type: "word_delimiter_graph",
+                    // English possessives are already stemmed.
+                    stem_english_possessive: false,
+                }),
+            ],
+        }),
     }),
 );
 

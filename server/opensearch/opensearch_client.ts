@@ -1600,7 +1600,14 @@ export class OpensearchClient implements OpensearchClientInterface {
         // limit then we can immediately end the query and return instead of scanning
         // the entire index. [Works well with index sorting][1].
         //
+        // This also enables optimizations for queries with common terms like "the" and
+        // "and". Since a query with "the" might match millions of documents. See [this
+        // deprecation message][2]. Also see [this blog post from 2013][3] which is
+        // outdated since `cutoff_frequency` has been deprecated.
+        //
         // [1]: https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-index-sorting.html#early-terminate
+        // [2]: https://github.com/opensearch-project/OpenSearch/blob/60b2265d9390f27f80803f16eb4d1c5cdc0f4947/server/src/main/java/org/opensearch/index/query/MatchQueryBuilder.java#L61-L62
+        // [3]: https://www.elastic.co/blog/stop-stopping-stop-words-a-look-at-common-terms-query
         url.searchParams.set("track_total_hits", "false");
 
         // Don't return partial results in case of error or timeout.
