@@ -1,4 +1,4 @@
-import {RefObject, useEffect, useMemo, useReducer} from "react";
+import {RefObject, useEffect, useMemo, useReducer, useRef} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -171,7 +171,12 @@ export function usePreloadAffinitiveSearchEntities() {
     const context = useAppContext();
     const {space} = useSpaceContext();
 
+    const hasPreloadedRef = useRef(false);
+
     useEffect(() => {
+        if (hasPreloadedRef.current) return;
+        hasPreloadedRef.current = true;
+
         scheduleIdlePreloadRpc(context, getAffinitiveSearchEntities, {
             spaceId: space.id,
             limit: affinitiveSearchEntitiesLimit,
