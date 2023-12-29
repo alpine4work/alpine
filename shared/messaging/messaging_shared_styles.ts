@@ -6,7 +6,8 @@ import {RemLength, Spacing, addRemLengths, spacing} from "~/shared/design/spacin
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
 export const messageInputMinHeight: RemLength = "3.5rem";
-export const messageViewBubbleBorderRadius = "xl" as const;
+export const messageViewBubbleBorderRadius = "2xl" as const;
+export const messageViewBubbleMergedBorderRadius = "base" as const;
 export const messageViewBubblePaddingX: Spacing = "1";
 export const messageViewBubblePaddingY: Spacing = "2";
 export const messageViewMergedMarginY: Spacing = "0.5";

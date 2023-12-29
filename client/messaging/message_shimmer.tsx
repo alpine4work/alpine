@@ -5,7 +5,6 @@ import {
     defaultMessageViewMarginX,
     getMessageBubbleMarginLeft,
     messageViewActionsWidth,
-    messageViewBubbleMergedBorderRadius,
     messageViewMarginY,
 } from "~/client/messaging/message_view.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
@@ -14,6 +13,7 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {MessageModel, MessageModelBase} from "~/shared/messaging/message_model.js";
 import {
     messageViewBubbleBorderRadius,
+    messageViewBubbleMergedBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
     messageViewMergedMarginY,

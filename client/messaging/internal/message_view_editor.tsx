@@ -11,7 +11,6 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {
     messageViewActionsWidth,
-    messageViewBubbleMergedBorderRadius,
     messageViewBubbleMinWidth,
 } from "~/client/messaging/message_view.js";
 import {spacing} from "~/shared/design/spacing.js";
@@ -21,6 +20,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
 import {
     messageViewBubbleBorderRadius,
+    messageViewBubbleMergedBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";

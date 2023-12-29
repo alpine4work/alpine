@@ -48,6 +48,7 @@ import {
 } from "~/shared/messaging/message_model.js";
 import {
     messageViewBubbleBorderRadius,
+    messageViewBubbleMergedBorderRadius,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
     messageViewMergedMarginY,
@@ -82,7 +83,6 @@ export const messageViewBubbleMinWidth: Spacing = "6";
 
 const mergeMessageMinuteLimit = 5;
 
-export const messageViewBubbleMergedBorderRadius = "base" as const;
 export const messageViewActionsWidth: Spacing = "10";
 export const messageViewPreviewScale =
     fontSizesByPlatform["50"].desktop.fontSize / fontSizesByPlatform["100"].desktop.fontSize;
@@ -338,12 +338,13 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
 
             let lastIndex = 0;
             for (const {index, emoji} of iterateEmojis(messageTextForBigEmojiMessage)) {
-                if (lastIndex !== index)
+                if (lastIndex !== index) {
                     children.push(
                         <Fragment key={lastIndex}>
                             {messageTextForBigEmojiMessage.slice(lastIndex, index)}
                         </Fragment>,
                     );
+                }
 
                 children.push(
                     <span key={index} style={{fontFamily: emojiFontFamily}}>
@@ -683,7 +684,7 @@ export function MessageView<RoomKey extends string, Message extends MessageModel
                                 style={{
                                     paddingLeft: addRemLengths(
                                         getMessageBubbleMarginLeft(marginX),
-                                        spacing["0.5"],
+                                        parentMessage === null ? spacing["1.5"] : spacing["1"],
                                     ),
                                 }}
                             >
