@@ -1431,7 +1431,11 @@ export async function getChatMessagePayload(
         messageIndex: number;
         consistency?: DynamoReadConsistency;
     },
-): Promise<{createdTime: Date; payload: MessagePayload}> {
+): Promise<{
+    createdTime: Date;
+    authorId: AccountId;
+    payload: MessagePayload;
+}> {
     const [, item] = await runAllPromises([
         authorizeChatAccess(context, chatId),
         ChatTable.getItem(
@@ -1448,6 +1452,7 @@ export async function getChatMessagePayload(
 
     return {
         createdTime: item.createdTime,
+        authorId: item.authorId,
         payload: item.payload,
     };
 }

@@ -19,6 +19,10 @@ import {
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
+import {
+    SearchEntityMedia,
+    SearchEntityMediaSchema,
+} from "~/server/search/data/index/internal/search_entity_media.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {
@@ -83,6 +87,11 @@ const SearchEntityIndexAccessPolicyStoredType = OpensearchIndexObjectType.new({
             .nullable()
             .store(),
     },
+});
+
+const SearchEntityMediaType = new OpensearchIndexKeywordType().transform<SearchEntityMedia>({
+    serialize: media => JSON.stringify(SearchEntityMediaSchema.serialize(media)),
+    deserialize: media => SearchEntityMediaSchema.deserialize(JSON.parse(media)),
 });
 
 export type SearchEntityKeywordIndexDoc = OpensearchIndexTypeType<
@@ -244,6 +253,13 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
             .nullable()
             // Store the body so we can highlight it.
             .store(),
+
+        /**
+         * Media we display alongside the search entity if available. For example, if
+         * search surfaces a chat message then we show the avatar of the account who
+         * sent the chat message.
+         */
+        media: SearchEntityMediaType.nullable().store(),
     },
 });
 
@@ -405,6 +421,13 @@ export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
          * index so we can load the title when searching.
          */
         title: new OpensearchIndexKeywordType().nullable().store(),
+
+        /**
+         * Media we display alongside the search entity if available. For example, if
+         * search surfaces a chat message then we show the avatar of the account who
+         * sent the chat message.
+         */
+        media: SearchEntityMediaType.nullable().store(),
 
         /**
          * Embedding chunks are represented as a nested OpenSearch fields. Nested

@@ -789,7 +789,12 @@ export async function getPostContentAndChannel(
     context: ServerActionContext,
     id: PostId,
     {consistency = "Eventual"}: {consistency?: DynamoReadConsistency} = {},
-): Promise<{createdTime: Date; content: PostContent; channel: ChannelPreviewModel}> {
+): Promise<{
+    createdTime: Date;
+    authorId: AccountId;
+    content: PostContent;
+    channel: ChannelPreviewModel;
+}> {
     const postItem = await ForumTable.getItem(
         context,
         {
@@ -804,6 +809,7 @@ export async function getPostContentAndChannel(
 
     return {
         createdTime: postItem.createdTime,
+        authorId: postItem.authorId,
         content: postItem.content,
         channel,
     };
@@ -1272,7 +1278,11 @@ export async function getPostCommentPayload(
         commentIndex: number;
         consistency?: DynamoReadConsistency;
     },
-): Promise<{createdTime: Date; payload: MessagePayload}> {
+): Promise<{
+    createdTime: Date;
+    authorId: AccountId;
+    payload: MessagePayload;
+}> {
     const [, item] = await runAllPromises([
         authorizePostAccess(context, postId),
         ForumTable.getItem(
@@ -1287,7 +1297,11 @@ export async function getPostCommentPayload(
         ),
     ]);
 
-    return {createdTime: item.createdTime, payload: item.payload};
+    return {
+        createdTime: item.createdTime,
+        authorId: item.authorId,
+        payload: item.payload,
+    };
 }
 
 async function createPostCommentModelFromItem(

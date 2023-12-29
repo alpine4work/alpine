@@ -1,3 +1,4 @@
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchEntityIdSchema} from "~/shared/search/search_entity_id.js";
 
@@ -6,6 +7,24 @@ import {SearchEntityIdSchema} from "~/shared/search/search_entity_id.js";
  * types in our system. Returned by one of our search endpoints.
  */
 export type SearchResult = SchemaType<typeof SearchResultSchema>;
+
+export type SearchResultMedia = SchemaType<typeof SearchResultMediaSchema>;
+
+const SearchResultAccountMediaSchema = Schema.object({
+    type: Schema.value("Account"),
+    account: AccountModel.schema,
+});
+
+const SearchResultAccountPileMediaSchema = Schema.object({
+    type: Schema.value("AccountPile"),
+    previewAccounts: Schema.array(AccountModel.schema).minLength(1),
+    accountCount: Schema.integer,
+});
+
+export const SearchResultMediaSchema = Schema.union({
+    Account: SearchResultAccountMediaSchema,
+    AccountPile: SearchResultAccountPileMediaSchema,
+});
 
 export const SearchResultSchema = Schema.object({
     entityId: SearchEntityIdSchema,
@@ -17,4 +36,5 @@ export const SearchResultSchema = Schema.object({
             text: Schema.string,
         }),
     ),
+    media: SearchResultMediaSchema.nullable(),
 });

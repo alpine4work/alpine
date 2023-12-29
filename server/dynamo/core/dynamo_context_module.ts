@@ -108,9 +108,6 @@ export class DynamoContextModule<Modules extends {} = {}>
             context: Context<Replace<Modules, {dynamo: DynamoContextModule}>>,
         ) => Promise<Value>,
     ): Promise<Value> {
-        if (this._retryTransaction)
-            throw new InternalError("Can't nest DynamoDB transaction retry loops");
-
         return retryWithExponentialBackoff(retry => {
             return this._context.with(
                 {

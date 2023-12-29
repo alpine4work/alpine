@@ -12,7 +12,7 @@ import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
 import {UnionToIntersection} from "~/shared/helpers/types/union_to_intersection.js";
-import {ObjectSchema} from "~/shared/schema/schema.js";
+import {ObjectSchema, UnionSchema} from "~/shared/schema/schema.js";
 
 export type OpensearchIndexTypeType<Type extends OpensearchIndexTypeBase<any, any, any>> =
     Type extends OpensearchIndexTypeBase<infer Value, any, any> ? Value : never;
@@ -1025,9 +1025,9 @@ export class OpensearchIndexIgnoredObjectType<Value> extends OpensearchIndexType
     never,
     {}
 > {
-    private readonly _schema: ObjectSchema<Value>;
+    private readonly _schema: ObjectSchema<Value> | UnionSchema<Value>;
 
-    constructor(schema: ObjectSchema<Value>) {
+    constructor(schema: ObjectSchema<Value> | UnionSchema<Value>) {
         super();
         this._schema = schema;
     }

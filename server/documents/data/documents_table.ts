@@ -3172,7 +3172,11 @@ export async function getDocumentCommentPayload(
         commentIndex: number;
         consistency?: DynamoReadConsistency;
     },
-): Promise<{createdTime: Date; payload: MessagePayload}> {
+): Promise<{
+    createdTime: Date;
+    authorId: AccountId;
+    payload: MessagePayload;
+}> {
     const {commentItem} = await getDocumentCommentItem(context, {
         documentId,
         commentThreadId,
@@ -3182,6 +3186,7 @@ export async function getDocumentCommentPayload(
 
     return {
         createdTime: commentItem.createdTime,
+        authorId: commentItem.authorId,
         payload: commentItem.payload,
     };
 }

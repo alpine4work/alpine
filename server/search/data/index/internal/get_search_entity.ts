@@ -22,6 +22,7 @@ import {
     SearchEntityIndexAccessPolicy,
     SearchEntityIndexDefaultGrantType,
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
+import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
@@ -70,6 +71,7 @@ export type SearchEntity = {
     readonly createdTime: Date;
     readonly title: string | null;
     readonly body: string | null;
+    readonly media: SearchEntityMedia | null;
     readonly embeddingChunks: ReadonlyArray<SearchEntityEmbeddingChunk>;
 };
 
@@ -220,7 +222,7 @@ class SearchEntityReadState {
         documentId: DocumentId,
         commentThreadId: DocumentCommentThreadId,
         commentIndex: number,
-    ): Promise<{createdTime: Date; payload: MessagePayload}> {
+    ): Promise<{createdTime: Date; authorId: AccountId; payload: MessagePayload}> {
         this._recordDependencyId(
             `DocumentComment:${documentId}-${commentThreadId}-${commentIndex}`,
         );
@@ -258,9 +260,12 @@ class SearchEntityReadState {
      * A post inherits permissions from its channel. We also use the channel name
      * to provide context in the post's embedding chunk.
      */
-    public async getPostContentAndChannel(
-        postId: PostId,
-    ): Promise<{createdTime: Date; content: PostContent; channel: ChannelPreviewModel}> {
+    public async getPostContentAndChannel(postId: PostId): Promise<{
+        createdTime: Date;
+        authorId: AccountId;
+        content: PostContent;
+        channel: ChannelPreviewModel;
+    }> {
         this._recordDependencyId(`Post:${postId}`);
 
         const contentAndChannel = await getPostContentAndChannel(this._context, postId, {
@@ -274,7 +279,11 @@ class SearchEntityReadState {
     public getPostCommentPayload(
         postId: PostId,
         commentIndex: number,
-    ): Promise<{createdTime: Date; payload: MessagePayload}> {
+    ): Promise<{
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }> {
         this._recordDependencyId(`PostComment:${postId}-${commentIndex}`);
 
         return getPostCommentPayload(this._context, {
@@ -297,7 +306,11 @@ class SearchEntityReadState {
     public getChatMessagePayload(
         chatId: ChatId,
         messageIndex: number,
-    ): Promise<{createdTime: Date; payload: MessagePayload}> {
+    ): Promise<{
+        createdTime: Date;
+        authorId: AccountId;
+        payload: MessagePayload;
+    }> {
         this._recordDependencyId(`ChatMessage:${chatId}-${messageIndex}`);
 
         return getChatMessagePayload(this._context, {
@@ -393,7 +406,7 @@ export async function getSearchEntity(
 async function actuallyGetSearchEntity(
     state: SearchEntityReadState,
     idObject: SearchEntityIdObject,
-) {
+): Promise<SearchEntity> {
     switch (idObject.type) {
         case "Account":
             return getAccountSearchEntity(state, idObject.accountId);
@@ -441,6 +454,7 @@ async function getAccountSearchEntity(
 
         title: account.initialData.name,
         body: null,
+        media: {type: "Account", accountId: accountId as AccountId},
         embeddingChunks: [],
     };
 }
@@ -470,6 +484,7 @@ async function getDocumentSearchEntity(
         createdTime,
         title,
         body: getFullText(),
+        media: null,
         embeddingChunks,
     };
 }
@@ -537,11 +552,11 @@ async function getDocumentCommentSearchEntity(
         commentIndex: number;
     },
 ): Promise<SearchEntity> {
-    const {createdTime, payload: commentPayload} = await state.getDocumentCommentPayload(
-        documentId,
-        commentThreadId,
-        commentIndex,
-    );
+    const {
+        createdTime,
+        authorId,
+        payload: commentPayload,
+    } = await state.getDocumentCommentPayload(documentId, commentThreadId, commentIndex);
 
     const content =
         commentPayload.type === "Content"
@@ -573,6 +588,7 @@ async function getDocumentCommentSearchEntity(
         createdTime,
         title: null,
         body: content?.getFullText() ?? null,
+        media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
     };
 }
@@ -614,6 +630,7 @@ async function getChannelSearchEntity(
         createdTime: channel.createdTime,
         title: channel.name,
         body: getFullText(),
+        media: null,
         embeddingChunks,
     };
 }
@@ -670,15 +687,9 @@ async function getPostSearchEntity(
 
         createdTime: post.createdTime,
 
-        // TODO(calebmer): We can sometimes infer a title from a post if the post uses
-        // headings. Should consider doing this and using the information to improve
-        // search indexing.
-        //
-        // Or maybe we should use an LLM to figure out a title for posts when there is
-        // no heading? If the post is of a certain length.
         title: null,
-
         body: getFullText(),
+        media: {type: "Account", accountId: post.authorId},
         embeddingChunks,
     };
 }
@@ -687,10 +698,11 @@ async function getPostCommentSearchEntity(
     state: SearchEntityReadState,
     {postId, commentIndex}: {postId: PostId; commentIndex: number},
 ): Promise<SearchEntity> {
-    const {createdTime, payload: commentPayload} = await state.getPostCommentPayload(
-        postId,
-        commentIndex,
-    );
+    const {
+        createdTime,
+        authorId,
+        payload: commentPayload,
+    } = await state.getPostCommentPayload(postId, commentIndex);
 
     const content =
         commentPayload.type === "Content"
@@ -720,6 +732,7 @@ async function getPostCommentSearchEntity(
         createdTime,
         title: null,
         body: content?.getFullText() ?? null,
+        media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
     };
 }
@@ -758,6 +771,7 @@ async function getChatSearchEntity(
         createdTime,
         title,
         body: null,
+        media: {type: "AccountPile", accountIds},
         embeddingChunks: [],
     };
 }
@@ -779,7 +793,7 @@ async function getChatMessageSearchEntity(
     state: SearchEntityReadState,
     {chatId, messageIndex}: {chatId: ChatId; messageIndex: number},
 ): Promise<SearchEntity> {
-    const [{accountIds: chatAccountIds}, {createdTime, payload: messagePayload}] =
+    const [{accountIds: chatAccountIds}, {createdTime, authorId, payload: messagePayload}] =
         await runAllPromises([
             state.getChatAccountIds(chatId),
             state.getChatMessagePayload(chatId, messageIndex),
@@ -817,6 +831,7 @@ async function getChatMessageSearchEntity(
         createdTime,
         title: null,
         body: content?.getFullText() ?? null,
+        media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
     };
 }
@@ -894,6 +909,7 @@ async function getTaskSearchEntity(
             createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
             title: null,
             body: null,
+            media: null,
             embeddingChunks: [],
         };
     }
@@ -935,6 +951,7 @@ async function getTaskSearchEntity(
         createdTime: new Date(task.getCreatedTime().absoluteTime[0]),
         title,
         body: getFullText(),
+        media: null,
         embeddingChunks,
     };
 }
@@ -965,6 +982,7 @@ async function getTaskCollectionSearchEntity(
             createdTime: new Date(collection.getCreatedTime()[0]),
             title: null,
             body: null,
+            media: null,
             embeddingChunks: [],
         };
     }
@@ -975,6 +993,7 @@ async function getTaskCollectionSearchEntity(
         createdTime: new Date(collection.getCreatedTime()[0]),
         title: collection.getName(),
         body: null,
+        media: null,
         embeddingChunks: [],
     };
 }

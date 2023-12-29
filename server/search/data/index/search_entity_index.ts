@@ -23,7 +23,6 @@ import {
 import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
 import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search_entity_job_description.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
-import {internalGetAffinitiveSearchEntityIds} from "~/server/search/data/table/search_entity_table.js";
 import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
 import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
@@ -36,18 +35,23 @@ import {
     SearchEntitySemanticIndexDocType,
     SearchEntitySemanticIndexEmbeddingChunk,
 } from "~/server/search/data/index/internal/search_entity_index_doc.js";
+import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
-import {authorizeSpaceAccess} from "~/server/spaces/spaces_table.js";
+import {internalGetAffinitiveSearchEntityIds} from "~/server/search/data/table/search_entity_table.js";
+import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Context} from "~/shared/context/context.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertEqualTypes} from "~/shared/helpers/control/assert_equal_types.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {
     defaultUncertaintyWindowMs,
     isDateDefinitelyLessThanWithUncertaintyWindow,
@@ -55,6 +59,7 @@ import {
 import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
@@ -63,7 +68,7 @@ import {
     parseSearchEntityId,
     printSearchEntityId,
 } from "~/shared/search/search_entity_id.js";
-import {SearchResult} from "~/shared/search/search_result.js";
+import {SearchResult, SearchResultMedia} from "~/shared/search/search_result.js";
 
 /**
  * The search index should be near realtime to serve search requests. However,
@@ -204,6 +209,7 @@ assertEqualTypes<
         lastReadStartTime: Date;
         title: string;
         body: string;
+        media: SearchEntityMedia;
     }
 >();
 
@@ -212,6 +218,7 @@ assertEqualTypes<
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntitySemanticIndexDocType>,
     {
         title: string;
+        media: SearchEntityMedia;
         "embeddingChunks.text": string;
         "embeddingChunks.preambleEndIndex": number;
         "embeddingChunksVectorCache.allMiniLmL6V2": ReadonlyMap<number, ReadonlyArray<number>>;
@@ -553,6 +560,7 @@ export async function processIndexSearchEntityJob(
                 dependencyIds: Array.from(dependencyIds),
                 title: entity.title,
                 body: entity.body,
+                media: entity.media,
             };
 
             const newDocForSemanticIndex: OpensearchClientDocWithIdAndVersion<
@@ -562,6 +570,7 @@ export async function processIndexSearchEntityJob(
                 id: entityId,
                 version: oldDocForSemanticIndex?.version ?? null,
                 title: entity.title,
+                media: entity.media,
                 embeddingChunks,
                 embeddingChunksVectorCache: {
                     allMiniLmL6V2: null,
@@ -721,12 +730,14 @@ export async function searchByKeywords(
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
+    // A title match should not match a body 2gram or 3gram match.
+    //
     // NOCOMMIT: Allow the client to configure this in debug mode
-    const titleBoost = 4;
+    const titleBoost = 1.5;
 
     const docs = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
         size: limit,
-        storedFields: ["title"],
+        storedFields: ["title", "media"],
         sort: ["_score"],
         query: {
             bool: {
@@ -810,40 +821,50 @@ export async function searchByKeywords(
         },
     });
 
-    const results = docs.map((doc): SearchResult => {
-        // The highlighted body text we get from OpenSearch is markdown formatted with
-        // `<em>` tags inserted where we need to highlight. To get this in a format we
-        // can render:
-        //
-        // 1. Parse the Markdown back to a ProseMirror node
-        // 2. Print the ProseMirror node to a single line of text
-        let rawBodyTextSnippet = doc.highlight?.body?.[0];
+    const results = await runAllPromises(
+        docs.map(async (doc): Promise<SearchResult> => {
+            // The highlighted body text we get from OpenSearch is markdown formatted with
+            // `<em>` tags inserted where we need to highlight. To get this in a format we
+            // can render:
+            //
+            // 1. Parse the Markdown back to a ProseMirror node
+            // 2. Print the ProseMirror node to a single line of text
+            let rawBodyTextSnippet = doc.highlight?.body?.[0];
 
-        // NOTE(calebmer): I've found sometimes OpenSearch returns text that starts
-        // like this: ". Cultural references. The overall plot is a reference...". Note
-        // the ". " at the beginning of the string. This seems to me like confused
-        // sentence boundary scanning. Since having terminal punctuation at the
-        // beginning of our body text snippet is almost never useful, remove it.
-        rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\p{Sentence_Terminal}\s*/u, "");
+            // NOTE(calebmer): I've found sometimes OpenSearch returns text that starts
+            // like this: ". Cultural references. The overall plot is a reference...". Note
+            // the ". " at the beginning of the string. This seems to me like confused
+            // sentence boundary scanning. Since having terminal punctuation at the
+            // beginning of our body text snippet is almost never useful, remove it.
+            rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\p{Sentence_Terminal}\s*/u, "");
 
-        const bodySnippet = rawBodyTextSnippet
-            ? parseSearchContent(rawBodyTextSnippet, {shouldParseEmphasisHtmlTagAsHighlight: true})
-            : null;
+            const bodySnippet = rawBodyTextSnippet
+                ? parseSearchContent(rawBodyTextSnippet, {
+                      shouldParseEmphasisHtmlTagAsHighlight: true,
+                  })
+                : null;
 
-        const bodyTextSnippet = bodySnippet
-            ? printContentSingleLineTextSnippetWithHighlighting(
-                  {doc: bodySnippet, references: emptyContentReferences},
-                  mark => mark.type.name === "highlight",
-              )
-            : [];
+            const bodyTextSnippet = bodySnippet
+                ? printContentSingleLineTextSnippetWithHighlighting(
+                      {doc: bodySnippet, references: emptyContentReferences},
+                      mark => mark.type.name === "highlight",
+                  )
+                : [];
 
-        return {
-            entityId: doc.id,
-            score: doc.score,
-            title: doc.fields.title?.[0] ?? null,
-            bodyTextSnippet,
-        };
-    });
+            const docMedia = doc.fields.media?.[0];
+            const resultMedia = docMedia
+                ? await prepareSearchEntityMediaForResult(context, spaceId, doc.id, docMedia)
+                : null;
+
+            return {
+                entityId: doc.id,
+                score: doc.score,
+                title: doc.fields.title?.[0] ?? null,
+                bodyTextSnippet,
+                media: resultMedia,
+            };
+        }),
+    );
 
     return {results};
 }
@@ -910,7 +931,7 @@ export async function searchBySemantics(
 
     const docs = await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, spaceId, {
         size: limit,
-        storedFields: ["title"],
+        storedFields: ["title", "media"],
         sort: ["_score"],
         query: {
             nested: {
@@ -989,83 +1010,134 @@ export async function searchBySemantics(
         ),
     );
 
-    const results = docs.map((doc): SearchResult => {
-        // The highlighted body text we get from OpenSearch is markdown formatted with
-        // `<em>` tags inserted where we need to highlight. To get this in a format we
-        // can render:
-        //
-        // 1. Parse the Markdown back to a ProseMirror node
-        // 2. Print the ProseMirror node to a single line of text
-        let rawBodyTextSnippet =
-            doc.innerHits?.embeddingChunks?.[0]?.fields["embeddingChunks.text"]?.[0];
+    const results = await runAllPromises(
+        docs.map(async (doc): Promise<SearchResult> => {
+            // The highlighted body text we get from OpenSearch is markdown formatted with
+            // `<em>` tags inserted where we need to highlight. To get this in a format we
+            // can render:
+            //
+            // 1. Parse the Markdown back to a ProseMirror node
+            // 2. Print the ProseMirror node to a single line of text
+            let rawBodyTextSnippet =
+                doc.innerHits?.embeddingChunks?.[0]?.fields["embeddingChunks.text"]?.[0];
 
-        const preambleEndIndex =
-            doc.innerHits?.embeddingChunks?.[0]?.fields["embeddingChunks.preambleEndIndex"]?.[0];
+            const preambleEndIndex =
+                doc.innerHits?.embeddingChunks?.[0]?.fields[
+                    "embeddingChunks.preambleEndIndex"
+                ]?.[0];
 
-        // Remove the preamble from the chunk text.
-        rawBodyTextSnippet =
-            typeof preambleEndIndex === "number"
-                ? rawBodyTextSnippet?.slice(preambleEndIndex)
-                : rawBodyTextSnippet;
+            // Remove the preamble from the chunk text.
+            rawBodyTextSnippet =
+                typeof preambleEndIndex === "number"
+                    ? rawBodyTextSnippet?.slice(preambleEndIndex)
+                    : rawBodyTextSnippet;
 
-        // If the chunk text starts with the document header then remove that.
-        rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\s*#\s+[^\n]+\n/, "");
+            // If the chunk text starts with the document header then remove that.
+            rawBodyTextSnippet = rawBodyTextSnippet?.replace(/^\s*#\s+[^\n]+\n/, "");
 
-        // Emulate OpenSearch highlighting. So if our semantic search chunk text
-        // matches the query words at all the user sees highlighted text as expected.
-        //
-        // As of 2023-12-18 our in-process highlighter doesn't have full compatibility
-        // with OpenSearch's highlighter. For example, we don't support highlighting
-        // tokens that would have been split up by the `word_delimiter_graph` filter
-        // and we don't support highlighting typos from a fuzzy match.
-        //
-        // NOCOMMIT: Test this highlighting! Make sure to test a snippet with a header.
-        if (rawBodyTextSnippet) {
-            let offsetIndex = 0;
-            const highlightTagStart = "<em>";
-            const highlightTagEnd = "</em>";
+            // Emulate OpenSearch highlighting. So if our semantic search chunk text
+            // matches the query words at all the user sees highlighted text as expected.
+            //
+            // As of 2023-12-18 our in-process highlighter doesn't have full compatibility
+            // with OpenSearch's highlighter. For example, we don't support highlighting
+            // tokens that would have been split up by the `word_delimiter_graph` filter
+            // and we don't support highlighting typos from a fuzzy match.
+            //
+            // NOCOMMIT: Test this highlighting! Make sure to test a snippet with a header.
+            if (rawBodyTextSnippet) {
+                let offsetIndex = 0;
+                const highlightTagStart = "<em>";
+                const highlightTagEnd = "</em>";
 
-            for (const token of approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(
-                rawBodyTextSnippet,
-            )) {
-                if (!queryTokens.has(token.text)) continue;
+                for (const token of approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer(
+                    rawBodyTextSnippet,
+                )) {
+                    if (!queryTokens.has(token.text)) continue;
 
-                rawBodyTextSnippet =
-                    rawBodyTextSnippet.slice(0, offsetIndex + token.sourceStartIndex) +
-                    highlightTagStart +
-                    rawBodyTextSnippet.slice(
-                        offsetIndex + token.sourceStartIndex,
-                        offsetIndex + token.sourceStartIndex + token.sourceLength,
-                    ) +
-                    highlightTagEnd +
-                    rawBodyTextSnippet.slice(
-                        offsetIndex + token.sourceStartIndex + token.sourceLength,
-                    );
+                    rawBodyTextSnippet =
+                        rawBodyTextSnippet.slice(0, offsetIndex + token.sourceStartIndex) +
+                        highlightTagStart +
+                        rawBodyTextSnippet.slice(
+                            offsetIndex + token.sourceStartIndex,
+                            offsetIndex + token.sourceStartIndex + token.sourceLength,
+                        ) +
+                        highlightTagEnd +
+                        rawBodyTextSnippet.slice(
+                            offsetIndex + token.sourceStartIndex + token.sourceLength,
+                        );
 
-                offsetIndex += highlightTagStart.length + highlightTagEnd.length;
+                    offsetIndex += highlightTagStart.length + highlightTagEnd.length;
+                }
             }
-        }
 
-        const bodySnippet = rawBodyTextSnippet
-            ? parseSearchContent(rawBodyTextSnippet, {shouldParseEmphasisHtmlTagAsHighlight: true})
-            : null;
+            const bodySnippet = rawBodyTextSnippet
+                ? parseSearchContent(rawBodyTextSnippet, {
+                      shouldParseEmphasisHtmlTagAsHighlight: true,
+                  })
+                : null;
 
-        const bodyTextSnippet = bodySnippet
-            ? printContentSingleLineTextSnippetWithHighlighting(
-                  {doc: bodySnippet, references: emptyContentReferences},
-                  mark => mark.type.name === "highlight",
-              )
-            : [];
+            const bodyTextSnippet = bodySnippet
+                ? printContentSingleLineTextSnippetWithHighlighting(
+                      {doc: bodySnippet, references: emptyContentReferences},
+                      mark => mark.type.name === "highlight",
+                  )
+                : [];
 
-        return {
-            entityId: doc.id,
-            score: doc.score,
-            title: doc.fields.title?.[0] ?? null,
-            bodyTextSnippet,
-        };
-    });
+            const docMedia = doc.fields.media?.[0];
+            const resultMedia = docMedia
+                ? await prepareSearchEntityMediaForResult(context, spaceId, doc.id, docMedia)
+                : null;
+
+            return {
+                entityId: doc.id,
+                score: doc.score,
+                title: doc.fields.title?.[0] ?? null,
+                bodyTextSnippet,
+                media: resultMedia,
+            };
+        }),
+    );
 
     return {results};
+}
+
+async function prepareSearchEntityMediaForResult(
+    context: ServerSessionActionContext,
+    spaceId: SpaceId,
+    entityId: SearchEntityId,
+    media: SearchEntityMedia,
+): Promise<SearchResultMedia> {
+    switch (media.type) {
+        case "Account": {
+            const account = await getAccount(context, spaceId, media.accountId);
+            return {type: "Account", account};
+        }
+        case "AccountPile": {
+            const stableRandom = new StableRandom("SearchResultAccountPileMedia");
+
+            // Show two accounts that aren't our actor's account. We randomly show two
+            // different accounts for every chat to try and help make different chats
+            // appear differently.
+            const accountIds = stableShuffleArray(
+                stableRandom,
+                entityId,
+                media.accountIds.filter(accountId => accountId !== context.actor.getAccountId()),
+            );
+
+            const previewAccounts = await runAllPromises([
+                accountIds[0] ? getAccount(context, spaceId, accountIds[0]) : null,
+                accountIds[1] ? getAccount(context, spaceId, accountIds[1]) : null,
+            ]);
+
+            return {
+                type: "AccountPile",
+                previewAccounts: previewAccounts.filter(isNonNullable),
+                accountCount: accountIds.length,
+            };
+        }
+        default:
+            throw exhaustive(media);
+    }
 }
 
 /**
@@ -1128,15 +1200,14 @@ export async function getAffinitiveSearchEntities(
     Array<{
         entityId: SearchEntityAffinityId;
         points: number;
-        title: string | null;
+        title: string;
     }>
 > {
     const entityIds = await internalGetAffinitiveSearchEntityIds(context, {spaceId, limit});
 
     const entityTitles = await getSearchEntityTitlesIfExist(context, {
         spaceId,
-        // NOCOMMIT
-        entityIds: entityIds.map(({entityId}) => entityId) as any,
+        entityIds: entityIds.map(({entityId}) => entityId),
     });
 
     const entityTitleById = new Map(
@@ -1146,8 +1217,7 @@ export async function getAffinitiveSearchEntities(
     );
 
     return filterMapArray(entityIds, ({entityId, points}) => {
-        // NOCOMMIT
-        const entityTitle = entityTitleById.get(entityId as any);
+        const entityTitle = entityTitleById.get(entityId);
         if (!entityTitle) return null;
 
         return {
