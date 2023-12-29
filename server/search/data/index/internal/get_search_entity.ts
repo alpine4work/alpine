@@ -745,7 +745,9 @@ async function getChatSearchEntity(
 
     const accounts = await runAllPromises(accountIds.map(accountId => state.getAccount(accountId)));
 
-    const accountNames = accounts.map(account => account.initialData.name);
+    const accountNames = accounts
+        .map(account => account.initialData.name)
+        .sort((accountName1, accountName2) => accountName1.localeCompare(accountName2));
 
     let title: string;
     if (accountNames.length === 0) {

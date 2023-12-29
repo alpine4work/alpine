@@ -158,6 +158,9 @@ export function executeSearch(
  * [1]: https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf
  * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/rrf.html
  */
+// NOCOMMIT: RRF results are disappointing sometimes. We may have a bunch of
+// great keyword matches and mediocre semantic matches. What are other fuse
+// mechanisms? Should we attempt to map scores?
 function fuseSearchResults(
     resultSets: Array<ReadonlyArray<SearchResult>>,
 ): ReadonlyArray<SearchResult> {

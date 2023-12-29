@@ -9,10 +9,12 @@ export function AccountShortName({
     account,
     tooltipPlacement,
     className,
+    isTooltipDisabled,
 }: {
     account: AccountModel | AccountModelData;
     tooltipPlacement?: OverlayPlacement;
     className?: string;
+    isTooltipDisabled?: boolean;
 }) {
     const accountData = useAccountModel(account);
 
@@ -24,7 +26,11 @@ export function AccountShortName({
     // NOTE(calebmer): Someday I'd like to have an account card that shows up on
     // hover of avatar or name.
     return (
-        <Tooltip content={accountData.name} placement={tooltipPlacement}>
+        <Tooltip
+            isDisabled={isTooltipDisabled}
+            content={accountData.name}
+            placement={tooltipPlacement}
+        >
             <span className={className}>{shortName}</span>
         </Tooltip>
     );
