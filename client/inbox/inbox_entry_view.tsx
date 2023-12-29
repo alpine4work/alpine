@@ -6,6 +6,7 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
+import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
@@ -492,7 +493,7 @@ function InboxEntryViewBase({
 }) {
     return (
         <>
-            <Box flexShrink="0" paddingY="3">
+            <Box flexShrink="0" width="10" paddingY="3">
                 <Box
                     position="relative"
                     width="10"
@@ -573,8 +574,8 @@ function InboxEntryLatestMessagePreview({
             >
                 {latestMessage && (
                     <>
-                        <AccountShortName account={latestMessage.author} />:{" "}
-                        {latestMessage.contentTextSnippet}
+                        <AccountShortName account={latestMessage.author} isTooltipDisabled={true} />
+                        : {renderTextWithEmojiFontFamily(latestMessage.contentTextSnippet)}
                     </>
                 )}
             </Box>
