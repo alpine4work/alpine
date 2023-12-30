@@ -47,90 +47,85 @@ export class WorkerRpcContextModule extends RpcContextModuleBase<{
         definition: RpcDefinition<Input, Output>,
         input: Input,
     ): Promise<Output> {
-        return this._context.tracer.withSpan(
-            `RPC client ${definition.name}`,
-            async (context, span) => {
-                let tokenPayload: TokenPayload;
-                switch (context.actor.type) {
-                    case "Session": {
-                        tokenPayload = {
-                            type: "Session",
-                            sessionId: context.actor.getSessionId(),
-                            accountId: context.actor.getAccountId(),
-                        };
-                        break;
-                    }
-                    case "System": {
-                        tokenPayload = {
-                            type: "System",
-                            spaceId: context.actor.getSpaceId(),
-                        };
-                        break;
-                    }
-                    default:
-                        throw exhaustive(context.actor);
+        return this._context.tracer.withSpan(`RPC ${definition.name}`, async (context, span) => {
+            let tokenPayload: TokenPayload;
+            switch (context.actor.type) {
+                case "Session": {
+                    tokenPayload = {
+                        type: "Session",
+                        sessionId: context.actor.getSessionId(),
+                        accountId: context.actor.getAccountId(),
+                    };
+                    break;
                 }
+                case "System": {
+                    tokenPayload = {
+                        type: "System",
+                        spaceId: context.actor.getSpaceId(),
+                    };
+                    break;
+                }
+                default:
+                    throw exhaustive(context.actor);
+            }
 
-                const token = await this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                    "AppService",
-                    tokenPayload,
-                );
+            const token = await this._tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                "AppService",
+                tokenPayload,
+            );
 
-                const spaceIdFromSpan = span.getContextSpaceIdIfExists();
+            const spaceIdFromSpan = span.getContextSpaceIdIfExists();
 
-                return fetchWithTracer(
-                    span,
-                    new URL(`${this._protocol}//${this._host}/api/rpc/${definition.name}`),
-                    {
-                        serviceName: "AppService",
-                        route: "/api/rpc/:rpcName",
-                        // When communicating via RPC, share cookies across requests. Particularly we
-                        // care about the [AWS ALB sticky session cookies][1] which make sure requests
-                        // from our Durable Object go to the same underlying host in AWS. That way
-                        // caches in `AppService` work properly.
+            return fetchWithTracer(
+                span,
+                new URL(`${this._protocol}//${this._host}/api/rpc/${definition.name}`),
+                {
+                    serviceName: "AppService",
+                    route: "/api/rpc/:rpcName",
+                    // When communicating via RPC, share cookies across requests. Particularly we
+                    // care about the [AWS ALB sticky session cookies][1] which make sure requests
+                    // from our Durable Object go to the same underlying host in AWS. That way
+                    // caches in `AppService` work properly.
+                    //
+                    // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
+                    cookieJar: this._cookieJar,
+                    method: "POST",
+                    headers: {
+                        authorization: `bearer ${token}`,
+                        "content-type": "application/json",
+                        // As an optimization, include the space ID from our `TracerSpan` in RPC calls
+                        // which we'll use to authorize whether the current account has access to the
+                        // requested space.
                         //
-                        // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
-                        cookieJar: this._cookieJar,
-                        method: "POST",
-                        headers: {
-                            authorization: `bearer ${token}`,
-                            "content-type": "application/json",
-                            // As an optimization, include the space ID from our `TracerSpan` in RPC calls
-                            // which we'll use to authorize whether the current account has access to the
-                            // requested space.
+                        // This does not provide any security guarantees! This is purely a performance
+                        // optimization to authorize the session and space access at once.
+                        ...(spaceIdFromSpan ? {"cyberworlds-space-id-hint": spaceIdFromSpan} : {}),
+                    },
+                    body: JSON.stringify(
+                        RpcHttpCallInputSchema.serialize({
+                            name: definition.name,
+                            input: definition.inputSchema.serialize(input),
+                        }),
+                    ),
+                },
+                async response => {
+                    const callOutput = await response
+                        .json()
+                        .then((output: any) => RpcHttpCallOutputSchema.deserialize(output))
+                        .catch(error => {
+                            // If we fail to parse the response body as JSON, classify as `Internal`
+                            // status code.
                             //
-                            // This does not provide any security guarantees! This is purely a performance
-                            // optimization to authorize the session and space access at once.
-                            ...(spaceIdFromSpan
-                                ? {"cyberworlds-space-id-hint": spaceIdFromSpan}
-                                : {}),
-                        },
-                        body: JSON.stringify(
-                            RpcHttpCallInputSchema.serialize({
-                                name: definition.name,
-                                input: definition.inputSchema.serialize(input),
-                            }),
-                        ),
-                    },
-                    async response => {
-                        const callOutput = await response
-                            .json()
-                            .then((output: any) => RpcHttpCallOutputSchema.deserialize(output))
-                            .catch(error => {
-                                // If we fail to parse the response body as JSON, classify as `Internal`
-                                // status code.
-                                //
-                                // Maybe an error is also thrown here for some network errors? If so we should
-                                // classify network errors as the `Unavailable` status code.
-                                throw new InternalError(error.message, {cause: error});
-                            });
+                            // Maybe an error is also thrown here for some network errors? If so we should
+                            // classify network errors as the `Unavailable` status code.
+                            throw new InternalError(error.message, {cause: error});
+                        });
 
-                        if (!callOutput.ok) throw callOutput.error;
-                        return definition.outputSchema.deserialize(callOutput.output);
-                    },
-                );
-            },
-        );
+                    if (!callOutput.ok) throw callOutput.error;
+                    return definition.outputSchema.deserialize(callOutput.output);
+                },
+            );
+        });
     }
 
     public fork(): WorkerRpcContextModule {

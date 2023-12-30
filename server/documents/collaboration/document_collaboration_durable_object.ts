@@ -18,6 +18,8 @@ import {DocumentId, SpaceId} from "~/shared/id/types/id_types.js";
 import {getDocument} from "~/shared/rpc/documents_rpc_definitions.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+type DocumentCollaborationDurableObjectRoute = "Main" | "NotFound";
+
 class DocumentCollaborationDurableObject {
     public static readonly serviceName = "DocumentCollaborationService";
 
@@ -114,14 +116,22 @@ class DocumentCollaborationDurableObject {
         );
     }
 
-    public fetch(context: WorkerActionContext, request: Request): Promise<Response> {
+    public static parseRoute(url: URL): [string, DocumentCollaborationDurableObjectRoute] {
+        if (url.pathname !== "/") return ["/*", "NotFound"];
+        return ["/", "Main"];
+    }
+
+    public fetch(
+        context: WorkerActionContext,
+        request: Request,
+        route: DocumentCollaborationDurableObjectRoute,
+    ): Promise<Response> {
         // Propagate the document id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this.spaceId, documentId: this.id},
         });
 
-        const url = new URL(request.url);
-        if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
+        if (route === "NotFound") throw new NotFoundError("Route not found");
         return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 

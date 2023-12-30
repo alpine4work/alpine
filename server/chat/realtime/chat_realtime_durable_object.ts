@@ -16,6 +16,8 @@ import {NotFoundError} from "~/shared/error/error.js";
 import {ChatId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+type ChatRealtimeDurableObjectRoute = "Main" | "NotFound";
+
 class ChatRealtimeDurableObject {
     public static readonly serviceName = "ChatRealtimeService";
 
@@ -90,14 +92,22 @@ class ChatRealtimeDurableObject {
         );
     }
 
-    public async fetch(context: WorkerActionContext, request: Request): Promise<Response> {
+    public static parseRoute(url: URL): [string, ChatRealtimeDurableObjectRoute] {
+        if (url.pathname !== "/") return ["/*", "NotFound"];
+        return ["/", "Main"];
+    }
+
+    public async fetch(
+        context: WorkerActionContext,
+        request: Request,
+        route: ChatRealtimeDurableObjectRoute,
+    ): Promise<Response> {
         // Propagate the chat id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, chatId: this._chatId},
         });
 
-        const url = new URL(request.url);
-        if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
+        if (route === "NotFound") throw new NotFoundError("Route not found");
         return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 

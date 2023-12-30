@@ -40,32 +40,29 @@ export class ClientRpcContextModule extends RpcContextModuleBase<{tracer: Tracer
         definition: RpcDefinition<Input, Output>,
         input: Input,
     ): Promise<Output> {
-        return this._context.tracer.withSpan(
-            `RPC client ${definition.name}`,
-            async (context, span) => {
-                const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
+        return this._context.tracer.withSpan(`RPC ${definition.name}`, async (context, span) => {
+            const outputPromiseResolver = createPromiseResolver<SchemaSerializedValue>();
 
-                scheduleRpcCall({
-                    name: definition.name,
-                    input: definition.inputSchema.serialize(input),
-                    outputPromiseResolver,
-                    span,
-                });
+            scheduleRpcCall({
+                name: definition.name,
+                input: definition.inputSchema.serialize(input),
+                outputPromiseResolver,
+                span,
+            });
 
-                const output = await outputPromiseResolver.promise;
+            const output = await outputPromiseResolver.promise;
 
-                try {
-                    return definition.outputSchema.deserialize(output);
-                } catch (error) {
-                    // Reclassify deserialization errors as internal errors if we can't deserialize
-                    // the data coming from our RPC HTTP endpoint.
-                    if (error instanceof SchemaDeserializationError) {
-                        throw new InternalError(error.message, {cause: error});
-                    }
-                    throw error;
+            try {
+                return definition.outputSchema.deserialize(output);
+            } catch (error) {
+                // Reclassify deserialization errors as internal errors if we can't deserialize
+                // the data coming from our RPC HTTP endpoint.
+                if (error instanceof SchemaDeserializationError) {
+                    throw new InternalError(error.message, {cause: error});
                 }
-            },
-        );
+                throw error;
+            }
+        });
     }
 
     public fork() {

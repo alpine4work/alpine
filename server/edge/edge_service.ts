@@ -12,9 +12,9 @@ import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {Schema} from "~/shared/schema/schema.js";
 import {addTracerPropagationContextHeader} from "~/shared/tracer/tracer_propagation_context_header.js";
 
 type EdgeServiceEnv = {
@@ -87,8 +87,95 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
         waitUntil: promise => executionContext.waitUntil(promise),
     });
 
-    return traceServerResponse(tracer, request, url, async (span, request) => {
-        if (url.pathname.startsWith("/api/")) {
+    let routeString = "/*";
+    let route:
+        | "AppService"
+        | {type: "DocumentCollaborationService"; documentId: string; pathname: string}
+        | {type: "PostRealtimeService"; postId: string; pathname: string}
+        | {type: "ChatRealtimeService"; chatId: string; pathname: string}
+        | {type: "MyAccountService"; accountId: string; pathname: string}
+        | {type: "TaskNotesCollaborationService"; taskId: string; pathname: string}
+        | {type: "TaskRealtimeService"; spaceId: SpaceId} = "AppService";
+
+    if (!url.pathname.startsWith("/api/")) {
+        // Route to `AppService`...
+    } else if (url.pathname.startsWith("/api/durable-objects/")) {
+        const pathSegments = url.pathname.slice("/api/durable-objects/".length).split("/");
+
+        switch (pathSegments[0]) {
+            case "documents": {
+                const documentId = pathSegments[1];
+                if (documentId === undefined) break;
+
+                const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                routeString = `/api/durable-objects/documents/:documentId${
+                    pathname !== "/" ? "/*" : ""
+                }`;
+                route = {type: "DocumentCollaborationService", documentId, pathname};
+                break;
+            }
+            case "posts": {
+                const postId = pathSegments[1];
+                if (postId === undefined) break;
+
+                const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                routeString = `/api/durable-objects/posts/:postId${pathname !== "/" ? "/*" : ""}`;
+                route = {type: "PostRealtimeService", postId, pathname};
+                break;
+            }
+            case "chat": {
+                const chatId = pathSegments[1];
+                if (chatId === undefined) break;
+
+                const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                routeString = `/api/durable-objects/chat/:chatId${pathname !== "/" ? "/*" : ""}`;
+                route = {type: "ChatRealtimeService", chatId, pathname};
+                break;
+            }
+            case "my-account": {
+                const accountId = pathSegments[1];
+                if (accountId === undefined) break;
+
+                const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                routeString = `/api/durable-objects/my-account/:accountId${
+                    pathname !== "/" ? "/*" : ""
+                }`;
+                route = {type: "MyAccountService", accountId, pathname};
+                break;
+            }
+            case "task-notes": {
+                const taskId = pathSegments[1];
+                if (taskId === undefined) break;
+
+                const pathname = `/${pathSegments.slice(2).join("/")}`;
+
+                routeString = `/api/durable-objects/task-notes/:taskId${
+                    pathname !== "/" ? "/*" : ""
+                }`;
+                route = {type: "TaskNotesCollaborationService", taskId, pathname};
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+    } else if (url.pathname.startsWith("/api/task-realtime/")) {
+        const pathSegments = url.pathname.slice("/api/task-realtime/".length).split("/");
+        if (pathSegments.length === 1) {
+            const spaceId = pathSegments[0]!;
+            if (isId<SpaceId>(spaceId)) {
+                routeString = "/api/task-realtime/:spaceId";
+                route = {type: "TaskRealtimeService", spaceId};
+            }
+        }
+    }
+
+    return traceServerResponse(tracer, request, url, routeString, async (span, request) => {
+        if (route !== "AppService") {
             // An env object that is referentially equal will be passed in as long as
             // environment variables remain the same.
             // https://developers.cloudflare.com/workers/runtime-apis/fetch-event/#parameters
@@ -149,162 +236,122 @@ function handleFetch(request: Request, env: EdgeServiceEnv, executionContext: Ex
                 sharedResources = ourSharedResources;
             }
 
-            // Route durable object requests to the appropriate object.
-            if (url.pathname.startsWith("/api/durable-objects/")) {
-                const tokenAgent = await sharedResources.tokenAgentPromise;
+            const tokenAgent = await sharedResources.tokenAgentPromise;
 
-                const pathSegments = url.pathname.slice("/api/durable-objects/".length).split("/");
-                switch (pathSegments[0]) {
-                    case "documents": {
-                        const documentId = Schema.id().deserialize(pathSegments[1] ?? null);
-                        const pathname = `/${pathSegments.slice(2).join("/")}`;
-
-                        return fetchFromDurableObjectStub({
-                            durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
-                            serviceName: "DocumentCollaborationService",
-                            tokenAgent,
-                            request,
-                            pathname,
-                            idName: documentId,
-                            span,
-                        });
-                    }
-                    case "posts": {
-                        const postId = Schema.id().deserialize(pathSegments[1] ?? null);
-                        const pathname = `/${pathSegments.slice(2).join("/")}`;
-
-                        return fetchFromDurableObjectStub({
-                            durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
-                            serviceName: "PostRealtimeService",
-                            tokenAgent,
-                            request,
-                            pathname,
-                            idName: postId,
-                            span,
-                        });
-                    }
-                    case "chat": {
-                        const chatId = Schema.id().deserialize(pathSegments[1] ?? null);
-                        const pathname = `/${pathSegments.slice(2).join("/")}`;
-
-                        return fetchFromDurableObjectStub({
-                            durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
-                            serviceName: "ChatRealtimeService",
-                            tokenAgent,
-                            request,
-                            pathname,
-                            idName: chatId,
-                            span,
-                        });
-                    }
-                    case "my-account": {
-                        const accountId = Schema.id().deserialize(pathSegments[1] ?? null);
-                        const pathname = `/${pathSegments.slice(2).join("/")}`;
-
-                        return fetchFromDurableObjectStub({
-                            durableObjectNamespace: env.MyAccountDurableObjectNamespace,
-                            serviceName: "MyAccountService",
-                            tokenAgent,
-                            request,
-                            pathname,
-                            idName: accountId,
-                            span,
-                        });
-                    }
-                    case "task-notes": {
-                        const taskId = Schema.id().deserialize(pathSegments[1] ?? null);
-                        const pathname = `/${pathSegments.slice(2).join("/")}`;
-
-                        return fetchFromDurableObjectStub({
-                            durableObjectNamespace:
-                                env.TaskNotesCollaborationDurableObjectNamespace,
-                            serviceName: "TaskNotesCollaborationService",
-                            tokenAgent,
-                            request,
-                            pathname,
-                            idName: taskId,
-                            span,
-                        });
-                    }
-                    default:
-                        return new Response("404 Not Found: Durable object not found", {
-                            status: 404,
-                            headers: {"content-type": "text/plain"},
-                        });
-                }
-            }
-
-            // Route a WebSocket connection to the relevant `TaskRealtimeService` instance.
-            if (url.pathname.startsWith("/api/task-realtime/")) {
-                const pathSegments = url.pathname.slice("/api/task-realtime/".length).split("/");
-                if (pathSegments.length !== 1) {
-                    return new Response("404 Not Found", {
-                        status: 404,
-                        headers: {"content-type": "text/plain"},
+            switch (route.type) {
+                case "DocumentCollaborationService": {
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.DocumentCollaborationDurableObjectNamespace,
+                        serviceName: "DocumentCollaborationService",
+                        tokenAgent,
+                        request,
+                        pathname: route.pathname,
+                        idName: route.documentId,
+                        span,
                     });
                 }
-
-                const spaceId = pathSegments[0]!;
-                if (!isId<SpaceId>(spaceId)) {
-                    return new Response("400 Bad Request", {
-                        status: 400,
-                        headers: {"content-type": "text/plain"},
+                case "PostRealtimeService": {
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.PostRealtimeDurableObjectNamespace,
+                        serviceName: "PostRealtimeService",
+                        tokenAgent,
+                        request,
+                        pathname: route.pathname,
+                        idName: route.postId,
+                        span,
                     });
                 }
+                case "ChatRealtimeService": {
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.ChatRealtimeDurableObjectNamespace,
+                        serviceName: "ChatRealtimeService",
+                        tokenAgent,
+                        request,
+                        pathname: route.pathname,
+                        idName: route.chatId,
+                        span,
+                    });
+                }
+                case "MyAccountService": {
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.MyAccountDurableObjectNamespace,
+                        serviceName: "MyAccountService",
+                        tokenAgent,
+                        request,
+                        pathname: route.pathname,
+                        idName: route.accountId,
+                        span,
+                    });
+                }
+                case "TaskNotesCollaborationService": {
+                    return fetchFromDurableObjectStub({
+                        durableObjectNamespace: env.TaskNotesCollaborationDurableObjectNamespace,
+                        serviceName: "TaskNotesCollaborationService",
+                        tokenAgent,
+                        request,
+                        pathname: route.pathname,
+                        idName: route.taskId,
+                        span,
+                    });
+                }
+                case "TaskRealtimeService": {
+                    const {spaceId} = route;
+                    const taskRealtimeServiceRouter =
+                        await sharedResources.taskRealtimeServiceRouterPromise;
 
-                const tokenAgent = await sharedResources.tokenAgentPromise;
-                const taskRealtimeServiceRouter =
-                    await sharedResources.taskRealtimeServiceRouterPromise;
+                    const headers = new Headers(request.headers);
+                    addTracerPropagationContextHeader(headers, span);
 
-                const headers = new Headers(request.headers);
-                addTracerPropagationContextHeader(headers, span);
+                    // We authenticate with an `Authorization` not a `Cookie` header.
+                    headers.delete("cookie");
 
-                // We authenticate with an `Authorization` not a `Cookie` header.
-                headers.delete("cookie");
+                    // When connecting to `TaskRealtimeService` via the edge, you must authenticate
+                    // with a session cookie. `Authorization` headers are ignored.
+                    const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
+                    if (!sessionCookieToken) throw unauthenticatedSessionError();
 
-                // When connecting to `TaskRealtimeService` via the edge, you must authenticate
-                // with a session cookie. `Authorization` headers are ignored.
-                const sessionCookieToken = await getSessionCookieIfExists(tokenAgent, request);
-                if (!sessionCookieToken) throw unauthenticatedSessionError();
+                    const requestToken =
+                        await tokenAgent.privateSide.dangerouslySignShortLivedToken(
+                            "TaskRealtimeService",
+                            sessionCookieToken,
+                        );
+                    headers.set("authorization", `bearer ${requestToken}`);
 
-                const requestToken = await tokenAgent.privateSide.dangerouslySignShortLivedToken(
-                    "TaskRealtimeService",
-                    sessionCookieToken,
-                );
-                headers.set("authorization", `bearer ${requestToken}`);
-
-                const taskRealtimeServiceHost =
-                    await taskRealtimeServiceRouter.getStickySessionHost(
-                        Context.new({
-                            process: new ProcessContextModule({
-                                waitUntil: promise => executionContext.waitUntil(promise),
+                    const taskRealtimeServiceHost =
+                        await taskRealtimeServiceRouter.getStickySessionHost(
+                            Context.new({
+                                process: new ProcessContextModule({
+                                    waitUntil: promise => executionContext.waitUntil(promise),
+                                }),
+                                tracer: new TracerContextModule(span),
                             }),
-                            tracer: new TracerContextModule(span),
-                        }),
-                        spaceId,
-                        sessionCookieToken.sessionId,
-                    );
+                            spaceId,
+                            sessionCookieToken.sessionId,
+                        );
 
-                if (process.env.NODE_ENV !== "production") {
+                    if (process.env.NODE_ENV !== "production") {
+                        // eslint-disable-next-line no-global-fetch
+                        return fetch(`http://${taskRealtimeServiceHost}/${spaceId}`, {headers});
+                    }
+
+                    const [taskRealtimeServiceHostname = "", taskRealtimeServicePort = ""] =
+                        taskRealtimeServiceHost.split(":");
+
+                    // Proxy a WebSocket connection through Cloudflare. Notice we're using `http`
+                    // instead of `https`! Cloudflare is responsible for encrypting.
+                    //
+                    // Frustratingly, in production Cloudflare ignores non-default ports. So we run
+                    // a small proxy server in `TaskRealtimeService` on port 80 that redirects to
+                    // the right port.
+                    //
                     // eslint-disable-next-line no-global-fetch
-                    return fetch(`http://${taskRealtimeServiceHost}/${spaceId}`, {headers});
+                    return fetch(
+                        `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}`,
+                        {headers},
+                    );
                 }
-
-                const [taskRealtimeServiceHostname = "", taskRealtimeServicePort = ""] =
-                    taskRealtimeServiceHost.split(":");
-
-                // Proxy a WebSocket connection through Cloudflare. Notice we're using `http`
-                // instead of `https`! Cloudflare is responsible for encrypting.
-                //
-                // Frustratingly, in production Cloudflare ignores non-default ports. So we run
-                // a small proxy server in `TaskRealtimeService` on port 80 that redirects to
-                // the right port.
-                //
-                // eslint-disable-next-line no-global-fetch
-                return fetch(
-                    `http://${taskRealtimeServiceHostname}:80/${taskRealtimeServicePort}/${spaceId}`,
-                    {headers},
-                );
+                default:
+                    throw exhaustive(route);
             }
         }
 

@@ -18,6 +18,8 @@ import {Schema} from "~/shared/schema/schema.js";
 import {TaskNotesCollaborationProtocol} from "~/shared/tasks/task_notes_collaboration_protocol.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
+type TaskNotesCollaborationDurableObjectRoute = "Main" | "NotFound";
+
 class TaskNotesCollaborationDurableObject {
     public static readonly serviceName = "TaskNotesCollaborationService";
 
@@ -113,14 +115,22 @@ class TaskNotesCollaborationDurableObject {
         });
     }
 
-    public fetch(context: WorkerActionContext, request: Request): Promise<Response> {
+    public static parseRoute(url: URL): [string, TaskNotesCollaborationDurableObjectRoute] {
+        if (url.pathname !== "/") return ["/*", "NotFound"];
+        return ["/", "Main"];
+    }
+
+    public fetch(
+        context: WorkerActionContext,
+        request: Request,
+        route: TaskNotesCollaborationDurableObjectRoute,
+    ): Promise<Response> {
         // Propagate the `TaskId` to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this.spaceId, taskId: this.taskId},
         });
 
-        const url = new URL(request.url);
-        if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
+        if (route === "NotFound") throw new NotFoundError("Route not found");
         return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 

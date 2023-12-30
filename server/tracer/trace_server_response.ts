@@ -1,5 +1,6 @@
 import {validateTracerEventFlatDataForPropagation} from "~/server/tracer/validate_tracer_event_flat_data.js";
 import {InvalidArgumentError} from "~/shared/error/error.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {filterIterable} from "~/shared/helpers/iterable/filter_iterable.js";
 import {isPlainObject} from "~/shared/helpers/object/is_plain_object.js";
 import {isId} from "~/shared/id/id.js";
@@ -24,17 +25,29 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * May re-create the `Request` object so when responding to a request use the
  * `Request` object passed into the action.
  */
-// TODO(calebmer, #tracer): Include the HTTP route in the span name like we do
-// with `fetchWithTracer()`.
 export async function traceServerResponse(
     tracer: TracerRoot,
     request: Request,
     requestUrl: URL,
+    route: string,
     action: (span: TracerSpan, request: Request) => Promise<Response>,
 ): Promise<Response> {
+    if (process.env.NODE_ENV !== "production") {
+        assert(
+            new RegExp(
+                route.replaceAll(
+                    /(^|\/)(\*|:[a-zA-Z0-9_]+)(\/|$)/g,
+                    (substring, match1, match2, match3) =>
+                        `${match1}${match2 === "*" ? ".*" : "[^/]+"}${match3}`,
+                ),
+            ).test(requestUrl.pathname),
+            "`route` must match URL `pathname`",
+        );
+    }
+
     const {span, finishSpan} = startSpanFromTracerPropagationContextHeader(
         tracer,
-        `HTTP server ${request.method}`,
+        `Handle: ${tracer.serviceName} ${request.method} ${route}`,
         request,
     );
 
@@ -46,6 +59,7 @@ export async function traceServerResponse(
 
         span.addData({
             http: {
+                route,
                 method: request.method,
                 scheme: requestUrl.protocol.slice(0, -1),
                 target: `${requestUrl.pathname}${requestUrl.search}`,

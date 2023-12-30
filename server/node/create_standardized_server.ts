@@ -18,23 +18,37 @@ import {TracerSpan} from "~/shared/tracer/tracer_span.js";
  * Create a request listener for a Node.js HTTP server that follows WhatWG
  * conventions.
  */
-export function createStandardizedRequestListener(
+export function createStandardizedRequestListener<Route>(
     tracer: TracerRoot,
-    handleRequest: (request: Request, url: URL, span: TracerSpan) => Promise<Response>,
+    parseRoute: (url: URL) => [string, Route],
+    handleRequest: (
+        request: Request,
+        url: URL,
+        route: Route,
+        span: TracerSpan,
+    ) => Promise<Response>,
 ) {
-    const actuallyHandleRequest = wrapWithTraceServerResponse(tracer, handleRequest);
+    const actuallyHandleRequest = wrapWithTraceServerResponse(tracer, parseRoute, handleRequest);
     return actuallyCreateStandardizedRequestListener(tracer, actuallyHandleRequest);
 }
 
-function wrapWithTraceServerResponse(
+function wrapWithTraceServerResponse<Route>(
     tracer: TracerRoot,
-    handleRequest: (request: Request, url: URL, span: TracerSpan) => Promise<Response>,
+    parseRoute: (url: URL) => [string, Route],
+    handleRequest: (
+        request: Request,
+        url: URL,
+        route: Route,
+        span: TracerSpan,
+    ) => Promise<Response>,
 ): (request: Request) => Promise<Response> {
     return request => {
         const url = new URL(request.url);
 
-        return traceServerResponse(tracer, request, url, (span, request) =>
-            handleRequest(request, url, span),
+        const [route, routeObject] = parseRoute(url);
+
+        return traceServerResponse(tracer, request, url, route, (span, request) =>
+            handleRequest(request, url, routeObject, span),
         );
     };
 }
@@ -163,11 +177,17 @@ export function sendStandardizedResponse(res: ServerResponse, response: Response
  * Create a Node.js HTTP server using a request handler following WhatWG
  * conventions.
  */
-export function createStandardizedServer(
+export function createStandardizedServer<Route>(
     tracer: TracerRoot,
-    handleRequest: (request: Request, url: URL, span: TracerSpan) => Promise<Response>,
+    parseRoute: (url: URL) => [string, Route],
+    handleRequest: (
+        request: Request,
+        url: URL,
+        route: Route,
+        span: TracerSpan,
+    ) => Promise<Response>,
 ) {
-    const actuallyHandleRequest = wrapWithTraceServerResponse(tracer, handleRequest);
+    const actuallyHandleRequest = wrapWithTraceServerResponse(tracer, parseRoute, handleRequest);
 
     const requestListener = actuallyCreateStandardizedRequestListener(
         tracer,
@@ -195,11 +215,17 @@ export function createStandardizedServer(
  *
  * [1]: https://developers.cloudflare.com/workers/runtime-apis/websockets/use-websockets/
  */
-export function createStandardizedServerWithWebSockets(
+export function createStandardizedServerWithWebSockets<Route>(
     tracer: TracerRoot,
-    handleRequest: (request: Request, url: URL, span: TracerSpan) => Promise<Response>,
+    parseRoute: (url: URL) => [string, Route],
+    handleRequest: (
+        request: Request,
+        url: URL,
+        route: Route,
+        span: TracerSpan,
+    ) => Promise<Response>,
 ) {
-    const server = createStandardizedServer(tracer, handleRequest);
+    const server = createStandardizedServer(tracer, parseRoute, handleRequest);
 
     // WebSocket server implementation is adapted from Miniflare. Cloudflare's
     // Node.js implementation of their runtime.
@@ -207,8 +233,9 @@ export function createStandardizedServerWithWebSockets(
 
     const actuallyHandleWebSocketRequest = wrapWithTraceServerResponse(
         tracer,
-        async (request, url, span) => {
-            const response = await handleRequest(request, url, span);
+        parseRoute,
+        async (request, url, route, span) => {
+            const response = await handleRequest(request, url, route, span);
 
             // "ok" responses are errors if the user is trying to upgrade.
             if (

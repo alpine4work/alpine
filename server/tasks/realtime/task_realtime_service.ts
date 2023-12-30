@@ -73,6 +73,15 @@ type TaskRealtimeSessionActionContextModules = ServerSessionActionContextModules
     fork: ForkActionContextModule;
 };
 
+type TaskRealtimeServiceRoute =
+    | {readonly type: "HealthCheck"}
+    | {readonly type: "NotFound"}
+    | {readonly type: "Main"; readonly spaceId: SpaceId}
+    | {readonly type: "ApplyActionTransaction"; readonly spaceId: SpaceId}
+    | {readonly type: "LoadQueries"; readonly spaceId: SpaceId}
+    | {readonly type: "GetTask"; readonly spaceId: SpaceId; readonly taskId: string}
+    | {readonly type: "GetCollection"; readonly spaceId: SpaceId; readonly collectionId: string};
+
 runService({
     serviceName: "TaskRealtimeService",
     options: {
@@ -199,20 +208,16 @@ runService({
         const handleRequest = async (
             request: Request,
             url: URL,
+            route: TaskRealtimeServiceRoute & {spaceId: SpaceId},
             span: TracerSpan,
         ): Promise<Response | void> => {
+            const {spaceId} = route;
+
             const baseContext = processContext.clone({
                 tracer: new TracerContextModule(span),
                 cache: new CacheContextModule(),
                 dynamoBatchContext: new DynamoBatchContextModule(),
             });
-
-            const pathnameSegments = url.pathname.slice(1).split("/");
-
-            if (!pathnameSegments[0] || !isId<SpaceId>(pathnameSegments[0]))
-                throw new InvalidArgumentError("Expected `SpaceId` in path");
-
-            const spaceId = pathnameSegments[0];
 
             const actorContextModule = await createActorContextModule(
                 baseContext,
@@ -221,8 +226,8 @@ runService({
                 spaceId,
             );
 
-            switch (pathnameSegments[1]) {
-                case undefined: {
+            switch (route.type) {
+                case "Main": {
                     // NOTE(calebmer): This condition is important for security!
                     // `TaskRealtimeService` has routes to the public internet so our Cloudflare
                     // Worker `EdgeService` can make a connection. However, ONLY `EdgeService`
@@ -264,9 +269,7 @@ runService({
                 // This endpoint should be called every time an action transaction is commit in
                 // a space that's part of this server's space partition. We add the actions to
                 // our action history and broadcast realtime events to all connected clients.
-                case "applyActionTransaction": {
-                    if (pathnameSegments.length !== 2) throw new NotFoundError("Route not found");
-
+                case "ApplyActionTransaction": {
                     if (request.method !== "POST") {
                         throw new InvalidArgumentError(
                             quote`Invalid request method ${request.method}`,
@@ -300,9 +303,7 @@ runService({
                         },
                     );
                 }
-                case "loadQueries": {
-                    if (pathnameSegments.length !== 2) throw new NotFoundError("Route not found");
-
+                case "LoadQueries": {
                     if (request.method !== "POST") {
                         throw new InvalidArgumentError(
                             quote`Invalid request method ${request.method}`,
@@ -351,16 +352,14 @@ runService({
                         },
                     );
                 }
-                case "getTask": {
-                    if (pathnameSegments.length !== 3) throw new NotFoundError("Route not found");
-
+                case "GetTask": {
                     if (request.method !== "GET") {
                         throw new InvalidArgumentError(
                             quote`Invalid request method ${request.method}`,
                         );
                     }
 
-                    const taskId = pathnameSegments[2];
+                    const {taskId} = route;
 
                     if (!taskId || !isId<TaskId>(taskId))
                         throw new InvalidArgumentError("Expected `TaskId` in path");
@@ -408,16 +407,14 @@ runService({
                         },
                     );
                 }
-                case "getCollection": {
-                    if (pathnameSegments.length !== 3) throw new NotFoundError("Route not found");
-
+                case "GetCollection": {
                     if (request.method !== "GET") {
                         throw new InvalidArgumentError(
                             quote`Invalid request method ${request.method}`,
                         );
                     }
 
-                    const collectionId = pathnameSegments[2];
+                    const {collectionId} = route;
 
                     if (!collectionId || !isId<TaskCollectionId>(collectionId))
                         throw new InvalidArgumentError("Expected `TaskCollectionId` in path");
@@ -468,10 +465,60 @@ runService({
             }
         };
 
-        const httpServer = createStandardizedServerWithWebSockets(
+        const httpServer = createStandardizedServerWithWebSockets<TaskRealtimeServiceRoute>(
             tracer,
-            async (request, url, span) => {
+            url => {
                 if (url.pathname === "/healthcheck") {
+                    return ["/healthcheck", {type: "HealthCheck"}];
+                }
+
+                const pathnameSegments = url.pathname.slice(1).split("/");
+
+                if (!pathnameSegments[0] || !isId<SpaceId>(pathnameSegments[0])) {
+                    return ["/*", {type: "NotFound"}];
+                }
+
+                const spaceId = pathnameSegments[0];
+
+                switch (pathnameSegments[1]) {
+                    case undefined: {
+                        return ["/:spaceId", {type: "Main", spaceId}];
+                    }
+                    case "applyActionTransaction": {
+                        if (pathnameSegments.length !== 2) return ["/*", {type: "NotFound"}];
+
+                        return [
+                            "/:spaceId/applyActionTransaction",
+                            {type: "ApplyActionTransaction", spaceId},
+                        ];
+                    }
+                    case "loadQueries": {
+                        if (pathnameSegments.length !== 2) return ["/*", {type: "NotFound"}];
+
+                        return ["/:spaceId/loadQueries", {type: "LoadQueries", spaceId}];
+                    }
+                    case "getTask": {
+                        if (pathnameSegments.length !== 3) return ["/*", {type: "NotFound"}];
+
+                        return [
+                            "/:spaceId/getTask/:taskId",
+                            {type: "GetTask", spaceId, taskId: pathnameSegments[2]!},
+                        ];
+                    }
+                    case "getCollection": {
+                        if (pathnameSegments.length !== 3) return ["/*", {type: "NotFound"}];
+
+                        return [
+                            "/:spaceId/getCollection/:collectionId",
+                            {type: "GetCollection", spaceId, collectionId: pathnameSegments[2]!},
+                        ];
+                    }
+                    default:
+                        return ["/*", {type: "NotFound"}];
+                }
+            },
+            async (request, url, route, span) => {
+                if (route.type === "HealthCheck") {
                     if (Date.now() - startTime < taskRealtimeServiceDiscoveryWaitMs) {
                         return Promise.resolve(
                             new Response(
@@ -489,7 +536,13 @@ runService({
                     );
                 }
 
-                const result = await captureResultPromise(() => handleRequest(request, url, span));
+                if (route.type === "NotFound") {
+                    throw new NotFoundError("Route not found");
+                }
+
+                const result = await captureResultPromise(() =>
+                    handleRequest(request, url, route, span),
+                );
 
                 if (result.ok) {
                     return (

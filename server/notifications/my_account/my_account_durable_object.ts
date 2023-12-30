@@ -12,10 +12,13 @@ import {MyAccountConnection} from "~/server/notifications/my_account/my_account_
 import {MyAccountDurableObjectAuthorizer} from "~/server/notifications/my_account/my_account_durable_object_authorizer.js";
 import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {NotFoundError} from "~/shared/error/error.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {MyAccountSendInboxRealtimeEventTransactionSchema} from "~/shared/notifications/my_account_inbox_realtime_event_transaction_schema.js";
 import {MyAccountProtocol} from "~/shared/notifications/my_account_protocol.js";
 import {Schema} from "~/shared/schema/schema.js";
+
+type MyAccountDurableObjectRoute = "Main" | "SendInboxRealtimeEventTransaction" | "NotFound";
 
 class MyAccountDurableObject {
     public static readonly serviceName = "MyAccountService";
@@ -81,18 +84,30 @@ class MyAccountDurableObject {
         });
     }
 
-    public async fetch(context: WorkerActionContext, request: Request): Promise<Response> {
+    public static parseRoute(url: URL): [string, MyAccountDurableObjectRoute] {
+        if (url.pathname === "/") return ["/", "Main"];
+
+        if (url.pathname === "/send-inbox-realtime-event-transaction")
+            return ["/send-inbox-realtime-event-transaction", "SendInboxRealtimeEventTransaction"];
+
+        return ["/*", "NotFound"];
+    }
+
+    public async fetch(
+        context: WorkerActionContext,
+        request: Request,
+        route: MyAccountDurableObjectRoute,
+    ): Promise<Response> {
         // Propagate the `AccountId` to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {accountId: this._accountId},
         });
 
-        const url = new URL(request.url);
-        switch (url.pathname) {
-            case "/": {
+        switch (route) {
+            case "Main": {
                 return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
             }
-            case "/send-inbox-realtime-event-transaction": {
+            case "SendInboxRealtimeEventTransaction": {
                 await this._authorizer.authorizeMyAccountAccess(context, this._accountId);
 
                 // Only system requests can send a realtime event transaction. This prevents a
@@ -113,8 +128,10 @@ class MyAccountDurableObject {
 
                 return new Response();
             }
+            case "NotFound":
+                throw new NotFoundError("Route not found");
             default:
-                throw new NotFoundError("Unexpected path");
+                throw exhaustive(route);
         }
     }
 

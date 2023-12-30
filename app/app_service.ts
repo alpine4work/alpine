@@ -1,5 +1,7 @@
 import * as build from "@remix-run/dev/server-build";
 import {createRequestHandler} from "@remix-run/node";
+import {ServerRoute} from "@remix-run/server-runtime";
+import type {RouteMatch} from "@remix-run/server-runtime/dist/routeMatching.js";
 import {createServer} from "http";
 import {join as joinPath} from "path";
 import createServeStaticMiddleware from "serve-static";
@@ -170,135 +172,169 @@ runService({
 
         const handleRequest = createRequestHandler(build, process.env.NODE_ENV);
 
-        const requestListener = createStandardizedRequestListener(tracer, (request, url, span) => {
-            if (url.pathname === "/api/internal/healthcheck") {
-                return Promise.resolve(
-                    new Response("200 OK", {
-                        status: 200,
-                        headers: {"content-type": "text/plain"},
-                    }),
-                );
-            }
+        const requestListener = createStandardizedRequestListener<
+            "HealthCheck" | Array<RouteMatch<ServerRoute>> | null
+        >(
+            tracer,
+            url => {
+                if (url.pathname === "/api/internal/healthcheck")
+                    return ["/api/internal/healthcheck", "HealthCheck"];
 
-            return withSessionCookie(tokenAgent, request, async sessionCookie => {
-                // Sometimes we want to upgrade a session actor to a system actor. This gives
-                // the action escalated the system permission level which is dangerous! The
-                // system permission level has broad access to a space. We should tightly
-                // control what code is allowed to call this function, only allowed context
-                // modules get access and those context modules are expected to treat this as a
-                // private variable.
-                //
-                // It's important we use new caches + batchers here. We don't want to load some
-                // data at a higher permission level then let the session context see it. So we
-                // derive our new context from the process context to help avoid reusing any
-                // request-level caches.
-                const dangerouslyEscalateToSystemContext = <Value>(
-                    context: Context<{
-                        tracer: TracerContextModule;
-                        actor: DynamoActorContextModule;
-                        cache: CacheContextModule;
-                    }>,
-                    spaceId: SpaceId,
-                    action: (
-                        context: Context<
-                            ServerSystemActionContextModules & {
+                const matches = handleRequest.matchServerRoutes(url);
+                let route = "";
+
+                if (matches === null) {
+                    route = "/*";
+                } else {
+                    for (const match of matches) {
+                        if (match.route.id === "root") continue;
+                        if (match.route.path === undefined) continue;
+                        route = `${route}/${match.route.path}`;
+                    }
+                }
+
+                return [route, matches];
+            },
+            (request, url, matches, span) => {
+                if (matches === "HealthCheck") {
+                    return Promise.resolve(
+                        new Response("200 OK", {
+                            status: 200,
+                            headers: {"content-type": "text/plain"},
+                        }),
+                    );
+                }
+
+                return withSessionCookie(tokenAgent, request, async sessionCookie => {
+                    // Sometimes we want to upgrade a session actor to a system actor. This gives
+                    // the action escalated the system permission level which is dangerous! The
+                    // system permission level has broad access to a space. We should tightly
+                    // control what code is allowed to call this function, only allowed context
+                    // modules get access and those context modules are expected to treat this as a
+                    // private variable.
+                    //
+                    // It's important we use new caches + batchers here. We don't want to load some
+                    // data at a higher permission level then let the session context see it. So we
+                    // derive our new context from the process context to help avoid reusing any
+                    // request-level caches.
+                    const dangerouslyEscalateToSystemContext = <Value>(
+                        context: Context<{
+                            tracer: TracerContextModule;
+                            actor: DynamoActorContextModule;
+                            cache: CacheContextModule;
+                        }>,
+                        spaceId: SpaceId,
+                        action: (
+                            context: Context<
+                                ServerSystemActionContextModules & {
+                                    notifications: NotificationsContextModule;
+                                }
+                            >,
+                        ) => Promise<Value>,
+                    ): Promise<Value> => {
+                        return processContext.with<
+                            Omit<
+                                ServerSystemActionContextModules,
+                                Exclude<keyof ServerProcessContextModules, "tracer">
+                            > & {
                                 notifications: NotificationsContextModule;
-                            }
-                        >,
-                    ) => Promise<Value>,
-                ): Promise<Value> => {
-                    return processContext.with<
+                            },
+                            Value
+                        >(
+                            {
+                                tracer: new TracerContextModule(context.tracer.getTracer()),
+                                // Optimization: Share some caches that opt-in to sharing with the session
+                                // context. This is dangerous since we don't want to let system data leak into
+                                // session actions and vice-versa. We trust the cache author to make the right
+                                // determination about their cache.
+                                cache: context.cache.dangerouslyForkWithSharedCaches(),
+                                dynamoBatchContext: new DynamoBatchContextModule(),
+                                notifications: notificationsContextModule,
+                                actor: DynamoSystemActorContextModule.dangerouslyNew(
+                                    context.actor.serviceName,
+                                    spaceId,
+                                ),
+                            },
+                            action,
+                        );
+                    };
+
+                    const notificationsContextModule = new NotificationsContextModule({
+                        dangerouslyEscalateToSystemContext,
+                        edgeServiceUrl,
+                        tokenAgent,
+                    });
+
+                    const loaderContextModule = new LoaderContextModule(request, {
+                        tokenAgent,
+                        sessionCookie,
+                        devServerPort: options.remixDevServerPort
+                            ? parseInt(options.remixDevServerPort, 10)
+                            : null,
+                    });
+
+                    const response = await processContext.with<
                         Omit<
-                            ServerSystemActionContextModules,
+                            LoaderContextModules,
                             Exclude<keyof ServerProcessContextModules, "tracer">
-                        > & {
-                            notifications: NotificationsContextModule;
-                        },
-                        Value
+                        >,
+                        globalThis.Response
                     >(
                         {
-                            tracer: new TracerContextModule(context.tracer.getTracer()),
-                            // Optimization: Share some caches that opt-in to sharing with the session
-                            // context. This is dangerous since we don't want to let system data leak into
-                            // session actions and vice-versa. We trust the cache author to make the right
-                            // determination about their cache.
-                            cache: context.cache.dangerouslyForkWithSharedCaches(),
+                            tracer: new TracerContextModule(span),
+                            rpc: new LocalRpcContextModule(),
+                            loader: loaderContextModule,
+                            cache: new CacheContextModule(),
                             dynamoBatchContext: new DynamoBatchContextModule(),
-                            notifications: notificationsContextModule,
-                            actor: DynamoSystemActorContextModule.dangerouslyNew(
-                                context.actor.serviceName,
-                                spaceId,
+                            actor: createActorContextModule(
+                                request,
+                                url,
+                                tokenAgent,
+                                sessionCookie,
                             ),
+                            notifications: notificationsContextModule,
+                            tasks: new TaskContextModule({
+                                router: taskRealtimeServiceRouter,
+                                tokenAgent,
+                                dangerouslyEscalateToSystemContext,
+                            }),
+                            languageModel: new LanguageModelContextModule(languageModel),
                         },
-                        action,
+                        context => {
+                            // The first time our server process runs in development, seed DynamoDB with
+                            // some initial data. The seed function should be idempotent.
+                            if (
+                                process.env.NODE_ENV !== "production" &&
+                                options.shouldSeedDynamo &&
+                                !hasSeededDynamo
+                            ) {
+                                hasSeededDynamo = true;
+                                context.process.waitUntil(async () => {
+                                    try {
+                                        await seedDynamo(context);
+                                    } catch (error) {
+                                        // If there is an error, log it but don't crash the process.
+                                        // eslint-disable-next-line no-console
+                                        console.error("Failed to seed DynamoDB data:", error);
+                                    }
+                                });
+                            }
+
+                            return handleRequest(
+                                request,
+                                context,
+                                // We already parsed route matches. Pass them to Remix...
+                                {url, matches},
+                            );
+                        },
                     );
-                };
 
-                const notificationsContextModule = new NotificationsContextModule({
-                    dangerouslyEscalateToSystemContext,
-                    edgeServiceUrl,
-                    tokenAgent,
+                    loaderContextModule.addResponseHeaders(response.headers);
+
+                    return response;
                 });
-
-                const loaderContextModule = new LoaderContextModule(request, {
-                    tokenAgent,
-                    sessionCookie,
-                    devServerPort: options.remixDevServerPort
-                        ? parseInt(options.remixDevServerPort, 10)
-                        : null,
-                });
-
-                const response = await processContext.with<
-                    Omit<
-                        LoaderContextModules,
-                        Exclude<keyof ServerProcessContextModules, "tracer">
-                    >,
-                    globalThis.Response
-                >(
-                    {
-                        tracer: new TracerContextModule(span),
-                        rpc: new LocalRpcContextModule(),
-                        loader: loaderContextModule,
-                        cache: new CacheContextModule(),
-                        dynamoBatchContext: new DynamoBatchContextModule(),
-                        actor: createActorContextModule(request, url, tokenAgent, sessionCookie),
-                        notifications: notificationsContextModule,
-                        tasks: new TaskContextModule({
-                            router: taskRealtimeServiceRouter,
-                            tokenAgent,
-                            dangerouslyEscalateToSystemContext,
-                        }),
-                        languageModel: new LanguageModelContextModule(languageModel),
-                    },
-                    context => {
-                        // The first time our server process runs in development, seed DynamoDB with
-                        // some initial data. The seed function should be idempotent.
-                        if (
-                            process.env.NODE_ENV !== "production" &&
-                            options.shouldSeedDynamo &&
-                            !hasSeededDynamo
-                        ) {
-                            hasSeededDynamo = true;
-                            context.process.waitUntil(async () => {
-                                try {
-                                    await seedDynamo(context);
-                                } catch (error) {
-                                    // If there is an error, log it but don't crash the process.
-                                    // eslint-disable-next-line no-console
-                                    console.error("Failed to seed DynamoDB data:", error);
-                                }
-                            });
-                        }
-
-                        return handleRequest(request, context);
-                    },
-                );
-
-                loaderContextModule.addResponseHeaders(response.headers);
-
-                return response;
-            });
-        });
+            },
+        );
 
         // TODO(calebmer): Block requests that don't come from Cloudflare -> AWS Load Balancer -> us
         // in application code in production.

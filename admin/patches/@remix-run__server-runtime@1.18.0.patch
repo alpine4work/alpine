@@ -1,11 +1,11 @@
 diff --git a/dist/data.js b/dist/data.js
-index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..daf076e2ed291bdf5726820b6b9badd2e0943016 100644
+index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..8e2a3402e1ec67dc184ca9fe0218d6787e2c6502 100644
 --- a/dist/data.js
 +++ b/dist/data.js
 @@ -25,34 +25,69 @@ var responses = require('./responses.js');
   * Note: This moves to unknown in ReactRouter and eventually likely in Remix
   */
-
+ 
 -async function callRouteActionRR({
 +function callRouteActionRR({
    loadContext,
@@ -84,7 +84,7 @@ index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..daf076e2ed291bdf5726820b6b9badd2
    return responses.isResponse(result) ? result : responses.json(result);
 +  });
  }
-
+ 
  // TODO: Document these search params better
 diff --git a/dist/errors.js b/dist/errors.js
 index b36de14d45f917d3689f8fe6881477ba8576edf0..19913d9fe134e1d464c8d1dad378116a78f64dd6 100644
@@ -147,7 +147,7 @@ index b36de14d45f917d3689f8fe6881477ba8576edf0..19913d9fe134e1d464c8d1dad378116a
        serialized[key] = val;
      }
 diff --git a/dist/esm/data.js b/dist/esm/data.js
-index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..35c04b351b656a48880275125a1ca5c0a6504162 100644
+index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..32b6f2ec40c389516ed6405d725e21fb02fbcbf6 100644
 --- a/dist/esm/data.js
 +++ b/dist/esm/data.js
 @@ -26,29 +26,64 @@ async function callRouteActionRR({
@@ -225,7 +225,7 @@ index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..35c04b351b656a48880275125a1ca5c0
    return isResponse(result) ? result : json(result);
 +  });
  }
-
+ 
  // TODO: Document these search params better
 diff --git a/dist/esm/errors.js b/dist/esm/errors.js
 index 61139f0a8c53f48815b8abc49f90a16a619566e1..da479ab3d1e2a51af58b99c424f4bf4a3c90b4ee 100644
@@ -306,7 +306,7 @@ index 2181536a3789c42cad59c61f1aedf185fae51814..71e39645ed772869ef0fa6cec0633f99
 --- a/dist/esm/routes.js
 +++ b/dist/esm/routes.js
 @@ -37,7 +37,7 @@ function createRoutes(manifest, parentId = "", routesByParentId = groupRoutesByP
-
+ 
  // Convert the Remix ServerManifest into DataRouteObject's for use with
  // createStaticHandler
 -function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesByParentId = groupRoutesByParentId(manifest)) {
@@ -343,11 +343,11 @@ index 2181536a3789c42cad59c61f1aedf185fae51814..71e39645ed772869ef0fa6cec0633f99
      };
    });
 diff --git a/dist/esm/server.js b/dist/esm/server.js
-index 6a99b0202e01950a2911f879517411bdbc783df2..47167fbc27c8221ee2e681354a36752848b389c1 100644
+index 6a99b0202e01950a2911f879517411bdbc783df2..a57215b017df02d9329ea3279f3a33b7b13351ca 100644
 --- a/dist/esm/server.js
 +++ b/dist/esm/server.js
 @@ -21,7 +21,7 @@ import { createServerHandoffString } from './serverHandoff.js';
-
+ 
  const createRequestHandler = (build, mode) => {
    let routes = createRoutes(build.routes);
 -  let dataRoutes = createStaticHandlerDataRoutes(build.routes, build.future);
@@ -355,7 +355,37 @@ index 6a99b0202e01950a2911f879517411bdbc783df2..47167fbc27c8221ee2e681354a367528
    let serverMode = isServerMode(mode) ? mode : ServerMode.Production;
    let staticHandler = createStaticHandler(dataRoutes);
    let errorHandler = build.entry.module.handleError || ((error, {
-@@ -190,6 +190,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
+@@ -31,9 +31,12 @@ const createRequestHandler = (build, mode) => {
+       console.error(error);
+     }
+   });
+-  return async function requestHandler(request, loadContext = {}) {
+-    let url = new URL(request.url);
+-    let matches = matchServerRoutes(routes, url.pathname);
++  async function requestHandler(request, loadContext = {}, preMatch) {
++    // NOTE(calebmer): Allow figuring out matches before we call into the
++    // request handler. We need matches outside this function to initialize our
++    // tracer.
++    let url = preMatch !== undefined ? preMatch.url : new URL(request.url);
++    let matches = preMatch !== undefined ? preMatch.matches : matchServerRoutes(routes, url.pathname);
+     let handleError = error => errorHandler(error, {
+       context: loadContext,
+       params: matches && matches.length > 0 ? matches[0].params : {},
+@@ -64,7 +67,13 @@ const createRequestHandler = (build, mode) => {
+       });
+     }
+     return response;
++  }
++
++  requestHandler.matchServerRoutes = url => {
++    return routeMatching.matchServerRoutes(routes$1, url.pathname);
+   };
++
++  return requestHandler;
+ };
+ async function handleDataRequestRR(serverMode, staticHandler, routeId, request, loadContext, handleError) {
+   try {
+@@ -190,6 +199,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
      staticHandlerContext: context,
      serverHandoffString: createServerHandoffString({
        url: context.location.pathname + context.location.search,
@@ -365,7 +395,7 @@ index 6a99b0202e01950a2911f879517411bdbc783df2..47167fbc27c8221ee2e681354a367528
        state: {
          loaderData: context.loaderData,
          actionData: context.actionData,
-@@ -225,6 +228,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
+@@ -225,6 +237,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
        staticHandlerContext: context,
        serverHandoffString: createServerHandoffString({
          url: context.location.pathname + context.location.search,
@@ -400,9 +430,9 @@ index 19561c1294861509c0c27632a8c6568b32ca1441..74434db6298b05ccc0ffdc0461f5fd40
  var dev = require('./dev.js');
 +var routeMatching = require('./routeMatching.js');
 +var data = require('./data.js');
-
-
-
+ 
+ 
+ 
 @@ -42,3 +44,9 @@ exports.unstable_createMemoryUploadHandler = memoryUploadHandler.createMemoryUpl
  exports.MaxPartSizeExceededError = errors.MaxPartSizeExceededError;
  exports.broadcastDevReady = dev.broadcastDevReady;
@@ -418,7 +448,7 @@ index 02d692fcaaff6bc40dd69713fa512ae67ce11b20..be607c825b52c5601d06e08b66c7bb47
 --- a/dist/routes.js
 +++ b/dist/routes.js
 @@ -41,7 +41,7 @@ function createRoutes(manifest, parentId = "", routesByParentId = groupRoutesByP
-
+ 
  // Convert the Remix ServerManifest into DataRouteObject's for use with
  // createStaticHandler
 -function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesByParentId = groupRoutesByParentId(manifest)) {
@@ -454,12 +484,32 @@ index 02d692fcaaff6bc40dd69713fa512ae67ce11b20..be607c825b52c5601d06e08b66c7bb47
        ...commonRoute
      };
    });
+diff --git a/dist/server.d.ts b/dist/server.d.ts
+index e7db253d071596a3ce5aa557ca0bc5860e0bd8b2..8955d0d8e07867cf58ab649f37350590819f1f07 100644
+--- a/dist/server.d.ts
++++ b/dist/server.d.ts
+@@ -1,7 +1,14 @@
+ import type { StaticHandlerContext } from "@remix-run/router";
+ import type { AppLoadContext } from "./data";
+ import type { ServerBuild } from "./build";
+-export type RequestHandler = (request: Request, loadContext?: AppLoadContext) => Promise<Response>;
++import type { ServerRoute } from "./routes";
++import type { RouteMatch } from "./routeMatching";
++// NOTE(calebmer): Allow figuring out matches before we call into the
++// request handler. We need matches outside this function to initialize our
++// tracer.
++export type RequestHandler = ((request: Request, loadContext?: AppLoadContext, preMatch?: {url: URL; matches: RouteMatch<ServerRoute>[] | null}) => Promise<Response>)  & {
++  matchServerRoutes(url: URL): RouteMatch<ServerRoute>[] | null;
++};
+ export type CreateRequestHandlerFunction = (build: ServerBuild, mode?: string) => RequestHandler;
+ export declare const createRequestHandler: CreateRequestHandlerFunction;
+ export declare function differentiateCatchVersusErrorBoundaries(build: ServerBuild, context: StaticHandlerContext): void;
 diff --git a/dist/server.js b/dist/server.js
-index c0468862698b223a885bb29d78822ebf80d68ca1..9ae88ab6eabff4987fc2790745d3320768ee8c39 100644
+index c0468862698b223a885bb29d78822ebf80d68ca1..3cc7f2dac60c93705834a4a6ccff1e6871443c5b 100644
 --- a/dist/server.js
 +++ b/dist/server.js
 @@ -25,7 +25,7 @@ var serverHandoff = require('./serverHandoff.js');
-
+ 
  const createRequestHandler = (build, mode$1) => {
    let routes$1 = routes.createRoutes(build.routes);
 -  let dataRoutes = routes.createStaticHandlerDataRoutes(build.routes, build.future);
@@ -467,7 +517,37 @@ index c0468862698b223a885bb29d78822ebf80d68ca1..9ae88ab6eabff4987fc2790745d33207
    let serverMode = mode.isServerMode(mode$1) ? mode$1 : mode.ServerMode.Production;
    let staticHandler = router.createStaticHandler(dataRoutes);
    let errorHandler = build.entry.module.handleError || ((error, {
-@@ -194,6 +194,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
+@@ -35,9 +35,12 @@ const createRequestHandler = (build, mode$1) => {
+       console.error(error);
+     }
+   });
+-  return async function requestHandler(request, loadContext = {}) {
+-    let url = new URL(request.url);
+-    let matches = routeMatching.matchServerRoutes(routes$1, url.pathname);
++  async function requestHandler(request, loadContext = {}, preMatch) {
++    // NOTE(calebmer): Allow figuring out matches before we call into the
++    // request handler. We need matches outside this function to initialize our
++    // tracer.
++    let url = preMatch !== undefined ? preMatch.url : new URL(request.url);
++    let matches = preMatch !== undefined ? preMatch.matches : routeMatching.matchServerRoutes(routes$1, url.pathname);
+     let handleError = error => errorHandler(error, {
+       context: loadContext,
+       params: matches && matches.length > 0 ? matches[0].params : {},
+@@ -68,7 +71,13 @@ const createRequestHandler = (build, mode$1) => {
+       });
+     }
+     return response;
++  }
++
++  requestHandler.matchServerRoutes = url => {
++    return routeMatching.matchServerRoutes(routes$1, url.pathname);
+   };
++
++  return requestHandler;
+ };
+ async function handleDataRequestRR(serverMode, staticHandler, routeId, request, loadContext, handleError) {
+   try {
+@@ -194,6 +203,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
      staticHandlerContext: context,
      serverHandoffString: serverHandoff.createServerHandoffString({
        url: context.location.pathname + context.location.search,
@@ -477,7 +557,7 @@ index c0468862698b223a885bb29d78822ebf80d68ca1..9ae88ab6eabff4987fc2790745d33207
        state: {
          loaderData: context.loaderData,
          actionData: context.actionData,
-@@ -229,6 +232,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
+@@ -229,6 +241,9 @@ async function handleDocumentRequestRR(serverMode, build, staticHandler, request
        staticHandlerContext: context,
        serverHandoffString: serverHandoff.createServerHandoffString({
          url: context.location.pathname + context.location.search,

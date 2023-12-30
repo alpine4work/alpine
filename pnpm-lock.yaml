@@ -61,7 +61,7 @@ patchedDependencies:
     hash: enqrbd4mwv2hpubewhaor3hnye
     path: admin/patches/@remix-run__router@1.7.0.patch
   '@remix-run/server-runtime@1.18.0':
-    hash: aw4qjtd7azdvs67jkawigt7yqi
+    hash: 6dylawtre7ezm4uvjruwdloveu
     path: admin/patches/@remix-run__server-runtime@1.18.0.patch
   '@types/functional-red-black-tree@1.0.1':
     hash: y7qvz66glgshbez7p4ffcn2dmi
@@ -223,7 +223,7 @@ dependencies:
     version: 1.7.0(patch_hash=enqrbd4mwv2hpubewhaor3hnye)
   '@remix-run/server-runtime':
     specifier: 1.18.0
-    version: 1.18.0(patch_hash=aw4qjtd7azdvs67jkawigt7yqi)
+    version: 1.18.0(patch_hash=6dylawtre7ezm4uvjruwdloveu)
   '@smithy/types':
     specifier: 1.1.1
     version: 1.1.1
@@ -5480,7 +5480,7 @@ packages:
       '@babel/traverse': 7.22.5
       '@babel/types': 7.22.5
       '@npmcli/package-json': 2.0.0
-      '@remix-run/server-runtime': 1.18.0(patch_hash=aw4qjtd7azdvs67jkawigt7yqi)
+      '@remix-run/server-runtime': 1.18.0(patch_hash=6dylawtre7ezm4uvjruwdloveu)
       '@vanilla-extract/integration': 6.2.1(@types/node@20.3.2)
       arg: 5.0.2
       cacache: 15.3.0
@@ -5580,7 +5580,7 @@ packages:
     resolution: {integrity: sha512-RRsGS+19tpYj2EXid8PP+bV8Zj6P/4yT6pMkRCIlw1uY0uRUiA3PocnyGmgl6TsqsqaahC7KdDAxhVayt4tdZA==}
     engines: {node: '>=14.0.0'}
     dependencies:
-      '@remix-run/server-runtime': 1.18.0(patch_hash=aw4qjtd7azdvs67jkawigt7yqi)
+      '@remix-run/server-runtime': 1.18.0(patch_hash=6dylawtre7ezm4uvjruwdloveu)
       '@remix-run/web-fetch': 4.3.4
       '@remix-run/web-file': 3.0.2
       '@remix-run/web-stream': 1.0.3
@@ -5611,7 +5611,7 @@ packages:
     dev: false
     patched: true
 
-  /@remix-run/server-runtime@1.18.0(patch_hash=aw4qjtd7azdvs67jkawigt7yqi):
+  /@remix-run/server-runtime@1.18.0(patch_hash=6dylawtre7ezm4uvjruwdloveu):
     resolution: {integrity: sha512-iiSKgGIWMkvf4ftnjGBmIJpgqxRwv8XQilAINapaYsx1zEM6egZGYE6WvaxLuRQSceZZNgLAYzL48TmK+DAU5g==}
     engines: {node: '>=14.0.0'}
     dependencies:

@@ -121,12 +121,18 @@ export async function fetchWithTracer<ResponseData>(
             ? new URL(url)
             : url;
 
-    assert(
-        new RegExp(route.replaceAll(/(^|\/):[a-zA-Z0-9_]+(\/|$)/g, "$1[^/]+$2")).test(
-            requestUrl.pathname,
-        ),
-        "`route` must match URL `pathname`",
-    );
+    if (process.env.NODE_ENV !== "production") {
+        assert(
+            new RegExp(
+                route.replaceAll(
+                    /(^|\/)(\*|:[a-zA-Z0-9_]+)(\/|$)/g,
+                    (substring, match1, match2, match3) =>
+                        `${match1}${match2 === "*" ? ".*" : "[^/]+"}${match3}`,
+                ),
+            ).test(requestUrl.pathname),
+            "`route` must match URL `pathname`",
+        );
+    }
 
     const requestMethod = requestInit?.method ?? "GET";
 

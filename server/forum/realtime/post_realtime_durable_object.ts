@@ -16,6 +16,8 @@ import {PostRealtimeProtocol} from "~/shared/forum/post_realtime_protocol.js";
 import {PostId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 
+type PostRealtimeDurableObjectRoute = "Main" | "NotFound";
+
 class PostRealtimeDurableObject {
     public static readonly serviceName = "PostRealtimeService";
 
@@ -90,14 +92,22 @@ class PostRealtimeDurableObject {
         );
     }
 
-    public async fetch(context: WorkerActionContext, request: Request): Promise<Response> {
+    public static parseRoute(url: URL): [string, PostRealtimeDurableObjectRoute] {
+        if (url.pathname !== "/") return ["/*", "NotFound"];
+        return ["/", "Main"];
+    }
+
+    public async fetch(
+        context: WorkerActionContext,
+        request: Request,
+        route: PostRealtimeDurableObjectRoute,
+    ): Promise<Response> {
         // Propagate the post id to all logs for this durable object.
         context = context.tracer.withPropagatedData({
             context: {spaceId: this._spaceId, postId: this._postId},
         });
 
-        const url = new URL(request.url);
-        if (url.pathname !== "/") throw new NotFoundError("Unexpected path");
+        if (route === "NotFound") throw new NotFoundError("Route not found");
         return this._webSocketServer.upgrade(context.actor.authorizeSession(), request);
     }
 

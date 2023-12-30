@@ -83,6 +83,8 @@ export type DurableObjectServiceName =
  * root span from the tracer object with the `withSpan()` function.
  */
 export class TracerRoot extends TracerBase {
+    public readonly serviceName: TracerServiceName;
+
     /**
      * The base clock we use for measuring span time. When we start a span, we
      * create a new `MonotonicClock` so durations are high resolution (when
@@ -114,17 +116,20 @@ export class TracerRoot extends TracerBase {
     public readonly propagatedEventData: TracerEventData | null;
 
     private constructor({
+        serviceName,
         clock,
         sendEvent,
         sharedEventData,
         propagatedEventData,
     }: {
+        serviceName: TracerServiceName;
         clock: Clock;
         sendEvent: (event: TracerEvent) => void;
         sharedEventData: TracerEventFullData;
         propagatedEventData: TracerEventData | null;
     }) {
         super();
+        this.serviceName = serviceName;
         this._clock = clock;
         this._sendEvent = sendEvent;
         this.sharedEventData = sharedEventData;
@@ -145,6 +150,7 @@ export class TracerRoot extends TracerBase {
         sendEvent: (event: TracerEvent) => void;
     }) {
         return new TracerRoot({
+            serviceName,
             clock,
             sendEvent,
             sharedEventData: {
@@ -219,6 +225,7 @@ export class TracerRoot extends TracerBase {
      */
     public withPropagatedData(data: TracerEventData): TracerRoot {
         return new TracerRoot({
+            serviceName: this.serviceName,
             clock: this._clock,
             sendEvent: this._sendEvent,
             sharedEventData: this.sharedEventData,
@@ -246,6 +253,7 @@ export class TracerRoot extends TracerBase {
      */
     public withReplacedPropagatedData(data: TracerEventData): TracerRoot {
         return new TracerRoot({
+            serviceName: this.serviceName,
             clock: this._clock,
             sendEvent: this._sendEvent,
             sharedEventData: this.sharedEventData,

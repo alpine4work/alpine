@@ -64,8 +64,9 @@ export type DurableObjectEnv = {
  *   authorization credentials to the Durable Object.
  */
 export function createDurableObject<
+    Route,
     DurableObject extends {
-        fetch(context: WorkerActionContext, request: Request): MaybePromise<Response>;
+        fetch(context: WorkerActionContext, request: Request, route: Route): MaybePromise<Response>;
         connectForTest?(
             context: WorkerSessionActionContext,
         ): Promise<
@@ -83,9 +84,11 @@ export function createDurableObject<
     },
 >({
     serviceName,
+    parseRoute,
     initialize,
 }: {
     serviceName: DurableObjectServiceName;
+    parseRoute: (url: URL) => [string, Route];
     initialize: (options: {
         processContext: WorkerProcessContext;
         initializeActionContext: WorkerActionContext;
@@ -192,7 +195,9 @@ export function createDurableObject<
         public fetch(request: Request): Promise<Response> {
             const url = new URL(request.url);
 
-            return traceServerResponse(this._tracer, request, url, async (span, request) => {
+            const [route, routeObject] = parseRoute(url);
+
+            return traceServerResponse(this._tracer, request, url, route, async (span, request) => {
                 try {
                     const idName = request.headers.get("cyberworlds-durable-object-id-name");
                     if (idName === null)
@@ -288,7 +293,7 @@ export function createDurableObject<
 
                             const object = await this._object.promise;
 
-                            return object.fetch(actionContext, request);
+                            return object.fetch(actionContext, request, routeObject);
                         },
                     );
                     return response;
@@ -367,6 +372,10 @@ export function createDurableObject<
 
             return {
                 fetchForTest: async (actionContext, idName, request) => {
+                    const url = new URL(request.url);
+
+                    const [, route] = parseRoute(url);
+
                     const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>
                         initialize({
                             processContext,
@@ -376,7 +385,7 @@ export function createDurableObject<
                         }),
                     );
 
-                    return object.fetch(actionContext, request);
+                    return object.fetch(actionContext, request, route);
                 },
                 connectForTest: async (actionContext, idName) => {
                     const object = await getOrSetDefaultMapValue(objectByIdName, idName, () =>
