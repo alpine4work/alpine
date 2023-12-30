@@ -131,6 +131,27 @@ class SwrCache {
         this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
     }
 
+    /**
+     * Revalidate an entry with the provided fetcher function but only if the entry
+     * has not yet been initialized in the cache. If the entry is available in our
+     * cache do nothing.
+     *
+     * Useful for preloading. When preloading we only want to make sure an entry is
+     * available so we have some data to show later. It's ok if the entry is stale.
+     */
+    public revalidateEntryIfNotAvailable(
+        key: string,
+        fetcher: (key: string) => PromiseLike<object>,
+        options: {dedupingInterval: number},
+    ) {
+        const currentTime = Date.now();
+        const entryStack = this._entryStackByKey.getSnapshot(key);
+
+        if (entryStack === undefined) {
+            this._forceRevalidateEntry(key, fetcher, options, currentTime, entryStack);
+        }
+    }
+
     private _forceRevalidateEntry(
         key: string,
         fetcher: (key: string) => PromiseLike<object>,
@@ -504,7 +525,7 @@ export function useIdlyPreloadSwr(
         }
 
         scheduledIdlePreloadRpcCallbacks.push(() => {
-            cache.revalidateEntry(key, fetcher, {dedupingInterval});
+            cache.revalidateEntryIfNotAvailable(key, fetcher, {dedupingInterval});
         });
     }, [cache, dedupingInterval, fetcher, key]);
 }
