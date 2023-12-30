@@ -29,6 +29,7 @@ import {UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
 import {
     SearchEntityId,
     SearchEntityIdObject,
@@ -109,7 +110,7 @@ export function SearchModal({
     }, []);
 
     const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{
-        entityId: SearchEntityId;
+        entityId: SearchEntityId | SearchEntityAffinityId;
     }>({
         // Reset our peek state if the search response changes.
         key: searchResult.key,
@@ -367,9 +368,14 @@ function SearchModalResultList({
     switchPeek,
 }: {
     results: ReadonlyArray<SearchResult>;
-    selectedPeek: PeekSwitcherStatePeek<{entityId: SearchEntityId}> | null;
+    selectedPeek: PeekSwitcherStatePeek<{entityId: SearchEntityId | SearchEntityAffinityId}> | null;
     switchPeek: Memo<
-        (peekData: {spacePath: string; extra: {entityId: SearchEntityId}} | null) => Promise<void>
+        (
+            peekData: {
+                spacePath: string;
+                extra: {entityId: SearchEntityId | SearchEntityAffinityId};
+            } | null,
+        ) => Promise<void>
     >;
 }) {
     const {space} = useSpaceContext();
@@ -436,7 +442,14 @@ function SearchModalResultList({
     );
 }
 
-function getSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityId): string {
+function getSearchEntityIdPath(
+    spaceId: SpaceId,
+    entityId: SearchEntityId | SearchEntityAffinityId,
+): string {
+    if (entityId === "TaskNotepad") {
+        return `/s/${spaceId}/tasks`;
+    }
+
     const entityIdObject = parseSearchEntityId(entityId);
     return actuallyGetSearchEntityIdPath(spaceId, entityIdObject);
 }
@@ -481,7 +494,11 @@ function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityI
     }
 }
 
-function SearchModalPeekContent({peek}: {peek: PeekSwitcherStatePeek<{entityId: SearchEntityId}>}) {
+function SearchModalPeekContent({
+    peek,
+}: {
+    peek: PeekSwitcherStatePeek<{entityId: SearchEntityId | SearchEntityAffinityId}>;
+}) {
     const routerResult = usePromise(peek.routerPromise);
 
     return (
