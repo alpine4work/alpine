@@ -1,12 +1,10 @@
 import {SpinnerGap} from "phosphor-react";
-import {useEffect, useState} from "react";
 import {Box} from "~/client/design/box.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {spinAnimationClassName} from "~/shared/styles/styles.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 
@@ -14,30 +12,14 @@ export const taskCollectionOptionSecondaryTextColor = "grey-40" as const;
 
 export function TaskCollectionOption({
     collectionResult,
-    isPending,
+    isPending = false,
 }: {
     collectionResult: TaskCollectionModelSearchResult;
     isPending?: boolean;
 }) {
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const [shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
-    useEffect(() => {
-        if (!isPending) {
-            setShouldShowPendingSpinner(false);
-            return;
-        }
-
-        const timeout = createTimeout(() => {
-            setShouldShowPendingSpinner(true);
-        }, delayLoadingIndicatorLimitMs);
-        return () => {
-            timeout.clear();
-        };
-    }, [isPending]);
-
-    // Only show the pending spinner if we are actually pending.
-    if (!isPending && shouldShowPendingSpinner) setShouldShowPendingSpinner(false);
+    const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
 
     return (
         <Box flexGrow="1" overflow="hidden" display="flex" alignItems="flex-start" gap="1.5">

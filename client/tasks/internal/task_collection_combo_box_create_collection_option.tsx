@@ -1,15 +1,14 @@
 import {isFocusVisible} from "@react-aria/interactions";
 import {Node} from "@react-types/shared";
 import {Plus, SpinnerGap} from "phosphor-react";
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {mergeProps, useHover, useOption} from "react-aria";
 import {ComboBoxState} from "react-stately";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
     buttonPressedOverlayOpacity,
@@ -43,23 +42,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const [shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
-    useEffect(() => {
-        if (!isPending) {
-            setShouldShowPendingSpinner(false);
-            return;
-        }
-
-        const timeout = createTimeout(() => {
-            setShouldShowPendingSpinner(true);
-        }, delayLoadingIndicatorLimitMs);
-        return () => {
-            timeout.clear();
-        };
-    }, [isPending]);
-
-    // Only show the pending spinner if we are actually pending.
-    if (shouldShowPendingSpinner && !isPending) setShouldShowPendingSpinner(false);
+    const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
 
     // We expect the rendered item to be a simple string since we want to render
     // our own text that includes the `inputValue`. If the `inputValue` was in

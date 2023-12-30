@@ -7,7 +7,6 @@ import {
     ReactNode,
     Ref,
     forwardRef,
-    useEffect,
     useRef,
     useState,
 } from "react";
@@ -19,13 +18,12 @@ import {
     onTriggeredOverlayCloseSymbol,
     onTriggeredOverlayOpenSymbol,
 } from "~/client/design/overlay_trigger_button.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
@@ -351,23 +349,7 @@ function IconButton(
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const [_shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
-    useEffect(() => {
-        if (!isPending) {
-            setShouldShowPendingSpinner(false);
-            return;
-        }
-
-        const timeout = createTimeout(() => {
-            setShouldShowPendingSpinner(true);
-        }, delayLoadingIndicatorLimitMs);
-        return () => {
-            timeout.clear();
-        };
-    }, [isPending]);
-
-    // Only show the pending spinner if we are actually pending.
-    const shouldShowPendingSpinner = _shouldShowPendingSpinner && isPending;
+    const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
 
     return (
         <Tooltip

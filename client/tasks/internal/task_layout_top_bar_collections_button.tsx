@@ -249,7 +249,13 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
                     />
                 </FocusRing>
                 {shouldShowSearchLoadingIndicator && (
-                    <Box position="absolute" top="2.5" right="2.5" pointerEvents="none">
+                    <Box
+                        position="absolute"
+                        top="2.5"
+                        right="2.5"
+                        pointerEvents="none"
+                        color="grey-70"
+                    >
                         <SpinnerGap className={spinAnimationClassName} size={spacing["3"]} />
                     </Box>
                 )}

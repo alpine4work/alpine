@@ -1,12 +1,12 @@
 import {Check, KeyReturn, SpinnerGap, X} from "phosphor-react";
-import {Ref, forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
+import {Ref, forwardRef, useImperativeHandle, useRef} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
 import {ContentEditorState} from "~/client/content/content_editor_state.js";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {MessageEditing} from "~/client/messaging/message_editing.js";
 import {
@@ -14,7 +14,6 @@ import {
     messageViewBubbleMinWidth,
 } from "~/client/messaging/message_view.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {MessageContentWithReferences} from "~/shared/messaging/message_content_schema.js";
@@ -211,23 +210,7 @@ function MessageViewEditorActions<RoomKey extends string>({
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const [_shouldShowSavingSpinner, setShouldShowSavingSpinner] = useState(false);
-    useEffect(() => {
-        if (!isSaving) {
-            setShouldShowSavingSpinner(false);
-            return;
-        }
-
-        const timeout = createTimeout(() => {
-            setShouldShowSavingSpinner(true);
-        }, delayLoadingIndicatorLimitMs);
-        return () => {
-            timeout.clear();
-        };
-    }, [isSaving]);
-
-    // Only show the saving spinner if we are actually saving.
-    const shouldShowSavingSpinner = _shouldShowSavingSpinner && isSaving;
+    const shouldShowSavingSpinner = useDelayLoadingIndicator(isSaving);
 
     return (
         <Box display="flex">

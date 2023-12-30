@@ -3,7 +3,7 @@ import {useLocation, useNavigation, useSearchParams} from "react-router-dom";
 import {ChatAccountPicker} from "~/client/chat/chat_account_picker.js";
 import {NewChatMessagingView} from "~/client/chat/new_chat_messaging_view.js";
 import {Box} from "~/client/design/box.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
@@ -17,7 +17,6 @@ import {getAccount} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {isObject} from "~/shared/helpers/object/is_object.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
@@ -115,17 +114,7 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
     const isAccountPickerPending =
         navigation.state === "loading" && navigation.location.pathname === location.pathname;
 
-    const [shouldShowAccountPickerPendingSpinner, setShouldShowAccountPickerPendingSpinner] =
-        useStateWithDependencies(false, [isAccountPickerPending]);
-
-    useEffect(() => {
-        if (!isAccountPickerPending) return;
-
-        const timeout = createTimeout(() => {
-            setShouldShowAccountPickerPendingSpinner(true);
-        }, delayLoadingIndicatorLimitMs);
-        return () => timeout.clear();
-    }, [isAccountPickerPending, setShouldShowAccountPickerPendingSpinner]);
+    const shouldShowAccountPickerPendingSpinner = useDelayLoadingIndicator(isAccountPickerPending);
 
     // If you're spending time in a 1:1 chat, then we give affinity points to the
     // account you're messaging. Not the chat itself. The page we route you to for

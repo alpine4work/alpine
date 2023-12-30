@@ -1,7 +1,7 @@
 import {PressEvent} from "@react-types/shared";
 import classNames from "classnames";
 import {IconContext, SpinnerGap} from "phosphor-react";
-import {ReactNode, Ref, forwardRef, useEffect, useRef, useState} from "react";
+import {ReactNode, Ref, forwardRef, useRef, useState} from "react";
 import {AriaButtonProps, mergeProps, useButton, useHover} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
@@ -9,13 +9,12 @@ import {
     onTriggeredOverlayCloseSymbol,
     onTriggeredOverlayOpenSymbol,
 } from "~/client/design/overlay_trigger_button.js";
-import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
@@ -236,23 +235,7 @@ function Button(
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
-    const [shouldShowPendingSpinner, setShouldShowPendingSpinner] = useState(false);
-    useEffect(() => {
-        if (!isPending) {
-            setShouldShowPendingSpinner(false);
-            return;
-        }
-
-        const timeout = createTimeout(() => {
-            setShouldShowPendingSpinner(true);
-        }, delayLoadingIndicatorLimitMs);
-        return () => {
-            timeout.clear();
-        };
-    }, [isPending]);
-
-    // Only show the pending spinner if we are actually pending.
-    if (shouldShowPendingSpinner && !isPending) setShouldShowPendingSpinner(false);
+    const shouldShowPendingSpinner = useDelayLoadingIndicator(isPending);
 
     const isBold = variant === "neutral";
 

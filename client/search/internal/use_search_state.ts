@@ -198,7 +198,7 @@ export function useSearchState({
     const {space} = useSpaceContext();
 
     // NOCOMMIT: Affinitive search entities should boost common results
-    const {output} = useLazyLoadRpc(getAffinitiveSearchEntities, {
+    const affinitiveResult = useLazyLoadRpc(getAffinitiveSearchEntities, {
         spaceId: space.id,
         limit: affinitiveSearchEntitiesLimit,
     });
@@ -241,38 +241,43 @@ export function useSearchState({
         return () => timeout.clear();
     }, [searchState.wordTypingTimeoutTime]);
 
-    const result = useStore(searchState.executionStack);
+    const queryResult = useStore(searchState.executionStack);
+
+    // If we have an empty query returning no results from our search execution
+    // stack then show search entities the account has some affinity for.
+    const result = useMemo((): SearchStateExecutionResult => {
+        if (
+            queryResult.queryText.length === 0 &&
+            !queryResult.isError &&
+            (!queryResult.results || queryResult.results.length === 0)
+        ) {
+            if (!affinitiveResult.output) {
+                return {
+                    key: "AffinitiveSearchEntitiesResult",
+                    queryText: queryResult.queryText,
+                    isPending: true,
+                    isError: false,
+                    results: null,
+                };
+            } else {
+                return {
+                    key: "AffinitiveSearchEntitiesResult",
+                    queryText: queryResult.queryText,
+                    isPending:
+                        affinitiveResult.isLoading ||
+                        affinitiveResult.isValidating ||
+                        queryResult.isPending,
+                    isError: false,
+                    results: affinitiveResult.output.results,
+                };
+            }
+        } else {
+            return queryResult;
+        }
+    }, [affinitiveResult, queryResult]);
 
     return {
-        result: useMemo((): SearchStateExecutionResult => {
-            // If we have an empty query returning no results from our search execution
-            // stack then show search entities the account has some affinity for.
-            if (
-                result.queryText.length === 0 &&
-                !result.isError &&
-                (!result.results || result.results.length === 0)
-            ) {
-                if (!output) {
-                    return {
-                        key: "AffinitiveSearchEntitiesResult",
-                        queryText: result.queryText,
-                        isPending: true,
-                        isError: false,
-                        results: null,
-                    };
-                } else {
-                    return {
-                        key: "AffinitiveSearchEntitiesResult",
-                        queryText: result.queryText,
-                        isPending: result.isPending,
-                        isError: false,
-                        results: output.results,
-                    };
-                }
-            } else {
-                return result;
-            }
-        }, [output, result]),
+        result,
         queryText: searchState.queryText,
         onQueryTextChange: (queryText: string) =>
             dispatch({type: "ChangeQueryText", time: Date.now(), queryText}),

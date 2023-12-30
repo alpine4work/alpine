@@ -3,6 +3,7 @@ import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useRef} from "reac
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {Modal} from "~/client/design/modal.js";
+import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
@@ -41,8 +42,6 @@ import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/style
 // Export the preload hook from our internal folder so it can be used by code
 // depending on `//client/search`.
 export {usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_search_state.js";
-
-// NOCOMMIT: Loading spinner
 
 // NOCOMMIT: If you've selected something and new search results came in, try
 // to maintain that selection but move it to the top or something? In case you
@@ -116,6 +115,13 @@ export function SearchModal({
         key: searchResult.key,
         initialPeekData: null,
     });
+
+    const shouldShowInputLoadingIndicator =
+        useDelayLoadingIndicator(searchResult.isPending) &&
+        // Only display a loading indicator on the input if we have results. Otherwise
+        // we'll display a large loading indicator in the result list while we wait for
+        // results to load.
+        !!searchResult.results;
 
     return (
         <Modal
@@ -244,6 +250,7 @@ export function SearchModal({
                         ref={inputRef}
                         queryText={queryText}
                         onQueryTextChange={onQueryTextChange}
+                        shouldShowLoadingIndicator={shouldShowInputLoadingIndicator}
                     />
                     <Box
                         flexGrow="1"
@@ -275,7 +282,19 @@ export function SearchModal({
                                     />
                                 </Box>
                             ) : !searchResult.results ? (
-                                <></>
+                                <Box
+                                    width="full"
+                                    height="full"
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                >
+                                    <SpinnerGap
+                                        className={spinAnimationClassName}
+                                        color={colorSchemeVars["grey-70"]}
+                                        size={spacing["6"]}
+                                    />
+                                </Box>
                             ) : (
                                 <SearchModalResultList
                                     results={searchResult.results}
@@ -310,20 +329,22 @@ const SearchModalInput = forwardRef(function SearchModalInput(
     {
         queryText,
         onQueryTextChange,
+        shouldShowLoadingIndicator,
     }: {
         queryText: string;
         onQueryTextChange: (queryText: string) => void;
+        shouldShowLoadingIndicator: boolean;
     },
     ref: Ref<HTMLInputElement>,
 ) {
     const {space} = useSpaceContext();
 
     const height: Spacing = "12";
-    const paddingLeft: Spacing = "10";
+    const paddingXWithIcon: Spacing = "10";
     const iconSize: Spacing = "4";
 
     const heightRem = parseRemLengthNumber(spacing[height]);
-    const paddingLeftRem = parseRemLengthNumber(spacing[paddingLeft]);
+    const paddingXWithIconRem = parseRemLengthNumber(spacing[paddingXWithIcon]);
     const iconSizeRem = parseRemLengthNumber(spacing[iconSize]);
 
     return (
@@ -337,17 +358,20 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                 })}
                 style={{
                     top: `${(heightRem - iconSizeRem) / 2}rem`,
-                    left: `${(paddingLeftRem - iconSizeRem) / 2}rem`,
+                    left: `${(paddingXWithIconRem - iconSizeRem) / 2}rem`,
                 }}
             />
             <input
+                // NOTE(calebmer): There's no `<FocusRing>` on this input or the search modal
+                // list since it should all be obviously keyboard navigable without needing
+                // extra affordance.
                 ref={ref}
                 className={sprinkles({
                     display: "block",
                     width: "full",
                     height,
-                    paddingLeft,
-                    paddingRight: "2",
+                    paddingLeft: paddingXWithIcon,
+                    paddingRight: shouldShowLoadingIndicator ? paddingXWithIcon : "2",
                     fontSize: "400",
                     backgroundColor: "transparent",
                 })}
@@ -358,6 +382,19 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                 value={queryText}
                 onChange={event => onQueryTextChange(event.currentTarget.value)}
             />
+            {shouldShowLoadingIndicator && (
+                <Box
+                    position="absolute"
+                    pointerEvents="none"
+                    color="grey-70"
+                    style={{
+                        top: `${(heightRem - iconSizeRem) / 2}rem`,
+                        right: `${(paddingXWithIconRem - iconSizeRem) / 2}rem`,
+                    }}
+                >
+                    <SpinnerGap className={spinAnimationClassName} size={spacing[iconSize]} />
+                </Box>
+            )}
         </Box>
     );
 });
