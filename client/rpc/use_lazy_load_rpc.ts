@@ -1,13 +1,8 @@
-import {useMemo, useRef} from "react";
-import {unstable_IdlePriority, unstable_scheduleCallback} from "scheduler";
-import _useSwr, {preload} from "swr";
+import {useMemo} from "react";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
-import {assert} from "~/shared/helpers/control/assert.js";
+import {useIdlyPreloadSwr, useSwr} from "~/client/rpc/use_swr.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {RpcDefinition} from "~/shared/rpc/rpc_definition.js";
-
-// Node.js ESM interop (#node-esm-migration)
-const useSwr = typeof _useSwr === "function" ? _useSwr : _useSwr.default;
 
 function createFetcher<Input, Output extends {}>(
     context: AppContext,
@@ -28,8 +23,8 @@ function createFetcher<Input, Output extends {}>(
  * Data requests with this hook are deduplicated and the responses are cached.
  * Two hooks fetching the same data will return the same result.
  *
- * Uses [SWR][1] under the hood. [This page][2] is helpful for understanding
- * the SWR lifecycle.
+ * Uses a re-implementation of [SWR][1] under the hood. [This page][2] is
+ * helpful for understanding the SWR lifecycle.
  *
  * WARNING: Generally avoid using this hook since it leads to request
  * waterfalls! If some data is required to render a component, you should
@@ -47,12 +42,11 @@ function createFetcher<Input, Output extends {}>(
  * [2]: https://swr.vercel.app/docs/advanced/understanding
  * [3]: https://relay.dev/docs/api-reference/use-lazy-load-query
  */
-export function useLazyLoadLoadRpc<Input, Output extends {}>(
+export function useLazyLoadRpc<Input, Output extends {}>(
     rpc: RpcDefinition<Input, Output>,
     input: Input | null,
     {
         keepPreviousData,
-        initialOutput: _initialOutput,
     }: {
         /**
          * When the input changes, continue returning the previous data until we've
@@ -67,20 +61,11 @@ export function useLazyLoadLoadRpc<Input, Output extends {}>(
          * [1]: https://swr.vercel.app/docs/advanced/understanding#key-change--previous-data
          */
         keepPreviousData?: boolean;
-
-        /**
-         * The initial data returned by this RPC. Use when server-side rendering and
-         * you want to load the data on the server.
-         *
-         * Different from SWC's `fallbackData` in that we will not fetch again on the
-         * client. We will wait for key change or other invalidation to refetch.
-         */
-        initialOutput?: Replace<Output, {input: Input}>;
     } = {},
 ): {
     isLoading: boolean;
     isValidating: boolean;
-    output: Replace<Output, {input: Input}> | undefined;
+    output: Replace<Output, {input: Input}> | null;
 } {
     const context = useAppContext();
 
@@ -95,115 +80,37 @@ export function useLazyLoadLoadRpc<Input, Output extends {}>(
         [input, rpc.inputSchema],
     );
 
-    const initialOutput = useMemo(() => {
-        if (!_initialOutput) return null;
+    const fetcher = useMemo(() => createFetcher(context, rpc), [context, rpc]);
 
-        const initialOutputInputString = JSON.stringify(
-            rpc.inputSchema.serialize(_initialOutput.input),
-        );
-
-        return {inputString: initialOutputInputString, output: _initialOutput};
-    }, [_initialOutput, rpc.inputSchema]);
-
-    const hasInitiallyFetchedRef = useRef(false);
-
-    const fetcher = useMemo(() => {
-        const fetcher = createFetcher(context, rpc);
-
-        if (!initialOutput) return fetcher;
-
-        return (key: string) => {
-            const isInitialFetch = !hasInitiallyFetchedRef.current;
-            hasInitiallyFetchedRef.current = true;
-
-            if (isInitialFetch && key === `${rpc.name}:${initialOutput.inputString}`) {
-                return initialOutput.output;
-            }
-
-            return fetcher(key);
-        };
-    }, [context, initialOutput, rpc]);
-
-    const {isLoading, isValidating, data, error} = useSwr(
+    const {isLoading, isValidating, data} = useSwr(
         inputString !== null ? `${rpc.name}:${inputString}` : null,
         fetcher,
-        {
-            keepPreviousData: keepPreviousData && input !== null,
-            fallbackData:
-                initialOutput?.inputString === inputString ? initialOutput.output : undefined,
-            // We should implement retry logic at the RPC function layer so any RPC caller
-            // gets the benefit.
-            shouldRetryOnError: false,
-        },
+        {keepPreviousData: keepPreviousData && input !== null},
     );
-
-    // Handle errors at React error boundaries.
-    if (error) throw error;
 
     return {
         isLoading,
         isValidating,
-        output: data,
+        output: data as Replace<Output, {input: Input}>,
     };
 }
 
 /**
- * Preload the result of an RPC and cache it. When `useLazyLoadLoadRpc()` is
+ * Preload the result of an RPC and cache it. When `useLazyLoadRpc()` is
  * called with the same arguments we will be able to use that cached or in
  * progress request.
  */
-// TODO(calebmer): It would appear that preloaded data is not treated as stale.
-// What I would have expected is when an SWC hook is mounted, it uses preloaded
-// data while revalidating. Consider adding a patch for this behavior.
-//
-// If preloaded data is unused for more than n seconds it is considered stale
-// and needs to be revalidated. Or if the page visibility changes (as is
-// the regular SWC behavior).
-export function preloadRpc<Input, Output extends {}>(
-    context: AppContext,
+export function useIdlyPreloadRpc<Input, Output extends {}>(
     rpc: RpcDefinition<Input, Output>,
     input: Input,
 ) {
-    const inputString = JSON.stringify(rpc.inputSchema.serialize(input));
-    const fetcher = createFetcher(context, rpc);
-    preload(`${rpc.name}:${inputString}`, fetcher, {dedupe: true});
-}
+    const context = useAppContext();
+    const fetcher = useMemo(() => createFetcher(context, rpc), [context, rpc]);
 
-let scheduledIdlePreloadRpcCallbacks: Array<() => void> | null = null;
+    const inputString = useMemo(
+        () => JSON.stringify(rpc.inputSchema.serialize(input)),
+        [input, rpc.inputSchema],
+    );
 
-/**
- * Schedule a `preloadRpc()` call for when the main thread is idle. This will
- * end up batching multiple `preloadRpc()` calls into one network request which
- * won't happen if you schedule your own idle callbacks.
- */
-// NOCOMMIT: We may be preloading an RPC long in advance. When
-// `useLazyLoadLoadRpc()` is called it should revalidate if it's been a while
-// since we preloaded.
-export function scheduleIdlePreloadRpc<Input, Output extends {}>(
-    context: AppContext,
-    rpc: RpcDefinition<Input, Output>,
-    input: Input,
-) {
-    if (scheduledIdlePreloadRpcCallbacks === null) {
-        scheduledIdlePreloadRpcCallbacks = [];
-
-        // Use the React scheduler to schedule an idle callback.
-        // `requestIdleCallback()` is not implemented in Safari. Generally we recommend
-        // using the React scheduler since it has centralized knowledge of all our
-        // tasks (including UI rendering).
-        unstable_scheduleCallback(unstable_IdlePriority, () => {
-            assert(scheduledIdlePreloadRpcCallbacks !== null);
-
-            const callbacks = scheduledIdlePreloadRpcCallbacks;
-            scheduledIdlePreloadRpcCallbacks = null;
-
-            for (const callback of callbacks) {
-                callback();
-            }
-        });
-    }
-
-    scheduledIdlePreloadRpcCallbacks.push(() => {
-        preloadRpc(context, rpc, input);
-    });
+    useIdlyPreloadSwr(`${rpc.name}:${inputString}`, fetcher);
 }

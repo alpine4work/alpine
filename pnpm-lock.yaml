@@ -114,9 +114,6 @@ patchedDependencies:
   react-router@6.14.0:
     hash: sfaepe4lfroggbu24mnbdemie4
     path: admin/patches/react-router@6.14.0.patch
-  swr@2.1.0:
-    hash: fjssuecdvmfeujlug2i3x2lofe
-    path: admin/patches/swr@2.1.0.patch
   wrangler@3.1.2:
     hash: wvv6e4atuqi3hqcxstrbgwwagy
     path: admin/patches/wrangler@3.1.2.patch
@@ -662,9 +659,6 @@ dependencies:
   strip-ansi:
     specifier: ^6.0.1
     version: 6.0.1
-  swr:
-    specifier: 2.1.0
-    version: 2.1.0(patch_hash=fjssuecdvmfeujlug2i3x2lofe)(react@18.2.0)
   toml:
     specifier: ^3.0.0
     version: 3.0.0
@@ -14986,17 +14980,6 @@ packages:
     engines: {node: '>= 0.4'}
     dev: false
 
-  /swr@2.1.0(patch_hash=fjssuecdvmfeujlug2i3x2lofe)(react@18.2.0):
-    resolution: {integrity: sha512-4hYl5p3/KalQ1MORealM79g/DtLohmud6yyfXw5l4wjtFksYUnocRFudvyaoUtgj3FrVNK9lS25Av9dsZYvz0g==}
-    engines: {pnpm: '7'}
-    peerDependencies:
-      react: ^16.11.0 || ^17.0.0 || ^18.0.0 || 18
-    dependencies:
-      react: 18.2.0
-      use-sync-external-store: 1.2.0(react@18.2.0)
-    dev: false
-    patched: true
-
   /symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
     dev: false
@@ -15500,14 +15483,6 @@ packages:
 
   /urlpattern-polyfill@4.0.3:
     resolution: {integrity: sha512-DOE84vZT2fEcl9gqCUTcnAw5ZY5Id55ikUcziSUntuEFL3pRvavg5kwDmTEUJkeCHInTlV/HexFomgYnzO5kdQ==}
-    dev: false
-
-  /use-sync-external-store@1.2.0(react@18.2.0):
-    resolution: {integrity: sha512-eEgnFxGQ1Ife9bzYs6VLi8/4X6CObHMw9Qr9tPY43iKwsPw8xE8+EFsf/2cFZ5S3esXgpWgtSCtLNS41F+sKPA==}
-    peerDependencies:
-      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || 18
-    dependencies:
-      react: 18.2.0
     dev: false
 
   /utf-8-validate@5.0.10:

@@ -6,9 +6,9 @@ import {delayLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js"
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {StoreMap} from "~/client/helpers/store/store_map.js";
+import {undefinedStore} from "~/client/helpers/store/undefined_store.js";
 import {getClientInfoWithoutListening, useBrowserId} from "~/client/remix/client_info_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {indiscriminatelyDisableAllTaskGridViewAnimationsUntilNextBrowserPaint} from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
@@ -323,8 +323,6 @@ function createTaskGridViewExpansionStateManager({
         },
     };
 }
-
-const undefinedConstStore = new ConstStore(undefined);
 
 /**
  * Manages the expansion state of tasks in a grid view.
@@ -764,7 +762,7 @@ export function useTaskGridViewExpansionState({
     return {
         toggleAreChildTasksExpanded,
         getAreChildTasksExpandedStore: useMemo(
-            () => stateManager?.getAreChildTasksExpandedStore ?? (() => undefinedConstStore),
+            () => stateManager?.getAreChildTasksExpandedStore ?? (() => undefinedStore),
             [stateManager?.getAreChildTasksExpandedStore],
         ),
         iterateRootExpandedTaskIds: useMemo(

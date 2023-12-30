@@ -4,6 +4,7 @@ import createTree, {
     Node as TreeNode,
 } from "functional-red-black-tree";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
+import {nullStore} from "~/client/helpers/store/null_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {flatMapTreeStoreValues} from "~/client/helpers/store/tree_store.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -63,8 +64,6 @@ type TaskGridViewVirtualizedTaskTreeValue = {
     readonly unloadedChildTaskCount: number;
 };
 
-const nullConstStore = new ConstStore(null);
-
 function createTaskGridViewVirtualizedTaskTree(
     query: TaskClientQuery,
     getAreChildTasksExpandedStore: (taskPath: ReadonlyArray<TaskId>) => Store<true | undefined>,
@@ -77,7 +76,7 @@ function createTaskGridViewVirtualizedTaskTree(
         // among task children. If we detect a child task with the same `TaskId` as our
         // root task that means we have a cycle. Break it by returning a null store.
         if (parents.length > 0 && getTaskQuerySortCursorTaskId(parents[0]!.cursor) === taskId) {
-            return nullConstStore;
+            return nullStore;
         }
 
         const newParents = [...parents, {query, cursor}];
@@ -89,7 +88,7 @@ function createTaskGridViewVirtualizedTaskTree(
         return getAreChildTasksExpandedStore(
             newParents.map(({cursor}) => getTaskQuerySortCursorTaskId(cursor)),
         ).flatMap(areChildTasksExpanded => {
-            if (!areChildTasksExpanded) return nullConstStore;
+            if (!areChildTasksExpanded) return nullStore;
 
             // Optimization: Only recompute if the child task count changed.
             const childTaskCountStore = query
@@ -98,7 +97,7 @@ function createTaskGridViewVirtualizedTaskTree(
 
             return childTaskCountStore.flatMap(childTaskCount => {
                 // Tasks with no children are always treated as collapsed.
-                if (childTaskCount === 0) return nullConstStore;
+                if (childTaskCount === 0) return nullStore;
 
                 const taskChildrenQueryStore = query.store.getTaskChildrenQueryStore(taskId);
                 return taskChildrenQueryStore.flatMap(taskChildrenQuery => {

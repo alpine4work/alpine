@@ -1,4 +1,4 @@
-import {RefObject, useEffect, useMemo, useReducer, useRef} from "react";
+import {RefObject, useEffect, useMemo, useReducer} from "react";
 import {split as splitUnicodeDefaultWordBoundary} from "unicode-default-word-boundary";
 import {AppContext, useAppContext} from "~/client/context/app_context.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -7,7 +7,7 @@ import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
-import {scheduleIdlePreloadRpc, useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {
     ExecuteSearchResult,
     emptyExecuteSearchResult,
@@ -168,20 +168,12 @@ const affinitiveSearchEntitiesLimit = 40;
  * are immediately available when the search modal opens.
  */
 export function usePreloadAffinitiveSearchEntities() {
-    const context = useAppContext();
     const {space} = useSpaceContext();
 
-    const hasPreloadedRef = useRef(false);
-
-    useEffect(() => {
-        if (hasPreloadedRef.current) return;
-        hasPreloadedRef.current = true;
-
-        scheduleIdlePreloadRpc(context, getAffinitiveSearchEntities, {
-            spaceId: space.id,
-            limit: affinitiveSearchEntitiesLimit,
-        });
-    }, [context, space.id]);
+    useIdlyPreloadRpc(getAffinitiveSearchEntities, {
+        spaceId: space.id,
+        limit: affinitiveSearchEntitiesLimit,
+    });
 }
 
 /**
@@ -206,7 +198,7 @@ export function useSearchState({
     const {space} = useSpaceContext();
 
     // NOCOMMIT: Affinitive search entities should boost common results
-    const {output} = useLazyLoadLoadRpc(getAffinitiveSearchEntities, {
+    const {output} = useLazyLoadRpc(getAffinitiveSearchEntities, {
         spaceId: space.id,
         limit: affinitiveSearchEntitiesLimit,
     });
@@ -375,13 +367,15 @@ function createSearchStateExecutionStack(
             const result = get(execution);
 
             if (!result.isPending || result.results) {
+                const isLastExecution = i === stack.length - 1;
+
                 // We only care about the latest execution with results. Throw away all earlier
                 // executions so they can be garbage collected. We will never need to use them
                 // again. Once an execution is not pending, it will never enter a pending state
                 // again.
                 stack = stack.slice(i);
 
-                if (i === stack.length - 1) {
+                if (isLastExecution) {
                     return result;
                 } else {
                     // If this is not our last execution, then we're loading a newer execution. So

@@ -12,7 +12,6 @@ ts_project(
         "//:node_modules/@types/scheduler",
         "//:node_modules/react",
         "//:node_modules/scheduler",
-        "//:node_modules/swr",
         "//client/context",
         "//shared/context",
         "//shared/error",

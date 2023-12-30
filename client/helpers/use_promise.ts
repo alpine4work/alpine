@@ -3,6 +3,7 @@ import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
 
 const pendingState: PromiseState<never> = {status: "pending"};
+const nullState: PromiseState<null> = {status: "fulfilled", value: null};
 
 /**
  * Use the value of a promise in a React component. If the promise fails we
@@ -14,34 +15,49 @@ const pendingState: PromiseState<never> = {status: "pending"};
  */
 export function usePromise<Value>(
     promise: PromiseLike<Value>,
-): Memo<{isPending: true; value?: undefined} | {isPending: false; value: Value}> {
+): Memo<{isPending: true; value?: undefined} | {isPending: false; value: Value}>;
+export function usePromise<Value>(
+    promise: PromiseLike<Value> | null,
+): Memo<{isPending: true; value?: undefined} | {isPending: false; value: Value | null}>;
+export function usePromise<Value>(
+    promise: PromiseLike<Value> | null,
+): Memo<{isPending: true; value?: undefined} | {isPending: false; value: Value | null}> {
     const [stateWithPromise, setStateWithPromise] = useState<{
         promise: PromiseLike<Value>;
         state: PromiseState<Value>;
-    }>(() => {
+    } | null>(() => {
+        if (promise === null) return null;
+
         if (promise instanceof PromiseImmediate)
             return {promise, state: promise.getStateWithoutListening()};
 
         return {promise, state: pendingState};
     });
 
-    useEffect(() => {
-        // Promise is synchronously available, no effect needed.
-        if (
-            promise instanceof PromiseImmediate &&
-            promise.getStateWithoutListening().status !== "pending"
-        ) {
-            return;
-        }
-
-        setStateWithPromise(state => {
-            if (state.promise === promise) return state;
+    if (
+        promise === null
+            ? stateWithPromise !== null
+            : stateWithPromise === null || stateWithPromise.promise !== promise
+    ) {
+        setStateWithPromise(() => {
+            if (promise === null) return null;
 
             if (promise instanceof PromiseImmediate)
                 return {promise, state: promise.getStateWithoutListening()};
 
             return {promise, state: pendingState};
         });
+    }
+
+    useEffect(() => {
+        // Promise is synchronously available, no effect needed.
+        if (
+            promise === null ||
+            (promise instanceof PromiseImmediate &&
+                promise.getStateWithoutListening().status !== "pending")
+        ) {
+            return;
+        }
 
         let isCancelled = false;
 
@@ -62,7 +78,9 @@ export function usePromise<Value>(
     }, [promise]);
 
     const state: PromiseState<Value> =
-        stateWithPromise.promise === promise
+        promise === null
+            ? nullState
+            : stateWithPromise?.promise === promise
             ? stateWithPromise.state
             : promise instanceof PromiseImmediate
             ? promise.getStateWithoutListening()

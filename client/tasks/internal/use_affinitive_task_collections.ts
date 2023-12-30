@@ -1,6 +1,4 @@
-import {useEffect} from "react";
-import {useAppContext} from "~/client/context/app_context.js";
-import {scheduleIdlePreloadRpc, useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getAffinitiveTaskCollections} from "~/shared/rpc/tasks_rpc_definitions.js";
 import {taskCollectionSearchResultLimit} from "~/shared/tasks/model/task_collection_model_search_result.js";
@@ -12,7 +10,7 @@ import {taskCollectionSearchResultLimit} from "~/shared/tasks/model/task_collect
 export function useAffinitiveTaskCollections({isDisabled = false}: {isDisabled?: boolean} = {}) {
     const {space} = useSpaceContext();
 
-    const {output} = useLazyLoadLoadRpc(
+    const {output} = useLazyLoadRpc(
         getAffinitiveTaskCollections,
         !isDisabled ? {spaceId: space.id, limit: taskCollectionSearchResultLimit} : null,
     );
@@ -26,13 +24,10 @@ export function useAffinitiveTaskCollections({isDisabled = false}: {isDisabled?:
  * you don't have to wait for a network request.
  */
 export function usePreloadAffinitiveTaskCollections() {
-    const context = useAppContext();
     const {space} = useSpaceContext();
 
-    useEffect(() => {
-        scheduleIdlePreloadRpc(context, getAffinitiveTaskCollections, {
-            spaceId: space.id,
-            limit: taskCollectionSearchResultLimit,
-        });
-    }, [context, space.id]);
+    useIdlyPreloadRpc(getAffinitiveTaskCollections, {
+        spaceId: space.id,
+        limit: taskCollectionSearchResultLimit,
+    });
 }

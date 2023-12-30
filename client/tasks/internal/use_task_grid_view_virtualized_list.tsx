@@ -29,8 +29,8 @@ import {MemoObject, useEvent, useEvents} from "~/client/helpers/lifecycle/use_ev
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {batchStoreUpdates} from "~/client/helpers/store/batch_store_updates.js";
-import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {Store} from "~/client/helpers/store/store.js";
+import {undefinedStore} from "~/client/helpers/store/undefined_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -128,8 +128,6 @@ import {
 // - Private/public collections and private parent tasks (update in realtime)
 // - Grid view expansion state persistence (page reload)
 // - Grid view expansion state persistence (query change)
-
-const undefinedConstStore = new ConstStore(undefined);
 
 const taskGridViewMoreUnloadedTasksSpinnerHeight = addRemLengths(
     spacing[taskRowViewMinHeight],
@@ -2602,7 +2600,7 @@ const TaskRowViewMemo = memo(function TaskRowViewMemo({
 
     const areChildTasksExpandedStore = taskPath
         ? getAreChildTasksExpandedStore(taskPath)
-        : undefinedConstStore;
+        : undefinedStore;
 
     const undoManager: TaskClientStoreUndoManager = useMemo(
         () => ({

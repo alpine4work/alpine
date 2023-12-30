@@ -3,7 +3,7 @@ import {Fragment, ReactNode, Ref, useEffect, useMemo, useRef, useState} from "re
 import {Box} from "~/client/design/box.js";
 import {OverlayTriggerButtonRef} from "~/client/design/overlay_trigger_button.js";
 import {PrettyNumber} from "~/client/design/pretty_number.js";
-import {ConstStore} from "~/client/helpers/store/const_store.js";
+import {nullStore} from "~/client/helpers/store/null_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getTaskCollectionColor} from "~/client/tasks/internal/task_collection_chip_base.js";
@@ -73,7 +73,7 @@ export function createTaskQueryCollectionsFilterCollectionResultsStore({
                         ({collectionSubscriptionsById}) =>
                             iterableFirst(
                                 collectionSubscriptionsById.get(collectionId)?.keys() ?? [],
-                            )?.collectionEntryStore ?? nullConstStore,
+                            )?.collectionEntryStore ?? nullStore,
                     )
                     .map(
                         (
@@ -436,8 +436,6 @@ function TaskQueryCollectionsFilterOperationEditorPreview({
         );
     }
 }
-
-const nullConstStore = new ConstStore(null);
 
 function useTaskQueryCollectionsFilterOperationEditorSearchedItems({
     store,

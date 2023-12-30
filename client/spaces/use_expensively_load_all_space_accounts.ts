@@ -1,6 +1,4 @@
-import {useEffect} from "react";
-import {useAppContext} from "~/client/context/app_context.js";
-import {scheduleIdlePreloadRpc, useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {expensivelyGetAllSpaceAccounts} from "~/shared/rpc/spaces_rpc_definitions.js";
 
@@ -20,7 +18,7 @@ export function useExpensivelyLoadAllSpaceAccounts({
     isDisabled?: boolean;
 } = {}) {
     const {space} = useSpaceContext();
-    const {output} = useLazyLoadLoadRpc(
+    const {output} = useLazyLoadRpc(
         expensivelyGetAllSpaceAccounts,
         !isDisabled ? {spaceId: space.id} : null,
     );
@@ -33,10 +31,9 @@ export function useExpensivelyLoadAllSpaceAccounts({
  * network request.
  */
 export function useExpensivelyPreloadAllSpaceAccounts() {
-    const context = useAppContext();
     const {space} = useSpaceContext();
 
-    useEffect(() => {
-        scheduleIdlePreloadRpc(context, expensivelyGetAllSpaceAccounts, {spaceId: space.id});
-    }, [context, space.id]);
+    useIdlyPreloadRpc(expensivelyGetAllSpaceAccounts, {
+        spaceId: space.id,
+    });
 }

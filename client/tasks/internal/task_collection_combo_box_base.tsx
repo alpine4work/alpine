@@ -21,7 +21,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {computeStore} from "~/client/helpers/store/compute_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
-import {useLazyLoadLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
+import {useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskCollectionComboBoxCreateCollectionOption} from "~/client/tasks/internal/task_collection_combo_box_create_collection_option.js";
 import {TaskCollectionComboBoxInstructionalPlaceholder} from "~/client/tasks/internal/task_collection_combo_box_instructional_placeholder.js";
@@ -91,7 +91,7 @@ export function useTaskCollectionComboBoxSearchState({
     const [currentlyLoadingInputValue, setCurrentlyLoadingInputValue] =
         useState<string>(trimmedInputValue);
 
-    const {isLoading: isSearchLoading, output: searchCollectionsOutput} = useLazyLoadLoadRpc(
+    const {isLoading: isSearchLoading, output: searchCollectionsOutput} = useLazyLoadRpc(
         searchTaskCollections,
         !shouldLoadItems || currentlyLoadingInputValue.length === 0
             ? null
