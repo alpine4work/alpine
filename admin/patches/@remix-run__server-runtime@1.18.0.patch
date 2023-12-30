@@ -5,7 +5,7 @@ index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..daf076e2ed291bdf5726820b6b9badd2
 @@ -25,34 +25,69 @@ var responses = require('./responses.js');
   * Note: This moves to unknown in ReactRouter and eventually likely in Remix
   */
- 
+
 -async function callRouteActionRR({
 +function callRouteActionRR({
    loadContext,
@@ -27,7 +27,7 @@ index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..daf076e2ed291bdf5726820b6b9badd2
 +  //
 +  // We don't increase the indentation level so we can get a clean diff for our
 +  // patch file.
-+  return loadContext.tracer.withSpan(`Remix action: ${routeId}`, async (loadContext, span) => {
++  return loadContext.tracer.withSpan(`Remix action ${routeId}`, async (loadContext, span) => {
    let result = await action({
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
@@ -65,7 +65,7 @@ index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..daf076e2ed291bdf5726820b6b9badd2
 +  //
 +  // We don't increase the indentation level so we can get a clean diff for our
 +  // patch file.
-+  return loadContext.tracer.withSpan(`Remix loader: ${routeId}`, async (loadContext, span) => {
++  return loadContext.tracer.withSpan(`Remix loader ${routeId}`, async (loadContext, span) => {
    let result = await loader({
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
@@ -84,7 +84,7 @@ index 5a4eba4f67ce51aeab35df0564bd453f406b3fc8..daf076e2ed291bdf5726820b6b9badd2
    return responses.isResponse(result) ? result : responses.json(result);
 +  });
  }
- 
+
  // TODO: Document these search params better
 diff --git a/dist/errors.js b/dist/errors.js
 index b36de14d45f917d3689f8fe6881477ba8576edf0..19913d9fe134e1d464c8d1dad378116a78f64dd6 100644
@@ -169,7 +169,7 @@ index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..35c04b351b656a48880275125a1ca5c0
 +  //
 +  // We don't increase the indentation level so we can get a clean diff for our
 +  // patch file.
-+  return loadContext.tracer.withSpan(`Remix action: ${routeId}`, async (loadContext, span) => {
++  return loadContext.tracer.withSpan(`Remix action ${routeId}`, async (loadContext, span) => {
    let result = await action({
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
@@ -206,7 +206,7 @@ index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..35c04b351b656a48880275125a1ca5c0
 +  //
 +  // We don't increase the indentation level so we can get a clean diff for our
 +  // patch file.
-+  return loadContext.tracer.withSpan(`Remix loader: ${routeId}`, async (loadContext, span) => {
++  return loadContext.tracer.withSpan(`Remix loader ${routeId}`, async (loadContext, span) => {
    let result = await loader({
      request: stripDataParam(stripIndexParam(request)),
      context: loadContext,
@@ -225,7 +225,7 @@ index 86c7c1fc57560a1cd1c651d4c7f5cf72b0bfc8a6..35c04b351b656a48880275125a1ca5c0
    return isResponse(result) ? result : json(result);
 +  });
  }
- 
+
  // TODO: Document these search params better
 diff --git a/dist/esm/errors.js b/dist/esm/errors.js
 index 61139f0a8c53f48815b8abc49f90a16a619566e1..da479ab3d1e2a51af58b99c424f4bf4a3c90b4ee 100644
@@ -306,7 +306,7 @@ index 2181536a3789c42cad59c61f1aedf185fae51814..71e39645ed772869ef0fa6cec0633f99
 --- a/dist/esm/routes.js
 +++ b/dist/esm/routes.js
 @@ -37,7 +37,7 @@ function createRoutes(manifest, parentId = "", routesByParentId = groupRoutesByP
- 
+
  // Convert the Remix ServerManifest into DataRouteObject's for use with
  // createStaticHandler
 -function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesByParentId = groupRoutesByParentId(manifest)) {
@@ -347,7 +347,7 @@ index 6a99b0202e01950a2911f879517411bdbc783df2..47167fbc27c8221ee2e681354a367528
 --- a/dist/esm/server.js
 +++ b/dist/esm/server.js
 @@ -21,7 +21,7 @@ import { createServerHandoffString } from './serverHandoff.js';
- 
+
  const createRequestHandler = (build, mode) => {
    let routes = createRoutes(build.routes);
 -  let dataRoutes = createStaticHandlerDataRoutes(build.routes, build.future);
@@ -400,9 +400,9 @@ index 19561c1294861509c0c27632a8c6568b32ca1441..74434db6298b05ccc0ffdc0461f5fd40
  var dev = require('./dev.js');
 +var routeMatching = require('./routeMatching.js');
 +var data = require('./data.js');
- 
- 
- 
+
+
+
 @@ -42,3 +44,9 @@ exports.unstable_createMemoryUploadHandler = memoryUploadHandler.createMemoryUpl
  exports.MaxPartSizeExceededError = errors.MaxPartSizeExceededError;
  exports.broadcastDevReady = dev.broadcastDevReady;
@@ -418,7 +418,7 @@ index 02d692fcaaff6bc40dd69713fa512ae67ce11b20..be607c825b52c5601d06e08b66c7bb47
 --- a/dist/routes.js
 +++ b/dist/routes.js
 @@ -41,7 +41,7 @@ function createRoutes(manifest, parentId = "", routesByParentId = groupRoutesByP
- 
+
  // Convert the Remix ServerManifest into DataRouteObject's for use with
  // createStaticHandler
 -function createStaticHandlerDataRoutes(manifest, future, parentId = "", routesByParentId = groupRoutesByParentId(manifest)) {
@@ -459,7 +459,7 @@ index c0468862698b223a885bb29d78822ebf80d68ca1..9ae88ab6eabff4987fc2790745d33207
 --- a/dist/server.js
 +++ b/dist/server.js
 @@ -25,7 +25,7 @@ var serverHandoff = require('./serverHandoff.js');
- 
+
  const createRequestHandler = (build, mode$1) => {
    let routes$1 = routes.createRoutes(build.routes);
 -  let dataRoutes = routes.createStaticHandlerDataRoutes(build.routes, build.future);
