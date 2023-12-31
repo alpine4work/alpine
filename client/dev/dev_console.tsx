@@ -110,7 +110,7 @@ type UnknownDevConsoleSettingsObjectConfig = Record<
     DevConsoleSettingsObjectConfigProperty<any> | DevConsoleSettingsObjectConfigMethod
 >;
 type DevConsoleSettingsObject<Config extends UnknownDevConsoleSettingsObjectConfig> = {
-    [K in keyof Config]: Config[K] extends DevConsoleSettingsObjectConfigMethod
+    readonly [K in keyof Config]: Config[K] extends DevConsoleSettingsObjectConfigMethod
         ? Config[K]
         : Config[K] extends DevConsoleSettingsObjectConfigProperty<infer T>
         ? T
@@ -142,12 +142,15 @@ export function useDevConsoleSettingsObject<Config extends UnknownDevConsoleSett
     useDevConsoleTool(
         groupKey,
         useCallback(() => {
-            const wrappedState: Record<string, unknown> = {
+            // These methods are in the prototype so when debugging from the Chrome
+            // console, they are initially hidden. Also so `Object.keys()` on the options
+            // object won't reveal them.
+            const wrappedState: Record<string, unknown> = Object.create({
                 reset: () => {
                     clearSessionStoragePrefix(groupKey);
                     setState(getDefaultsFromConfig(groupKey, config));
                 },
-                changes: () => {
+                getChanges: () => {
                     const changes: Record<string, unknown> = {};
                     for (const [key, item] of Object.entries(config)) {
                         if (typeof item === "function") continue;
@@ -156,7 +159,7 @@ export function useDevConsoleSettingsObject<Config extends UnknownDevConsoleSett
                     }
                     return changes;
                 },
-            };
+            });
             for (const [key, item] of Object.entries(config)) {
                 if (typeof item === "function") {
                     wrappedState[key] = item;
