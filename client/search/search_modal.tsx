@@ -41,6 +41,11 @@ export {usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_s
 
 // NOCOMMIT: No results view
 
+// NOCOMMIT:
+// - Root navigate from within peek should close search modal
+// - Opening task should navigate within peek
+// - Backwards/forwards button for peek
+
 export function SearchModal({
     initialQueryText,
     onClose,
