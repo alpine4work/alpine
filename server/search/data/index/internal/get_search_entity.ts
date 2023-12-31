@@ -746,9 +746,6 @@ async function getChatSearchEntity(
     // If the chat has no messages yet, don't index any content. This means the
     // chat won't show up in search. We don't show the chat in search until it gets
     // its first message.
-    //
-    // NOCOMMIT: Test this! Also test that chats are reindexed when a message is
-    // sent
     if (!hasMessages) {
         return {
             id: `Chat:${chatId}`,

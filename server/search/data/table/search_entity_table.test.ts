@@ -162,7 +162,7 @@ test("can't read affinitive items for the wrong space", async () => {
     const session = await space.createSession();
     const otherSpace = await TestSpace.create(context);
     const otherSession = await otherSpace.createSession();
-    await space.addAccount(session);
+    await otherSpace.addAccount(session);
 
     const documentCount = 20;
 
@@ -195,6 +195,7 @@ test("can't read affinitive items for the wrong space", async () => {
                 points,
                 pointsBucket: getSearchEntityAffinityPointsBucket(points),
                 lastUpdatedTime: currentTime,
+                lastViewedTime: null,
                 expirationTime: new Date(
                     currentTime + getSearchEntityAccountAffinityExpirationDuration(points),
                 ),
@@ -216,6 +217,7 @@ test("can't read affinitive items for the wrong space", async () => {
                 points: points2,
                 pointsBucket: getSearchEntityAffinityPointsBucket(points2),
                 lastUpdatedTime: currentTime,
+                lastViewedTime: null,
                 expirationTime: new Date(
                     currentTime + getSearchEntityAccountAffinityExpirationDuration(points2),
                 ),
@@ -230,6 +232,7 @@ test("can't read affinitive items for the wrong space", async () => {
                 points: points1,
                 pointsBucket: getSearchEntityAffinityPointsBucket(points1),
                 lastUpdatedTime: currentTime,
+                lastViewedTime: null,
                 expirationTime: new Date(
                     currentTime + getSearchEntityAccountAffinityExpirationDuration(points1),
                 ),
@@ -317,6 +320,7 @@ test("can read affinitive items when there's a lot of stale points", async () =>
                 points: actualPoints,
                 pointsBucket: getSearchEntityAffinityPointsBucket(actualPoints),
                 lastUpdatedTime,
+                lastViewedTime: null,
                 expirationTime: new Date(
                     currentTime + getSearchEntityAccountAffinityExpirationDuration(actualPoints),
                 ),
@@ -509,6 +513,7 @@ test("can read affinitive items when there's some stale points", async () => {
                 points: actualPoints,
                 pointsBucket: getSearchEntityAffinityPointsBucket(actualPoints),
                 lastUpdatedTime,
+                lastViewedTime: null,
                 expirationTime: new Date(
                     currentTime + getSearchEntityAccountAffinityExpirationDuration(actualPoints),
                 ),
@@ -688,6 +693,7 @@ test("can read affinitive items when there's no stale points", async () => {
                 points,
                 pointsBucket: getSearchEntityAffinityPointsBucket(points),
                 lastUpdatedTime: currentTime,
+                lastViewedTime: null,
                 expirationTime: new Date(
                     currentTime + getSearchEntityAccountAffinityExpirationDuration(points),
                 ),

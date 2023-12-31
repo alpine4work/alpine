@@ -1,6 +1,9 @@
 import {Fragment, Slice} from "prosemirror-model";
 import {ReplaceStep} from "prosemirror-transform";
-import {DocumentContentCacheForUpdate} from "~/server/documents/data/documents_table.js";
+import {
+    DocumentContentCacheForUpdate,
+    getGlobalDocumentContentCacheForUpdateForTest,
+} from "~/server/documents/data/documents_table.js";
 import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {OpensearchGetDocWithoutSourceCommand} from "~/server/opensearch/opensearch_client.js";
@@ -20,6 +23,7 @@ import {SearchEntityId} from "~/shared/search/search_entity_id.js";
 // Needs to be before `afterEach()` hook where we err if there are remaining
 // timers since the constructor adds an `afterEach()` hook to clear timers
 // within this class.
+const cache = getGlobalDocumentContentCacheForUpdateForTest();
 const otherCache = new DocumentContentCacheForUpdate();
 
 beforeEach(() => {
@@ -141,6 +145,7 @@ test("will index a document after a timeout", async () => {
     });
 
     // Make sure there are no more jobs in the queue.
+    cache.evictAllDocumentsForTest();
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
@@ -195,6 +200,7 @@ test("will only index a document once if update happened within the timeout", as
     });
 
     // Make sure there are no more jobs in the queue.
+    cache.evictAllDocumentsForTest();
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
@@ -265,6 +271,8 @@ test("will only index a document once if update happened within timeout even acr
     });
 
     // Make sure there are no more jobs in the queue.
+    cache.evictAllDocumentsForTest();
+    otherCache.evictAllDocumentsForTest();
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
@@ -328,6 +336,7 @@ test("will index a document again if update happened after timeout", async () =>
     });
 
     // Make sure there are no more jobs in the queue.
+    cache.evictAllDocumentsForTest();
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
@@ -409,6 +418,7 @@ test("will index a document again if update happened after timeout with more upd
     });
 
     // Make sure there are no more jobs in the queue.
+    cache.evictAllDocumentsForTest();
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
@@ -475,6 +485,7 @@ test("will not schedule another indexing job if document title is updated after 
     });
 
     // Make sure there are no more jobs in the queue.
+    cache.evictAllDocumentsForTest();
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
@@ -575,6 +586,7 @@ test("will schedule another indexing job if document title is updated after cont
     });
 
     // Make sure there are no more jobs in the queue.
+    cache.evictAllDocumentsForTest();
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
@@ -695,5 +707,6 @@ test("will not schedule another indexing job if document title is updated twice 
     });
 
     // Make sure there are no more jobs in the queue.
+    cache.evictAllDocumentsForTest();
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });

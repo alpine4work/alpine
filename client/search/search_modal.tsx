@@ -30,12 +30,8 @@ import {UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchEntityAffinityId} from "~/shared/search/search_entity_affinity_id.js";
-import {
-    SearchEntityId,
-    SearchEntityIdObject,
-    parseSearchEntityId,
-} from "~/shared/search/search_entity_id.js";
+import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
+import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
@@ -105,7 +101,7 @@ export function SearchModal({
     }, []);
 
     const {selectedPeek, activePeek, switchPeek} = usePeekSwitcherState<{
-        entityId: SearchEntityId | SearchEntityAffinityId;
+        entityId: SearchEntityIdOrSearchAffinityId;
     }>({
         // Reset our peek state if the search response changes.
         key: searchResult.key,
@@ -401,12 +397,12 @@ function SearchModalResultList({
     switchPeek,
 }: {
     results: ReadonlyArray<SearchResult>;
-    selectedPeek: PeekSwitcherStatePeek<{entityId: SearchEntityId | SearchEntityAffinityId}> | null;
+    selectedPeek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}> | null;
     switchPeek: Memo<
         (
             peekData: {
                 spacePath: string;
-                extra: {entityId: SearchEntityId | SearchEntityAffinityId};
+                extra: {entityId: SearchEntityIdOrSearchAffinityId};
             } | null,
         ) => Promise<void>
     >;
@@ -477,7 +473,7 @@ function SearchModalResultList({
 
 function getSearchEntityIdPath(
     spaceId: SpaceId,
-    entityId: SearchEntityId | SearchEntityAffinityId,
+    entityId: SearchEntityIdOrSearchAffinityId,
 ): string {
     if (entityId === "TaskNotepad") {
         return `/s/${spaceId}/tasks`;
@@ -530,7 +526,7 @@ function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityI
 function SearchModalPeekContent({
     peek,
 }: {
-    peek: PeekSwitcherStatePeek<{entityId: SearchEntityId | SearchEntityAffinityId}>;
+    peek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}>;
 }) {
     const routerResult = usePromise(peek.routerPromise);
 

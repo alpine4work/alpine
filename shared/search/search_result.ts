@@ -1,6 +1,6 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {SearchEntityOrEntityAffinityIdSchema} from "~/shared/search/search_entity_affinity_id.js";
+import {SearchEntityIdOrSearchAffinityIdSchema} from "~/shared/search/search_entity_affinity_id.js";
 
 /**
  * A search result object representing one of many different kinds of content
@@ -27,7 +27,7 @@ export const SearchResultMediaSchema = Schema.union({
 });
 
 export const SearchResultSchema = Schema.object({
-    entityId: SearchEntityOrEntityAffinityIdSchema,
+    entityId: SearchEntityIdOrSearchAffinityIdSchema,
     score: Schema.float,
     title: Schema.string.nullable(),
     bodyTextSnippet: Schema.array(

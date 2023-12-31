@@ -581,514 +581,528 @@ test("will not schedule another indexing job if task authorization is updated tw
     expect(import.meta.jest.getTimerCount()).toEqual(0);
 });
 
-test("tasks update their access policies appropriately after indexing", async () => {
-    const space = await TestSpace.create(context);
-    const session1 = await space.createSession();
-    const session2 = await space.createSession();
-    const session3 = await space.createSession();
+test(
+    "tasks update their access policies appropriately after indexing",
+    async () => {
+        const space = await TestSpace.create(context);
+        const session1 = await space.createSession();
+        const session2 = await space.createSession();
+        const session3 = await space.createSession();
 
-    const [
-        task,
-        parentTask1,
-        parentTask2a,
-        parentTask2b,
-        parentTask2c,
-        privateCollection,
-        publicCollection,
-        sharedCollection,
-    ] = await runAllPromises([
-        TestTask.create(session1, {title: "test"}),
-        TestTask.create(session1, {title: "test foobar"}),
-        TestTask.create(session1, {title: "test"}),
-        TestTask.create(session1, {title: "test"}),
-        TestTask.create(session1, {title: "test"}),
-        TestTaskCollection.createPrivate(session1, {name: "test"}),
-        TestTaskCollection.createPublic(session1, {name: "test buzqux"}),
-        TestTaskCollection.createPrivate(session1, {
-            name: "test",
+        const [
+            task,
+            parentTask1,
+            parentTask2a,
+            parentTask2b,
+            parentTask2c,
+            privateCollection,
+            publicCollection,
+            sharedCollection,
+        ] = await runAllPromises([
+            TestTask.create(session1, {title: "test"}),
+            TestTask.create(session1, {title: "test foobar"}),
+            TestTask.create(session1, {title: "test"}),
+            TestTask.create(session1, {title: "test"}),
+            TestTask.create(session1, {title: "test"}),
+            TestTaskCollection.createPrivate(session1, {name: "test"}),
+            TestTaskCollection.createPublic(session1, {name: "test buzqux"}),
+            TestTaskCollection.createPrivate(session1, {
+                name: "test",
+                otherGrantedAccounts: [session3.account],
+            }),
+        ]);
+
+        await runAllPromises([
+            parentTask2a.addCollection(session1, privateCollection),
+            parentTask2b.addCollection(session1, publicCollection),
+            parentTask2c.addCollection(session1, sharedCollection),
+            task.updateParentTask(session1, parentTask1),
+            parentTask1.updateParentTask(session1, parentTask2a),
+        ]);
+
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
+
+        const taskSearchEntityIdOrder: Array<SearchEntityId> = [
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ];
+
+        const getSearchEntityIds = async (session: TestSpaceSession) => {
+            await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+            const {results} = await searchByKeywords(session.action(), {
+                spaceId: space.id,
+                queryText: "test",
+                limit: 100,
+            });
+
+            return results
+                .map(result => result.entityId)
+                .sort(
+                    (id1, id2) =>
+                        assertExists(taskSearchEntityIdOrder.findIndex(id => id === id1)) -
+                        assertExists(taskSearchEntityIdOrder.findIndex(id => id === id2)),
+                );
+        };
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        await parentTask1.updateParentTask(session1, parentTask2b);
+
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        await parentTask1.updateParentTask(session1, parentTask2c);
+
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        await sharedCollection.setPublicAccessPolicy(session1);
+
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        await parentTask2c.removeCollection(session1, sharedCollection);
+
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        await sharedCollection.setPrivateAccessPolicy(session1, {
             otherGrantedAccounts: [session3.account],
-        }),
-    ]);
-
-    await runAllPromises([
-        parentTask2a.addCollection(session1, privateCollection),
-        parentTask2b.addCollection(session1, publicCollection),
-        parentTask2c.addCollection(session1, sharedCollection),
-        task.updateParentTask(session1, parentTask1),
-        parentTask1.updateParentTask(session1, parentTask2a),
-    ]);
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    const taskSearchEntityIdOrder: Array<SearchEntityId> = [
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ];
-
-    const getSearchEntityIds = async (session: TestSpaceSession) => {
-        await context.opensearch.refresh(SearchEntityKeywordIndex);
-
-        const {results} = await searchByKeywords(session.action(), {
-            spaceId: space.id,
-            queryText: "test",
-            limit: 100,
         });
 
-        return results
-            .map(result => result.entityId)
-            .sort(
-                (id1, id2) =>
-                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id1)) -
-                    assertExists(taskSearchEntityIdOrder.findIndex(id => id === id2)),
-            );
-    };
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
 
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    await parentTask1.updateParentTask(session1, parentTask2b);
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    await parentTask1.updateParentTask(session1, parentTask2c);
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    await sharedCollection.setPublicAccessPolicy(session1);
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    await parentTask2c.removeCollection(session1, sharedCollection);
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    await sharedCollection.setPrivateAccessPolicy(session1, {
-        otherGrantedAccounts: [session3.account],
-    });
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    await parentTask1.addCollection(session1, publicCollection);
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntityKeywordIndex,
-            space.id,
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
             `Task:${parentTask1.id}`,
-            {storedFields: ["title"]},
-        ),
-    ).toEqual({
-        id: `Task:${parentTask1.id}`,
-        version: expect.any(Object),
-        fields: {
-            title: ["test foobar"],
-        },
-    });
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
 
-    await parentTask1.delete(session1);
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+        ]);
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
 
-    expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntityKeywordIndex,
-            space.id,
+        await parentTask1.addCollection(session1, publicCollection);
+
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
             `Task:${parentTask1.id}`,
-            {storedFields: ["title"]},
-        ),
-    ).toEqual({
-        id: `Task:${parentTask1.id}`,
-        version: expect.any(Object),
-        fields: {},
-    });
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
 
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    await parentTask1.undelete(session1);
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntityKeywordIndex,
-            space.id,
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${task.id}`,
             `Task:${parentTask1.id}`,
-            {storedFields: ["title"]},
-        ),
-    ).toEqual({
-        id: `Task:${parentTask1.id}`,
-        version: expect.any(Object),
-        fields: {
-            title: ["test foobar"],
-        },
-    });
-
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntityKeywordIndex,
-            space.id,
+            `Task:${parentTask2b.id}`,
             `TaskCollection:${publicCollection.id}`,
-            {storedFields: ["title"]},
-        ),
-    ).toEqual({
-        id: `TaskCollection:${publicCollection.id}`,
-        version: expect.any(Object),
-        fields: {
-            title: ["test buzqux"],
-        },
-    });
+        ]);
 
-    await publicCollection.delete(session1);
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntityKeywordIndex,
-            space.id,
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
             `TaskCollection:${publicCollection.id}`,
-            {storedFields: ["title"]},
-        ),
-    ).toEqual({
-        id: `TaskCollection:${publicCollection.id}`,
-        version: expect.any(Object),
-        fields: {},
-    });
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
 
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
+        expect(
+            await context.opensearch.getDocWithoutSourceIfExists(
+                SearchEntityKeywordIndex,
+                space.id,
+                `Task:${parentTask1.id}`,
+                {storedFields: ["title"]},
+            ),
+        ).toEqual({
+            id: `Task:${parentTask1.id}`,
+            routing: space.id,
+            version: expect.any(Object),
+            fields: {
+                title: ["test foobar"],
+            },
+        });
 
-    expect(await getSearchEntityIds(session2)).toEqual([]);
+        await parentTask1.delete(session1);
 
-    expect(await getSearchEntityIds(session3)).toEqual([`TaskCollection:${sharedCollection.id}`]);
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
 
-    await parentTask1.updateAssignee(session1, session3);
+        expect(
+            await context.opensearch.getDocWithoutSourceIfExists(
+                SearchEntityKeywordIndex,
+                space.id,
+                `Task:${parentTask1.id}`,
+                {storedFields: ["title"]},
+            ),
+        ).toEqual({
+            id: `Task:${parentTask1.id}`,
+            routing: space.id,
+            version: expect.any(Object),
+            fields: {},
+        });
 
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(await getSearchEntityIds(session2)).toEqual([]);
-
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
-
-    expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntityKeywordIndex,
-            space.id,
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
             `TaskCollection:${publicCollection.id}`,
-            {storedFields: ["title"]},
-        ),
-    ).toEqual({
-        id: `TaskCollection:${publicCollection.id}`,
-        version: expect.any(Object),
-        fields: {},
-    });
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
 
-    await publicCollection.undelete(session1);
-
-    import.meta.jest.advanceTimersByTime(60 * 1000);
-    await ProcessContextModule.waitForTestTasks();
-
-    expect(
-        await context.opensearch.getDocWithoutSourceIfExists(
-            SearchEntityKeywordIndex,
-            space.id,
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${parentTask2b.id}`,
             `TaskCollection:${publicCollection.id}`,
-            {storedFields: ["title"]},
-        ),
-    ).toEqual({
-        id: `TaskCollection:${publicCollection.id}`,
-        version: expect.any(Object),
-        fields: {
-            title: ["test buzqux"],
-        },
-    });
+        ]);
 
-    expect(await getSearchEntityIds(session1)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2a.id}`,
-        `Task:${parentTask2b.id}`,
-        `Task:${parentTask2c.id}`,
-        `TaskCollection:${privateCollection.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
 
-    expect(await getSearchEntityIds(session2)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-    ]);
+        await parentTask1.undelete(session1);
 
-    expect(await getSearchEntityIds(session3)).toEqual([
-        `Task:${task.id}`,
-        `Task:${parentTask1.id}`,
-        `Task:${parentTask2b.id}`,
-        `TaskCollection:${publicCollection.id}`,
-        `TaskCollection:${sharedCollection.id}`,
-    ]);
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
 
-    // Make sure there are no more jobs in the queue.
-    expect(import.meta.jest.getTimerCount()).toEqual(0);
-});
+        expect(
+            await context.opensearch.getDocWithoutSourceIfExists(
+                SearchEntityKeywordIndex,
+                space.id,
+                `Task:${parentTask1.id}`,
+                {storedFields: ["title"]},
+            ),
+        ).toEqual({
+            id: `Task:${parentTask1.id}`,
+            routing: space.id,
+            version: expect.any(Object),
+            fields: {
+                title: ["test foobar"],
+            },
+        });
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(
+            await context.opensearch.getDocWithoutSourceIfExists(
+                SearchEntityKeywordIndex,
+                space.id,
+                `TaskCollection:${publicCollection.id}`,
+                {storedFields: ["title"]},
+            ),
+        ).toEqual({
+            id: `TaskCollection:${publicCollection.id}`,
+            routing: space.id,
+            version: expect.any(Object),
+            fields: {
+                title: ["test buzqux"],
+            },
+        });
+
+        await publicCollection.delete(session1);
+
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await context.opensearch.getDocWithoutSourceIfExists(
+                SearchEntityKeywordIndex,
+                space.id,
+                `TaskCollection:${publicCollection.id}`,
+                {storedFields: ["title"]},
+            ),
+        ).toEqual({
+            id: `TaskCollection:${publicCollection.id}`,
+            routing: space.id,
+            version: expect.any(Object),
+            fields: {},
+        });
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session2)).toEqual([]);
+
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        await parentTask1.updateAssignee(session1, session3);
+
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session2)).toEqual([]);
+
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(
+            await context.opensearch.getDocWithoutSourceIfExists(
+                SearchEntityKeywordIndex,
+                space.id,
+                `TaskCollection:${publicCollection.id}`,
+                {storedFields: ["title"]},
+            ),
+        ).toEqual({
+            id: `TaskCollection:${publicCollection.id}`,
+            routing: space.id,
+            version: expect.any(Object),
+            fields: {},
+        });
+
+        await publicCollection.undelete(session1);
+
+        import.meta.jest.advanceTimersByTime(60 * 1000);
+        await ProcessContextModule.waitForTestTasks();
+
+        expect(
+            await context.opensearch.getDocWithoutSourceIfExists(
+                SearchEntityKeywordIndex,
+                space.id,
+                `TaskCollection:${publicCollection.id}`,
+                {storedFields: ["title"]},
+            ),
+        ).toEqual({
+            id: `TaskCollection:${publicCollection.id}`,
+            routing: space.id,
+            version: expect.any(Object),
+            fields: {
+                title: ["test buzqux"],
+            },
+        });
+
+        expect(await getSearchEntityIds(session1)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2a.id}`,
+            `Task:${parentTask2b.id}`,
+            `Task:${parentTask2c.id}`,
+            `TaskCollection:${privateCollection.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session2)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+        ]);
+
+        expect(await getSearchEntityIds(session3)).toEqual([
+            `Task:${task.id}`,
+            `Task:${parentTask1.id}`,
+            `Task:${parentTask2b.id}`,
+            `TaskCollection:${publicCollection.id}`,
+            `TaskCollection:${sharedCollection.id}`,
+        ]);
+
+        // Make sure there are no more jobs in the queue.
+        expect(import.meta.jest.getTimerCount()).toEqual(0);
+    },
+    // This test has a lot going on. Give it a long timeout.
+    45 * 1000,
+);
 
 test("will not index a task twice if notes update happened within the timeout", async () => {
     const space = await TestSpace.create(context);

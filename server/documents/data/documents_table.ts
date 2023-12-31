@@ -1417,6 +1417,10 @@ export class DocumentContentCacheForUpdate {
             },
         };
     }
+
+    public evictAllDocumentsForTest() {
+        this._entries.evictAllEntriesForTest();
+    }
 }
 
 type DocumentContentCacheForUpdateEntry = {
@@ -1478,10 +1482,16 @@ class DocumentContentCacheForUpdateEntries {
         // randomly.
         if (import.meta.jest) {
             afterEach(() => {
-                for (const entry of this._entryByDocumentId.values()) {
-                    entry.evict();
-                }
+                this.evictAllEntriesForTest();
             });
+        }
+    }
+
+    public evictAllEntriesForTest() {
+        assert(import.meta.jest);
+
+        for (const entry of this._entryByDocumentId.values()) {
+            entry.evict();
         }
     }
 
@@ -1646,6 +1656,11 @@ class PushOnlyArraySlice<Item> implements Iterable<Item> {
 }
 
 const globalDocumentContentCacheForUpdate = new DocumentContentCacheForUpdate();
+
+export function getGlobalDocumentContentCacheForUpdateForTest() {
+    assert(import.meta.jest);
+    return globalDocumentContentCacheForUpdate;
+}
 
 export const updateDocumentContentBeforeExecuteTransactionTestCheckpoint = new TestCheckpoint<{
     id: DocumentId;
