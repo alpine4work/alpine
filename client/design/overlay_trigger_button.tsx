@@ -602,11 +602,9 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
                 }
 
                 event.stopPropagation();
-                event.preventDefault();
 
                 // Allow our overlay element to handle the keyboard event but don't let anyone
-                // else handle keyboard events. If the overlay element doesn't handle the
-                // keyboard event then we close the overlay.
+                // else handle keyboard events.
                 isReDispatchingKeyboardEvent = true;
                 try {
                     const newEvent = new KeyboardEvent("keydown", event);
@@ -618,24 +616,10 @@ const OverlayTriggerOverlay = forwardRef(function OverlayTriggerOverlay(
                         : overlayElement
                     ).dispatchEvent(newEvent);
 
-                    if (newEvent.defaultPrevented) break;
+                    if (newEvent.defaultPrevented) return;
                 } finally {
                     isReDispatchingKeyboardEvent = false;
                 }
-
-                // Ignore modifier keys since the user may be starting a keyboard shortcut and
-                // they need to see the context menu for the keyboard shortcut hint.
-                if (
-                    event.key === "Meta" ||
-                    event.key === "Alt" ||
-                    event.key === "Control" ||
-                    event.key === "Shift"
-                ) {
-                    return;
-                }
-
-                // Close our context menu after any unrecognized keypress.
-                onClose();
                 return;
             }
         }

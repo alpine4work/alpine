@@ -126,9 +126,7 @@ export function SearchResultView({
                     }}
                 >
                     <Box display="flex" gap="3" alignItems="center">
-                        {result.media && (
-                            <SearchResultMediaView media={result.media} isSelected={isSelected} />
-                        )}
+                        {result.media && <SearchResultMediaView media={result.media} />}
                         <Box
                             flexGrow="1"
                             style={{minHeight: minSearchResultViewHeightWithoutPaddingY}}
@@ -331,13 +329,7 @@ function getSearchEntityTypeDisplay(type: SearchEntityIdObject["type"]): {
     }
 }
 
-function SearchResultMediaView({
-    media,
-    isSelected,
-}: {
-    media: SearchResultMedia;
-    isSelected: boolean;
-}) {
+function SearchResultMediaView({media}: {media: SearchResultMedia}) {
     let node: ReactNode;
 
     switch (media.type) {
@@ -469,7 +461,7 @@ function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSear
     const valueClassName = sprinkles({fontStyle: "code-semi-bold"});
     const descriptionClassName = sprinkles({color: "grey-60"});
 
-    const fractionPlaceCount = 3;
+    const fractionPlaceCount = 2;
     const fractionPlaceFactor = 10 ** fractionPlaceCount;
 
     const printValue = (value: number): string => {

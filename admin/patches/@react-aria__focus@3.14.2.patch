@@ -1,0 +1,168 @@
+diff --git a/dist/import.mjs b/dist/import.mjs
+index 7361913febdd7b6395867621a1d2c94203dcca77..d43e06a3d0195d77af5b5f3c9a1247feb7117754 100644
+--- a/dist/import.mjs
++++ b/dist/import.mjs
+@@ -363,8 +363,35 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
+ function $9bf71ea28793e738$var$isElementInAnyScope(element) {
+     return $9bf71ea28793e738$var$isElementInChildScope(element);
+ }
+-function $9bf71ea28793e738$var$isElementInScope(element, scope) {
+-    return scope.some((node)=>node.contains(element));
++function $9bf71ea28793e738$var$isElementInScope(childElement, scope) {
++    // NOTE(calebmer): Instead of a simple `element.contains()` implementation,
++    // follow `data-ownedby` attributes which we set on overlays so we can
++    // properly determine that portaled overlay elements are a child of the
++    // element which spawned them.
++    return scope.some((ownerElement) => {
++        const seenElements = new Set();
++
++        let currentElement = childElement;
++        while (currentElement !== null) {
++            if (currentElement === ownerElement) return true;
++
++            if (seenElements.has(currentElement)) throw new Error("Element ownership cycle detected");
++            seenElements.add(currentElement);
++
++            const ownerElementId = currentElement.getAttribute("data-ownedby");
++            const currentOwnerElement = ownerElementId
++                ? document.getElementById(ownerElementId)
++                : null;
++
++            let currentParentElement = currentElement.parentNode;
++            while (currentParentElement !== null && !(currentParentElement instanceof Element))
++                currentParentElement = currentParentElement.parentNode;
++
++            currentElement = currentOwnerElement ?? currentParentElement;
++        }
++
++        return false;
++    });
+ }
+ function $9bf71ea28793e738$var$isElementInChildScope(element, scope = null) {
+     // If the element is within a top layer element (e.g. toasts), always allow moving focus there.
+diff --git a/dist/main.js b/dist/main.js
+index afa0b41d35e67a2751887c0586f637859606e6e6..bf209c0450ee1be4fed8d1f8fe38dd309760af13 100644
+--- a/dist/main.js
++++ b/dist/main.js
+@@ -381,8 +381,35 @@ function $a7a032acae3ddda9$var$useFocusContainment(scopeRef, contain) {
+ function $a7a032acae3ddda9$var$isElementInAnyScope(element) {
+     return $a7a032acae3ddda9$var$isElementInChildScope(element);
+ }
+-function $a7a032acae3ddda9$var$isElementInScope(element, scope) {
+-    return scope.some((node)=>node.contains(element));
++function $a7a032acae3ddda9$var$isElementInScope(childElement, scope) {
++    // NOTE(calebmer): Instead of a simple `element.contains()` implementation,
++    // follow `data-ownedby` attributes which we set on overlays so we can
++    // properly determine that portaled overlay elements are a child of the
++    // element which spawned them.
++    return scope.some((ownerElement) => {
++        const seenElements = new Set();
++
++        let currentElement = childElement;
++        while (currentElement !== null) {
++            if (currentElement === ownerElement) return true;
++
++            if (seenElements.has(currentElement)) throw new Error("Element ownership cycle detected");
++            seenElements.add(currentElement);
++
++            const ownerElementId = currentElement.getAttribute("data-ownedby");
++            const currentOwnerElement = ownerElementId
++                ? document.getElementById(ownerElementId)
++                : null;
++
++            let currentParentElement = currentElement.parentNode;
++            while (currentParentElement !== null && !(currentParentElement instanceof Element))
++                currentParentElement = currentParentElement.parentNode;
++
++            currentElement = currentOwnerElement ?? currentParentElement;
++        }
++
++        return false;
++    });
+ }
+ function $a7a032acae3ddda9$var$isElementInChildScope(element, scope = null) {
+     // If the element is within a top layer element (e.g. toasts), always allow moving focus there.
+diff --git a/dist/module.js b/dist/module.js
+index 7361913febdd7b6395867621a1d2c94203dcca77..d43e06a3d0195d77af5b5f3c9a1247feb7117754 100644
+--- a/dist/module.js
++++ b/dist/module.js
+@@ -363,8 +363,35 @@ function $9bf71ea28793e738$var$useFocusContainment(scopeRef, contain) {
+ function $9bf71ea28793e738$var$isElementInAnyScope(element) {
+     return $9bf71ea28793e738$var$isElementInChildScope(element);
+ }
+-function $9bf71ea28793e738$var$isElementInScope(element, scope) {
+-    return scope.some((node)=>node.contains(element));
++function $9bf71ea28793e738$var$isElementInScope(childElement, scope) {
++    // NOTE(calebmer): Instead of a simple `element.contains()` implementation,
++    // follow `data-ownedby` attributes which we set on overlays so we can
++    // properly determine that portaled overlay elements are a child of the
++    // element which spawned them.
++    return scope.some((ownerElement) => {
++        const seenElements = new Set();
++
++        let currentElement = childElement;
++        while (currentElement !== null) {
++            if (currentElement === ownerElement) return true;
++
++            if (seenElements.has(currentElement)) throw new Error("Element ownership cycle detected");
++            seenElements.add(currentElement);
++
++            const ownerElementId = currentElement.getAttribute("data-ownedby");
++            const currentOwnerElement = ownerElementId
++                ? document.getElementById(ownerElementId)
++                : null;
++
++            let currentParentElement = currentElement.parentNode;
++            while (currentParentElement !== null && !(currentParentElement instanceof Element))
++                currentParentElement = currentParentElement.parentNode;
++
++            currentElement = currentOwnerElement ?? currentParentElement;
++        }
++
++        return false;
++    });
+ }
+ function $9bf71ea28793e738$var$isElementInChildScope(element, scope = null) {
+     // If the element is within a top layer element (e.g. toasts), always allow moving focus there.
+diff --git a/src/FocusScope.tsx b/src/FocusScope.tsx
+index dada73642c21d5232e1f34635b6b4f8a5df65c2f..8fbe718c2d0d2e6945b5ad5b436991b96e65a745 100644
+--- a/src/FocusScope.tsx
++++ b/src/FocusScope.tsx
+@@ -397,8 +397,35 @@ function isElementInAnyScope(element: Element) {
+   return isElementInChildScope(element);
+ }
+ 
+-function isElementInScope(element: Element, scope: Element[]) {
+-  return scope.some(node => node.contains(element));
++function isElementInScope(childElement: Element, scope: Element[]) {
++  // NOTE(calebmer): Instead of a simple `element.contains()` implementation,
++  // follow `data-ownedby` attributes which we set on overlays so we can
++  // properly determine that portaled overlay elements are a child of the
++  // element which spawned them.
++  return scope.some((ownerElement) => {
++    const seenElements = new Set();
++
++    let currentElement = childElement;
++    while (currentElement !== null) {
++      if (currentElement === ownerElement) return true;
++
++      if (seenElements.has(currentElement)) throw new Error("Element ownership cycle detected");
++      seenElements.add(currentElement);
++
++      const ownerElementId = currentElement.getAttribute("data-ownedby");
++      const currentOwnerElement = ownerElementId
++        ? document.getElementById(ownerElementId)
++        : null;
++
++      let currentParentElement = currentElement.parentNode;
++      while (currentParentElement !== null && !(currentParentElement instanceof Element))
++        currentParentElement = currentParentElement.parentNode;
++
++      currentElement = currentOwnerElement ?? currentParentElement;
++    }
++
++    return false;
++  });
+ }
+ 
+ function isElementInChildScope(element: Element, scope: ScopeRef = null) {

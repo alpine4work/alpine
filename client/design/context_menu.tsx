@@ -28,6 +28,7 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {iterableFind} from "~/shared/helpers/iterable/iterable_find.js";
+import {generateId} from "~/shared/id/id.js";
 import {greyElevated2ClassName, sprinkles} from "~/shared/styles/styles.js";
 
 const contextMenuEventActionsSymbol = Symbol("actions");
@@ -91,6 +92,7 @@ type ContextMenuInstanceState = {
     readonly y: number;
     readonly actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
     readonly focusedMenuItemIndex: number | null;
+    readonly targetId: string;
 };
 
 type ContextMenuState =
@@ -222,6 +224,18 @@ export function ContextMenuManager() {
                 // Right-clicking may focus an element which may render something (e.g. open a
                 // dropdown on focus). Make sure we render our context menu in the same render.
                 runWithImmediatePriority(() => {
+                    // If the right-clicked element doesn't have an `id` then generate an `id` and
+                    // set it on the element.
+                    let targetId: string;
+                    if (!(event.target instanceof HTMLElement)) {
+                        targetId = `ContextMenu:${generateId()}`;
+                    } else {
+                        if (!event.target.id) {
+                            event.target.id = `ContextMenu:${generateId()}`;
+                        }
+                        targetId = event.target.id;
+                    }
+
                     setContextMenuState({
                         isOpen: true,
                         instance: {
@@ -229,6 +243,7 @@ export function ContextMenuManager() {
                             y: event.clientY,
                             actions,
                             focusedMenuItemIndex: null,
+                            targetId,
                         },
                     });
                 });
@@ -262,6 +277,7 @@ export function ContextMenuManager() {
                     overlay={
                         <ContextMenu
                             actions={instance.actions}
+                            targetId={instance.targetId}
                             focusedMenuItemIndex={instance.focusedMenuItemIndex}
                             onFocusedMenuItemIndexChange={focusedMenuItemIndex => {
                                 setContextMenuState(contextMenuState => {
@@ -315,12 +331,14 @@ export function ContextMenuManager() {
 const ContextMenu = forwardRef(function ContextMenu(
     {
         actions: nestedActions,
+        targetId,
         focusedMenuItemIndex,
         onFocusedMenuItemIndexChange,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
     }: {
         actions: ReadonlyArray<ReadonlyArray<MenuAction>>;
+        targetId: string;
         focusedMenuItemIndex: number | null;
         onFocusedMenuItemIndexChange: (focusedMenuItemIndex: number | null) => void;
         onCloseWithAnimation: () => void;
@@ -570,6 +588,8 @@ const ContextMenu = forwardRef(function ContextMenu(
                     boxShadow: "elevation-20",
                 }),
             )}
+            // The context menu is "owned" by the element on which it opened on top of.
+            data-ownedby={targetId}
         >
             {flattenedActions.map((action, index) => {
                 switch (action.type) {
