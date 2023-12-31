@@ -494,7 +494,7 @@ function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSear
             0,
         );
 
-        const indentLength = Math.max(2 + fractionPlaceCount, maxValueStringLength) + 1;
+        const indentLength = 3;
 
         const childStrings = explanation.details.map((childExplanation, i) => {
             const valueString = valueStrings[i]!;
