@@ -1,15 +1,25 @@
+import escapeHtml from "escape-html";
 import {ChatCircle, EnvelopeSimple, File, IconContext, ListChecks, User} from "phosphor-react";
 import {Fragment, ReactNode, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {Box} from "~/client/design/box.js";
+import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {renderTextWithEmojiFontFamily} from "~/client/helpers/render_text_with_emoji_font_family.js";
 import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
+import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult, SearchResultMedia} from "~/shared/search/search_result.js";
-import {backgroundColorVar, colorSchemeVars, fontSizes, sprinkles} from "~/shared/styles/styles.js";
+import {
+    backgroundColorVar,
+    colorSchemeVars,
+    fontSizes,
+    greyElevated2ClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 /**
  * Minimum height of the body text snippet in a search result. We show at least
@@ -83,11 +93,17 @@ export function SearchResultView({
             paddingTop={isFirstEntry ? "1" : undefined}
             paddingBottom={isLastEntry ? "1" : undefined}
             style={{minHeight: minSearchResultViewHeight}}
-            onPointerDown={() => {
-                onPressStart?.();
+            onPointerDown={event => {
+                // Presses in a modal outside our element tree shouldn't select the search
+                // result. This happens when clicking to close an overlay opened by
+                // `<SearchResultViewExplainDebugWidget>`.
+                if (event.target instanceof Element && event.currentTarget.contains(event.target)) {
+                    onPressStart?.();
+                }
             }}
         >
             <Box
+                position="relative"
                 paddingX="3"
                 borderRadius="md"
                 backgroundColor={isSelected ? "grey-5" : undefined}
@@ -216,6 +232,9 @@ export function SearchResultView({
                         </Box>
                     </Box>
                 </Box>
+                {result.explanation && (
+                    <SearchResultViewExplainDebugWidget explanation={result.explanation} />
+                )}
             </Box>
         </Box>
     );
@@ -370,4 +389,156 @@ function SearchResultMediaView({
             {node}
         </Box>
     );
+}
+
+function SearchResultViewExplainDebugWidget({
+    explanation,
+}: {
+    explanation: OpensearchSearchHitExplanation;
+}) {
+    return (
+        <OverlayTriggerButton
+            aria-haspopup="dialog"
+            placement="right"
+            overlay={
+                <Box
+                    data-scrollbar="false"
+                    className={greyElevated2ClassName}
+                    position="relative"
+                    backgroundColor="grey-0"
+                    borderRadius="md"
+                    boxShadow="elevation-20"
+                    width="128"
+                    minHeight="64"
+                    maxHeight="160"
+                    padding="2"
+                    overflow="auto"
+                    userSelect="text"
+                >
+                    <SearchResultViewExplainDebugWidgetOverlay explanation={explanation} />
+                </Box>
+            }
+        >
+            <button
+                tabIndex={-1}
+                className={sprinkles({
+                    position: "absolute",
+                    top: "2",
+                    right: "2",
+                    zIndex: "20",
+                    fontSize: "50",
+                    fontStyle: "code",
+                    backgroundColor: "green-10",
+                    color: "green-80",
+                    paddingX: "1",
+                    paddingY: "0.5",
+                    borderRadius: "base",
+                    // Communicate to the developer they can interact with this.
+                    cursor: "pointer",
+                })}
+                onPointerDown={event => {
+                    // Don't also select the item when clicking explain.
+                    event.stopPropagation();
+                }}
+            >
+                Explain
+            </button>
+        </OverlayTriggerButton>
+    );
+}
+
+function SearchResultViewExplainDebugWidgetOverlay({
+    explanation,
+}: {
+    explanation: OpensearchSearchHitExplanation;
+}) {
+    return (
+        <pre
+            dangerouslySetInnerHTML={{
+                __html: useMemo(
+                    () => printOpensearchSearchHitExplanationHtml(explanation),
+                    [explanation],
+                ),
+            }}
+        />
+    );
+}
+
+function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSearchHitExplanation) {
+    const structureClassName = sprinkles({color: "grey-30"});
+    const valueClassName = sprinkles({fontStyle: "code-semi-bold"});
+    const descriptionClassName = sprinkles({color: "grey-60"});
+
+    const fractionPlaceCount = 3;
+    const fractionPlaceFactor = 10 ** fractionPlaceCount;
+
+    const printValue = (value: number): string => {
+        const valueString = String(Math.round(value * fractionPlaceFactor) / fractionPlaceFactor);
+
+        const [decimal, fraction] = valueString.split(".", 2);
+
+        return `${decimal!}.${(fraction ?? "").padEnd(fractionPlaceCount, "0")}`;
+    };
+
+    const print = (
+        directPrefix: string,
+        prefix: string,
+        explanation: OpensearchSearchHitExplanation,
+        valueString: string,
+    ): string => {
+        let string = `${directPrefix}<span class="${valueClassName}">${escapeHtml(
+            valueString,
+        )}</span> <span class="${descriptionClassName}">${escapeHtml(
+            explanation.description,
+        )}</span>\n`;
+
+        const valueStrings = explanation.details.map(subExplanation =>
+            printValue(subExplanation.value),
+        );
+
+        const maxValueStringLength = valueStrings.reduce(
+            (maxValueStringLength, valueString) =>
+                Math.max(maxValueStringLength, valueString.length),
+            0,
+        );
+
+        const indentLength = Math.max(2 + fractionPlaceCount, maxValueStringLength) + 1;
+
+        const childStrings = explanation.details.map((childExplanation, i) => {
+            const valueString = valueStrings[i]!;
+
+            const childIndentLength = indentLength + +(maxValueStringLength - valueString.length);
+
+            const childDirectPrefix = `${prefix}<span class="${structureClassName}">${
+                i === explanation.details.length - 1 ? "└" : "├"
+            }${"─".repeat(childIndentLength - 2)}</span> `;
+
+            const childPrefix = `${prefix}${
+                i === explanation.details.length - 1
+                    ? " "
+                    : `<span class="${structureClassName}">│</span>`
+            }${" ".repeat(childIndentLength - 1)}`;
+
+            return print(childDirectPrefix, childPrefix, childExplanation, valueString);
+        });
+
+        const maxChildLineCount = childStrings.reduce(
+            (maxChildLineCount, childString) =>
+                Math.max(maxChildLineCount, countIterable(childString.matchAll(/\n/g))),
+            0,
+        );
+
+        // Add padding between lines if we have large subtrees.
+        for (const [i, childString] of childStrings.entries()) {
+            if (i !== 0 && maxChildLineCount > 3) {
+                string += `${prefix}<span class="${structureClassName}">│</span>\n`;
+            }
+
+            string += childString;
+        }
+
+        return string;
+    };
+
+    return print("", "", rootExplanation, printValue(rootExplanation.value));
 }

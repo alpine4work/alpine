@@ -4445,10 +4445,10 @@ function createTaskCollectionModelSearchResultFromItem(
  */
 export async function assembleTaskCollectionSearchResults(
     context: ServerSessionActionContext,
-    collections: Array<{score: number; id: TaskCollectionId; isRequired?: boolean}>,
+    hits: Array<{score: number; id: TaskCollectionId; isRequired?: boolean}>,
 ): Promise<Array<TaskCollectionModelSearchResult>> {
     const collectionItems = await runAllPromises(
-        collections.map(async ({score, id: collectionId, isRequired = false}) => {
+        hits.map(async ({score, id: collectionId, isRequired = false}) => {
             const collectionItem = await TaskTable.getItem(context, {
                 partitionType: "TaskCollection",
                 sortRangeType: "EssentialAttributes",

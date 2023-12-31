@@ -28,6 +28,7 @@ import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {JsonObjectValue, JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 type WithoutFirstTracerParameter<F> = F extends (
@@ -259,15 +260,31 @@ export class OpensearchContextModule
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
+            explain?: boolean;
         },
-    ): Promise<
-        Array<
+    ): Promise<{
+        hits: Array<
             OpensearchClientDocWithId<
                 OpensearchIndexDocIdType<Index>,
                 OpensearchIndexDocType<Index>
-            >
-        >
-    > {
+            > & {
+                readonly highlight?: {
+                    readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
+                };
+                readonly innerHits?: {
+                    readonly [key: string]: Array<{
+                        readonly offset: number;
+                        readonly fields: {
+                            readonly [Key in OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
+                                OpensearchIndexStoredFieldsType<Index>[Key]
+                            >;
+                        };
+                    }>;
+                };
+                readonly explanation?: OpensearchSearchHitExplanation;
+            }
+        >;
+    }> {
         return this._client.search(this._context.tracer.getTracer(), index, routing, options);
     }
 
@@ -294,9 +311,10 @@ export class OpensearchContextModule
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
             storedFields?: Array<StoredFieldKeys>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
+            explain?: boolean;
         },
-    ): Promise<
-        Array<{
+    ): Promise<{
+        hits: Array<{
             readonly score: number;
             readonly id: OpensearchIndexDocIdType<Index>;
             readonly fields: {
@@ -318,8 +336,9 @@ export class OpensearchContextModule
                     };
                 }>;
             };
-        }>
-    > {
+            readonly explanation?: OpensearchSearchHitExplanation;
+        }>;
+    }> {
         return this._client.searchWithoutSource(
             this._context.tracer.getTracer(),
             index,

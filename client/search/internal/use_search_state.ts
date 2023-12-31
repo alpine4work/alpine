@@ -23,9 +23,11 @@ import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {getAffinitiveSearchEntities} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchOptions} from "~/shared/search/search_debug_options.js";
 
 /**
  * The debounce timeout before we'll send a new search request. Picked so that
@@ -186,9 +188,11 @@ export function usePreloadAffinitiveSearchEntities() {
 export function useSearchState({
     initialQueryText,
     resultListContainerRef,
+    debugOptions,
 }: {
     initialQueryText: string;
     resultListContainerRef: RefObject<HTMLDivElement>;
+    debugOptions: SearchOptions | null;
 }): {
     result: ExecuteSearchResult & {readonly key: string};
     queryText: string;
@@ -228,8 +232,15 @@ export function useSearchState({
         searchState.executionStack.latestExecution.execute(context, {
             spaceId: space.id,
             limit,
+            debugOptions,
         });
-    }, [context, resultListContainerRef, searchState.executionStack.latestExecution, space.id]);
+    }, [
+        context,
+        debugOptions,
+        resultListContainerRef,
+        searchState.executionStack.latestExecution,
+        space.id,
+    ]);
 
     useEffect(() => {
         if (searchState.wordTypingTimeoutTime === null) return;
@@ -295,7 +306,10 @@ export function useSearchState({
  */
 type SearchStateExecution = Store<SearchStateExecutionResult> & {
     readonly queryText: string;
-    execute(context: AppContext, options: {spaceId: SpaceId; limit: number}): void;
+    execute(
+        context: AppContext,
+        options: {spaceId: SpaceId; limit: number; debugOptions: SearchOptions | null},
+    ): void;
 };
 
 type SearchStateExecutionResult = ExecuteSearchResult & {
@@ -306,29 +320,82 @@ type SearchStateExecutionResult = ExecuteSearchResult & {
 function createSearchStateExecution(queryText: string): SearchStateExecution {
     const key = generateId();
 
-    let hasExecuted = false;
+    // If the query text is empty, we don't have to wait for lazy execution to know
+    // we'll get an empty result.
+    if (queryText.length === 0) {
+        return Object.assign(
+            new ConstStore({
+                ...emptyExecuteSearchResult,
+                key,
+                queryText,
+            }),
+            {
+                queryText,
+                execute: () => {},
+            },
+        );
+    }
 
-    const execute = (context: AppContext, {spaceId, limit}: {spaceId: SpaceId; limit: number}) => {
-        // This method is idempotent. Only execute once.
-        if (hasExecuted) return;
-        hasExecuted = true;
+    let lastExecution: {
+        debugOptions: SearchOptions | null;
+    } | null = null;
 
-        store.set(executeSearch(context, {spaceId, queryText, limit}));
+    const execute = (
+        context: AppContext,
+        {
+            spaceId,
+            limit,
+            debugOptions,
+        }: {
+            spaceId: SpaceId;
+            limit: number;
+            debugOptions: SearchOptions | null;
+        },
+    ) => {
+        if (lastExecution === null) {
+            lastExecution = {debugOptions};
+
+            store.set(
+                executeSearch(context, {
+                    spaceId,
+                    queryText,
+                    limit,
+                    debugOptions,
+                }),
+            );
+        }
+        // If debug options changed, we'll re-execute. We need to keep the last results
+        // around since once an execution has non-null `results` it should never return
+        // null `results` again.
+        else if (!isDeepEqual(lastExecution.debugOptions, debugOptions)) {
+            lastExecution = {debugOptions};
+
+            store.set(lastStore => {
+                const nextStore = executeSearch(context, {
+                    spaceId,
+                    queryText,
+                    limit,
+                    debugOptions,
+                });
+
+                return Store.map(lastStore, nextStore, (lastResult, nextResult) => {
+                    if (nextResult.results === null) return {...lastResult, isPending: true};
+                    return nextResult;
+                });
+            });
+        }
     };
 
     const store = new ValueStore<Store<ExecuteSearchResult>>(
         new ConstStore(pendingExecuteSearchResult),
     );
 
-    // If the query text is empty, we don't have to wait for lazy execution to know
-    // we'll get an empty result.
-    if (queryText.length === 0) {
-        hasExecuted = true;
-        store.set(new ConstStore(emptyExecuteSearchResult));
-    }
-
     return Object.assign(
-        store.flat().map(result => ({...result, key, queryText})),
+        store.flat().map(result => ({
+            ...result,
+            key,
+            queryText,
+        })),
         {
             queryText,
             execute,

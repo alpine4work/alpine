@@ -5,6 +5,7 @@ import {Store} from "~/client/helpers/store/store.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {searchByKeywords, searchBySemantics} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchOptions} from "~/shared/search/search_debug_options.js";
 import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 
@@ -82,10 +83,12 @@ export function executeSearch(
         spaceId,
         queryText,
         limit,
+        debugOptions,
     }: {
         spaceId: SpaceId;
         queryText: string;
         limit: number;
+        debugOptions: SearchOptions | null;
     },
 ): Store<ExecuteSearchResult> {
     // If the query is empty then return no search results.
@@ -95,6 +98,7 @@ export function executeSearch(
         spaceId,
         queryText,
         limit,
+        debugOptions: debugOptions ?? undefined,
     });
 
     const semanticSearchPromise = searchBySemantics(context, {

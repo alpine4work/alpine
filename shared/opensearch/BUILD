@@ -1,13 +1,10 @@
 load("//admin/typescript:typescript.bzl", "ts_project")
 
 ts_project(
-    name = "search",
+    name = "opensearch",
     visibility = ["//visibility:public"],
     deps = [
-        "//shared/accounts",
         "//shared/error",
-        "//shared/id",
-        "//shared/opensearch",
         "//shared/schema",
     ],
 )

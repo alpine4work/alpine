@@ -1,4 +1,5 @@
 import murmurhash from "murmurhash";
+import {authorizeInternalAccess} from "~/server/accounts/accounts_table.js";
 import {printContentSingleLineTextSnippetWithHighlighting} from "~/server/content/print_content_single_line_text_snippet.js";
 import {
     ServerSessionActionContext,
@@ -64,6 +65,7 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchOptions, standardSearchOptions} from "~/shared/search/search_debug_options.js";
 import {
     SearchEntityId,
     parseSearchEntityId,
@@ -647,7 +649,7 @@ export async function processIndexSearchEntityJob(
         let searchAfter: ReadonlyArray<JsonValue> | null = null;
 
         do {
-            const docs = await context.opensearch.searchWithoutSource(
+            const {hits} = await context.opensearch.searchWithoutSource(
                 SearchEntityKeywordIndex,
                 job.spaceId,
                 {
@@ -680,14 +682,14 @@ export async function processIndexSearchEntityJob(
             );
 
             await runAllPromises(
-                docs.map(async doc => {
+                hits.map(async hit => {
                     // Confirm the job was added to the queue before exiting. It's ok to take the
                     // batch delay performance hit when processing jobs.
                     await context.jobs.sendAndWait({
                         type: "IndexSearchEntity",
                         spaceId: job.spaceId,
                         update: {
-                            ...parseSearchEntityId(doc.id),
+                            ...parseSearchEntityId(hit.id),
                             // Dependencies didn't update so we can skip reindexing transitive
                             // dependencies.
                             updatedTraits: {type: "None"},
@@ -697,11 +699,11 @@ export async function processIndexSearchEntityJob(
                 }),
             );
 
-            searchAfter = docs.length > 0 ? assertExists(docs[docs.length - 1]!.sort) : null;
+            searchAfter = hits.length > 0 ? assertExists(hits[hits.length - 1]!.sort) : null;
 
             // If we did not reach the pagination limit then don't query again for the
             // next page.
-            if (docs.length < searchSize) searchAfter = null;
+            if (hits.length < searchSize) searchAfter = null;
         } while (searchAfter !== null);
     }
 }
@@ -721,22 +723,34 @@ export async function searchByKeywords(
         spaceId,
         queryText,
         limit,
+        debugOptions,
     }: {
         spaceId: SpaceId;
         queryText: string;
         limit: number;
+        debugOptions?: SearchOptions;
     },
 ): Promise<{
     results: Array<SearchResult>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
 
-    // A title match should not match a body 2gram or 3gram match.
-    //
-    // NOCOMMIT: Allow the client to configure this in debug mode
-    const titleBoost = 1.5;
+    // You must have internal access to try different `debugOptions`. Setting
+    // `debugOptions` not only lets you change search ranking but also enables
+    // search result explanations. Search result explanations may include how
+    // frequent a term is across all indexed OpenSearch documents! This is
+    // sensitive information and can be used to breach private data. For example
+    // "Apple acquires Netflix" might be a 3gram that appears once across all
+    // documents telling you this phrase was included in some search entity you
+    // can't access.
+    if (debugOptions) {
+        await authorizeInternalAccess(context);
+    }
 
-    const docs = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
+    const options = debugOptions ?? standardSearchOptions;
+
+    const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
+        explain: !!debugOptions,
         size: limit,
         storedFields: ["title", "media"],
         sort: ["_score"],
@@ -753,9 +767,9 @@ export async function searchByKeywords(
                             // - Matches in title fields are boosted above matches in body fields.
                             type: "most_fields",
                             fields: [
-                                `title^${titleBoost}`,
-                                `title._2gram^${titleBoost}`,
-                                `title._3gram^${titleBoost}`,
+                                `title^${options.titleBoost}`,
+                                `title._2gram^${options.titleBoost}`,
+                                `title._3gram^${options.titleBoost}`,
                                 "body",
                                 "body._2gram",
                                 "body._3gram",
@@ -823,14 +837,14 @@ export async function searchByKeywords(
     });
 
     const results = await runAllPromises(
-        docs.map(async (doc): Promise<SearchResult> => {
+        hits.map(async (hit): Promise<SearchResult> => {
             // The highlighted body text we get from OpenSearch is markdown formatted with
             // `<em>` tags inserted where we need to highlight. To get this in a format we
             // can render:
             //
             // 1. Parse the Markdown back to a ProseMirror node
             // 2. Print the ProseMirror node to a single line of text
-            let rawBodyTextSnippet = doc.highlight?.body?.[0];
+            let rawBodyTextSnippet = hit.highlight?.body?.[0];
 
             // NOTE(calebmer): I've found sometimes OpenSearch returns text that starts
             // like this: ". Cultural references. The overall plot is a reference...". Note
@@ -852,17 +866,18 @@ export async function searchByKeywords(
                   )
                 : [];
 
-            const docMedia = doc.fields.media?.[0];
+            const docMedia = hit.fields.media?.[0];
             const resultMedia = docMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, doc.id, docMedia)
+                ? await prepareSearchEntityMediaForResult(context, spaceId, hit.id, docMedia)
                 : null;
 
             return {
-                entityId: doc.id,
-                score: doc.score,
-                title: doc.fields.title?.[0] ?? null,
+                entityId: hit.id,
+                score: hit.score,
+                title: hit.fields.title?.[0] ?? null,
                 bodyTextSnippet,
                 media: resultMedia,
+                explanation: hit.explanation,
             };
         }),
     );
@@ -930,71 +945,74 @@ export async function searchBySemantics(
 
     assert(queryEmbeddingVector);
 
-    const docs = await context.opensearch.searchWithoutSource(SearchEntitySemanticIndex, spaceId, {
-        size: limit,
-        storedFields: ["title", "media"],
-        sort: ["_score"],
-        query: {
-            nested: {
-                path: "embeddingChunks",
-                inner_hits: {
-                    size: 1,
-                    _source: false,
-                    stored_fields: ["embeddingChunks.text", "embeddingChunks.preambleEndIndex"],
-                },
-                query: {
-                    knn: {
-                        [`embeddingChunks.vector.${context.languageModel.model.statics.key}`]: {
-                            vector: new OpensearchQueryValue(
-                                Array.isArray(queryEmbeddingVector)
-                                    ? queryEmbeddingVector
-                                    : Array.from(queryEmbeddingVector),
-                            ),
-                            k: limit,
+    const {hits} = await context.opensearch.searchWithoutSource(
+        SearchEntitySemanticIndex,
+        spaceId,
+        {
+            size: limit,
+            storedFields: ["title", "media"],
+            sort: ["_score"],
+            query: {
+                nested: {
+                    path: "embeddingChunks",
+                    inner_hits: {
+                        size: 1,
+                        _source: false,
+                        stored_fields: ["embeddingChunks.text", "embeddingChunks.preambleEndIndex"],
+                    },
+                    query: {
+                        knn: {
+                            [`embeddingChunks.vector.${context.languageModel.model.statics.key}`]: {
+                                vector: new OpensearchQueryValue(
+                                    Array.isArray(queryEmbeddingVector)
+                                        ? queryEmbeddingVector
+                                        : Array.from(queryEmbeddingVector),
+                                ),
+                                k: limit,
 
-                            // We filter chunks here (instead of with a boolean filter) to perform
-                            // efficient KNN-filtering which is a hybrid of pre-filtering and
-                            // post-filtering.
-                            // https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
-                            filter: {
-                                bool: {
-                                    // Use filter context to only match content the user is allowed to see. The
-                                    // content must be in our space and must grant access to the account. Either
-                                    // directly or through a default grant.
-                                    filter: [
-                                        {
-                                            term: {
-                                                "embeddingChunks.spaceId": new OpensearchQueryValue(
-                                                    spaceId,
-                                                ),
+                                // We filter chunks here (instead of with a boolean filter) to perform
+                                // efficient KNN-filtering which is a hybrid of pre-filtering and
+                                // post-filtering.
+                                // https://opensearch.org/docs/latest/search-plugins/knn/filter-search-knn
+                                filter: {
+                                    bool: {
+                                        // Use filter context to only match content the user is allowed to see. The
+                                        // content must be in our space and must grant access to the account. Either
+                                        // directly or through a default grant.
+                                        filter: [
+                                            {
+                                                term: {
+                                                    "embeddingChunks.spaceId":
+                                                        new OpensearchQueryValue(spaceId),
+                                                },
                                             },
-                                        },
-                                        {
-                                            bool: {
-                                                minimum_should_match: 1,
-                                                should: [
-                                                    {
-                                                        term: {
-                                                            "embeddingChunks.accessPolicy.accountGrantAccountIds":
-                                                                new OpensearchQueryValue(
-                                                                    context.actor.getAccountId(),
-                                                                ),
-                                                        },
-                                                    },
-                                                    {
-                                                        term: {
-                                                            "embeddingChunks.accessPolicy.defaultGrantType":
-                                                                new OpensearchQueryValue(
-                                                                    SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
-                                                                        "Space",
+                                            {
+                                                bool: {
+                                                    minimum_should_match: 1,
+                                                    should: [
+                                                        {
+                                                            term: {
+                                                                "embeddingChunks.accessPolicy.accountGrantAccountIds":
+                                                                    new OpensearchQueryValue(
+                                                                        context.actor.getAccountId(),
                                                                     ),
-                                                                ),
+                                                            },
                                                         },
-                                                    },
-                                                ],
+                                                        {
+                                                            term: {
+                                                                "embeddingChunks.accessPolicy.defaultGrantType":
+                                                                    new OpensearchQueryValue(
+                                                                        SearchEntityIndexDefaultGrantTypeIntegerMapping.into(
+                                                                            "Space",
+                                                                        ),
+                                                                    ),
+                                                            },
+                                                        },
+                                                    ],
+                                                },
                                             },
-                                        },
-                                    ],
+                                        ],
+                                    },
                                 },
                             },
                         },
@@ -1002,7 +1020,7 @@ export async function searchBySemantics(
                 },
             },
         },
-    });
+    );
 
     const queryTokens = new Set(
         mapIterable(
@@ -1012,7 +1030,7 @@ export async function searchBySemantics(
     );
 
     const results = await runAllPromises(
-        docs.map(async (doc): Promise<SearchResult> => {
+        hits.map(async (hit): Promise<SearchResult> => {
             // The highlighted body text we get from OpenSearch is markdown formatted with
             // `<em>` tags inserted where we need to highlight. To get this in a format we
             // can render:
@@ -1020,10 +1038,10 @@ export async function searchBySemantics(
             // 1. Parse the Markdown back to a ProseMirror node
             // 2. Print the ProseMirror node to a single line of text
             let rawBodyTextSnippet =
-                doc.innerHits?.embeddingChunks?.[0]?.fields["embeddingChunks.text"]?.[0];
+                hit.innerHits?.embeddingChunks?.[0]?.fields["embeddingChunks.text"]?.[0];
 
             const preambleEndIndex =
-                doc.innerHits?.embeddingChunks?.[0]?.fields[
+                hit.innerHits?.embeddingChunks?.[0]?.fields[
                     "embeddingChunks.preambleEndIndex"
                 ]?.[0];
 
@@ -1082,15 +1100,15 @@ export async function searchBySemantics(
                   )
                 : [];
 
-            const docMedia = doc.fields.media?.[0];
+            const docMedia = hit.fields.media?.[0];
             const resultMedia = docMedia
-                ? await prepareSearchEntityMediaForResult(context, spaceId, doc.id, docMedia)
+                ? await prepareSearchEntityMediaForResult(context, spaceId, hit.id, docMedia)
                 : null;
 
             return {
-                entityId: doc.id,
-                score: doc.score,
-                title: doc.fields.title?.[0] ?? null,
+                entityId: hit.id,
+                score: hit.score,
+                title: hit.fields.title?.[0] ?? null,
                 bodyTextSnippet,
                 media: resultMedia,
             };

@@ -40,6 +40,7 @@ import {isObject} from "~/shared/helpers/object/is_object.js";
 import {mapObjectValues} from "~/shared/helpers/object/map_object_values.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {JsonObjectValue, JsonScalarValue, JsonValue} from "~/shared/helpers/types/json_value.js";
+import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {fetchWithTracer} from "~/shared/tracer/fetch_with_tracer.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
@@ -205,15 +206,31 @@ export interface OpensearchClientInterface {
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
+            explain?: boolean;
         },
-    ): Promise<
-        Array<
+    ): Promise<{
+        hits: Array<
             OpensearchClientDocWithId<
                 OpensearchIndexDocIdType<Index>,
                 OpensearchIndexDocType<Index>
-            >
-        >
-    >;
+            > & {
+                readonly highlight?: {
+                    readonly [Key in OpensearchIndexFlattenedKeysType<Index>]?: Array<string>;
+                };
+                readonly innerHits?: {
+                    readonly [key: string]: Array<{
+                        readonly offset: number;
+                        readonly fields: {
+                            readonly [Key in OpensearchIndexStoredFieldsType<Index>]?: ReadonlyArray<
+                                OpensearchIndexStoredFieldsType<Index>[Key]
+                            >;
+                        };
+                    }>;
+                };
+                readonly explanation?: OpensearchSearchHitExplanation;
+            }
+        >;
+    }>;
 
     /**
      * Lets you execute a search against an OpenSearch index with the [search
@@ -239,9 +256,10 @@ export interface OpensearchClientInterface {
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
             storedFields?: Array<StoredFieldKeys>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
+            explain?: boolean;
         },
-    ): Promise<
-        Array<{
+    ): Promise<{
+        hits: Array<{
             readonly score: number;
             readonly id: OpensearchIndexDocIdType<Index>;
             readonly fields: {
@@ -263,8 +281,8 @@ export interface OpensearchClientInterface {
                     };
                 }>;
             };
-        }>
-    >;
+        }>;
+    }>;
 
     /**
      * Manually refresh an OpenSearch index using the [refresh API][1].
@@ -640,6 +658,7 @@ type OpensearchSearchHit = {
             };
         };
     };
+    _explanation?: OpensearchSearchHitExplanation;
 };
 
 /**
@@ -1577,7 +1596,8 @@ export class OpensearchClient implements OpensearchClientInterface {
             searchAfter,
             storedFields,
             highlight,
-            withoutDocs = false,
+            explain = false,
+            withoutSource = false,
         }: {
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
@@ -1585,9 +1605,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
             storedFields?: ReadonlyArray<string>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
-            withoutDocs?: boolean;
+            explain?: boolean;
+            withoutSource?: boolean;
         },
-    ): Promise<Array<OpensearchSearchHit>> {
+    ): Promise<{hits: Array<OpensearchSearchHit>}> {
         if (process.env.NODE_ENV !== "production") {
             await this._ensureLocalIndex(tracer, index);
         }
@@ -1624,6 +1645,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             url.searchParams.set("stored_fields", storedFields.join(","));
         }
 
+        if (explain) {
+            url.searchParams.set("explain", "true");
+        }
+
         const body = await fetchWithTracer(
             tracer,
             url,
@@ -1640,7 +1665,7 @@ export class OpensearchClient implements OpensearchClientInterface {
                     query,
                     sort,
                     search_after: searchAfter,
-                    _source: !withoutDocs,
+                    _source: !withoutSource,
                     highlight,
                 }),
             },
@@ -1681,7 +1706,9 @@ export class OpensearchClient implements OpensearchClientInterface {
             },
         );
 
-        return body.hits.hits;
+        return {
+            hits: body.hits.hits,
+        };
     }
 
     /**
@@ -1705,15 +1732,17 @@ export class OpensearchClient implements OpensearchClientInterface {
             sort,
             searchAfter,
             highlight,
+            explain,
         }: {
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
             sort?: OpensearchSortClause<OpensearchIndexFlattenedKeysType<Index>>;
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
+            explain?: boolean;
         },
-    ): Promise<
-        Array<
+    ): Promise<{
+        hits: Array<
             OpensearchClientDocWithId<
                 OpensearchIndexDocIdType<Index>,
                 OpensearchIndexDocType<Index>
@@ -1731,18 +1760,20 @@ export class OpensearchClient implements OpensearchClientInterface {
                         };
                     }>;
                 };
+                readonly explanation?: OpensearchSearchHitExplanation;
             }
-        >
-    > {
-        const hits = await this._search(tracer, index, routing, {
+        >;
+    }> {
+        const {hits} = await this._search(tracer, index, routing, {
             size,
             query,
             sort,
             searchAfter,
             highlight,
+            explain,
         });
 
-        const docs = hits.map(hit => {
+        const actualHits = hits.map(hit => {
             const doc = Object.assign(index.type.deserialize(hit._source), {
                 id: hit._id,
             });
@@ -1780,10 +1811,14 @@ export class OpensearchClient implements OpensearchClientInterface {
                 );
             }
 
+            if (hit._explanation) {
+                doc.explanation = hit._explanation;
+            }
+
             return doc;
         });
 
-        return docs;
+        return {hits: actualHits};
     }
 
     /**
@@ -1810,6 +1845,7 @@ export class OpensearchClient implements OpensearchClientInterface {
             searchAfter,
             storedFields,
             highlight,
+            explain,
         }: {
             size: number;
             query: OpensearchQueryClause<OpensearchIndexFlattenedKeysType<Index>>;
@@ -1817,9 +1853,10 @@ export class OpensearchClient implements OpensearchClientInterface {
             searchAfter?: ReadonlyArray<JsonScalarValue | bigint>;
             storedFields?: Array<StoredFieldKeys>;
             highlight?: OpensearchHighlightClause<OpensearchIndexFlattenedKeysType<Index>>;
+            explain?: boolean;
         },
-    ): Promise<
-        Array<{
+    ): Promise<{
+        hits: Array<{
             readonly score: number;
             readonly id: OpensearchIndexDocIdType<Index>;
             readonly fields: {
@@ -1841,19 +1878,21 @@ export class OpensearchClient implements OpensearchClientInterface {
                     };
                 }>;
             };
-        }>
-    > {
-        const hits = await this._search(tracer, index, routing, {
+            readonly explanation?: OpensearchSearchHitExplanation;
+        }>;
+    }> {
+        const {hits} = await this._search(tracer, index, routing, {
             size,
             query,
             sort,
             searchAfter,
             highlight,
             storedFields,
-            withoutDocs: true,
+            explain,
+            withoutSource: true,
         });
 
-        const docs = hits.map(hit => {
+        const actualHits = hits.map(hit => {
             assert(!hit._source);
 
             const fields: {[key: string]: Array<any>} = {};
@@ -1904,10 +1943,11 @@ export class OpensearchClient implements OpensearchClientInterface {
                           }),
                       )
                     : undefined,
+                explanation: hit._explanation,
             };
         });
 
-        return docs;
+        return {hits: actualHits};
     }
 
     /**

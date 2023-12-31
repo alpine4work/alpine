@@ -1,4 +1,5 @@
 import {AccountModel} from "~/shared/accounts/account_model.js";
+import {OpensearchSearchHitExplanationSchema} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {SearchEntityIdOrSearchAffinityIdSchema} from "~/shared/search/search_entity_affinity_id.js";
 
@@ -37,4 +38,5 @@ export const SearchResultSchema = Schema.object({
         }),
     ),
     media: SearchResultMediaSchema.nullable(),
+    explanation: OpensearchSearchHitExplanationSchema.optional(),
 });

@@ -32,7 +32,7 @@ export const backgroundFontSizePercentage =
 const interFontFace = fontFace({
     src: "url(/fonts/inter.woff2) format('woff2')",
     fontStyle: "normal",
-    fontWeight: "100 900",
+    fontWeight: "100 340 400 500 600 700 800 900",
     // It appears browsers add an extra descent to the font's ascent metric.
     // Presumably so that `background-color` appears centered around the text.
     ascentOverride: formatPercentage(interFontAscenderPercentage + interFontDescenderPercentage),
@@ -42,7 +42,7 @@ const interFontFace = fontFace({
 const firaCodeFontFace = fontFace({
     src: "url(/fonts/fira-code.woff2) format('woff2')",
     fontStyle: "normal",
-    fontWeight: "300 700",
+    fontWeight: "300 500 700",
     // Give Fira Code the same ascent/descent metrics as Inter. This means
     // `background-color`s, font sizes, line heights, everything set on the two
     // fonts line up when next to each other.
@@ -138,6 +138,12 @@ export const fontStyles = {
     code: {
         fontFamily: firaCodeFontFamily,
         fontWeight: 400,
+        fontStyle: "normal",
+        fontFeatureSettings: '"calt" off',
+    },
+    "code-semi-bold": {
+        fontFamily: firaCodeFontFamily,
+        fontWeight: 500,
         fontStyle: "normal",
         fontFeatureSettings: '"calt" off',
     },

@@ -88,10 +88,6 @@ const properties = defineProperties({
         textAlign: {left: "left", center: "center", right: "right", justify: "justify"},
         fontSize: fontSizes,
         fontStyle: fontStyles,
-        opacity: {
-            "0": 0,
-            "100": 100,
-        },
     },
 });
 
@@ -323,6 +319,14 @@ const colorProperties = defineProperties({
             none: {
                 borderRight: "none",
             },
+        },
+        opacity: {
+            "0": 0,
+            "20": 0.2,
+            "40": 0.4,
+            "60": 0.6,
+            "80": 0.8,
+            "100": 1,
         },
     },
     shorthands: {

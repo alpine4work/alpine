@@ -1366,7 +1366,7 @@ export async function queryTaskIndex(
 
     queryTaskIndexTestCounter.incrementForTest(spaceId);
 
-    const tasks = await context.opensearch.search(TaskIndex, spaceId, {
+    const {hits: tasks} = await context.opensearch.search(TaskIndex, spaceId, {
         query: getTaskQueryNormalizedFiltersOpensearchQueryClause(spaceId, filters),
         sort: getTaskQueryNormalizedSortsOpensearchSortClause(sorts),
         size: limit,
@@ -1388,7 +1388,7 @@ export async function searchTaskCollections(
 ): Promise<Array<TaskCollectionModelSearchResult>> {
     await authorizeSpaceAccess(context, spaceId);
 
-    const collections = await context.opensearch.searchWithoutSource(TaskCollectionIndex, spaceId, {
+    const {hits} = await context.opensearch.searchWithoutSource(TaskCollectionIndex, spaceId, {
         size: limit,
         sort: [
             "_score",
@@ -1495,7 +1495,7 @@ export async function searchTaskCollections(
         },
     });
 
-    return assembleTaskCollectionSearchResults(context, collections);
+    return assembleTaskCollectionSearchResults(context, hits);
 }
 
 /**

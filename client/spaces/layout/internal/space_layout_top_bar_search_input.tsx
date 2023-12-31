@@ -3,11 +3,45 @@ import {Component, ReactNode, useEffect, useRef, useState} from "react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
 import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
+import {useDevConsoleSettingsObject} from "~/client/dev/dev_console.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {SearchModal, usePreloadAffinitiveSearchEntities} from "~/client/search/search_modal.js";
 import {spacing} from "~/shared/design/spacing.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {Schema} from "~/shared/schema/schema.js";
+import {
+    SearchOptions,
+    SearchOptionsSchema,
+    standardSearchOptions,
+} from "~/shared/search/search_debug_options.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+
+const searchOptionsDevConsoleSettingsConfig = {
+    isEnabled: {
+        defaultValue: false,
+        schema: Schema.boolean,
+    },
+    ...Object.fromEntries(
+        mapIterable(SearchOptionsSchema.propertySchemaByKey, ([key, propertySchema]) => [
+            key,
+            {
+                defaultValue: (standardSearchOptions as any)[key],
+                schema: propertySchema.valueSchema,
+            },
+        ]),
+    ),
+} as {
+    isEnabled: {
+        defaultValue: boolean;
+        schema: Schema<boolean>;
+    };
+} & {
+    [Key in keyof SearchOptions]: {
+        defaultValue: SearchOptions[Key];
+        schema: Schema<SearchOptions[Key]>;
+    };
+};
 
 // NOTE(calebmer): I've invested a lot of screen real estate for the search
 // input. Even showing you the keyboard shortcut at all times. That's because
@@ -57,6 +91,10 @@ export function SpaceLayoutTopBarSearchInput({space}: {space: SpaceModel}) {
     // opens. We expect search to be the primary way users navigate around the
     // product.
     usePreloadAffinitiveSearchEntities();
+
+    const debugOptions: SearchOptions & {
+        readonly isEnabled: boolean;
+    } = useDevConsoleSettingsObject("searchDebugOptions", searchOptionsDevConsoleSettingsConfig);
 
     return (
         <GlobalKeyDownEvent
@@ -108,6 +146,7 @@ export function SpaceLayoutTopBarSearchInput({space}: {space: SpaceModel}) {
                         <SearchModal
                             initialQueryText={searchState.initialQueryText}
                             onClose={() => setSearchState(null)}
+                            debugOptions={debugOptions.isEnabled ? debugOptions : null}
                         />
                     </SearchModalErrorBoundary>
                 )}

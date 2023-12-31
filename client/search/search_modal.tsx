@@ -30,6 +30,7 @@ import {UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {SearchOptions} from "~/shared/search/search_debug_options.js";
 import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult} from "~/shared/search/search_result.js";
@@ -49,9 +50,11 @@ export {usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_s
 export function SearchModal({
     initialQueryText,
     onClose,
+    debugOptions,
 }: {
     initialQueryText: string;
     onClose: () => void;
+    debugOptions: SearchOptions | null;
 }) {
     const {space} = useSpaceContext();
     const rootNavigate = useRootNavigate();
@@ -81,6 +84,7 @@ export function SearchModal({
     } = useSearchState({
         initialQueryText,
         resultListContainerRef,
+        debugOptions,
     });
 
     // Keep the `search` URL parameter updated while this modal is open.
@@ -135,6 +139,26 @@ export function SearchModal({
             withoutOpenAnimation={true}
             onClose={onClose}
         >
+            {debugOptions && (
+                // Show a debug mode indicator when we're using debug options to search. Since
+                // we may not show explanation badges on search results.
+                <Box
+                    position="absolute"
+                    top="2"
+                    right="2"
+                    zIndex="20"
+                    pointerEvents="none"
+                    fontSize="50"
+                    fontStyle="code"
+                    backgroundColor="green-10"
+                    color="green-80"
+                    paddingX="1"
+                    paddingY="0.5"
+                    borderRadius="base"
+                >
+                    Debug: On
+                </Box>
+            )}
             <GlobalKeyDownEvent
                 onGlobalKeyDown={event => {
                     switch (event.key) {
