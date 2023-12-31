@@ -26,6 +26,7 @@ import {SearchEntityMedia} from "~/server/search/data/index/internal/search_enti
 import {truncateTokens} from "~/server/search/data/index/internal/truncate_tokens.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
+import {getTaskCollectionFromIndex, getTaskFromIndex} from "~/server/tasks/data/task_index.js";
 import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
@@ -333,7 +334,7 @@ class SearchEntityReadState {
 
         const [{task, referencedTasks, referencedCollections}, notesContent] = await runAllPromises(
             [
-                this._context.tasks.getTask(this._context.actor.getSpaceId(), taskId),
+                getTaskFromIndex(this._context, this._context.actor.getSpaceId(), taskId),
                 getTaskNotesContentWithoutReferences(this._context, taskId, {
                     consistency: "Strong",
                 }),
@@ -366,7 +367,8 @@ class SearchEntityReadState {
     public async getTaskCollection(collectionId: TaskCollectionId): Promise<TaskCollectionModel> {
         this._recordDependencyId(`TaskCollection:${collectionId}`);
 
-        const {collection} = await this._context.tasks.getCollection(
+        const collection = await getTaskCollectionFromIndex(
+            this._context,
             this._context.actor.getSpaceId(),
             collectionId,
         );

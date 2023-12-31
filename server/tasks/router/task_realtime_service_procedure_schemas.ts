@@ -6,8 +6,6 @@ import {
 } from "~/shared/id/types/id_types.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {TaskActionSchema} from "~/shared/tasks/actions/task_action.js";
-import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
-import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {TaskQueryNormalizedFiltersSchema} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSortSchema} from "~/shared/tasks/task_query_normalized_sort.js";
@@ -52,16 +50,4 @@ export const TaskRealtimeLoadQueriesOutputSchema = Schema.object({
         }),
     ),
     updateEvent: TaskRealtimeUpdateEventSchema,
-});
-
-export const TaskRealtimeGetTaskSchema = Schema.object({
-    ok: Schema.value(true),
-    task: TaskModel.schema,
-    referencedTasks: Schema.array(TaskModel.schema),
-    referencedCollections: Schema.array(TaskCollectionModel.schema),
-});
-
-export const TaskRealtimeGetCollectionSchema = Schema.object({
-    ok: Schema.value(true),
-    collection: TaskCollectionModel.schema,
 });

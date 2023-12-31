@@ -15,6 +15,11 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
  * Does no work to determine whether you have access to the tasks or
  * collections being loaded, the loader functions you provide must do that.
  */
+// NOTE(calebmer, 2023-12-30): You could use this to implement `getTask()`
+// loading data from either `TaskRealtimeService` or directly from the
+// OpenSearch task index. We used to need both but currently this function is
+// only being used to load from the OpenSearch task index. Leaving this
+// abstraction in place if it's ever needed again.
 export async function assembleTaskAndReferences(
     taskId: TaskId,
     {

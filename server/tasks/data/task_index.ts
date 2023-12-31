@@ -28,6 +28,7 @@ import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.
 import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
 import {applyTaskActionToTaskIndexDoc} from "~/server/tasks/data/apply_task_action_to_task_index_doc.js";
 import {applyTaskCollectionActionToCollectionIndexDoc} from "~/server/tasks/data/apply_task_collection_action_to_collection_index_doc.js";
+import {assembleTaskAndReferences} from "~/server/tasks/data/assemble_task_and_references.js";
 import {createEmptyTaskCollectionIndexDoc} from "~/server/tasks/data/create_empty_task_collection_index_doc.js";
 import {createEmptyTaskIndexDoc} from "~/server/tasks/data/create_empty_task_index_doc.js";
 import {getTaskQueryNormalizedFiltersOpensearchQueryClause} from "~/server/tasks/data/internal/get_task_query_normalized_filters_opensearch_query_clause.js";
@@ -35,6 +36,7 @@ import {
     convertTaskQuerySortCursorToOpensearchCursor,
     getTaskQueryNormalizedSortsOpensearchSortClause,
 } from "~/server/tasks/data/internal/get_task_query_normalized_sorts_opensearch_sort_clause.js";
+import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {
     TaskCollectionIndexActualDoc,
     TaskCollectionIndexDocType,
@@ -49,7 +51,7 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
-import {FailedPreconditionError, InternalError} from "~/shared/error/error.js";
+import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
@@ -67,7 +69,9 @@ import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
 import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
+import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
+import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskQuerySortCursor} from "~/shared/tasks/task_query_sort_cursor.js";
@@ -219,6 +223,77 @@ export async function getTaskCollectionIndexDocsIfExist(
             collectionId => new OpensearchGetDocCommand(TaskCollectionIndex, spaceId, collectionId),
         ),
     );
+}
+
+/**
+ * Get a task and any referenced tasks/collections from their OpenSearch index.
+ * This doesn't rely on an OpenSearch refresh to be up-to-date since we read
+ * individual OpenSearch documents.
+ *
+ * This will give you read-after-write consistency after successful index
+ * writes. Not after the `commitTaskActionTransaction()` function which writes
+ * to the index in the background.
+ */
+export async function getTaskFromIndex(
+    context: ServerSystemActionContext,
+    spaceId: SpaceId,
+    taskId: TaskId,
+): Promise<{
+    task: TaskModel;
+    referencedTasks: ReadonlyArray<TaskModel>;
+    referencedCollections: ReadonlyArray<TaskCollectionModel>;
+}> {
+    // We don't verify that the account is allowed to load this task. We
+    // require a system actor with access to the entire space.
+    context.actor.authorizeSystem();
+    await authorizeSpaceAccess(context, spaceId);
+
+    return assembleTaskAndReferences(taskId, {
+        getTaskIndexDoc: async taskId => {
+            const task = await context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId);
+            if (!task) throw new NotFoundError("Task not found");
+            return task;
+        },
+        getCollectionIndexDoc: async collectionId => {
+            const collection = await context.opensearch.getDocIfExists(
+                TaskCollectionIndex,
+                spaceId,
+                collectionId,
+            );
+            if (!collection) throw new NotFoundError("Task collection not found");
+            return collection;
+        },
+    });
+}
+
+/**
+ * Get a task collection from their OpenSearch index. This doesn't rely on an
+ * OpenSearch refresh to be up-to-date since we read individual OpenSearch
+ * documents.
+ *
+ * This will give you read-after-write consistency after successful index
+ * writes. Not after the `commitTaskActionTransaction()` function which writes
+ * to the index in the background.
+ */
+export async function getTaskCollectionFromIndex(
+    context: ServerSystemActionContext,
+    spaceId: SpaceId,
+    collectionId: TaskCollectionId,
+): Promise<TaskCollectionModel> {
+    // We don't verify that the account is allowed to load this task. We
+    // require a system actor with access to the entire space.
+    context.actor.authorizeSystem();
+    await authorizeSpaceAccess(context, spaceId);
+
+    const collection = await context.opensearch.getDocIfExists(
+        TaskCollectionIndex,
+        spaceId,
+        collectionId,
+    );
+
+    if (!collection) throw new NotFoundError("Task collection not found");
+
+    return prepareTaskCollectionForClient(collection);
 }
 
 /**
@@ -659,9 +734,9 @@ class TaskActionTransactionIndexState {
             });
 
             for (const {job, delaySeconds} of jobs) {
-                // NOCOMMIT: The job reads from `TaskRealtimeService`. Instead, we should be
-                // reading from OpenSearch since we may have a race condition where we index
-                // before `TaskRealtimeService` sees the actions?
+                // The search indexing jobs read from the task OpenSearch index. So sending
+                // the job after the index write will give us correct write-after-read
+                // semantics.
                 state._context.jobs.send(job, {delaySeconds});
             }
 

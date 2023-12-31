@@ -6,7 +6,6 @@ import {
     searchByKeywords,
 } from "~/server/search/data/index/search_entity_index.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
-import {TestTaskContextModule} from "~/server/tasks/data/task_context_module.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
@@ -37,16 +36,7 @@ const context = createTestContext({
             case "IndexSearchEntity": {
                 indexSearchEntityJobCount++;
 
-                await processIndexSearchEntityJob(
-                    actionContext.clone({
-                        tasks: new TestTaskContextModule({
-                            shouldSkipIndexing: !context.isOpensearchEnabled,
-                            dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
-                        }),
-                    }),
-                    job,
-                    jobStartTime,
-                );
+                await processIndexSearchEntityJob(actionContext, job, jobStartTime);
                 break;
             }
             default: {
@@ -179,12 +169,7 @@ test("will not make chat searchable even if manually indexed until first message
     ).toEqual([]);
 
     await processIndexSearchEntityJob(
-        space.systemAction().clone({
-            tasks: new TestTaskContextModule({
-                shouldSkipIndexing: !context.isOpensearchEnabled,
-                dangerouslyEscalateToSystemContext: context.escalateToSystemContext,
-            }),
-        }),
+        space.systemAction(),
         {
             type: "IndexSearchEntity",
             spaceId: space.id,

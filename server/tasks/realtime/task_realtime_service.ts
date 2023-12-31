@@ -27,16 +27,12 @@ import {createStandardizedServerWithWebSockets} from "~/server/node/create_stand
 import {runService} from "~/server/node/run_service.js";
 import {registerShutdownListenerForIngressTraffic} from "~/server/node/shutdown_manager.js";
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
-import {assembleTaskAndReferences} from "~/server/tasks/data/assemble_task_and_references.js";
-import {prepareTaskCollectionForClient} from "~/server/tasks/data/prepare_task_collection_for_client.js";
 import {loadTaskRealtimeQueries} from "~/server/tasks/realtime/load_task_realtime_queries.js";
 import {TaskRealtimeConnection} from "~/server/tasks/realtime/task_realtime_connection.js";
 import {TaskRealtimeServer} from "~/server/tasks/realtime/task_realtime_server.js";
 import {TaskRealtimeSystemActionContext} from "~/server/tasks/realtime/task_realtime_system_action_context.js";
 import {
     TaskRealtimeApplyActionTransactionInputSchema,
-    TaskRealtimeGetCollectionSchema,
-    TaskRealtimeGetTaskSchema,
     TaskRealtimeLoadQueriesInputSchema,
     TaskRealtimeLoadQueriesOutputSchema,
 } from "~/server/tasks/router/task_realtime_service_procedure_schemas.js";
@@ -64,7 +60,7 @@ import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {isId} from "~/shared/id/id.js";
-import {SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {SpaceId} from "~/shared/id/types/id_types.js";
 import {TaskRealtimeProtocol} from "~/shared/tasks/task_realtime_protocol.js";
 import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 import {WebSocketClosingWithErrorMessageSchema} from "~/shared/web_socket/web_socket_schema.js";
@@ -352,114 +348,6 @@ runService({
                         },
                     );
                 }
-                case "GetTask": {
-                    if (request.method !== "GET") {
-                        throw new InvalidArgumentError(
-                            quote`Invalid request method ${request.method}`,
-                        );
-                    }
-
-                    const {taskId} = route;
-
-                    if (!taskId || !isId<TaskId>(taskId))
-                        throw new InvalidArgumentError("Expected `TaskId` in path");
-
-                    if (
-                        actorContextModule.serviceName !== "AppService" &&
-                        actorContextModule.serviceName !== "JobQueueService"
-                    ) {
-                        throw new PermissionDeniedError(
-                            "Only `AppService` or `JobQueueService` can get tasks",
-                        );
-                    }
-
-                    // We don't currently implement authorization to check that you're allowed to
-                    // read a task.
-                    if (!(actorContextModule instanceof DynamoSystemActorContextModule)) {
-                        throw new PermissionDeniedError("Only system actors can get tasks");
-                    }
-
-                    return baseContext.with(
-                        {actor: actorContextModule},
-                        async (context: TaskRealtimeSystemActionContext) => {
-                            const {task, referencedTasks, referencedCollections} =
-                                await assembleTaskAndReferences(taskId, {
-                                    getTaskIndexDoc: taskId =>
-                                        server.getTask(context, spaceId, taskId),
-                                    getCollectionIndexDoc: collectionId =>
-                                        server.getCollection(context, spaceId, collectionId),
-                                });
-
-                            return new Response(
-                                JSON.stringify(
-                                    TaskRealtimeGetTaskSchema.serialize({
-                                        ok: true,
-                                        task,
-                                        referencedTasks,
-                                        referencedCollections,
-                                    }),
-                                ),
-                                {
-                                    status: 200,
-                                    headers: {"content-type": "application/json"},
-                                },
-                            );
-                        },
-                    );
-                }
-                case "GetCollection": {
-                    if (request.method !== "GET") {
-                        throw new InvalidArgumentError(
-                            quote`Invalid request method ${request.method}`,
-                        );
-                    }
-
-                    const {collectionId} = route;
-
-                    if (!collectionId || !isId<TaskCollectionId>(collectionId))
-                        throw new InvalidArgumentError("Expected `TaskCollectionId` in path");
-
-                    if (
-                        actorContextModule.serviceName !== "AppService" &&
-                        actorContextModule.serviceName !== "JobQueueService"
-                    ) {
-                        throw new PermissionDeniedError(
-                            "Only `AppService` or `JobQueueService` can get collections",
-                        );
-                    }
-
-                    // We don't currently implement authorization to check that you're allowed to
-                    // read a task.
-                    if (!(actorContextModule instanceof DynamoSystemActorContextModule)) {
-                        throw new PermissionDeniedError("Only system actors can get collections");
-                    }
-
-                    return baseContext.with(
-                        {actor: actorContextModule},
-                        async (context: TaskRealtimeSystemActionContext) => {
-                            const collection = await server.getCollection(
-                                context,
-                                spaceId,
-                                collectionId,
-                            );
-
-                            const collectionModel = prepareTaskCollectionForClient(collection);
-
-                            return new Response(
-                                JSON.stringify(
-                                    TaskRealtimeGetCollectionSchema.serialize({
-                                        ok: true,
-                                        collection: collectionModel,
-                                    }),
-                                ),
-                                {
-                                    status: 200,
-                                    headers: {"content-type": "application/json"},
-                                },
-                            );
-                        },
-                    );
-                }
                 default:
                     throw new NotFoundError("Route not found");
             }
@@ -496,22 +384,6 @@ runService({
                         if (pathnameSegments.length !== 2) return ["/*", {type: "NotFound"}];
 
                         return ["/:spaceId/loadQueries", {type: "LoadQueries", spaceId}];
-                    }
-                    case "getTask": {
-                        if (pathnameSegments.length !== 3) return ["/*", {type: "NotFound"}];
-
-                        return [
-                            "/:spaceId/getTask/:taskId",
-                            {type: "GetTask", spaceId, taskId: pathnameSegments[2]!},
-                        ];
-                    }
-                    case "getCollection": {
-                        if (pathnameSegments.length !== 3) return ["/*", {type: "NotFound"}];
-
-                        return [
-                            "/:spaceId/getCollection/:collectionId",
-                            {type: "GetCollection", spaceId, collectionId: pathnameSegments[2]!},
-                        ];
                     }
                     default:
                         return ["/*", {type: "NotFound"}];
