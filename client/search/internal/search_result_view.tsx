@@ -66,6 +66,13 @@ export function SearchResultView({
     onPressStart: () => void;
 }) {
     const typeDisplay = useMemo(() => {
+        if (result.entityId === "TaskNotepad") {
+            // We label the task notepad as a task "collection" since it is a collection of
+            // tasks. We need some label and ideally it's not "Task notepad" since that's
+            // the same as the title.
+            return getSearchEntityTypeDisplay("TaskCollection");
+        }
+
         const entityIdObject = parseSearchEntityId(result.entityId);
         return getSearchEntityTypeDisplay(entityIdObject.type);
     }, [result.entityId]);

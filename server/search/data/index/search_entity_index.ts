@@ -1239,9 +1239,6 @@ export async function getAffinitiveSearchEntities(
                 ];
 
                 if (entityId === "TaskNotepad") {
-                    // NOCOMMIT
-                    return null;
-
                     return {
                         entityId,
                         score: points,

@@ -43,10 +43,6 @@ import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/style
 // depending on `//client/search`.
 export {usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_search_state.js";
 
-// NOCOMMIT: If you've selected something and new search results came in, try
-// to maintain that selection but move it to the top or something? In case you
-// see what you're looking for but the network is being slow.
-
 // NOCOMMIT: No results view
 
 export function SearchModal({
