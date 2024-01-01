@@ -30,15 +30,15 @@ import {UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchOptions} from "~/shared/search/search_debug_options.js";
 import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
+import {SearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 // Export the preload hook from our internal folder so it can be used by code
 // depending on `//client/search`.
-export {usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_search_state.js";
+export {usePreloadSearchByAffinity as usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_search_state.js";
 
 // NOCOMMIT: No results view
 
@@ -77,11 +77,7 @@ export function SearchModal({
         inputElement.focus();
     }, []);
 
-    const {
-        result: searchResult,
-        queryText,
-        onQueryTextChange,
-    } = useSearchState({
+    const {output, queryText, onQueryTextChange} = useSearchState({
         initialQueryText,
         resultListContainerRef,
         debugOptions,
@@ -113,16 +109,16 @@ export function SearchModal({
         entityId: SearchEntityIdOrSearchAffinityId;
     }>({
         // Reset our peek state if the search response changes.
-        key: searchResult.key,
+        key: output.key,
         initialPeekData: null,
     });
 
     const shouldShowInputLoadingIndicator =
-        useDelayLoadingIndicator(searchResult.isPending) &&
+        useDelayLoadingIndicator(output.isPending) &&
         // Only display a loading indicator on the input if we have results. Otherwise
         // we'll display a large loading indicator in the result list while we wait for
         // results to load.
-        !!searchResult.results;
+        !!output.results;
 
     return (
         <Modal
@@ -198,20 +194,20 @@ export function SearchModal({
                             event.preventDefault();
 
                             // Data hasn't loaded yet, we can't select anything.
-                            if (!searchResult.results) break;
+                            if (!output.results) break;
 
                             const index = selectedPeek
-                                ? searchResult.results.findIndex(
+                                ? output.results.findIndex(
                                       result => result.entityId === selectedPeek.extra.entityId,
                                   )
                                 : -1;
 
                             const result =
                                 index !== -1
-                                    ? searchResult.results[
+                                    ? output.results[
                                           event.key === "ArrowUp" ? index - 1 : index + 1
                                       ]
-                                    : searchResult.results[0];
+                                    : output.results[0];
 
                             // There is no next item. Do nothing. Don't loop around since we may have many
                             // items so looping would be disorienting.
@@ -283,13 +279,13 @@ export function SearchModal({
                     >
                         <Box
                             // Reset our result list if the search response changes.
-                            key={searchResult.key}
+                            key={output.key}
                             ref={resultListContainerRef}
                             flexGrow="1"
                             height="full"
                             overflow="hidden"
                         >
-                            {searchResult.isError ? (
+                            {output.isError ? (
                                 <Box
                                     maxWidth="128"
                                     marginX="auto"
@@ -299,10 +295,10 @@ export function SearchModal({
                                 >
                                     <ErrorBodyRenderer
                                         title="Couldn’t get search results"
-                                        error={searchResult.error}
+                                        error={output.error}
                                     />
                                 </Box>
-                            ) : !searchResult.results ? (
+                            ) : !output.results ? (
                                 <Box
                                     width="full"
                                     height="full"
@@ -318,7 +314,7 @@ export function SearchModal({
                                 </Box>
                             ) : (
                                 <SearchModalResultList
-                                    results={searchResult.results}
+                                    results={output.results}
                                     selectedPeek={selectedPeek}
                                     switchPeek={switchPeek}
                                 />

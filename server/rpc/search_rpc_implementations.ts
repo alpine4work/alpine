@@ -1,6 +1,6 @@
 import {implementRpc} from "~/server/rpc/internal/implement_rpc.js";
 import {
-    getAffinitiveSearchEntities,
+    searchByAffinity,
     searchByKeywords,
     searchBySemantics,
 } from "~/server/search/data/index/search_entity_index.js";
@@ -15,19 +15,15 @@ implementRpc(definition.searchBySemantics, {visibility: ["AppClient"]}, async (c
     return searchBySemantics(context.actor.authorizeSession(), input);
 });
 
+implementRpc(definition.searchByAffinity, {visibility: ["AppClient"]}, async (context, input) => {
+    return searchByAffinity(context.actor.authorizeSession(), input);
+});
+
 implementRpc(
     definition.markSearchEntityAffinityInteraction,
     {visibility: ["AppClient"]},
     async (context, input) => {
         await markSearchEntityAffinityInteraction(context.actor.authorizeSession(), input);
         return {};
-    },
-);
-
-implementRpc(
-    definition.getAffinitiveSearchEntities,
-    {visibility: ["AppClient"]},
-    async (context, input) => {
-        return getAffinitiveSearchEntities(context.actor.authorizeSession(), input);
     },
 );

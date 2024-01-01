@@ -2,11 +2,13 @@ import {AppContext} from "~/client/context/app_context.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
 import {Store} from "~/client/helpers/store/store.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {
+    OpensearchSearchHitExplanation,
+    addSumOperandToOpensearchSearchHitExplanation,
+} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {searchByKeywords, searchBySemantics} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchOptions} from "~/shared/search/search_debug_options.js";
-import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
+import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult} from "~/shared/search/search_result.js";
 
 /**
@@ -14,15 +16,15 @@ import {SearchResult} from "~/shared/search/search_result.js";
  * results are mixed with our keyword search results. Semantic search results
  * can be expensive to compute so we don't load too many.
  *
- * Picked 7 since it's a lucky number. Working with leading AI models requires
- * a bit of superstition.
+ * Picked 14 since it's two times 7 which is a lucky number. Working with
+ * leading AI models requires a bit of superstition.
  *
  * When paginating, we only load more keyword search results. Not new semantic
  * search results.
  */
-const semanticSearchResultLimit = 7;
+const semanticSearchResultLimit = 14;
 
-export type ExecuteSearchResult =
+export type ExecuteSearchOutput =
     | {
           readonly isPending: true;
           readonly isError: false;
@@ -41,19 +43,19 @@ export type ExecuteSearchResult =
       };
 
 /**
- * Constant pending result `executeSearch()` returns while it's loading.
+ * Constant pending output `executeSearch()` returns while it's loading.
  */
-export const pendingExecuteSearchResult: ExecuteSearchResult = {
+export const pendingExecuteSearchOutput: ExecuteSearchOutput = {
     isPending: true,
     isError: false,
     results: null,
 };
 
 /**
- * Constant result `executeSearch()` returns when it receives an empty
+ * Constant output `executeSearch()` returns when it receives an empty
  * search query.
  */
-export const emptyExecuteSearchResult: ExecuteSearchResult = {
+export const emptyExecuteSearchOutput: ExecuteSearchOutput = {
     isPending: false,
     isError: false,
     results: [],
@@ -61,7 +63,7 @@ export const emptyExecuteSearchResult: ExecuteSearchResult = {
 
 /**
  * Execute a search request. Instead of returning a `Promise` we return a
- * `Store` since our search result may change a few times before it stabilizes.
+ * `Store` since our search output may change a few times before it stabilizes.
  *
  * Returning `null` for `results` means we've loaded no search results yet. We
  * may return `isPending: true` when `results` is non-null. This means we've
@@ -90,13 +92,18 @@ export function executeSearch(
         limit: number;
         debugOptions: SearchOptions | null;
     },
-): Store<ExecuteSearchResult> {
+): Store<ExecuteSearchOutput> {
     // If the query is empty then return no search results.
-    if (queryText.length === 0) return new ConstStore(emptyExecuteSearchResult);
+    if (queryText.length === 0) return new ConstStore(emptyExecuteSearchOutput);
+
+    const options = debugOptions ?? standardSearchOptions;
 
     const keywordSearchPromise = searchByKeywords(context, {
         spaceId,
         queryText,
+        // NOCOMMIT: What to do about limit here and infinite loading. Kinda weird that
+        // semantic search results are placed in the top `limit` keyword results but
+        // `limit` is determined by view size.
         limit,
         debugOptions: debugOptions ?? undefined,
     });
@@ -113,8 +120,8 @@ export function executeSearch(
     return Store.map(
         keywordSearchStore,
         semanticSearchStore,
-        (keywordSearchState, semanticSearchState): ExecuteSearchResult => {
-            if (keywordSearchState.status === "pending") return pendingExecuteSearchResult;
+        (keywordSearchState, semanticSearchState): ExecuteSearchOutput => {
+            if (keywordSearchState.status === "pending") return pendingExecuteSearchOutput;
 
             if (keywordSearchState.status === "rejected") {
                 return {
@@ -134,83 +141,195 @@ export function executeSearch(
                 };
             }
 
+            if (semanticSearchState.status === "pending") {
+                return {
+                    isPending: true,
+                    isError: false,
+                    results: keywordSearchState.value.results,
+                };
+            }
+
+            // Now that we have both keyword search results and semantic search results,
+            // let's merge them together...
+
+            const interpolation = options.semanticToKeywordScoreInterpolation;
+
+            const slope =
+                (interpolation.point2.keywordScore - interpolation.point1.keywordScore) /
+                (interpolation.point2.semanticScore - interpolation.point1.semanticScore);
+
+            const intercept =
+                interpolation.point2.keywordScore - slope * interpolation.point2.semanticScore;
+
+            const semanticResultByEntityId = new Map(
+                semanticSearchState.value.results.map(result => [result.entityId, result]),
+            );
+
+            const newResults: Array<SearchResult> = [];
+
+            let withExplanation = true;
+            let maxKeywordScore = -Infinity;
+            let minKeywordScore = Infinity;
+
+            for (const keywordResult of keywordSearchState.value.results) {
+                withExplanation &&= !!keywordResult.explanation;
+                maxKeywordScore = Math.max(maxKeywordScore, keywordResult.score);
+                minKeywordScore = Math.min(minKeywordScore, keywordResult.score);
+
+                const semanticResult = semanticResultByEntityId.get(keywordResult.entityId);
+                if (!semanticResult) {
+                    newResults.push(keywordResult);
+                    continue;
+                }
+
+                semanticResultByEntityId.delete(keywordResult.entityId);
+
+                const additionalScore = slope * semanticResult.score + intercept;
+
+                // If we have both a keyword result and a semantic result, then we want to use
+                // the title and body snippet from the keyword result.
+                newResults.push({
+                    ...keywordResult,
+                    score: keywordResult.score + additionalScore,
+                    explanation: keywordResult.explanation
+                        ? addSumOperandToOpensearchSearchHitExplanation(keywordResult.explanation, {
+                              value: additionalScore,
+                              description: `✨ interpolated semantic score, computed as (m * x) + b from:`,
+                              details: [
+                                  {
+                                      value: semanticResult.score,
+                                      description: "x, semantic score",
+                                      details: [],
+                                  },
+                                  {
+                                      value: slope,
+                                      description: "m, slope",
+                                      details: [],
+                                  },
+                                  {
+                                      value: intercept,
+                                      description: "b, intercept",
+                                      details: [],
+                                  },
+                              ],
+                          })
+                        : undefined,
+                });
+            }
+
+            const remainingSemanticResults = Array.from(semanticResultByEntityId.values());
+            remainingSemanticResults.sort((result1, result2) => result2.score - result1.score);
+
+            for (let i = 0; i < remainingSemanticResults.length; i++) {
+                const semanticResult = remainingSemanticResults[i]!;
+                const actualScore = slope * semanticResult.score + intercept;
+                const rank = i + 1;
+
+                const actualScoreExplanation: OpensearchSearchHitExplanation = {
+                    value: actualScore,
+                    description: `✨ interpolated semantic score, computed as (m * x) + b from:`,
+                    details: [
+                        {
+                            value: semanticResult.score,
+                            description: "x, semantic score",
+                            details: [],
+                        },
+                        {
+                            value: slope,
+                            description: "m, slope",
+                            details: [],
+                        },
+                        {
+                            value: intercept,
+                            description: "b, intercept",
+                            details: [],
+                        },
+                    ],
+                };
+
+                // If we found all possible keyword search results then we know for sure we
+                // wouldn't find semantic results if we kept searching.
+                if (keywordSearchState.value.results.length < limit) {
+                    newResults.push({
+                        ...semanticResult,
+                        score: actualScore,
+                        explanation: withExplanation ? actualScoreExplanation : undefined,
+                    });
+                }
+
+                // If there was no keyword search result for the semantic search result we
+                // assume that if we kept paginating through keyword search results we'd
+                // eventually find a match. That way semantic search results with no keyword
+                // result match can be competitive with other keyword results.
+                //
+                // To do this, we assume the remaining semantic results have keyword results in
+                // the same order as the remaining semantic results right after they keyword
+                // results we do have. Then we extrapolate scores for these keyword results and
+                // add them to the semantic results.
+                //
+                // Of course, all these assumptions probably don't hold most of the time.
+                // However, subjectively we get correct looking results. Often semantic results
+                // would have a keyword match if we had a high enough `limit`. They keyword
+                // result's score would be less than the minimum score of keyword results we
+                // do have.
+                const extrapolatedKeywordScore =
+                    minKeywordScore -
+                    rank *
+                        ((maxKeywordScore - minKeywordScore) /
+                            keywordSearchState.value.results.length);
+
+                // Make sure when adding semantic results we interpolate their scores into the
+                // keyword score range. Otherwise good scores like 0.9 would always be last.
+                newResults.push({
+                    ...semanticResult,
+                    score: actualScore + extrapolatedKeywordScore,
+                    explanation: withExplanation
+                        ? {
+                              value: actualScore + extrapolatedKeywordScore,
+                              description: "sum of:",
+                              details: [
+                                  actualScoreExplanation,
+                                  {
+                                      value: extrapolatedKeywordScore,
+                                      description:
+                                          "extrapolated keyword score, computed as a - (r * (b - a) / l) from:",
+                                      details: [
+                                          {
+                                              value: rank,
+                                              description: "r, extrapolated keyword search rank",
+                                              details: [],
+                                          },
+                                          {
+                                              value: minKeywordScore,
+                                              description: "a, minimum keyword result score",
+                                              details: [],
+                                          },
+                                          {
+                                              value: maxKeywordScore,
+                                              description: "b, maximum keyword result score",
+                                              details: [],
+                                          },
+                                          {
+                                              value: keywordSearchState.value.results.length,
+                                              description: "l, keyword result count",
+                                              details: [],
+                                          },
+                                      ],
+                                  },
+                              ],
+                          }
+                        : undefined,
+                });
+            }
+
+            // Re-sort results based on their new, merged, scores.
+            newResults.sort((result1, result2) => result2.score - result1.score);
+
             return {
-                isPending: semanticSearchState.status === "pending",
+                isPending: false,
                 isError: false,
-                results:
-                    semanticSearchState.status !== "pending"
-                        ? fuseSearchResults([
-                              keywordSearchState.value.results,
-                              semanticSearchState.value.results,
-                          ])
-                        : keywordSearchState.value.results,
+                results: newResults,
             };
         },
     );
-}
-
-/**
- * Fuse search results from separate systems with [reciprocal rank fusion][1].
- * Reciprocal rank fusion is a simple formula that's been shown to perform
- * better than methods requiring training for combining the search results of
- * different systems.
- *
- * [ElasticSearch provides reciprocal rank fusion out of the box][2] for
- * combining search results. ElasticSearch's documentation also provides some
- * sample code for how the formula works.
- *
- * [1]: https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf
- * [2]: https://www.elastic.co/guide/en/elasticsearch/reference/current/rrf.html
- */
-// NOCOMMIT: RRF results are disappointing sometimes. We may have a bunch of
-// great keyword matches and mediocre semantic matches. What are other fuse
-// mechanisms? Should we attempt to map scores?
-function fuseSearchResults(
-    resultSets: Array<ReadonlyArray<SearchResult>>,
-): ReadonlyArray<SearchResult> {
-    // NOCOMMIT: Allow configuring in debug mode. We choose a low value like 5
-    // since we can get a lot of results from our keyword result set. A low
-    // rated keyword result plus a low rated semantic result should not bubble up
-    // to the first position.
-    const rankConstant = 5;
-
-    const newResultByEntityId = new Map<
-        SearchEntityIdOrSearchAffinityId,
-        {rescore: number; result: SearchResult}
-    >();
-
-    for (const results of resultSets) {
-        let lastScore: number | null = null;
-
-        for (let resultIndex = 0; resultIndex < results.length; resultIndex++) {
-            const result = results[resultIndex]!;
-
-            assert(
-                lastScore === null || lastScore >= result.score,
-                "Search results must be in descending score order",
-            );
-            lastScore = result.score;
-
-            const newResult = newResultByEntityId.get(result.entityId);
-
-            const oldRescore = newResult?.rescore ?? 0;
-            const newRescore = oldRescore + 1 / (rankConstant + (resultIndex + 1));
-
-            if (newResult !== undefined) {
-                newResult.rescore = newRescore;
-            } else {
-                newResultByEntityId.set(result.entityId, {rescore: newRescore, result});
-            }
-        }
-    }
-
-    const fusedResults: Array<SearchResult> = [];
-
-    for (const {rescore, result} of newResultByEntityId.values()) {
-        fusedResults.push({...result, score: rescore});
-    }
-
-    fusedResults.sort((a, b) => b.score - a.score);
-
-    return fusedResults;
 }

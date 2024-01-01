@@ -65,12 +65,12 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
-import {SearchOptions, standardSearchOptions} from "~/shared/search/search_debug_options.js";
 import {
     SearchEntityId,
     parseSearchEntityId,
     printSearchEntityId,
 } from "~/shared/search/search_entity_id.js";
+import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultMedia} from "~/shared/search/search_result.js";
 
 /**
@@ -1217,8 +1217,12 @@ export async function getSearchEntitiesTitleAndMediaIfExist(
  * score for that object. Affinity scores decay over time so we end up
  * considering objects the actor interacts with a lot recently as the most
  * meaningful.
+ *
+ * Unlike other search functions this one doesn't provide a `queryText`
+ * filter. The actor has the same set of affinitive entities regardless of what
+ * they're currently searching for.
  */
-export async function getAffinitiveSearchEntities(
+export async function searchByAffinity(
     context: ServerSessionActionContext,
     {spaceId, limit}: {spaceId: SpaceId; limit: number},
 ): Promise<{results: Array<SearchResult>}> {

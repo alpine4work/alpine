@@ -388,6 +388,28 @@ function SearchResultViewExplainDebugWidget({
 }: {
     explanation: OpensearchSearchHitExplanation;
 }) {
+    // When we add to a search result score using factors other than OpenSearch
+    // BM25 we include a ✨ emoji to communicate this is a "smart" score addition.
+    // To make it easier to spot scores affected by AI magic (semantic search or
+    // affinity search) we want to put the same emoji in the explain button.
+    const hasSparkleInExplanation = useMemo(() => {
+        const stack = [explanation];
+
+        while (stack.length > 0) {
+            const currentExplanation = stack.pop()!;
+
+            if (currentExplanation.description.includes("✨")) {
+                return true;
+            }
+
+            for (const childExplanation of currentExplanation.details) {
+                stack.push(childExplanation);
+            }
+        }
+
+        return false;
+    }, [explanation]);
+
     return (
         <OverlayTriggerButton
             aria-haspopup="dialog"
@@ -433,7 +455,7 @@ function SearchResultViewExplainDebugWidget({
                     event.stopPropagation();
                 }}
             >
-                Explain
+                {hasSparkleInExplanation ? "✨ " : ""}Explain
             </button>
         </OverlayTriggerButton>
     );
@@ -446,6 +468,7 @@ function SearchResultViewExplainDebugWidgetOverlay({
 }) {
     return (
         <pre
+            style={{width: "max-content"}}
             dangerouslySetInnerHTML={{
                 __html: useMemo(
                     () => printOpensearchSearchHitExplanationHtml(explanation),
@@ -461,7 +484,7 @@ function printOpensearchSearchHitExplanationHtml(rootExplanation: OpensearchSear
     const valueClassName = sprinkles({fontStyle: "code-semi-bold"});
     const descriptionClassName = sprinkles({color: "grey-60"});
 
-    const fractionPlaceCount = 2;
+    const fractionPlaceCount = 3;
     const fractionPlaceFactor = 10 ** fractionPlaceCount;
 
     const printValue = (value: number): string => {

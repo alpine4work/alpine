@@ -25,3 +25,27 @@ export const OpensearchSearchHitExplanationSchema: Schema<OpensearchSearchHitExp
     });
 
 OpensearchSearchHitExplanationRecursiveSchema.define(OpensearchSearchHitExplanationSchema);
+
+/**
+ * When we increase the score by adding some value you can use this function to
+ * track it in the score explanation. If the explanation we're extend is
+ * already a sum explanation we extend it.
+ */
+export function addSumOperandToOpensearchSearchHitExplanation(
+    explanation: OpensearchSearchHitExplanation,
+    additionalExplanation: OpensearchSearchHitExplanation,
+): OpensearchSearchHitExplanation {
+    if (explanation.description === "sum of:") {
+        return {
+            value: explanation.value + additionalExplanation.value,
+            description: explanation.description,
+            details: [additionalExplanation, ...explanation.details],
+        };
+    }
+
+    return {
+        value: explanation.value + additionalExplanation.value,
+        description: "sum of:",
+        details: [additionalExplanation, explanation],
+    };
+}

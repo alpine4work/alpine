@@ -191,7 +191,8 @@ export class CohereEmbedEnglishV3LanguageModel implements LanguageModelBase {
  *
  * ([Source][2])
  *
- * I (@calebmer) used the `Cohere/msmarco-v2-embed-english-v3` dataset to compute p99.8 bounds with the following script:
+ * I (@calebmer) used the `Cohere/msmarco-v2-embed-english-v3` dataset to
+ * compute p99.8 bounds with the following script:
  *
  * ```py
  * from math import floor

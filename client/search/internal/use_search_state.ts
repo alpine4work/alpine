@@ -9,10 +9,10 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {useIdlyPreloadRpc, useLazyLoadRpc} from "~/client/rpc/use_lazy_load_rpc.js";
 import {
-    ExecuteSearchResult,
-    emptyExecuteSearchResult,
+    ExecuteSearchOutput,
+    emptyExecuteSearchOutput,
     executeSearch,
-    pendingExecuteSearchResult,
+    pendingExecuteSearchOutput,
 } from "~/client/search/internal/execute_search.js";
 import {minSearchResultViewHeight} from "~/client/search/internal/search_result_view.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
@@ -26,8 +26,11 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {generateId} from "~/shared/id/id.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {getAffinitiveSearchEntities} from "~/shared/rpc/search_rpc_definitions.js";
-import {SearchOptions} from "~/shared/search/search_debug_options.js";
+import {addSumOperandToOpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
+import {searchByAffinity} from "~/shared/rpc/search_rpc_definitions.js";
+import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
+import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
+import {SearchResult} from "~/shared/search/search_result.js";
 
 /**
  * The debounce timeout before we'll send a new search request. Picked so that
@@ -169,10 +172,10 @@ const affinitiveSearchEntitiesLimit = 40;
  * Preload affinitive search entities when we have some idle time so that they
  * are immediately available when the search modal opens.
  */
-export function usePreloadAffinitiveSearchEntities() {
+export function usePreloadSearchByAffinity() {
     const {space} = useSpaceContext();
 
-    useIdlyPreloadRpc(getAffinitiveSearchEntities, {
+    useIdlyPreloadRpc(searchByAffinity, {
         spaceId: space.id,
         limit: affinitiveSearchEntitiesLimit,
     });
@@ -194,18 +197,29 @@ export function useSearchState({
     resultListContainerRef: RefObject<HTMLDivElement>;
     debugOptions: SearchOptions | null;
 }): {
-    result: ExecuteSearchResult & {readonly key: string};
+    output: ExecuteSearchOutput & {readonly key: string};
     queryText: string;
     onQueryTextChange: (queryText: string) => void;
 } {
     const context = useAppContext();
     const {space} = useSpaceContext();
 
-    // NOCOMMIT: Affinitive search entities should boost common results
-    const affinitiveResult = useLazyLoadRpc(getAffinitiveSearchEntities, {
+    const options = debugOptions ?? standardSearchOptions;
+
+    const affinityOutput = useLazyLoadRpc(searchByAffinity, {
         spaceId: space.id,
         limit: affinitiveSearchEntitiesLimit,
     });
+
+    const affinityResultByEntityId = useMemo(() => {
+        const affinityResultByEntityId = new Map<SearchEntityIdOrSearchAffinityId, SearchResult>();
+
+        for (const result of affinityOutput.output?.results ?? []) {
+            affinityResultByEntityId.set(result.entityId, result);
+        }
+
+        return affinityResultByEntityId;
+    }, [affinityOutput.output?.results]);
 
     const [searchState, dispatch] = useReducer(
         reduceSearchState,
@@ -252,43 +266,114 @@ export function useSearchState({
         return () => timeout.clear();
     }, [searchState.wordTypingTimeoutTime]);
 
-    const queryResult = useStore(searchState.executionStack);
+    const queryOutput = useStore(searchState.executionStack);
 
-    // If we have an empty query returning no results from our search execution
-    // stack then show search entities the account has some affinity for.
-    const result = useMemo((): SearchStateExecutionResult => {
+    const output = useMemo((): SearchStateExecutionOutput => {
+        // If we have an empty query returning no results from our search execution
+        // stack then show search entities the account has some affinity for.
         if (
-            queryResult.queryText.length === 0 &&
-            !queryResult.isError &&
-            (!queryResult.results || queryResult.results.length === 0)
+            queryOutput.queryText.length === 0 &&
+            !queryOutput.isError &&
+            (!queryOutput.results || queryOutput.results.length === 0)
         ) {
-            if (!affinitiveResult.output) {
+            if (!affinityOutput.output) {
                 return {
-                    key: "AffinitiveSearchEntitiesResult",
-                    queryText: queryResult.queryText,
+                    key: "searchByAffinity",
+                    queryText: queryOutput.queryText,
                     isPending: true,
                     isError: false,
                     results: null,
                 };
             } else {
                 return {
-                    key: "AffinitiveSearchEntitiesResult",
-                    queryText: queryResult.queryText,
+                    key: "searchByAffinity",
+                    queryText: queryOutput.queryText,
                     isPending:
-                        affinitiveResult.isLoading ||
-                        affinitiveResult.isValidating ||
-                        queryResult.isPending,
+                        affinityOutput.isLoading ||
+                        affinityOutput.isValidating ||
+                        queryOutput.isPending,
                     isError: false,
-                    results: affinitiveResult.output.results,
+                    results: affinityOutput.output.results,
                 };
             }
-        } else {
-            return queryResult;
         }
-    }, [affinitiveResult, queryResult]);
+        // If some search results match affinitive search entities we loaded then we
+        // want to boost the search entities the user has an affinity for since it's
+        // more likely the user cares about those entities.
+        else if (queryOutput.results && affinityResultByEntityId.size > 0) {
+            const interpolation = options.affinityToKeywordScoreInterpolation;
+
+            const slope =
+                (interpolation.point2.keywordScore - interpolation.point1.keywordScore) /
+                (interpolation.point2.affinityScore - interpolation.point1.affinityScore);
+
+            const intercept =
+                interpolation.point2.keywordScore - slope * interpolation.point2.affinityScore;
+
+            let newResults: Array<SearchResult> | null = null;
+
+            for (let i = 0; i < queryOutput.results.length; i++) {
+                const result = queryOutput.results[i]!;
+
+                const affinityResult = affinityResultByEntityId.get(result.entityId);
+                if (!affinityResult) {
+                    newResults?.push(result);
+                    continue;
+                }
+
+                // Initialize the `newResults` array since we'll need to reorder search
+                // results.
+                newResults ??= queryOutput.results.slice(0, i);
+
+                const additionalScore = slope * affinityResult.score + intercept;
+
+                newResults.push({
+                    ...result,
+                    score: result.score + additionalScore,
+                    explanation: result.explanation
+                        ? addSumOperandToOpensearchSearchHitExplanation(result.explanation, {
+                              value: additionalScore,
+                              description: `✨ interpolated affinity score, computed as (m * x) + b from:`,
+                              details: [
+                                  {
+                                      value: affinityResult.score,
+                                      description: "x, affinity score",
+                                      details: [],
+                                  },
+                                  {
+                                      value: slope,
+                                      description: "m, slope",
+                                      details: [],
+                                  },
+                                  {
+                                      value: intercept,
+                                      description: "b, intercept",
+                                      details: [],
+                                  },
+                              ],
+                          })
+                        : undefined,
+                });
+            }
+
+            if (!newResults) return queryOutput;
+
+            newResults.sort((result1, result2) => result2.score - result1.score);
+            return {...queryOutput, results: newResults};
+        } else {
+            return queryOutput;
+        }
+    }, [
+        queryOutput,
+        affinityResultByEntityId,
+        affinityOutput.output,
+        affinityOutput.isLoading,
+        affinityOutput.isValidating,
+        options.affinityToKeywordScoreInterpolation,
+    ]);
 
     return {
-        result,
+        output,
         queryText: searchState.queryText,
         onQueryTextChange: (queryText: string) =>
             dispatch({type: "ChangeQueryText", time: Date.now(), queryText}),
@@ -304,7 +389,7 @@ export function useSearchState({
  * The `execute()` function is idempotent. You can call it multiple times and
  * it only sends network requests once.
  */
-type SearchStateExecution = Store<SearchStateExecutionResult> & {
+type SearchStateExecution = Store<SearchStateExecutionOutput> & {
     readonly queryText: string;
     execute(
         context: AppContext,
@@ -312,7 +397,7 @@ type SearchStateExecution = Store<SearchStateExecutionResult> & {
     ): void;
 };
 
-type SearchStateExecutionResult = ExecuteSearchResult & {
+type SearchStateExecutionOutput = ExecuteSearchOutput & {
     readonly key: string;
     readonly queryText: string;
 };
@@ -325,7 +410,7 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
     if (queryText.length === 0) {
         return Object.assign(
             new ConstStore({
-                ...emptyExecuteSearchResult,
+                ...emptyExecuteSearchOutput,
                 key,
                 queryText,
             }),
@@ -386,8 +471,8 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
         }
     };
 
-    const store = new ValueStore<Store<ExecuteSearchResult>>(
-        new ConstStore(pendingExecuteSearchResult),
+    const store = new ValueStore<Store<ExecuteSearchOutput>>(
+        new ConstStore(pendingExecuteSearchOutput),
     );
 
     return Object.assign(
@@ -417,7 +502,7 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
  * The store returns the result of the latest execution in the stack with
  * search results. The `push()` function immutably creates a new stack.
  */
-type SearchStateExecutionStack = Store<SearchStateExecutionResult> & {
+type SearchStateExecutionStack = Store<SearchStateExecutionOutput> & {
     readonly latestExecution: SearchStateExecution;
     push(execution: SearchStateExecution): SearchStateExecutionStack;
 };
@@ -432,7 +517,7 @@ function createSearchStateExecutionStack(
         return createSearchStateExecutionStack([...stack, execution]);
     };
 
-    const store = computeStore((get): SearchStateExecutionResult => {
+    const store = computeStore((get): SearchStateExecutionOutput => {
         for (let i = stack.length - 1; i >= 0; i--) {
             const execution = stack[i]!;
 

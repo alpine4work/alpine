@@ -280,6 +280,10 @@ export const getAffinitiveSearchEntityIdsEarlyReturnTestCounter = new TestCounte
  * While this function isn't unsafe with regards to permissions (it's fine to
  * know the `SearchEntityId` of something you used to have access to) it isn't
  * the most convenient function.
+ *
+ * Affinitive is the adjective form of "affinity". I learned this from ChatGPT,
+ * thanks! (Though ChatGPT did warn me that affinitive is an uncommon word
+ * people may not be familiar with.)
  */
 export async function internalGetAffinitiveSearchEntityIds(
     context: ServerSessionActionContext,

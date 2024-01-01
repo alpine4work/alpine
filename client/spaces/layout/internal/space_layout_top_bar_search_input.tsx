@@ -14,7 +14,7 @@ import {
     SearchOptions,
     SearchOptionsSchema,
     standardSearchOptions,
-} from "~/shared/search/search_debug_options.js";
+} from "~/shared/search/search_options.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
 const searchOptionsDevConsoleSettingsConfig = {
@@ -92,6 +92,7 @@ export function SpaceLayoutTopBarSearchInput({space}: {space: SpaceModel}) {
     // product.
     usePreloadAffinitiveSearchEntities();
 
+    // NOCOMMIT: This dev console interface is kinda janky
     const debugOptions: SearchOptions & {
         readonly isEnabled: boolean;
     } = useDevConsoleSettingsObject("searchDebugOptions", searchOptionsDevConsoleSettingsConfig);
