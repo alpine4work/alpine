@@ -42,6 +42,7 @@ import {
     TaskCollectionIndexDocType,
 } from "~/server/tasks/data/task_collection_index_doc.js";
 import {
+    TaskApproximateActionCountByAccountId,
     TaskIndexActualDoc,
     TaskIndexDocType,
     TaskIndexSearchEntityJob,
@@ -68,7 +69,11 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
 import {Replace} from "~/shared/helpers/types/replace.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {collectReferencedAccountIdsFromTaskAction} from "~/shared/tasks/actions/collect_referenced_account_ids_from_task_action.js";
-import {TaskAction, TaskUpdateAccountNameAction} from "~/shared/tasks/actions/task_action.js";
+import {
+    TaskAction,
+    TaskUpdateAccountNameAction,
+    TaskUpdateTaskAction,
+} from "~/shared/tasks/actions/task_action.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionModelSearchResult} from "~/shared/tasks/model/task_collection_model_search_result.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
@@ -132,6 +137,10 @@ const TaskCollectionIndex = new OpensearchIndex<
     // Finally sort by `createdTime` since that's generally useful.
     sort: [{field: "spaceId"}, {field: "isDeleted"}, {field: "createdTime"}],
     // We want to see new collections in search in near realtime.
+    //
+    // TODO(calebmer): When we search collections via our search entity index
+    // instead of the collection index we can increase this to
+    // `taskIndexRefreshIntervalSeconds`.
     refreshInterval: "1s",
 });
 
@@ -365,6 +374,7 @@ export const indexTaskActionTransactionAfterUpdateTestCheckpoint = new TestCheck
 export function indexTaskActionTransactionAssumingItsCommitted(
     context: ServerSystemActionContext,
     spaceId: SpaceId,
+    actorId: AccountId | null,
     actions: ReadonlyArray<TaskAction>,
     options?: {onRetry?: () => void},
 ) {
@@ -388,7 +398,7 @@ export function indexTaskActionTransactionAssumingItsCommitted(
 
     // We don't have a `context.tracer.withSpan()` call here because the one
     // call-site for this function adds a span.
-    return TaskActionTransactionIndexState.index(context, spaceId, actions, options);
+    return TaskActionTransactionIndexState.index(context, spaceId, actorId, actions, options);
 }
 
 /**
@@ -409,10 +419,16 @@ class TaskActionTransactionIndexState {
 
     private readonly _updatedTaskIndexDocById = new Map<
         TaskId,
-        Replace<
-            OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc>,
-            {lastIndexSearchEntityJob: TaskIndexSearchEntityJob | null}
-        >
+        {
+            task:
+                | OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc>
+                | Replace<
+                      OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc>,
+                      {lastIndexSearchEntityJob: null}
+                  >;
+            incrementContinuousApproximateActionCount: number;
+            incrementDiscreteApproximateActionCount: number;
+        }
     >();
     private readonly _retrievedTaskIndexDocById = new Map<
         TaskId,
@@ -447,6 +463,7 @@ class TaskActionTransactionIndexState {
     public static async index(
         context: ServerSystemActionContext,
         spaceId: SpaceId,
+        actorId: AccountId | null,
         actions: ReadonlyArray<TaskAction>,
         {onRetry}: {onRetry?: () => void} = {},
     ) {
@@ -494,23 +511,60 @@ class TaskActionTransactionIndexState {
             const commandPromises = concatIterables<
                 Promise<OpensearchBulkCommandBase<typeof TaskIndex | typeof TaskCollectionIndex>>
             >(
-                mapIterable(state._updatedTaskIndexDocById.values(), async newTask => {
-                    const oldTask = await state._retrievedTaskIndexDocById.get(newTask.id);
+                mapIterable(state._updatedTaskIndexDocById.values(), async newTaskEntry => {
+                    let newTask = newTaskEntry.task;
 
-                    let newLastIndexSearchEntityJob = newTask.lastIndexSearchEntityJob;
+                    // Actually increment the approximate action count map in the task:
+                    if (
+                        actorId !== null &&
+                        (newTaskEntry.incrementContinuousApproximateActionCount > 0 ||
+                            newTaskEntry.incrementDiscreteApproximateActionCount > 0)
+                    ) {
+                        const approximateActionCountByAccountId = new Map(
+                            newTask.approximateActionCountByAccountId.get(),
+                        );
+
+                        let approximateActionCount = approximateActionCountByAccountId.get(
+                            actorId,
+                        ) ?? {continuousActionCount: 0, discreteActionCount: 0};
+
+                        approximateActionCount = {
+                            continuousActionCount:
+                                approximateActionCount.continuousActionCount +
+                                newTaskEntry.incrementContinuousApproximateActionCount,
+                            discreteActionCount:
+                                approximateActionCount.discreteActionCount +
+                                newTaskEntry.incrementDiscreteApproximateActionCount,
+                        };
+
+                        approximateActionCountByAccountId.set(actorId, approximateActionCount);
+
+                        newTask = {
+                            ...newTask,
+                            approximateActionCountByAccountId:
+                                TaskApproximateActionCountByAccountId.new(
+                                    approximateActionCountByAccountId,
+                                ),
+                        };
+                    }
+
+                    const oldTask = await state._retrievedTaskIndexDocById.get(newTask.id);
 
                     // We expect `!oldTask` to mean the task is being created. We won't know the
                     // right version number if we didn't read the previous task so our bulk update
                     // will fail if the task is being updated instead of created.
-                    if (!oldTask || !newLastIndexSearchEntityJob) {
+                    if (!oldTask || !newTask.lastIndexSearchEntityJob) {
                         const updatedTraits: TaskIndexSearchEntityJob["updatedTraits"] = {
                             type: "Some",
                             traits: [],
                         };
 
-                        newLastIndexSearchEntityJob = {
-                            sendTime: currentTime,
-                            updatedTraits,
+                        newTask = {
+                            ...newTask,
+                            lastIndexSearchEntityJob: {
+                                sendTime: currentTime,
+                                updatedTraits,
+                            },
                         };
 
                         jobs.push({
@@ -615,9 +669,12 @@ class TaskActionTransactionIndexState {
                                 currentTime,
                             )
                         ) {
-                            newLastIndexSearchEntityJob = {
-                                sendTime: currentTime,
-                                updatedTraits: {type: "Some", traits: updatedTraits},
+                            newTask = {
+                                ...newTask,
+                                lastIndexSearchEntityJob: {
+                                    sendTime: currentTime,
+                                    updatedTraits: {type: "Some", traits: updatedTraits},
+                                },
                             };
 
                             jobs.push({
@@ -635,17 +692,7 @@ class TaskActionTransactionIndexState {
                         }
                     }
 
-                    return new OpensearchIndexDocIfVersionCommand(
-                        TaskIndex,
-                        spaceId,
-                        newTask.lastIndexSearchEntityJob !== null &&
-                        newTask.lastIndexSearchEntityJob === newLastIndexSearchEntityJob
-                            ? (newTask as OpensearchClientDocWithIdAndVersion<
-                                  TaskId,
-                                  TaskIndexActualDoc
-                              >)
-                            : {...newTask, lastIndexSearchEntityJob: newLastIndexSearchEntityJob},
-                    );
+                    return new OpensearchIndexDocIfVersionCommand(TaskIndex, spaceId, newTask);
                 }),
                 mapIterable(state._updatedCollectionIndexDocById.values(), async newCollection => {
                     const oldCollection = await state._retrievedCollectionIndexDocById.get(
@@ -852,8 +899,8 @@ class TaskActionTransactionIndexState {
     public getTaskIndexDocIfExists(taskId: TaskId) {
         // Return the updated doc if we have one. Otherwise we need to load the doc
         // from OpenSearch.
-        const updatedTask = this._updatedTaskIndexDocById.get(taskId);
-        if (updatedTask) return updatedTask;
+        const updatedTaskEntry = this._updatedTaskIndexDocById.get(taskId);
+        if (updatedTaskEntry) return updatedTaskEntry.task;
 
         return getOrSetDefaultMapValue(this._retrievedTaskIndexDocById, taskId, async () => {
             const task = await this._context.opensearch.getDocIfExists(
@@ -878,20 +925,45 @@ class TaskActionTransactionIndexState {
      */
     public putTaskIndexDoc(
         taskId: TaskId,
-        task: Replace<
-            OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc>,
-            {lastIndexSearchEntityJob: TaskIndexSearchEntityJob | null}
-        >,
+        task:
+            | OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc>
+            | Replace<
+                  OpensearchClientDocWithIdAndVersion<TaskId, TaskIndexActualDoc>,
+                  {lastIndexSearchEntityJob: null}
+              >,
+        {
+            incrementApproximateActionCountType,
+        }: {
+            incrementApproximateActionCountType: "Continuous" | "Discrete" | null;
+        },
     ) {
         assert(task.spaceId === this.spaceId);
 
-        const lastTask = this._updatedTaskIndexDocById.get(taskId);
+        let taskEntry = this._updatedTaskIndexDocById.get(taskId);
 
-        if (lastTask && !isDeepEqual(lastTask.version, task.version)) {
+        if (taskEntry && !isDeepEqual(taskEntry.task.version, task.version)) {
             throw new InternalError("Expected local task updates to have the same version");
         }
 
-        this._updatedTaskIndexDocById.set(taskId, task);
+        if (!taskEntry) {
+            taskEntry = {
+                task,
+                incrementContinuousApproximateActionCount: 0,
+                incrementDiscreteApproximateActionCount: 0,
+            };
+
+            this._updatedTaskIndexDocById.set(taskId, taskEntry);
+        }
+
+        taskEntry.task = task;
+
+        if (incrementApproximateActionCountType === "Continuous") {
+            taskEntry.incrementContinuousApproximateActionCount += 1;
+        }
+
+        if (incrementApproximateActionCountType === "Discrete") {
+            taskEntry.incrementDiscreteApproximateActionCount += 1;
+        }
     }
 
     /**
@@ -975,14 +1047,24 @@ async function actuallyIndexTaskAction(
                     action.taskAction.creatorId,
                 );
 
-                state.putTaskIndexDoc(action.taskId, {
-                    id: action.taskId,
-                    spaceId: state.spaceId,
-                    ...createEmptyTaskIndexDoc(action.time, action.taskAction),
-                    creator,
-                    version: null,
-                    lastIndexSearchEntityJob: null,
-                });
+                state.putTaskIndexDoc(
+                    action.taskId,
+                    {
+                        id: action.taskId,
+                        spaceId: state.spaceId,
+                        ...createEmptyTaskIndexDoc(action.time, action.taskAction),
+                        creator,
+                        version: null,
+                        lastIndexSearchEntityJob: null,
+                        // `putTaskIndexDoc()` is responsible for adding our action count to this map.
+                        approximateActionCountByAccountId:
+                            TaskApproximateActionCountByAccountId.new(new Map()),
+                    },
+                    {
+                        incrementApproximateActionCountType:
+                            getTaskActionApproximateActionCountType(action.taskAction.type),
+                    },
+                );
                 return;
             }
 
@@ -1019,6 +1101,10 @@ async function actuallyIndexTaskAction(
                 state.putTaskIndexDoc(
                     action.taskId,
                     Object.assign(newTask, {version: oldTask.version}),
+                    {
+                        incrementApproximateActionCountType:
+                            getTaskActionApproximateActionCountType(action.taskAction.type),
+                    },
                 );
             }
             return;
@@ -1080,6 +1166,46 @@ async function actuallyIndexTaskAction(
         }
         default:
             throw exhaustive(action);
+    }
+}
+
+function getTaskActionApproximateActionCountType(
+    actionType: TaskUpdateTaskAction["taskAction"]["type"],
+): "Discrete" | "Continuous" | null {
+    switch (actionType) {
+        // We don't increment action count for `UpdateChildrenCounts` because it's a
+        // system action automatically committed when updating a child task. Child task
+        // updates should not count as contribution to the parent task.
+        case "UpdateChildrenCounts":
+            return null;
+
+        // We don't increment action count for `UpdateAssigneeActivePosition` since it
+        // updates private information not observable by anyone but the assigned
+        // account.
+        case "UpdateAssigneeActivePosition":
+            return null;
+
+        case "Create":
+        case "Delete":
+        case "Undelete":
+        case "UpdateParentTaskId":
+        case "UpdateParentPosition":
+        case "AddCollection":
+        case "RemoveCollection":
+        case "UpdateCollectionPosition":
+        case "UpdateNotepadPagePosition":
+        case "UpdateStatus":
+        case "UpdateAssignee":
+        case "UpdateAssigneeStatus":
+        case "UpdateDueDate":
+        case "UpdatePriority":
+            return "Discrete";
+
+        case "UpdateTitle":
+            return "Continuous";
+
+        default:
+            throw exhaustive(actionType);
     }
 }
 

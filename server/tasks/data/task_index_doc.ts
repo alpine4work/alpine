@@ -30,8 +30,9 @@ import {isTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {initialOrderKey, isOrderKey} from "~/shared/helpers/sort/order_key.js";
 import {createEnumIntegerMapping} from "~/shared/helpers/string/create_enum_integer_mapping.js";
 import {MergeObjectIntersection} from "~/shared/helpers/types/merge_object_intersection.js";
-import {isId} from "~/shared/id/id.js";
+import {decodeIdInto, encodeId, idByteLength, isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
+import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {
     HybridLogicalTimeSchema,
     serializeHybridLogicalTime,
@@ -499,6 +500,66 @@ export type TaskIndexDocBase = Omit<TaskIndexActualDoc, "lastIndexSearchEntityJo
 assertAssignableTypes<TaskIndexDoc, TaskIndexDocBase>();
 assertAssignableTypes<TaskIndexActualDoc, TaskIndexDocBase>();
 
+export type TaskApproximateActionCountByAccountId = ReturnType<
+    (typeof TaskApproximateActionCountByAccountId)["new"]
+>;
+
+export const TaskApproximateActionCountByAccountId = createSchemaLazyTransformClass<
+    Uint8Array,
+    ReadonlyMap<
+        AccountId,
+        {readonly continuousActionCount: number; readonly discreteActionCount: number}
+    >
+>(Schema.bytes, {
+    serialize: actionCountByAccountId => {
+        const bytes = new Uint8Array(actionCountByAccountId.size * (idByteLength + 8));
+        const view = new DataView(bytes.buffer);
+
+        let byteOffset = 0;
+        for (const [
+            accountId,
+            {continuousActionCount, discreteActionCount},
+        ] of actionCountByAccountId) {
+            decodeIdInto(accountId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            view.setUint32(byteOffset, continuousActionCount);
+            byteOffset += 4;
+
+            view.setUint32(byteOffset, discreteActionCount);
+            byteOffset += 4;
+        }
+
+        return bytes;
+    },
+    deserialize: bytes => {
+        const view = new DataView(bytes.buffer);
+        const actionCountByAccountId = new Map<
+            AccountId,
+            {continuousActionCount: number; discreteActionCount: number}
+        >();
+
+        let byteOffset = 0;
+        while (byteOffset + idByteLength + 8 <= bytes.byteLength) {
+            const accountId = encodeId<AccountId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            const continuousActionCount = view.getUint32(byteOffset);
+            byteOffset += 4;
+
+            const discreteActionCount = view.getUint32(byteOffset);
+            byteOffset += 4;
+
+            actionCountByAccountId.set(accountId, {
+                continuousActionCount,
+                discreteActionCount,
+            });
+        }
+
+        return actionCountByAccountId;
+    },
+});
+
 export const TaskIndexDocType = OpensearchIndexObjectType.new({
     fields: {
         // The space this task is in. We also use the `SpaceId` as the routing value
@@ -597,6 +658,54 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
             sendTime: new Date("2023-12-07T16:35:04.622Z"),
             updatedTraits: {type: "Any"},
         }),
+
+        /**
+         * Keep track of the number of actions contributed by various `AccountId`s.
+         * This is an approximate count since we only count an action if it changed the
+         * task. So if two actions A and B update the same `dueDate` property but are
+         * committed out-of-order (B then A) we only increment the action count for B,
+         * not A, since A is a noop because B has a later action time.
+         *
+         * This is similar to `stepCountByAccountId` in the document DynamoDB table
+         * except it's approximate and not exact.
+         *
+         * This is a simple way to determine who's contributed to the task and by
+         * what amount. We split actions into two kinds. "Continuous" actions and
+         * "discrete" actions. Continuous actions are ones where the user makes many
+         * edits over a short period of time. For example typing in the task title.
+         * Discrete actions happen once and the update is saved. For example, updating
+         * the task priority.
+         *
+         * However, action count is only a valid measure of task contribution if you
+         * assume the relative weight of each action is the same. For example, when
+         * updating a task title a user could paste a lot of content in a single
+         * action. Task title update actions are also throttled by network speed on the
+         * client so users with a faster network count more actions. Approaches that
+         * measure granular contribution of actions would be less efficient and more
+         * prone to error.
+         *
+         * The two important things we want this field to measure are:
+         *
+         * 1. Everyone who contributed at least one action to the task
+         * 2. Divide contributors into "primary" contributors and everyone else (e.g. a
+         *    one-action contributor should be weighted less)
+         *
+         * It's ok to approximate for the purpose of 2.
+         *
+         * We serialize the map to binary. An `Id` is 128 bits in binary and 208 bits
+         * in UTF-8. That means for 4kb we can fit 250 `Id`s in binary but only 153
+         * `Id`s in UTF-8.
+         *
+         * This map was not around prior to 2024-01-02. So tasks created before
+         * then (and until this deploys) will not have an accurate action count map.
+         */
+        // NOCOMMIT: Use this for search or delete it
+        approximateActionCountByAccountId: new OpensearchIndexBinaryType()
+            .transform<TaskApproximateActionCountByAccountId>({
+                serialize: value => value.serialize(),
+                deserialize: value => TaskApproximateActionCountByAccountId.fromSerialized(value),
+            })
+            .default(TaskApproximateActionCountByAccountId.new(new Map())),
     },
     computed: {
         fields: {

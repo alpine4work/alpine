@@ -24,6 +24,7 @@ import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exp
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
+    AccountId,
     SpaceId,
     TaskActionTransactionId,
     TaskRealtimeClientId,
@@ -70,6 +71,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
         committedTime: Date;
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
+        actorId: AccountId | null;
     }): Promise<void>;
 
     /**
@@ -82,6 +84,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
         committedTime: Date;
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
+        actorId: AccountId | null;
     }): Promise<void> {
         return this._dangerouslyEscalateToSystemContext(
             this._context,
@@ -100,6 +103,7 @@ export abstract class TaskContextModuleBase extends ContextModuleBase<{
                         await indexTaskActionTransactionAssumingItsCommitted(
                             context,
                             actionTransaction.spaceId,
+                            actionTransaction.actorId,
                             actionTransaction.actions,
                         );
                     } catch (error) {
@@ -154,6 +158,7 @@ export class TaskContextModule extends TaskContextModuleBase {
         committedTime: Date;
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
+        actorId: AccountId | null;
         clientId: TaskRealtimeClientId | null;
     }) {
         await runAllPromises([
@@ -388,6 +393,7 @@ export class TestTaskContextModule extends TaskContextModuleBase {
         committedTime: Date;
         actionTransactionId: TaskActionTransactionId;
         actions: ReadonlyArray<TaskAction>;
+        actorId: AccountId | null;
     }): Promise<void> {
         // In tests, if OpenSearch is disabled we allow you to construct a tasks
         // context module that skips task indexing.

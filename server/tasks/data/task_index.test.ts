@@ -38,23 +38,29 @@ test("can't update task from a different space", async () => {
 
     const taskId = generateId<TaskId>();
 
-    await indexTaskActionTransactionAssumingItsCommitted(context.systemAction(space.id), space.id, [
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId,
-            taskAction: {
-                type: "Create",
-                creatorId: session1.account.id,
-                creatorTimeZone: defaultTimeZone,
+    await indexTaskActionTransactionAssumingItsCommitted(
+        context.systemAction(space.id),
+        space.id,
+        null,
+        [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "Create",
+                    creatorId: session1.account.id,
+                    creatorTimeZone: defaultTimeZone,
+                },
             },
-        },
-    ]);
+        ],
+    );
 
     await expect(
         indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(otherSpace.id),
             otherSpace.id,
+            null,
             [
                 {
                     type: "UpdateTask",
@@ -73,6 +79,7 @@ test("can't update task from a different space", async () => {
         indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(otherSpace.id),
             space.id,
+            null,
             [
                 {
                     type: "UpdateTask",
@@ -87,17 +94,22 @@ test("can't update task from a different space", async () => {
         ),
     ).rejects.toThrowError(PermissionDeniedError);
 
-    await indexTaskActionTransactionAssumingItsCommitted(context.systemAction(space.id), space.id, [
-        {
-            type: "UpdateTask",
-            time: clock.now(),
-            taskId,
-            taskAction: {
-                type: "UpdateTitle",
-                titleUpdate: wordTaskTitleTestScenario.update0,
+    await indexTaskActionTransactionAssumingItsCommitted(
+        context.systemAction(space.id),
+        space.id,
+        null,
+        [
+            {
+                type: "UpdateTask",
+                time: clock.now(),
+                taskId,
+                taskAction: {
+                    type: "UpdateTitle",
+                    titleUpdate: wordTaskTitleTestScenario.update0,
+                },
             },
-        },
-    ]);
+        ],
+    );
 });
 
 test("can't update collection from a different space", async () => {
@@ -106,23 +118,29 @@ test("can't update collection from a different space", async () => {
 
     const collectionId = generateId<TaskCollectionId>();
 
-    await indexTaskActionTransactionAssumingItsCommitted(context.systemAction(space.id), space.id, [
-        {
-            type: "UpdateCollection",
-            time: clock.now(),
-            collectionId,
-            collectionAction: {
-                type: "Create",
-                name: "Test",
-                accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+    await indexTaskActionTransactionAssumingItsCommitted(
+        context.systemAction(space.id),
+        space.id,
+        null,
+        [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    name: "Test",
+                    accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
+                },
             },
-        },
-    ]);
+        ],
+    );
 
     await expect(
         indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(otherSpace.id),
             otherSpace.id,
+            null,
             [
                 {
                     type: "UpdateCollection",
@@ -141,6 +159,7 @@ test("can't update collection from a different space", async () => {
         indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(otherSpace.id),
             space.id,
+            null,
             [
                 {
                     type: "UpdateCollection",
@@ -155,17 +174,22 @@ test("can't update collection from a different space", async () => {
         ),
     ).rejects.toThrowError(PermissionDeniedError);
 
-    await indexTaskActionTransactionAssumingItsCommitted(context.systemAction(space.id), space.id, [
-        {
-            type: "UpdateCollection",
-            time: clock.now(),
-            collectionId,
-            collectionAction: {
-                type: "UpdateName",
-                name: "New Collection Name",
+    await indexTaskActionTransactionAssumingItsCommitted(
+        context.systemAction(space.id),
+        space.id,
+        null,
+        [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "UpdateName",
+                    name: "New Collection Name",
+                },
             },
-        },
-    ]);
+        ],
+    );
 });
 
 test("inlines creator account name in index", async () => {
@@ -657,7 +681,7 @@ test("processing account name update action only updates one space", async () =>
         workingAccountNameVersion: 0,
     });
 
-    await indexTaskActionTransactionAssumingItsCommitted(space1.systemAction(), space1.id, [
+    await indexTaskActionTransactionAssumingItsCommitted(space1.systemAction(), space1.id, null, [
         {
             type: "UpdateAccountName",
             time: testClock.nowLogical(),
@@ -688,7 +712,7 @@ test("processing account name update action only updates one space", async () =>
         workingAccountNameVersion: 0,
     });
 
-    await indexTaskActionTransactionAssumingItsCommitted(space2.systemAction(), space2.id, [
+    await indexTaskActionTransactionAssumingItsCommitted(space2.systemAction(), space2.id, null, [
         {
             type: "UpdateAccountName",
             time: testClock.nowLogical(),
@@ -719,7 +743,7 @@ test("processing account name update action only updates one space", async () =>
         workingAccountNameVersion: 2,
     });
 
-    await indexTaskActionTransactionAssumingItsCommitted(space1.systemAction(), space1.id, [
+    await indexTaskActionTransactionAssumingItsCommitted(space1.systemAction(), space1.id, null, [
         {
             type: "UpdateAccountName",
             time: testClock.nowLogical(),
@@ -750,7 +774,7 @@ test("processing account name update action only updates one space", async () =>
         workingAccountNameVersion: 2,
     });
 
-    await indexTaskActionTransactionAssumingItsCommitted(space2.systemAction(), space2.id, [
+    await indexTaskActionTransactionAssumingItsCommitted(space2.systemAction(), space2.id, null, [
         {
             type: "UpdateAccountName",
             time: testClock.nowLogical(),
@@ -1464,4 +1488,283 @@ test("excludes collections account doesn't have access to when searching", async
     expect(await testSearch(session1, 3)).toEqual([collection9.id, collection7.id, collection5.id]);
     expect(await testSearch(session2, 3)).toEqual([collection9.id, collection8.id, collection6.id]);
     expect(await testSearch(session3, 4)).toEqual([collection9.id, collection6.id, collection5.id]);
+});
+
+test("updates approximate action counts", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
+
+    const task1 = await TestTask.create(session1);
+    const task2 = await TestTask.create(session2);
+    const task3 = await TestTask.create(session2, {title: "Hello, world!"});
+
+    const collection = await TestTaskCollection.createPublic(session1);
+
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 1}]]),
+    );
+
+    await task3.addCollection(session2, collection);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}]]),
+    );
+
+    await task3.updatePriority(session3, "High");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
+
+    const time1 = testClock.nowLogical();
+    const time2 = testClock.nowLogical();
+
+    await task3.updatePriority(session3, "Low", {time: time2});
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task3.updatePriority(session1, "Low", {time: time2});
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task3.updatePriority(session3, "Medium", {time: time1});
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task3.updatePriority(session1, "Medium");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task1.updateAssignee(session1, session3);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session1.account.id, {discreteActionCount: 2, continuousActionCount: 0}]]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task1.updateTitle(session3, wordTaskTitleTestScenario.update0);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session1.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session3.account.id, {discreteActionCount: 0, continuousActionCount: 1}],
+        ]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task1.updateTitle(session3, wordTaskTitleTestScenario.update1);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session1.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session3.account.id, {discreteActionCount: 0, continuousActionCount: 2}],
+        ]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task1.updateTitle(session1, wordTaskTitleTestScenario.update2);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 0, continuousActionCount: 2}],
+        ]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task1.updateTitle(session1, wordTaskTitleTestScenario.update2);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 0, continuousActionCount: 2}],
+        ]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task1.updateTitle(session3, wordTaskTitleTestScenario.update3);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 0, continuousActionCount: 3}],
+        ]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
+
+    await updateSessionActorAccountName(TestTask.action(session2), "Foo Bar");
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 0, continuousActionCount: 3}],
+        ]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
+
+    await task3.updateParentTask(session2, task2);
+    await ProcessContextModule.waitForTestTasks();
+
+    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 0, continuousActionCount: 3}],
+        ]),
+    );
+    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
+    );
+    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+        new Map([
+            [session2.account.id, {discreteActionCount: 3, continuousActionCount: 1}],
+            [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
+            [session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
+        ]),
+    );
 });

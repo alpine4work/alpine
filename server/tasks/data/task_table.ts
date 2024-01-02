@@ -175,6 +175,14 @@ const TaskActionTable = DynamoTableSchema.new({
                         wasProcessed: Schema.boolean,
 
                         /**
+                         * The account who committed this action.
+                         *
+                         * Nullable since action transactions before 2023-01-02 did not save
+                         * the `actorId`.
+                         */
+                        actorId: Schema.id<AccountId>().nullable().default(null),
+
+                        /**
                          * An optional identifier provided by the client who committed this action.
                          */
                         clientId: Schema.id<TaskRealtimeClientId>().nullable().default(null),
@@ -1222,6 +1230,7 @@ class TaskActionTransactionCommitState {
             actionTransactionId: generateId<TaskActionTransactionId>(),
             actions: [...actions, ...extraActions],
             wasProcessed: false,
+            actorId: this._context.actor.getAccountId(),
             clientId,
         };
 
@@ -3001,6 +3010,7 @@ export function deleteTaskAndAllChildren(
                     : []),
             ],
             wasProcessed: false,
+            actorId: context.actor.getAccountId(),
             clientId: options?.clientId ?? null,
         };
 
@@ -3059,6 +3069,7 @@ export function internalGetUpdateSessionActorAccountNameTaskTransactionEntries(
                 },
             ],
             wasProcessed: false,
+            actorId: context.actor.getAccountId(),
             clientId: null,
         };
 

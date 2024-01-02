@@ -138,6 +138,18 @@ export function clientLoaderTaskStoreLoaderData(spaceId: SpaceId, data: SchemaSe
     if (client) loadTaskDataIntoClient(client, data);
 }
 
+export function useTaskStoreLoaderDataWithoutRetainingOnlyStore() {
+    const store = useContext(TaskClientStoreContext);
+
+    if (!store) {
+        throw new InternalError(
+            "Expected component to be rendered inside a `<TaskRealtimeClientContextProvider>`",
+        );
+    }
+
+    return store;
+}
+
 /**
  * Get the task queries loaded by this route's loader if this route loaded any
  * queries. They will be in the same order as you passed your queries into
@@ -161,13 +173,7 @@ export function useTaskStoreLoaderDataWithoutRetaining(): {
     taskSubscriptions: Array<TaskClientTaskSubscription>;
     collectionSubscriptions: Array<TaskClientCollectionSubscription>;
 } {
-    const store = useContext(TaskClientStoreContext);
-
-    if (!store) {
-        throw new InternalError(
-            "Expected component to be rendered inside a `<TaskRealtimeClientContextProvider>`",
-        );
-    }
+    const store = useTaskStoreLoaderDataWithoutRetainingOnlyStore();
 
     const loaderData = useLoaderData();
 

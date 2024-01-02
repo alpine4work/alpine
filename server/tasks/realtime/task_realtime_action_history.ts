@@ -2,6 +2,7 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {InternalError} from "~/shared/error/error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId, SpaceId, TaskCollectionId, TaskId} from "~/shared/id/types/id_types.js";
 import {
@@ -44,9 +45,9 @@ type TaskRealtimeActionHistorySpaceSegment = {
     readonly updateAccountNameActions: Array<TaskUpdateAccountNameAction>;
 
     // Keep track of accounts referenced by actions in this segment. We need
-    // up-to-date account names for computing task cursors. The account in this map
-    // may be out-of-date in older segments. Newer segments should have a
-    // `TaskUpdateAccountNameAction` action with the new name.
+    // up-to-date account names for computing `TaskQuerySortCursor`s. The account
+    // in this map may be out-of-date in older segments. Newer segments should have
+    // a `TaskUpdateAccountNameAction` action with the new name.
     readonly actionReferencedAccountById: Map<AccountId, AccountModel>;
 };
 
@@ -392,10 +393,12 @@ export class TaskRealtimeActionHistory implements ReadonlyTaskRealtimeActionHist
                     spaceSegment.updateAccountNameActions.push(action);
                     break;
                 }
-                default: {
+                case "UpdateNotepadPage": {
                     // Ignore...
                     break;
                 }
+                default:
+                    throw exhaustive(action);
             }
         }
 

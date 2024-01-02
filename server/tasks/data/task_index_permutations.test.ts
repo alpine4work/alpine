@@ -67,6 +67,7 @@ testTaskActionPermutations({
         await indexTaskActionTransactionAssumingItsCommitted(
             context.systemAction(space.id),
             space.id,
+            null,
             [action],
             {
                 onRetry: () => {

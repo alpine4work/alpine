@@ -366,6 +366,18 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "accountIdsForOneOnOne": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Array",
+                                                "itemSchema": {
+                                                    "type": "Id"
+                                                }
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "messagesSummary": {
                                         "valueSchema": {
                                             "type": "Object",
@@ -1086,6 +1098,12 @@ export const dynamoGeneratedSchemaDescription: {
                                                     "optional": false
                                                 }
                                             }
+                                        },
+                                        "optional": true
+                                    },
+                                    "stepCountByAccountId": {
+                                        "valueSchema": {
+                                            "type": "Bytes"
                                         },
                                         "optional": true
                                     },
@@ -3863,6 +3881,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "lastViewedTime": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Date"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "updateLockVersion": {
                                         "valueSchema": {
                                             "type": "Integer"
@@ -4918,6 +4945,15 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Boolean"
                                         },
                                         "optional": false
+                                    },
+                                    "actorId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "clientId": {
                                         "valueSchema": {
