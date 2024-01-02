@@ -59,7 +59,7 @@ import {isVtencBigInt64SetEmpty} from "~/shared/helpers/number/vtenc_big_uint_64
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
-import {generateId, getMinId} from "~/shared/id/id.js";
+import {decodeIdInto, encodeId, generateId, getMinId, idByteLength} from "~/shared/id/id.js";
 import {
     AccountId,
     BrowserId,
@@ -70,6 +70,7 @@ import {
     TaskId,
     TaskRealtimeClientId,
 } from "~/shared/id/types/id_types.js";
+import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {IdByteSetSchema} from "~/shared/schema/helpers/id_byte_set_schema.js";
 import {Schema, SchemaSerializedValue} from "~/shared/schema/schema.js";
@@ -212,6 +213,46 @@ const TaskStatusTypeRegister = createCrdtRegister(
 );
 
 const TaskAssigneeAccountIdRegister = createCrdtRegister(Schema.id<AccountId>().nullable());
+
+type TaskStepCountByAccountId = ReturnType<(typeof TaskStepCountByAccountId)["new"]>;
+
+const TaskStepCountByAccountId = createSchemaLazyTransformClass<
+    Uint8Array,
+    ReadonlyMap<AccountId, number>
+>(Schema.bytes, {
+    serialize: stepCountByAccountId => {
+        const bytes = new Uint8Array(stepCountByAccountId.size * (idByteLength + 4));
+        const view = new DataView(bytes.buffer);
+
+        let byteOffset = 0;
+        for (const [accountId, stepCount] of stepCountByAccountId) {
+            decodeIdInto(accountId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            view.setUint32(byteOffset, stepCount);
+            byteOffset += 4;
+        }
+
+        return bytes;
+    },
+    deserialize: bytes => {
+        const view = new DataView(bytes.buffer);
+        const stepCountByAccountId = new Map<AccountId, number>();
+
+        let byteOffset = 0;
+        while (byteOffset + idByteLength + 4 <= bytes.byteLength) {
+            const accountId = encodeId<AccountId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            const stepCount = view.getUint32(byteOffset);
+            byteOffset += 4;
+
+            stepCountByAccountId.set(accountId, stepCount);
+        }
+
+        return stepCountByAccountId;
+    },
+});
 
 /**
  * Data related to tasks. Contains some views of task actions (e.g. the
@@ -578,6 +619,36 @@ const TaskTable = DynamoTableSchema.new({
                          * The current notes content.
                          */
                         content: TaskNotesContentSchema,
+
+                        /**
+                         * Keep track of the number of steps contributed by various `AccountId`s after
+                         * `version` 0. Excluding steps contributed by `creatorId`. You can compute
+                         * `creatorId`'s `stepCount` by adding all step counts in this map then
+                         * subtracting that from `version`.
+                         *
+                         * This is a simple way to determine who's contributed to the task and by
+                         * what amount. However, this is only a valid measure of the amount each
+                         * account has contributed assuming the relative added content size of each
+                         * step is the same. It's possible an account pastes a lot of content and
+                         * that's only counted as one step. Approaches of measuring contribution that
+                         * take pastes into effect would be less efficient and more prone to error.
+                         *
+                         * We serialize the map to binary. An `Id` is 128 bits in binary and 208 bits
+                         * in UTF-8. That means for one 4kb DynamoDB read unit we can fit 250 `Id`s in
+                         * binary but only 153 `Id`s in UTF-8.
+                         *
+                         * This map was not around prior to 2024-01-01. So documents created before
+                         * then (and until this deploys) will not have an accurate step count map. All
+                         * steps will be counted towards the `creatorId`.
+                         *
+                         * You can add this to the `continuousActionCount` property of
+                         * `approximateActionCountByAccountId` to get an overall relative measure of
+                         * contribution for the task.
+                         */
+                        // NOCOMMIT: Use this for search or delete it
+                        stepCountByAccountId: TaskStepCountByAccountId.schema.default(
+                            TaskStepCountByAccountId.new(new Map()),
+                        ),
                     }),
                 },
             ],
@@ -4083,8 +4154,9 @@ export async function getTaskNotesContentWithoutReferences(
     spaceId: SpaceId;
     version: number;
     content: TaskNotesContent;
+    stepCountByNonCreatorAccountId: TaskStepCountByAccountId;
 }> {
-    const [{spaceId}, taskItem] = await runAllPromises([
+    const [{spaceId}, notesItem] = await runAllPromises([
         authorizeTaskAccess(context, taskId, "View", null),
         TaskTable.getItemIfExists(
             context,
@@ -4099,8 +4171,10 @@ export async function getTaskNotesContentWithoutReferences(
 
     return {
         spaceId,
-        version: taskItem?.version ?? 0,
-        content: taskItem?.content ?? emptyTaskNotesContent,
+        version: notesItem?.version ?? 0,
+        content: notesItem?.content ?? emptyTaskNotesContent,
+        stepCountByNonCreatorAccountId:
+            notesItem?.stepCountByAccountId ?? TaskStepCountByAccountId.new(new Map()),
     };
 }
 
@@ -4203,6 +4277,26 @@ export function updateTaskNotesContent(
                 }),
             ]);
 
+            let newStepCountByAccountId =
+                notesItem?.stepCountByAccountId ?? TaskStepCountByAccountId.new(new Map());
+
+            // Keep track of how much each account contributed to the task's notes.
+            if (context.actor.getAccountId() !== taskItem.creatorId) {
+                const actualNewStepCountByAccountId = new Map(newStepCountByAccountId.get());
+
+                const stepCount =
+                    actualNewStepCountByAccountId.get(context.actor.getAccountId()) ?? 0;
+
+                actualNewStepCountByAccountId.set(
+                    context.actor.getAccountId(),
+                    stepCount + steps.length,
+                );
+
+                newStepCountByAccountId = TaskStepCountByAccountId.new(
+                    actualNewStepCountByAccountId,
+                );
+            }
+
             let newNotesItem: TaskNotesItem;
 
             // If the notes item doesn't exist yet then create it.
@@ -4227,6 +4321,7 @@ export function updateTaskNotesContent(
                     taskId,
                     version: steps.length,
                     content,
+                    stepCountByAccountId: newStepCountByAccountId,
                 };
             } else {
                 if (version !== notesItem.version)
@@ -4247,6 +4342,7 @@ export function updateTaskNotesContent(
                     ...notesItem,
                     version: notesItem.version + steps.length,
                     content,
+                    stepCountByAccountId: newStepCountByAccountId,
                 };
             }
 

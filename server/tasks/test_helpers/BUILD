@@ -8,6 +8,8 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/prosemirror-model",
+        "//:node_modules/prosemirror-transform",
         "//:node_modules/y-prosemirror",
         "//:node_modules/yjs",
         "//server/dynamo/test_helpers",

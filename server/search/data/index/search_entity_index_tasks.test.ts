@@ -160,7 +160,7 @@ test("will only index a task once if update happened within the timeout", async 
         body: null,
     });
 
-    await task.updateTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -212,7 +212,7 @@ test("will index a task again if update happened after timeout", async () => {
         body: "",
     });
 
-    await task.updateTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -262,7 +262,7 @@ test("will index a task again if update happened after timeout with more updates
         body: "",
     });
 
-    await task.updateTitle(session, ": What Do They Know?");
+    await task.typeTitle(session, ": What Do They Know?");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -281,7 +281,7 @@ test("will index a task again if update happened after timeout with more updates
         body: "",
     });
 
-    await task.updateTitle(session, " Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, " Do They Know Things? Let’s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -409,7 +409,7 @@ test("will schedule another indexing job if task authorization is updated after 
         body: "",
     });
 
-    await task.updateTitle(session1, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session1, ": What Do They Know? Do They Know Things? Let’s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -501,7 +501,7 @@ test("will not schedule another indexing job if task authorization is updated tw
         body: "",
     });
 
-    await task.updateTitle(session1, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session1, ": What Do They Know? Do They Know Things? Let’s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -1219,7 +1219,7 @@ test("will index a task twice if a notes update happens after last indexing", as
         body: null,
     });
 
-    await task.updateTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 
@@ -1345,7 +1345,7 @@ test("will not index a task twice if multiple notes updates and task updates hap
         body: null,
     });
 
-    await task.updateTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
+    await task.typeTitle(session, ": What Do They Know? Do They Know Things? Let’s Find Out.");
 
     await ProcessContextModule.waitForTestTasks();
 

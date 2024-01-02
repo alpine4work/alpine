@@ -1,3 +1,5 @@
+import {Fragment, Slice} from "prosemirror-model";
+import {ReplaceStep} from "prosemirror-transform";
 import {prosemirrorToYXmlFragment} from "y-prosemirror";
 import * as Y from "yjs";
 import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
@@ -14,6 +16,7 @@ import {
     TaskEssentialAttributesItem,
     commitTaskActionTransaction,
     getTaskItemForTest,
+    updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
@@ -27,6 +30,7 @@ import {generateId} from "~/shared/id/id.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskAction} from "~/shared/tasks/actions/task_action.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
+import {TaskNotesContentProsemirrorSchema} from "~/shared/tasks/task_notes_content_schema.js";
 import {TaskPriority} from "~/shared/tasks/task_priority.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
 import {
@@ -38,12 +42,19 @@ import {
     getYDocGuid,
 } from "~/shared/tasks/task_title.js";
 
+const schema = TaskNotesContentProsemirrorSchema;
+
 export class TestTask {
     public readonly context: TestContext;
     public readonly space: TestSpace;
     public readonly id: TaskId;
 
     private readonly _titleState: MutexValue<TaskTitle>;
+
+    private readonly _notesState: MutexValue<{
+        lastVersion: number;
+        lastUpdatePos: number;
+    }>;
 
     private constructor(
         context: TestContext,
@@ -55,6 +66,7 @@ export class TestTask {
         this.space = space;
         this.id = id;
         this._titleState = titleState;
+        this._notesState = new MutexValue({lastVersion: 0, lastUpdatePos: 1});
     }
 
     public static async create(
@@ -325,29 +337,8 @@ export class TestTask {
         ]);
     }
 
-    public async updateTitle(session: TestSpaceSession, titleUpdate: string | TaskTitleUpdate) {
+    public async updateTitle(session: TestSpaceSession, titleUpdate: TaskTitleUpdate) {
         await this._titleState.withLock(async titleStateRef => {
-            if (typeof titleUpdate === "string") {
-                const yDoc = new Y.Doc({guid: getYDocGuid()});
-                Y.applyUpdateV2(yDoc, titleStateRef.current);
-
-                const updates: Array<TaskTitleUpdate> = [];
-
-                yDoc.on("updateV2", update => {
-                    updates.push(update);
-                });
-
-                const yXmlFragment = yDoc.getXmlFragment("doc");
-                const yText = yXmlFragment.get(yXmlFragment.length - 1);
-                assert(yText instanceof Y.XmlText);
-
-                yText.insert(yText.length, titleUpdate);
-
-                assert(updates.length === 1);
-                titleUpdate = updates[0]!;
-                yDoc.destroy();
-            }
-
             titleStateRef.current = applyTaskTitleUpdate(titleStateRef.current, titleUpdate);
 
             await commitTaskActionTransaction(TestTask.action(session), session.space.id, [
@@ -361,6 +352,73 @@ export class TestTask {
                     },
                 },
             ]);
+        });
+    }
+
+    public async typeTitle(session: TestSpaceSession, titleUpdateText: string) {
+        const yDoc = new Y.Doc({guid: getYDocGuid()});
+        Y.applyUpdateV2(yDoc, this._titleState.getWithoutLock());
+
+        const updates: Array<TaskTitleUpdate> = [];
+
+        yDoc.on("updateV2", update => {
+            updates.push(update);
+        });
+
+        const yXmlFragment = yDoc.getXmlFragment("doc");
+        const yText = yXmlFragment.get(yXmlFragment.length - 1);
+        assert(yText instanceof Y.XmlText);
+
+        yText.insert(yText.length, titleUpdateText);
+
+        assert(updates.length === 1);
+        const titleUpdate = updates[0]!;
+        yDoc.destroy();
+
+        await this.updateTitle(session, titleUpdate);
+    }
+
+    /**
+     * Type new text into the task notes starting from the last updated position in
+     * this `TestTask`'s state. Moves the update position to after the new text.
+     */
+    public async typeNotes(
+        session: TestSpaceSession,
+        text: string,
+        {secondText}: {secondText?: string} = {},
+    ) {
+        return this._notesState.withLock(async stateRef => {
+            const result = await updateTaskNotesContent(session.action(), {
+                spaceId: this.space.id,
+                taskId: this.id,
+                version: stateRef.current.lastVersion,
+                steps: [
+                    new ReplaceStep(
+                        stateRef.current.lastUpdatePos,
+                        stateRef.current.lastUpdatePos,
+                        text.length !== 0
+                            ? new Slice(Fragment.from(schema.text(text)), 0, 0)
+                            : Slice.empty,
+                    ),
+                    ...(secondText !== undefined
+                        ? [
+                              new ReplaceStep(
+                                  stateRef.current.lastUpdatePos + text.length,
+                                  stateRef.current.lastUpdatePos + text.length,
+                                  secondText.length !== 0
+                                      ? new Slice(Fragment.from(schema.text(secondText)), 0, 0)
+                                      : Slice.empty,
+                              ),
+                          ]
+                        : []),
+                ],
+            });
+
+            stateRef.current.lastVersion += 1 + (secondText !== undefined ? 1 : 0);
+            stateRef.current.lastUpdatePos +=
+                text.length + (secondText !== undefined ? secondText.length : 0);
+
+            return result;
         });
     }
 }

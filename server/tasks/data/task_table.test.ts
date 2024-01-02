@@ -30,6 +30,7 @@ import {
     getCurrentTaskCollectionAccountAffinityPoints,
     getTaskCollectionAccountAffinityExpirationDuration,
     getTaskNotesContent,
+    getTaskNotesContentWithoutReferences,
     updateTaskNotesContent,
 } from "~/server/tasks/data/task_table.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
@@ -18260,5 +18261,116 @@ test("account can remove access from itself but can't grant it back if another u
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
         PermissionDeniedError,
+    );
+});
+
+test("counts notes step count contributions for each account", async () => {
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
+
+    const task = await TestTask.create(session1);
+    const collection = await TestTaskCollection.createPublic(session1);
+    await task.addCollection(session1, collection);
+
+    expect(
+        await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
+            item.stepCountByNonCreatorAccountId.get(),
+        ),
+    ).toEqual(new Map());
+
+    await task.typeNotes(session1, "Adding another sentence.");
+
+    expect(
+        await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
+            item.stepCountByNonCreatorAccountId.get(),
+        ),
+    ).toEqual(new Map());
+
+    await task.typeNotes(session2, " Yet another sentence.");
+
+    expect(
+        await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
+            item.stepCountByNonCreatorAccountId.get(),
+        ),
+    ).toEqual(new Map([[session2.account.id, 1]]));
+
+    await task.typeNotes(session3, " A third sentence.");
+
+    expect(
+        await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
+            item.stepCountByNonCreatorAccountId.get(),
+        ),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 1],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await task.typeNotes(session2, " I'm going to need to get more creative with test data.");
+
+    expect(
+        await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
+            item.stepCountByNonCreatorAccountId.get(),
+        ),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 2],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await task.typeNotes(session2, " How", {secondText: " much wood"});
+
+    expect(
+        await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
+            item.stepCountByNonCreatorAccountId.get(),
+        ),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 4],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await task.typeNotes(session1, " could a wood", {secondText: " chuck chuck"});
+
+    expect(
+        await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
+            item.stepCountByNonCreatorAccountId.get(),
+        ),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 4],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await task.typeNotes(session2, " if a wood chunk could chunk wood?");
+
+    expect(
+        await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
+            item.stepCountByNonCreatorAccountId.get(),
+        ),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 5],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await task.typeNotes(session3, " Nice.");
+
+    expect(
+        await getTaskNotesContentWithoutReferences(session1.action(), task.id).then(item =>
+            item.stepCountByNonCreatorAccountId.get(),
+        ),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 5],
+            [session3.account.id, 2],
+        ]),
     );
 });
