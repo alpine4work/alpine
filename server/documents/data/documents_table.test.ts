@@ -33,10 +33,12 @@ import {
     updateDocumentSnapshotBeforeMovingCommentThreadTestCheckpoint,
     updateDocumentSnapshotForTest,
 } from "~/server/documents/data/documents_table.js";
+import {TestDocument} from "~/server/documents/test_helpers/test_document.js";
 import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {testMessagingImplementation} from "~/server/messaging/test_helpers/test_messaging_implementation.js";
+import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {
     emptyDocumentContent,
     isDocumentContent,
@@ -60,6 +62,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {generateId} from "~/shared/id/id.js";
 import {
+    AccountId,
     ContentEditorClientId,
     DocumentCommentThreadId,
     DocumentId,
@@ -2799,6 +2802,264 @@ test("can not update a document such that it would have invalid content even whe
     );
 });
 
+test("counts step count contributions for each account", async () => {
+    const DocumentsTable = getDocumentsTableForTest();
+
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
+
+    const document = await TestDocument.create(session1, {body: "Starts with some content."});
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(new Map());
+
+    await document.type(session1, " Adding another sentence.");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(new Map());
+
+    await document.type(session2, " Yet another sentence.");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(new Map([[session2.account.id, 1]]));
+
+    await document.type(session3, " A third sentence.");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 1],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session2, " I'm going to need to get more creative with test data.");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 2],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session2, " How", {secondText: " much wood"});
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 4],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session1, " could a wood", {secondText: " chuck chuck"});
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 4],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session2, " if a wood chunk could chunk wood?");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 5],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session3, " Nice.");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 5],
+            [session3.account.id, 2],
+        ]),
+    );
+});
+
+test("counts step count contributions for each account with alternating cache", async () => {
+    const DocumentsTable = getDocumentsTableForTest();
+
+    const space = await TestSpace.create(context);
+    const session1 = await space.createSession();
+    const session2 = await space.createSession();
+    const session3 = await space.createSession();
+
+    const document = await TestDocument.create(session1, {body: "Starts with some content."});
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(new Map());
+
+    await document.type(session1, " Adding another sentence.");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(new Map());
+
+    await document.type(session2, " Yet another sentence.");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(new Map([[session2.account.id, 1]]));
+
+    await document.type(session3, " A third sentence.", {cacheOverride: otherCache});
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 1],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session2, " I'm going to need to get more creative with test data.");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 2],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session2, " How", {secondText: " much wood", cacheOverride: otherCache});
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 4],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session1, " could a wood", {secondText: " chuck chuck"});
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 4],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session2, " if a wood chunk could chunk wood?");
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 5],
+            [session3.account.id, 1],
+        ]),
+    );
+
+    await document.type(session3, " Nice.", {cacheOverride: otherCache});
+
+    expect(
+        await DocumentsTable.getItem(context, {
+            partitionType: "Document",
+            sortRangeType: "Attributes",
+            documentId: document.id,
+        }).then(item => item.stepCountByAccountId.get()),
+    ).toEqual(
+        new Map([
+            [session2.account.id, 5],
+            [session3.account.id, 2],
+        ]),
+    );
+});
+
 describe("Comments", () => {
     test("can create a comment thread while updating content", async () => {
         const DocumentsTable = getDocumentsTableForTest();
@@ -5147,7 +5408,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account]);
+            ).toEqual({accountIds: new Set([session1.account.id, session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5155,7 +5416,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account]);
+            ).toEqual({accountIds: new Set([session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -5163,7 +5424,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account]);
+            ).toEqual({accountIds: new Set([session1.account.id, session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -5171,7 +5432,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account]);
+            ).toEqual({accountIds: new Set([session2.account.id])});
         });
 
         test("an account that comments on a comment thread is subscribed to notifications", async () => {
@@ -5208,7 +5469,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account]);
+            ).toEqual({accountIds: new Set([session1.account.id, session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5216,7 +5477,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account]);
+            ).toEqual({accountIds: new Set([session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5224,7 +5485,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account]);
+            ).toEqual({accountIds: new Set([session1.account.id, session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5232,7 +5493,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account]);
+            ).toEqual({accountIds: new Set([session2.account.id])});
 
             await createDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -5247,7 +5508,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5255,7 +5522,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account]);
+            ).toEqual({accountIds: new Set([session2.account.id, session3.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5263,7 +5530,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5271,7 +5544,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account]);
+            ).toEqual({accountIds: new Set([session2.account.id, session3.account.id])});
 
             await createDocumentComment(context.action(session4), {
                 documentId: document.id,
@@ -5286,7 +5559,14 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5294,7 +5574,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session2.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5302,7 +5588,14 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5310,7 +5603,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session2.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             await createDocumentComment(context.action(session2), {
                 documentId: document.id,
@@ -5325,7 +5624,14 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5333,7 +5639,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session2.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5341,7 +5653,14 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5349,7 +5668,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session2.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
         });
 
         test("an account that comments on a comment thread is subscribed to notifications even if the comment is deleted", async () => {
@@ -5386,7 +5711,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account]);
+            ).toEqual({accountIds: new Set([session1.account.id, session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5394,7 +5719,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account]);
+            ).toEqual({accountIds: new Set([session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5402,7 +5727,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account]);
+            ).toEqual({accountIds: new Set([session1.account.id, session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5410,7 +5735,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account]);
+            ).toEqual({accountIds: new Set([session2.account.id])});
 
             await createDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -5425,7 +5750,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5433,7 +5764,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account]);
+            ).toEqual({accountIds: new Set([session2.account.id, session3.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5441,7 +5772,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5449,7 +5786,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account]);
+            ).toEqual({accountIds: new Set([session2.account.id, session3.account.id])});
 
             await deleteDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -5463,7 +5800,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5471,7 +5814,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account]);
+            ).toEqual({accountIds: new Set([session2.account.id, session3.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5479,7 +5822,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session2.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session2.account.id,
+                    session3.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5487,7 +5836,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session2.account, session3.account]);
+            ).toEqual({accountIds: new Set([session2.account.id, session3.account.id])});
         });
 
         test("an account that is mentioned in a comment thread is subscribed to notifications", async () => {
@@ -5524,7 +5873,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5532,7 +5881,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5540,7 +5889,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5548,7 +5897,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             await createDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -5573,7 +5922,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -5581,7 +5936,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session3), {
@@ -5589,7 +5950,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
         });
 
         test("an unknown account that is mentioned in a comment thread is not subscribed to notifications", async () => {
@@ -5626,7 +5993,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5634,7 +6001,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5642,7 +6009,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5650,7 +6017,9 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
+
+            const unknownAccountId = generateId<AccountId>();
 
             await createDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -5661,7 +6030,7 @@ describe("Comments", () => {
                         MessageContentProsemirrorSchema.node("paragraph", {}, [
                             MessageContentProsemirrorSchema.text("Hello, "),
                             MessageContentProsemirrorSchema.node("mention", {
-                                mention: {accountId: generateId()},
+                                mention: {accountId: unknownAccountId},
                             }),
                             MessageContentProsemirrorSchema.text("!"),
                         ]),
@@ -5675,7 +6044,9 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([session1.account.id, session3.account.id, unknownAccountId]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -5683,7 +6054,9 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([session1.account.id, session3.account.id, unknownAccountId]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session3), {
@@ -5691,7 +6064,9 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([session1.account.id, session3.account.id, unknownAccountId]),
+            });
         });
 
         test("a mentioned account from another space in a comment thread is not subscribed to notifications", async () => {
@@ -5728,7 +6103,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5736,7 +6111,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5744,7 +6119,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5752,7 +6127,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             await createDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -5777,7 +6152,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    otherSession.accountId,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -5785,7 +6166,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    otherSession.accountId,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session3), {
@@ -5793,7 +6180,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    otherSession.accountId,
+                ]),
+            });
         });
 
         test("an account that is mentioned in a comment thread is subscribed to notifications even if the message is updated to remove the mention", async () => {
@@ -5830,7 +6223,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5838,7 +6231,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5846,7 +6239,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5854,7 +6247,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             await createDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -5879,7 +6272,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -5887,7 +6286,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session3), {
@@ -5895,7 +6300,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             await updateDocumentCommentContent(context.action(session3), {
                 documentId: document.id,
@@ -5916,7 +6327,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -5924,7 +6341,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session3), {
@@ -5932,7 +6355,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
         });
 
         test("an account that is mentioned in a comment thread is subscribed to notifications even if the message is deleted", async () => {
@@ -5969,7 +6398,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -5977,7 +6406,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5985,7 +6414,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -5993,7 +6422,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             await createDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -6018,7 +6447,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -6026,7 +6461,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session3), {
@@ -6034,7 +6475,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             await deleteDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -6048,7 +6495,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -6056,7 +6509,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session3), {
@@ -6064,7 +6523,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
         });
 
         test("an account that is mentioned in a comment thread after it is updated is subscribed to notifications", async () => {
@@ -6101,7 +6566,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -6109,7 +6574,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -6117,7 +6582,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session4), {
@@ -6125,7 +6590,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account]);
+            ).toEqual({accountIds: new Set([session1.account.id])});
 
             await createDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -6146,7 +6611,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account]);
+            ).toEqual({accountIds: new Set([session1.account.id, session3.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -6154,7 +6619,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account]);
+            ).toEqual({accountIds: new Set([session1.account.id, session3.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session3), {
@@ -6162,7 +6627,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account]);
+            ).toEqual({accountIds: new Set([session1.account.id, session3.account.id])});
 
             await updateDocumentCommentContent(context.action(session3), {
                 documentId: document.id,
@@ -6187,7 +6652,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session2), {
@@ -6195,7 +6666,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session3), {
@@ -6203,7 +6680,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session1.account, session3.account, session4.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session3.account.id,
+                    session4.account.id,
+                ]),
+            });
         });
 
         test("notification subscribers are not duplicated and can be added from many different sources", async () => {
@@ -6250,7 +6733,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session5.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -6258,7 +6747,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session5.account, session2.account]);
+            ).toEqual({accountIds: new Set([session5.account.id, session2.account.id])});
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6266,7 +6755,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session5.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6274,7 +6769,7 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session5.account, session2.account]);
+            ).toEqual({accountIds: new Set([session5.account.id, session2.account.id])});
 
             await createDocumentComment(context.action(session1), {
                 documentId: document.id,
@@ -6295,7 +6790,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session5.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -6303,7 +6804,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session5.account, session1.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session5.account.id,
+                    session1.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6311,7 +6818,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session5.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6319,7 +6832,13 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session5.account, session1.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session5.account.id,
+                    session1.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             await createDocumentComment(context.action(session3), {
                 documentId: document.id,
@@ -6344,7 +6863,14 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session5.account, session3.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -6352,7 +6878,14 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session5.account, session1.account, session3.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session5.account.id,
+                    session1.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6360,7 +6893,14 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([session1.account, session5.account, session3.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6368,7 +6908,14 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([session5.account, session1.account, session3.account, session2.account]);
+            ).toEqual({
+                accountIds: new Set([
+                    session5.account.id,
+                    session1.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                ]),
+            });
 
             const comment = await createDocumentComment(context.action(session2), {
                 documentId: document.id,
@@ -6393,13 +6940,15 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([
-                session1.account,
-                session5.account,
-                session3.account,
-                session2.account,
-                session4.account,
-            ]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -6407,13 +6956,15 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([
-                session5.account,
-                session1.account,
-                session3.account,
-                session2.account,
-                session4.account,
-            ]);
+            ).toEqual({
+                accountIds: new Set([
+                    session5.account.id,
+                    session1.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6421,13 +6972,15 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([
-                session1.account,
-                session5.account,
-                session3.account,
-                session2.account,
-                session4.account,
-            ]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6435,13 +6988,15 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([
-                session5.account,
-                session1.account,
-                session3.account,
-                session2.account,
-                session4.account,
-            ]);
+            ).toEqual({
+                accountIds: new Set([
+                    session5.account.id,
+                    session1.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                    session4.account.id,
+                ]),
+            });
 
             await updateDocumentCommentContent(context.action(session2), {
                 documentId: document.id,
@@ -6466,14 +7021,16 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([
-                session1.account,
-                session5.account,
-                session3.account,
-                session2.account,
-                session4.account,
-                session6.account,
-            ]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                    session4.account.id,
+                    session6.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session1), {
@@ -6481,14 +7038,16 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([
-                session5.account,
-                session1.account,
-                session3.account,
-                session2.account,
-                session4.account,
-                session6.account,
-            ]);
+            ).toEqual({
+                accountIds: new Set([
+                    session5.account.id,
+                    session1.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                    session4.account.id,
+                    session6.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6496,14 +7055,16 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: true,
                 }),
-            ).toEqual([
-                session1.account,
-                session5.account,
-                session3.account,
-                session2.account,
-                session4.account,
-                session6.account,
-            ]);
+            ).toEqual({
+                accountIds: new Set([
+                    session1.account.id,
+                    session5.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                    session4.account.id,
+                    session6.account.id,
+                ]),
+            });
 
             expect(
                 await getDocumentCommentThreadNotificationSubscribers(context.action(session7), {
@@ -6511,14 +7072,16 @@ describe("Comments", () => {
                     commentThreadId,
                     isFirstComment: false,
                 }),
-            ).toEqual([
-                session5.account,
-                session1.account,
-                session3.account,
-                session2.account,
-                session4.account,
-                session6.account,
-            ]);
+            ).toEqual({
+                accountIds: new Set([
+                    session5.account.id,
+                    session1.account.id,
+                    session3.account.id,
+                    session2.account.id,
+                    session4.account.id,
+                    session6.account.id,
+                ]),
+            });
         });
     });
 

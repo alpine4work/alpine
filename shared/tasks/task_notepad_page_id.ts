@@ -1,12 +1,11 @@
 import {Clock} from "~/shared/helpers/clock/clock.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {
     VtencBigUint64Set,
     decodeVtencBigUint64List,
     encodeVtencBigUint64Set,
-    isVtencBigInt64SetEmpty,
 } from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
+import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 /**
@@ -50,74 +49,17 @@ export const TaskNotepadPageIdSchema = Schema.integer as Schema<any> as Schema<T
  * deserialize from the database then serialize to the client, we don't need to
  * re-encode the compressed set.
  */
-export class TaskNotepadPageIdCompressedSet {
-    private _ids: ReadonlySet<TaskNotepadPageId> | null;
-    private _compressedIds: VtencBigUint64Set | null;
+export type TaskNotepadPageIdCompressedSet = ReturnType<
+    (typeof TaskNotepadPageIdCompressedSet)["new"]
+>;
 
-    private constructor(
-        ids: ReadonlySet<TaskNotepadPageId> | null,
-        compressedIds: VtencBigUint64Set | null,
-    ) {
-        this._ids = ids;
-        this._compressedIds = compressedIds;
-    }
-
-    public static fromIds(ids: ReadonlySet<TaskNotepadPageId>) {
-        return new TaskNotepadPageIdCompressedSet(ids, null);
-    }
-
-    public static fromCompressedIds(compressedIds: VtencBigUint64Set) {
-        return new TaskNotepadPageIdCompressedSet(null, compressedIds);
-    }
-
-    /**
-     * Get the notepad pages in uncompressed set format. If this class was
-     * initialized with the compressed set format we will decompress once and cache
-     * the result.
-     */
-    public getIds(): ReadonlySet<TaskNotepadPageId> {
-        if (this._ids === null) {
-            assert(this._compressedIds !== null);
-            this._ids = new Set(
-                mapIterable(decodeVtencBigUint64List(this._compressedIds), Number),
-            ) as Set<TaskNotepadPageId>;
-        }
-
-        return this._ids;
-    }
-
-    /**
-     * Get the notepad pages in compressed set format. If this class was
-     * initialized with the uncompressed set format we will compress once and cache
-     * the result.
-     */
-    public getCompressedIds(): VtencBigUint64Set {
-        if (this._compressedIds === null) {
-            assert(this._ids !== null);
-            this._compressedIds = encodeVtencBigUint64Set(mapIterable(this._ids, BigInt));
-        }
-
-        return this._compressedIds;
-    }
-
-    /**
-     * Is the set empty? Will use either the compressed or uncompressed format
-     * depending on what's available. We don't need to decompress to tell if the
-     * set is empty.
-     */
-    public isEmpty(): boolean {
-        if (this._ids !== null) return this._ids.size === 0;
-        if (this._compressedIds !== null) return isVtencBigInt64SetEmpty(this._compressedIds);
-        assert(false);
-    }
-}
-
-export const TaskNotepadPageIdCompressedSetSchema =
-    Schema.bytes.transform<TaskNotepadPageIdCompressedSet>({
-        serialize: pageIds => {
-            return pageIds.getCompressedIds();
-        },
-        deserialize: pageIds => {
-            return TaskNotepadPageIdCompressedSet.fromCompressedIds(pageIds as VtencBigUint64Set);
-        },
-    });
+export const TaskNotepadPageIdCompressedSet = createSchemaLazyTransformClass<
+    VtencBigUint64Set,
+    ReadonlySet<TaskNotepadPageId>
+>(Schema.bytes as Schema<any> as Schema<VtencBigUint64Set>, {
+    serialize: ids => encodeVtencBigUint64Set(mapIterable(ids, BigInt)),
+    deserialize: compressedIds =>
+        new Set(
+            mapIterable(decodeVtencBigUint64List(compressedIds), Number),
+        ) as Set<TaskNotepadPageId>,
+});

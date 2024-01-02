@@ -55,6 +55,7 @@ import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
+import {isVtencBigInt64SetEmpty} from "~/shared/helpers/number/vtenc_big_uint_64_set.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";
 import {quote} from "~/shared/helpers/string/quote.js";
@@ -100,7 +101,6 @@ import {
 } from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskNotepadPageIdCompressedSet,
-    TaskNotepadPageIdCompressedSetSchema,
     generateTaskNotepadPageId,
 } from "~/shared/tasks/task_notepad_page_id.js";
 import {
@@ -224,7 +224,7 @@ const TaskTable = DynamoTableSchema.new({
                     name: "Notepad",
                     sortKeyAttributes: {},
                     attributes: Schema.object({
-                        pageIds: TaskNotepadPageIdCompressedSetSchema,
+                        pageIds: TaskNotepadPageIdCompressedSet.schema,
                     }),
                 },
 
@@ -1638,7 +1638,7 @@ class TaskActionTransactionCommitState {
                     sortRangeType: "Notepad",
                     accountId: this._context.actor.getAccountId(),
                     spaceId: this._spaceId,
-                    pageIds: TaskNotepadPageIdCompressedSet.fromIds(new Set()),
+                    pageIds: TaskNotepadPageIdCompressedSet.new(new Set()),
                 };
 
                 return notepadPagesItem;
@@ -2728,15 +2728,15 @@ async function actuallyCommitTaskActionTransaction(
 
                 cast<"Create">(notepadPageAction.type);
 
-                if (notepadItem.pageIds.getIds().has(notepadPageId))
+                if (notepadItem.pageIds.get().has(notepadPageId))
                     throw new FailedPreconditionError("Notepad page already exists");
 
-                const newPageIds = new Set(notepadItem.pageIds.getIds());
+                const newPageIds = new Set(notepadItem.pageIds.get());
                 newPageIds.add(notepadPageId);
 
                 state.updateActorNotepadItem({
                     ...notepadItem,
-                    pageIds: TaskNotepadPageIdCompressedSet.fromIds(newPageIds),
+                    pageIds: TaskNotepadPageIdCompressedSet.new(newPageIds),
                 });
                 break;
             }
@@ -4032,8 +4032,16 @@ export async function getTaskNotepadPageIds(
     });
 
     let notepadPageIds = notepadItem?.pageIds;
+    const actualNotepadPageIds = notepadPageIds?.getAvailable();
 
-    if (!notepadPageIds || notepadPageIds.isEmpty()) {
+    if (
+        !notepadPageIds ||
+        !actualNotepadPageIds ||
+        // Is the notepad page id set empty?
+        (actualNotepadPageIds instanceof Uint8Array &&
+            isVtencBigInt64SetEmpty(actualNotepadPageIds)) ||
+        (!(actualNotepadPageIds instanceof Uint8Array) && actualNotepadPageIds.size === 0)
+    ) {
         const notepadPageId = generateTaskNotepadPageId(unsynchronizedSystemClock);
 
         await commitTaskActionTransaction(context, spaceId, [
@@ -4046,7 +4054,7 @@ export async function getTaskNotepadPageIds(
             },
         ]);
 
-        notepadPageIds = TaskNotepadPageIdCompressedSet.fromIds(new Set([notepadPageId]));
+        notepadPageIds = TaskNotepadPageIdCompressedSet.new(new Set([notepadPageId]));
     }
 
     return notepadPageIds;

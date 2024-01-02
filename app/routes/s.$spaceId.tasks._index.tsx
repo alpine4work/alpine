@@ -26,7 +26,7 @@ import {Schema, SchemaSerializedObjectValue} from "~/shared/schema/schema.js";
 import {TaskGridViewExpansionStateSchema} from "~/shared/tasks/task_grid_view_expansion_state.js";
 import {
     TaskNotepadPageId,
-    TaskNotepadPageIdCompressedSetSchema,
+    TaskNotepadPageIdCompressedSet,
     TaskNotepadPageIdSchema,
 } from "~/shared/tasks/task_notepad_page_id.js";
 import {
@@ -37,7 +37,7 @@ import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort
 
 const LoaderSchema = Schema.object({
     key: Schema.id(),
-    allNotepadPageIds: TaskNotepadPageIdCompressedSetSchema,
+    allNotepadPageIds: TaskNotepadPageIdCompressedSet.schema,
     initialNotepadPageId: TaskNotepadPageIdSchema,
     initialNotepadPageGridViewExpansionState: TaskGridViewExpansionStateSchema,
     initialBottomGhostTaskId: Schema.id<TaskId>(),
@@ -55,7 +55,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
 
     const allNotepadPageIds = await getTaskNotepadPageIds(context, spaceId);
 
-    const allNotepadPageUncompressedIds = allNotepadPageIds.getIds();
+    const allNotepadPageUncompressedIds = allNotepadPageIds.get();
 
     let notepadPageId: TaskNotepadPageId;
 

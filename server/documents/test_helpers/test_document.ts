@@ -103,7 +103,13 @@ export class TestDocument {
     public async type(
         session: TestSpaceSession,
         text: string,
-        {cacheOverride}: {cacheOverride?: DocumentContentCacheForUpdate} = {},
+        {
+            cacheOverride,
+            secondText,
+        }: {
+            cacheOverride?: DocumentContentCacheForUpdate;
+            secondText?: string;
+        } = {},
     ) {
         return this._state.withLock(async stateRef => {
             const result = await updateDocumentContent(session.action(), {
@@ -117,13 +123,25 @@ export class TestDocument {
                             ? new Slice(Fragment.from(schema.text(text)), 0, 0)
                             : Slice.empty,
                     ),
+                    ...(secondText !== undefined
+                        ? [
+                              new ReplaceStep(
+                                  stateRef.current.lastUpdatePos + text.length,
+                                  stateRef.current.lastUpdatePos + text.length,
+                                  secondText.length !== 0
+                                      ? new Slice(Fragment.from(schema.text(secondText)), 0, 0)
+                                      : Slice.empty,
+                              ),
+                          ]
+                        : []),
                 ],
                 clientId: generateId(),
                 cacheOverrideForTest: cacheOverride,
             });
 
-            stateRef.current.lastVersion += 1;
-            stateRef.current.lastUpdatePos += text.length;
+            stateRef.current.lastVersion += 1 + (secondText !== undefined ? 1 : 0);
+            stateRef.current.lastUpdatePos +=
+                text.length + (secondText !== undefined ? secondText.length : 0);
 
             return result;
         });

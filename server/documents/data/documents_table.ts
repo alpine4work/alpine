@@ -71,7 +71,15 @@ import {reduceIterable} from "~/shared/helpers/iterable/reduce_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {Replace} from "~/shared/helpers/types/replace.js";
-import {assertId, generateId, getMaxId, getMinId} from "~/shared/id/id.js";
+import {
+    assertId,
+    decodeIdInto,
+    encodeId,
+    generateId,
+    getMaxId,
+    getMinId,
+    idByteLength,
+} from "~/shared/id/id.js";
 import {
     AccountId,
     ContentEditorClientId,
@@ -87,6 +95,7 @@ import {
     visitProsemirrorNode,
     visitProsemirrorStep,
 } from "~/shared/prosemirror/prosemirror_visitor.js";
+import {createSchemaLazyTransformClass} from "~/shared/schema/helpers/create_schema_lazy_transform_class.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 
 const DocumentCommentThreadAttributesSchema = Schema.object({
@@ -152,6 +161,46 @@ const DocumentIndexSearchEntityJobSchema = Schema.object({
     }),
 });
 
+type DocumentStepCountByAccountId = ReturnType<(typeof DocumentStepCountByAccountId)["new"]>;
+
+const DocumentStepCountByAccountId = createSchemaLazyTransformClass<
+    Uint8Array,
+    ReadonlyMap<AccountId, number>
+>(Schema.bytes, {
+    serialize: stepCountByAccountId => {
+        const bytes = new Uint8Array(stepCountByAccountId.size * (idByteLength + 4));
+        const view = new DataView(bytes.buffer);
+
+        let byteOffset = 0;
+        for (const [accountId, stepCount] of stepCountByAccountId) {
+            decodeIdInto(accountId, bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            view.setUint32(byteOffset, stepCount);
+            byteOffset += 4;
+        }
+
+        return bytes;
+    },
+    deserialize: bytes => {
+        const view = new DataView(bytes.buffer);
+        const stepCountByAccountId = new Map<AccountId, number>();
+
+        let byteOffset = 0;
+        while (byteOffset + idByteLength + 4 <= bytes.byteLength) {
+            const accountId = encodeId<AccountId>(bytes, byteOffset);
+            byteOffset += idByteLength;
+
+            const stepCount = view.getUint32(byteOffset);
+            byteOffset += 4;
+
+            stepCountByAccountId.set(accountId, stepCount);
+        }
+
+        return stepCountByAccountId;
+    },
+});
+
 const DocumentsTable = DynamoTableSchema.new({
     name: "Documents",
     partitions: [
@@ -175,11 +224,13 @@ const DocumentsTable = DynamoTableSchema.new({
                         spaceId: Schema.id<SpaceId>(),
 
                         /**
-                         * The owner of the document starts as the document's creator and can perform
-                         * certain administrative actions. In addition to being automatically
-                         * subscribed to new comment thread notifications.
+                         * The creator of the document. They're automatically subscribed to new comment
+                         * thread notifications.
                          */
-                        ownerId: Schema.id<AccountId>().nullable().default(null),
+                        creatorId: Schema.id<AccountId>()
+                            .nullable()
+                            .default(null)
+                            .originalPropertyKey("ownerId"),
 
                         /**
                          * The current version of the document.
@@ -210,6 +261,33 @@ const DocumentsTable = DynamoTableSchema.new({
                             sendTime: new Date("2023-12-07T16:35:04.622Z"),
                             updatedTraits: {type: "Any"},
                         }),
+
+                        /**
+                         * Keep track of the number of steps contributed by various `AccountId`s after
+                         * `version` 0. Excluding steps contributed by `creatorId`. You can compute
+                         * `creatorId`'s `stepCount` by adding all step counts in this map then
+                         * subtracting that from `version`.
+                         *
+                         * This is a simple way to determine who's contributed to the document and by
+                         * what amount. However, this is only a valid measure of the amount each
+                         * account has contributed assuming the relative added content size of each
+                         * step is the same. It's possible an account pastes a lot of content and
+                         * that's only counted as one step. Approaches of measuring contribution that
+                         * take pastes into effect would be less efficient and more prone to error.
+                         *
+                         * We serialize the map to binary. An `Id` is 128 bits in binary and 208 bits
+                         * in UTF-8. That means for one 4kb DynamoDB read unit we can fit 250 `Id`s in
+                         * binary but only 153 `Id`s in UTF-8.
+                         *
+                         * This map was not around prior to 2024-01-01. So documents created before
+                         * then (and until this deploys) will not have an accurate step count map. All
+                         * steps will be counted towards the `creatorId`. We could backfill this
+                         * property in the future if useful.
+                         */
+                        // NOCOMMIT: Use this for search or delete it
+                        stepCountByAccountId: DocumentStepCountByAccountId.schema.default(
+                            DocumentStepCountByAccountId.new(new Map()),
+                        ),
                     }),
                 },
 
@@ -559,13 +637,14 @@ export async function createDocument(
                 createdTime,
                 spaceId,
                 documentId: id,
-                ownerId: context.actor.getAccountId(),
+                creatorId: context.actor.getAccountId(),
                 version,
                 titleWithoutFallback: getDocumentContentTitleWithoutFallback(content),
                 lastIndexSearchEntityJob: {
                     sendTime: createdTime,
                     updatedTraits,
                 },
+                stepCountByAccountId: DocumentStepCountByAccountId.new(new Map()),
             }),
             DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "Document",
@@ -1210,8 +1289,9 @@ export class DocumentContentCacheForUpdate {
     ): Promise<{
         readonly createdTime: Date;
         readonly spaceId: SpaceId;
-        readonly ownerId: AccountId | null;
+        readonly creatorId: AccountId | null;
         readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
+        readonly stepCountByAccountId: DocumentStepCountByAccountId;
         readonly version: number;
         readonly content: DocumentContent;
 
@@ -1237,6 +1317,7 @@ export class DocumentContentCacheForUpdate {
             newSteps: ReadonlyArray<Step>;
             newInvertedSteps: ReadonlyArray<Step>;
             newLastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
+            newStepCountByAccountId: DocumentStepCountByAccountId;
             clientId: ContentEditorClientId;
         }): Promise<void>;
     } | null> {
@@ -1251,8 +1332,9 @@ export class DocumentContentCacheForUpdate {
             return {
                 createdTime: internalDocument.attributes.createdTime,
                 spaceId: internalDocument.attributes.spaceId,
-                ownerId: internalDocument.attributes.ownerId,
+                creatorId: internalDocument.attributes.creatorId,
                 lastIndexSearchEntityJob: internalDocument.attributes.lastIndexSearchEntityJob,
+                stepCountByAccountId: internalDocument.attributes.stepCountByAccountId,
                 version: internalDocument.version,
                 content: internalDocument.content,
                 stepsAfterInitialSnapshot: new PushOnlyArray(
@@ -1358,8 +1440,9 @@ export class DocumentContentCacheForUpdate {
                     return {
                         createdTime: entry.createdTime,
                         spaceId: entry.spaceId,
-                        ownerId: entry.ownerId,
+                        creatorId: entry.creatorId,
                         lastIndexSearchEntityJob: attributes.lastIndexSearchEntityJob,
+                        stepCountByAccountId: attributes.stepCountByAccountId,
                         version: attributes.version,
                         content,
                         stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -1374,8 +1457,9 @@ export class DocumentContentCacheForUpdate {
         return {
             createdTime: entry.createdTime,
             spaceId: entry.spaceId,
-            ownerId: entry.ownerId,
+            creatorId: entry.creatorId,
             lastIndexSearchEntityJob: entry.lastIndexSearchEntityJob,
+            stepCountByAccountId: entry.stepCountByAccountId,
             version: entry.version,
             content: entry.content,
             // Create a slice of `stepsAfterInitialSnapshot` so that when we mutate the
@@ -1388,6 +1472,7 @@ export class DocumentContentCacheForUpdate {
                 newSteps,
                 newInvertedSteps,
                 newLastIndexSearchEntityJob,
+                newStepCountByAccountId,
                 clientId,
             }) => {
                 const updatedEntry = entry;
@@ -1407,8 +1492,9 @@ export class DocumentContentCacheForUpdate {
                     return {
                         createdTime: entry.createdTime,
                         spaceId: entry.spaceId,
-                        ownerId: entry.ownerId,
+                        creatorId: entry.creatorId,
                         lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
+                        stepCountByAccountId: newStepCountByAccountId,
                         version: entry.version + newSteps.length,
                         content: newContent,
                         stepsAfterInitialSnapshot: entry.stepsAfterInitialSnapshot,
@@ -1426,8 +1512,9 @@ export class DocumentContentCacheForUpdate {
 type DocumentContentCacheForUpdateEntry = {
     readonly createdTime: Date;
     readonly spaceId: SpaceId;
-    readonly ownerId: AccountId | null;
+    readonly creatorId: AccountId | null;
     readonly lastIndexSearchEntityJob: DocumentIndexSearchEntityJob;
+    readonly stepCountByAccountId: DocumentStepCountByAccountId;
     readonly version: number;
     readonly content: DocumentContent;
     /**
@@ -1889,6 +1976,7 @@ export async function updateDocumentContent(
         const transaction: Array<DynamoTransactionEntry> = [];
 
         let newLastIndexSearchEntityJob = internalDocument.lastIndexSearchEntityJob;
+        let newStepCountByAccountId = internalDocument.stepCountByAccountId;
 
         if (steps.length > 0) {
             const newTitleWithoutFallback = getDocumentContentTitleWithoutFallback(newContent);
@@ -1938,6 +2026,23 @@ export async function updateDocumentContent(
                 };
             }
 
+            // Keep track of how much each account contributed to the document.
+            if (context.actor.getAccountId() !== internalDocument.creatorId) {
+                const actualNewStepCountByAccountId = new Map(newStepCountByAccountId.get());
+
+                const stepCount =
+                    actualNewStepCountByAccountId.get(context.actor.getAccountId()) ?? 0;
+
+                actualNewStepCountByAccountId.set(
+                    context.actor.getAccountId(),
+                    stepCount + steps.length,
+                );
+
+                newStepCountByAccountId = DocumentStepCountByAccountId.new(
+                    actualNewStepCountByAccountId,
+                );
+            }
+
             transaction.push(
                 DocumentsTable.transactionReplaceItem(
                     {
@@ -1946,10 +2051,11 @@ export async function updateDocumentContent(
                         documentId: id,
                         createdTime: internalDocument.createdTime,
                         spaceId: internalDocument.spaceId,
-                        ownerId: internalDocument.ownerId,
+                        creatorId: internalDocument.creatorId,
                         version: internalDocument.version + steps.length,
                         titleWithoutFallback: newTitleWithoutFallback,
                         lastIndexSearchEntityJob: newLastIndexSearchEntityJob,
+                        stepCountByAccountId: newStepCountByAccountId,
                     },
                     {
                         condition: {
@@ -2135,6 +2241,7 @@ export async function updateDocumentContent(
                 newSteps: steps,
                 newInvertedSteps: invertedSteps,
                 newLastIndexSearchEntityJob,
+                newStepCountByAccountId,
                 clientId,
             });
         }
@@ -4216,8 +4323,15 @@ async function queryDocumentCommentChangeLogAssumingAuthorizedDocumentCommentThr
     // If our last change item may have expired then other relevant changelog entries
     // may have also expired. The client will need to fully reset its state since
     // we don't have the data necessary to backfill.
-    if (isDatePossiblyLessThanWithUncertaintyWindow(lastCommentChangeExpirationTime, new Date()))
+    if (
+        isDatePossiblyLessThanWithUncertaintyWindow(
+            lastCommentChangeExpirationTime,
+            // Use `Date.now()` so tests can mock the `Date.now()` function.
+            new Date(Date.now()),
+        )
+    ) {
         return {type: "Unavailable"};
+    }
 
     const changes = await parallelMapAsyncIterableToArray(
         DocumentsTable.query(context, {
@@ -4320,7 +4434,7 @@ export async function getDocumentCommentThreadNotificationSubscribers(
 
     const accountIds = new Set<ContentMentionAccountId>(
         concatIterables(
-            isFirstComment && documentItem.ownerId ? [documentItem.ownerId] : [],
+            isFirstComment && documentItem.creatorId ? [documentItem.creatorId] : [],
             commentThreadItem.commentsSummary.commentCountByAuthorId.keys(),
             commentThreadItem.commentsSummary.mentionCountByAccountId.keys(),
         ),

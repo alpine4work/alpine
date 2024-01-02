@@ -99,10 +99,7 @@ export function TaskNotepadView({
     const allNotepadPageIds = useMemo(
         () =>
             new Lazy(() =>
-                concatIterables(
-                    allNotepadPageIdsWithoutNewNotepadPageIds.getIds(),
-                    newNotepadPageIds,
-                ),
+                concatIterables(allNotepadPageIdsWithoutNewNotepadPageIds.get(), newNotepadPageIds),
             ),
         [allNotepadPageIdsWithoutNewNotepadPageIds, newNotepadPageIds],
     );
