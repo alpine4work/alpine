@@ -3,9 +3,9 @@ import {
     OpensearchIndexAnalysisCustomFilter,
 } from "~/server/opensearch/opensearch_index_analysis.js";
 import {OpensearchIndexObjectType} from "~/server/opensearch/opensearch_index_type.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
 import {pickObject} from "~/shared/helpers/object/pick_object.js";

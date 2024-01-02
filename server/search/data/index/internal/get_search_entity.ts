@@ -1,5 +1,6 @@
 import {getChatAccountIds, getChatMessagePayload} from "~/server/chat/data/chat_table.js";
 import {
+    DocumentStepCountByAccountId,
     getDocumentCommentPayload,
     getDocumentContent,
     getDocumentTitle,
@@ -27,7 +28,11 @@ import {truncateTokens} from "~/server/search/data/index/internal/truncate_token
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {getAccountIfExists} from "~/server/spaces/spaces_table.js";
 import {getTaskCollectionFromIndex, getTaskFromIndex} from "~/server/tasks/data/task_index.js";
-import {getTaskNotesContentWithoutReferences} from "~/server/tasks/data/task_table.js";
+import {TaskApproximateActionCountByAccountId} from "~/server/tasks/data/task_index_doc.js";
+import {
+    TaskStepCountByAccountId,
+    getTaskNotesContentWithoutReferences,
+} from "~/server/tasks/data/task_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
 import {getDocumentContentTitle} from "~/shared/documents/document_model.js";
@@ -41,6 +46,7 @@ import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
 import {LazyMap} from "~/shared/helpers/control/lazy_map.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {
@@ -66,6 +72,8 @@ import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {addFallbackToTaskTitle} from "~/shared/tasks/model/task_title_model.js";
 import {TaskNotesContent} from "~/shared/tasks/task_notes_content_schema.js";
 
+const searchEntityMajorContributorCutOff = 0.2;
+
 export type SearchEntity = {
     readonly id: SearchEntityId;
     readonly accessPolicy: SearchEntityIndexAccessPolicy;
@@ -74,6 +82,23 @@ export type SearchEntity = {
     readonly body: string | null;
     readonly media: SearchEntityMedia | null;
     readonly embeddingChunks: ReadonlyArray<SearchEntityEmbeddingChunk>;
+
+    // The creator is the account which created the entity. `contributorIds` are
+    // the accounts which updated the entity. Contributors with value `Major`
+    // are accounts that contributed more than 20% of updates to the entity.
+    // Contributors with value `Minor` are accounts that contributed less than 20%
+    // of updates. We pick 20% as the cutoff point based on a loose application of
+    // the [pareto principle][1] (80% of the entity's meaning comes from at least
+    // 20% of the updates).
+    //
+    // An account may be both a creator and contributor. For example, the creator
+    // of a document may not be the major contributor. If there will never be
+    // more than one contributor (the creator, e.g. a chat message) than
+    // `contributorIds` will be empty.
+    //
+    // [1]: https://en.wikipedia.org/wiki/Pareto_principle
+    readonly creatorId: AccountId | null;
+    readonly contributorIds: ReadonlyMap<AccountId, "Major" | "Minor">;
 };
 
 export type SearchEntityEmbeddingChunk = {
@@ -201,9 +226,13 @@ class SearchEntityReadState {
         return account;
     }
 
-    public getDocumentContent(
-        documentId: DocumentId,
-    ): Promise<{createdTime: Date; content: DocumentContent}> {
+    public getDocumentContent(documentId: DocumentId): Promise<{
+        createdTime: Date;
+        version: number;
+        content: DocumentContent;
+        creatorId: AccountId | null;
+        stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
+    }> {
         this._recordDependencyId(`Document:${documentId}`);
 
         return getDocumentContent(this._context, documentId, {
@@ -236,9 +265,12 @@ class SearchEntityReadState {
         });
     }
 
-    public getChannelNameAndDescriptionContent(
-        channelId: ChannelId,
-    ): Promise<{name: string; description: MessageContent; createdTime: Date}> {
+    public getChannelNameAndDescriptionContent(channelId: ChannelId): Promise<{
+        name: string;
+        description: MessageContent;
+        createdTime: Date;
+        creatorId: AccountId | null;
+    }> {
         this._recordDependencyId(`Channel:${channelId}`);
 
         return getChannelNameAndDescriptionContent(this._context, channelId, {
@@ -325,21 +357,24 @@ class SearchEntityReadState {
         task: TaskModel;
         referencedTaskById: ReadonlyMap<TaskId, TaskModel>;
         referencedCollectionById: ReadonlyMap<TaskCollectionId, TaskCollectionModel>;
+        approximateActionCountByAccountId: TaskApproximateActionCountByAccountId;
         notesContent: {
             version: number;
             content: TaskNotesContent;
+            stepCountByNonCreatorAccountId: TaskStepCountByAccountId;
         };
     }> {
         this._recordDependencyId(`Task:${taskId}`);
 
-        const [{task, referencedTasks, referencedCollections}, notesContent] = await runAllPromises(
-            [
-                getTaskFromIndex(this._context, this._context.actor.getSpaceId(), taskId),
-                getTaskNotesContentWithoutReferences(this._context, taskId, {
-                    consistency: "Strong",
-                }),
-            ],
-        );
+        const [
+            {task, referencedTasks, referencedCollections, approximateActionCountByAccountId},
+            notesContent,
+        ] = await runAllPromises([
+            getTaskFromIndex(this._context, this._context.actor.getSpaceId(), taskId),
+            getTaskNotesContentWithoutReferences(this._context, taskId, {
+                consistency: "Strong",
+            }),
+        ]);
 
         const referencedTaskById = new Map<TaskId, TaskModel>(
             referencedTasks.map(task => {
@@ -360,6 +395,7 @@ class SearchEntityReadState {
             task,
             referencedTaskById,
             referencedCollectionById,
+            approximateActionCountByAccountId,
             notesContent,
         };
     }
@@ -458,6 +494,11 @@ async function getAccountSearchEntity(
         body: null,
         media: {type: "Account", accountId: accountId as AccountId},
         embeddingChunks: [],
+
+        // Doesn't make sense that an account would create itself. So mark an account
+        // has having no creator.
+        creatorId: null,
+        contributorIds: new Map(),
     };
 }
 
@@ -467,10 +508,32 @@ async function getDocumentSearchEntity(
     state: SearchEntityReadState,
     documentId: DocumentId,
 ): Promise<SearchEntity> {
-    const {createdTime, content} = await state.getDocumentContent(documentId);
+    const {createdTime, version, content, creatorId, stepCountByNonCreatorAccountId} =
+        await state.getDocumentContent(documentId);
     await getDocumentSearchEntityTestCheckpoint.waitForTest(documentId);
 
     const {title, getFullText, embeddingChunks} = await chunkDocumentSearchContent(content, state);
+
+    const contributorIds = new Map<AccountId, "Major" | "Minor">();
+    let stepCountByNonCreatorAccounts = 0;
+
+    for (const [nonCreatorAccountId, stepCount] of stepCountByNonCreatorAccountId.get()) {
+        stepCountByNonCreatorAccounts += stepCount;
+
+        contributorIds.set(
+            nonCreatorAccountId,
+            stepCount / version > searchEntityMajorContributorCutOff ? "Major" : "Minor",
+        );
+    }
+
+    if (creatorId !== null) {
+        contributorIds.set(
+            creatorId,
+            (version - stepCountByNonCreatorAccounts) / version > searchEntityMajorContributorCutOff
+                ? "Major"
+                : "Minor",
+        );
+    }
 
     return {
         id: `Document:${documentId}`,
@@ -488,6 +551,8 @@ async function getDocumentSearchEntity(
         body: getFullText(),
         media: null,
         embeddingChunks,
+        creatorId,
+        contributorIds,
     };
 }
 
@@ -592,6 +657,8 @@ async function getDocumentCommentSearchEntity(
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
+        creatorId: authorId,
+        contributorIds: new Map(),
     };
 }
 
@@ -634,6 +701,10 @@ async function getChannelSearchEntity(
         body: getFullText(),
         media: null,
         embeddingChunks,
+        creatorId: channel.creatorId,
+        // Maybe in the future we could track who posts in a channel to support
+        // searches like "channels I've posted in".
+        contributorIds: new Map(),
     };
 }
 
@@ -693,6 +764,8 @@ async function getPostSearchEntity(
         body: getFullText(),
         media: {type: "Account", accountId: post.authorId},
         embeddingChunks,
+        creatorId: post.authorId,
+        contributorIds: new Map(),
     };
 }
 
@@ -736,6 +809,8 @@ async function getPostCommentSearchEntity(
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
+        creatorId: authorId,
+        contributorIds: new Map(),
     };
 }
 
@@ -760,6 +835,8 @@ async function getChatSearchEntity(
             body: null,
             media: null,
             embeddingChunks: [],
+            creatorId: null,
+            contributorIds: new Map(),
         };
     }
 
@@ -795,6 +872,10 @@ async function getChatSearchEntity(
         body: null,
         media: {type: "AccountPile", accountIds},
         embeddingChunks: [],
+        creatorId: null,
+        // We could keep track of relative proportions of who's sending messages to the
+        // chat, but it's unclear what search queries this would support.
+        contributorIds: new Map(),
     };
 }
 
@@ -855,6 +936,8 @@ async function getChatMessageSearchEntity(
         body: content?.getFullText() ?? null,
         media: {type: "Account", accountId: authorId},
         embeddingChunks: content?.embeddingChunks ?? [],
+        creatorId: authorId,
+        contributorIds: new Map(),
     };
 }
 
@@ -862,9 +945,13 @@ async function getTaskSearchEntity(
     state: SearchEntityReadState,
     taskId: TaskId,
 ): Promise<SearchEntity> {
-    const {task, referencedTaskById, referencedCollectionById, notesContent} = await state.getTask(
-        taskId,
-    );
+    const {
+        task,
+        referencedTaskById,
+        referencedCollectionById,
+        approximateActionCountByAccountId: approximateActionCountByAccountIdWithoutNotesStepCount,
+        notesContent,
+    } = await state.getTask(taskId);
 
     let defaultGrantType: SearchEntityIndexDefaultGrantType | null = null;
     let accountGrantAccountIds = new Set<AccountId>();
@@ -933,6 +1020,8 @@ async function getTaskSearchEntity(
             body: null,
             media: null,
             embeddingChunks: [],
+            creatorId: null,
+            contributorIds: new Map(),
         };
     }
 
@@ -967,6 +1056,83 @@ async function getTaskSearchEntity(
         },
     });
 
+    // Calculate task contributors. For tasks we have discrete updates (update
+    // assignee, update priority) and continuous updates (update title, update
+    // notes). If an account has >20% contributions in either the discrete or
+    // continuous category then we consider it a major contributor.
+    let contributorIds: Map<AccountId, "Major" | "Minor">;
+    {
+        const approximateActionCountByAccountId = new Map<
+            AccountId,
+            {continuousActionCount: number; discreteActionCount: number}
+        >();
+
+        let totalApproximateContinuousActionCount = 0;
+        let totalApproximateDiscreteActionCount = 0;
+        let notesStepCountByNonCreatorAccounts = 0;
+
+        for (const [
+            accountId,
+            {continuousActionCount, discreteActionCount},
+        ] of approximateActionCountByAccountIdWithoutNotesStepCount.get()) {
+            totalApproximateContinuousActionCount += continuousActionCount;
+            totalApproximateDiscreteActionCount += discreteActionCount;
+
+            approximateActionCountByAccountId.set(accountId, {
+                continuousActionCount,
+                discreteActionCount,
+            });
+        }
+
+        // Add notes step contribution as continuous actions.
+        for (const [
+            nonCreatorAccountId,
+            stepCount,
+        ] of notesContent.stepCountByNonCreatorAccountId.get()) {
+            notesStepCountByNonCreatorAccounts += stepCount;
+            totalApproximateContinuousActionCount += stepCount;
+
+            getOrSetDefaultMapValue(approximateActionCountByAccountId, nonCreatorAccountId, () => ({
+                continuousActionCount: 0,
+                discreteActionCount: 0,
+            })).continuousActionCount += stepCount;
+        }
+
+        // Add notes step contribution from the creator as continuous actions since the
+        // creator is not in `stepCountByNonCreatorAccountId`.
+        {
+            const creatorNotesStepCount = notesContent.version - notesStepCountByNonCreatorAccounts;
+            totalApproximateContinuousActionCount += creatorNotesStepCount;
+
+            getOrSetDefaultMapValue(
+                approximateActionCountByAccountId,
+                task.getCreator().accountId,
+                () => ({
+                    continuousActionCount: 0,
+                    discreteActionCount: 0,
+                }),
+            ).continuousActionCount += creatorNotesStepCount;
+        }
+
+        contributorIds = new Map(
+            mapIterable(
+                approximateActionCountByAccountId,
+                ([accountId, {continuousActionCount, discreteActionCount}]) => [
+                    accountId,
+                    // If the account is either above the cutoff for continuous actions or discrete
+                    // actions then we consider it to be a major contributor. It's not really fair
+                    // to compare major and discrete actions.
+                    continuousActionCount / totalApproximateContinuousActionCount >
+                        searchEntityMajorContributorCutOff ||
+                    discreteActionCount / totalApproximateDiscreteActionCount >
+                        searchEntityMajorContributorCutOff
+                        ? "Major"
+                        : "Minor",
+                ],
+            ),
+        );
+    }
+
     return {
         id: `Task:${taskId}`,
         accessPolicy: {accountGrantAccountIds, defaultGrantType},
@@ -975,6 +1141,8 @@ async function getTaskSearchEntity(
         body: getFullText(),
         media: null,
         embeddingChunks,
+        creatorId: task.getCreator().accountId,
+        contributorIds,
     };
 }
 
@@ -1006,6 +1174,8 @@ async function getTaskCollectionSearchEntity(
             body: null,
             media: null,
             embeddingChunks: [],
+            creatorId: null,
+            contributorIds: new Map(),
         };
     }
 
@@ -1017,5 +1187,9 @@ async function getTaskCollectionSearchEntity(
         body: null,
         media: null,
         embeddingChunks: [],
+        creatorId: collection.rawData.creatorId,
+        // In the future we could keep track of which accounts were adding tasks to the
+        // collection to answer queries like "collections I've added tasks to".
+        contributorIds: new Map(),
     };
 }

@@ -32,8 +32,6 @@ import {
 import {isId} from "~/shared/id/id.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
 
-// NOCOMMIT: Participating accounts list
-
 export type SearchEntityIndexDefaultGrantType = IntegerMappingStringType<
     typeof SearchEntityIndexDefaultGrantTypeIntegerMapping
 >;
@@ -260,6 +258,32 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
          * sent the chat message.
          */
         media: SearchEntityMediaType.nullable().store(),
+
+        /**
+         * The account who created this search entity.
+         */
+        creatorId: new OpensearchIndexKeywordType({isFilterable: true})
+            .validate<AccountId>(isId)
+            .nullable()
+            .default(null),
+
+        /**
+         * Accounts who made major updates to this search entity. The main authors of a
+         * document, for instance. May contain `creatorId` but will not contain
+         * accounts from `minorContributorIds`.
+         */
+        majorContributorIds: new OpensearchIndexArrayType(
+            new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
+        ).default([]),
+
+        /**
+         * Accounts who made minor updates to this search entity. An account who left a
+         * single comment on a document, for instance. May contain `creatorId` but will
+         * not contain accounts from `majorContributorIds`.
+         */
+        minorContributorIds: new OpensearchIndexArrayType(
+            new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
+        ).default([]),
     },
 });
 

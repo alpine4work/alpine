@@ -11,6 +11,7 @@ export function createEmptyTaskCollectionIndexDoc(
 ): Omit<TaskCollectionIndexDoc, "id" | "spaceId"> {
     return {
         createdTime: actionTime,
+        creatorId: action.creatorId,
         rawDeletedTime: null,
         rawUndeletedTime: null,
         name: new LabelStringRegister(action.name, actionTime),

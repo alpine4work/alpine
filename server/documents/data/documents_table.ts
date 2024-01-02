@@ -161,9 +161,9 @@ const DocumentIndexSearchEntityJobSchema = Schema.object({
     }),
 });
 
-type DocumentStepCountByAccountId = ReturnType<(typeof DocumentStepCountByAccountId)["new"]>;
+export type DocumentStepCountByAccountId = ReturnType<(typeof DocumentStepCountByAccountId)["new"]>;
 
-const DocumentStepCountByAccountId = createSchemaLazyTransformClass<
+export const DocumentStepCountByAccountId = createSchemaLazyTransformClass<
     Uint8Array,
     ReadonlyMap<AccountId, number>
 >(Schema.bytes, {
@@ -1168,13 +1168,22 @@ export async function getDocumentContent(
     context: ServerActionContext,
     documentId: DocumentId,
     options?: {consistency?: DynamoReadConsistency},
-): Promise<{createdTime: Date; content: DocumentContent}> {
+): Promise<{
+    createdTime: Date;
+    version: number;
+    content: DocumentContent;
+    creatorId: AccountId | null;
+    stepCountByNonCreatorAccountId: DocumentStepCountByAccountId;
+}> {
     const internalDocument = await getInternalDocumentIfExists(context, documentId, options);
     if (!internalDocument) throw new NotFoundError("Document not found");
 
     return {
         createdTime: internalDocument.attributes.createdTime,
+        version: internalDocument.version,
         content: internalDocument.content,
+        creatorId: internalDocument.attributes.creatorId,
+        stepCountByNonCreatorAccountId: internalDocument.attributes.stepCountByAccountId,
     };
 }
 

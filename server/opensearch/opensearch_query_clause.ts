@@ -1,6 +1,6 @@
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 
 /**

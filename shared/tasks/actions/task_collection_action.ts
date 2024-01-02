@@ -1,4 +1,5 @@
 import {themeColors} from "~/shared/design/theme_colors.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {LabelStringSchema} from "~/shared/schema/helpers/label_string_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskCollectionAccessPolicySchema} from "~/shared/tasks/task_collection_access_policy.js";
@@ -19,6 +20,8 @@ export type TaskCollectionCreateAction = SchemaType<typeof TaskCollectionCreateA
 
 const TaskCollectionCreateActionSchema = Schema.object({
     type: Schema.value("Create"),
+    // NOTE(calebmer): We didn't keep track of collection creators until 2024-01-02.
+    creatorId: Schema.id<AccountId>().nullable().default(null),
     name: LabelStringSchema,
     accessPolicy: TaskCollectionAccessPolicySchema,
 });

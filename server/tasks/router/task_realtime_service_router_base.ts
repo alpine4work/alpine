@@ -3,7 +3,7 @@ import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {InternalError} from "~/shared/error/error.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {randomInteger} from "~/shared/helpers/number/random_integer.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {decodeId} from "~/shared/id/id.js";

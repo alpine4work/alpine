@@ -3,8 +3,8 @@ import {AttributeType, BillingMode, ProjectionType, Table} from "aws-cdk-lib/aws
 import {IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {getAllDynamoTableSchemas} from "~/admin/dynamo/get_all_dynamo_table_schemas.js";
 import {DynamoClientAction} from "~/server/dynamo/core/dynamo_client_action.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {cast} from "~/shared/helpers/control/cast.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 
 export class AwsDynamo {
     private readonly _tables: ReadonlyArray<Table>;

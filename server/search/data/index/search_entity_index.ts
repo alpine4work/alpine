@@ -45,6 +45,7 @@ import {Context} from "~/shared/context/context.js";
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
 import {InternalError} from "~/shared/error/error.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
@@ -58,7 +59,6 @@ import {
     defaultUncertaintyWindowMs,
     isDateDefinitelyLessThanWithUncertaintyWindow,
 } from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
@@ -548,6 +548,17 @@ export async function processIndexSearchEntityJob(
                 ),
             );
 
+            const majorContributorIds: Array<AccountId> = [];
+            const minorContributorIds: Array<AccountId> = [];
+
+            for (const [contributorId, type] of entity.contributorIds) {
+                if (type === "Major") {
+                    majorContributorIds.push(contributorId);
+                } else {
+                    minorContributorIds.push(contributorId);
+                }
+            }
+
             const newDocForKeywordIndex: OpensearchClientDocWithIdAndVersion<
                 SearchEntityId,
                 SearchEntityKeywordIndexDoc
@@ -564,6 +575,9 @@ export async function processIndexSearchEntityJob(
                 title: entity.title,
                 body: entity.body,
                 media: entity.media,
+                creatorId: entity.creatorId,
+                majorContributorIds,
+                minorContributorIds,
             };
 
             const newDocForSemanticIndex: OpensearchClientDocWithIdAndVersion<

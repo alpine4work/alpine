@@ -58,6 +58,7 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {areHybridLogicalTimesEqual} from "~/shared/helpers/clock/hybrid_logical_clock.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -251,28 +252,47 @@ export async function getTaskFromIndex(
     task: TaskModel;
     referencedTasks: ReadonlyArray<TaskModel>;
     referencedCollections: ReadonlyArray<TaskCollectionModel>;
+    approximateActionCountByAccountId: TaskApproximateActionCountByAccountId;
 }> {
     // We don't verify that the account is allowed to load this task. We
     // require a system actor with access to the entire space.
     context.actor.authorizeSystem();
     await authorizeSpaceAccess(context, spaceId);
 
-    return assembleTaskAndReferences(taskId, {
-        getTaskIndexDoc: async taskId => {
-            const task = await context.opensearch.getDocIfExists(TaskIndex, spaceId, taskId);
+    let approximateActionCountByAccountId: TaskApproximateActionCountByAccountId | undefined;
+
+    const {task, referencedTasks, referencedCollections} = await assembleTaskAndReferences(taskId, {
+        getTaskIndexDoc: async referencedTaskId => {
+            const task = await context.opensearch.getDocIfExists(
+                TaskIndex,
+                spaceId,
+                referencedTaskId,
+            );
             if (!task) throw new NotFoundError("Task not found");
+
+            if (referencedTaskId === taskId) {
+                approximateActionCountByAccountId = task.approximateActionCountByAccountId;
+            }
+
             return task;
         },
-        getCollectionIndexDoc: async collectionId => {
+        getCollectionIndexDoc: async referencedCollectionId => {
             const collection = await context.opensearch.getDocIfExists(
                 TaskCollectionIndex,
                 spaceId,
-                collectionId,
+                referencedCollectionId,
             );
             if (!collection) throw new NotFoundError("Task collection not found");
             return collection;
         },
     });
+
+    return {
+        task,
+        referencedTasks,
+        referencedCollections,
+        approximateActionCountByAccountId: assertExists(approximateActionCountByAccountId),
+    };
 }
 
 /**

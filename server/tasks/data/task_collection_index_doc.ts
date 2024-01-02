@@ -117,6 +117,10 @@ export const TaskCollectionIndexDocType = OpensearchIndexObjectType.new({
             isSortable: true,
         }).validate<SpaceId>(isId),
         createdTime: SortableHybridLogicalTimeType,
+        creatorId: new OpensearchIndexKeywordType()
+            .validate<AccountId>(isId)
+            .nullable()
+            .default(null),
 
         // The `isDeleted` computed property definitively tells us whether a task is
         // deleted or not.

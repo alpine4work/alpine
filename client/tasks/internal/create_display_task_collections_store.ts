@@ -4,7 +4,7 @@ import {getTaskCollectionEntryAccess} from "~/client/tasks/internal/create_task_
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
 import {TaskClientTaskSubscription} from "~/client/tasks/task_client_task_subscription.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {TaskCollectionModel} from "~/shared/tasks/model/task_collection_model.js";
 import {TaskCollectionSet} from "~/shared/tasks/task_collection_set.js";
 

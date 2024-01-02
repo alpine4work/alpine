@@ -96,6 +96,9 @@ const ForumTable = DynamoTableSchema.new({
                         /** When was this channel created? */
                         createdTime: Schema.date,
 
+                        /** Account who created the channel. */
+                        creatorId: Schema.id<AccountId>().nullable().default(null),
+
                         /** The name of this channel. */
                         name: LabelStringSchema,
 
@@ -282,6 +285,7 @@ export async function seedTestChannels(
         channelId: testChannelId,
         spaceId: defaultSpaceId,
         createdTime: new Date(),
+        creatorId: null,
         name: "Test",
         description: emptyMessageContent,
     });
@@ -319,6 +323,7 @@ export async function createChannel(
         channelId: generateId(),
         spaceId,
         createdTime: new Date(),
+        creatorId: context.actor.getAccountId(),
         name,
         description: emptyMessageContent,
     };
@@ -451,6 +456,7 @@ export async function getChannelNameAndDescriptionContent(
     name: string;
     description: MessageContent;
     createdTime: Date;
+    creatorId: AccountId | null;
 }> {
     const channelItem = await ForumTable.getItem(
         context,
@@ -468,6 +474,7 @@ export async function getChannelNameAndDescriptionContent(
         name: channelItem.name,
         description: channelItem.description,
         createdTime: channelItem.createdTime,
+        creatorId: channelItem.creatorId,
     };
 }
 

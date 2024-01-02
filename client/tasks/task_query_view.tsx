@@ -37,9 +37,9 @@ import {
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {TaskId} from "~/shared/id/types/id_types.js";
 import {
     inputPlaceholderStyles,

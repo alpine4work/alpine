@@ -271,6 +271,7 @@ function createCollection(
         time = store.clock.now(),
         collectionAction = {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -7989,6 +7990,7 @@ test("can create then update collections optimistically", async () => {
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -8120,6 +8122,7 @@ test("can create then update collections optimistically and resolve commits out 
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -8259,6 +8262,7 @@ test("can create then update collections optimistically after an action from the
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -8413,6 +8417,7 @@ test("can create then update collections optimistically our of order", async () 
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -8545,6 +8550,7 @@ test("can create then update collections optimistically out of order after an ac
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -8700,6 +8706,7 @@ test("can create then update collections optimistically out of order with more n
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -8878,6 +8885,7 @@ test("resolving collection optimistic update after garbage collection is ok", as
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -9766,6 +9774,7 @@ test("regular actions are added to optimistic state when collection is created o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -9926,6 +9935,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -10144,6 +10154,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -10723,6 +10734,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -10965,6 +10977,7 @@ test("can create collections optimistically (rejected)", async () => {
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -11025,6 +11038,7 @@ test("can create then update collections optimistically (rejected)", async () =>
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -11141,6 +11155,7 @@ test("can create then update collections optimistically and resolve commits out 
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -11273,6 +11288,7 @@ test("can create then update collections optimistically after an action from the
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -11408,6 +11424,7 @@ test("can create then update collections optimistically our of order (rejected)"
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -11533,6 +11550,7 @@ test("can create then update collections optimistically out of order after an ac
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -11677,6 +11695,7 @@ test("can create then update collections optimistically out of order with more n
         collectionId: action1.collectionId,
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -11839,6 +11858,7 @@ test("resolving collection optimistic update after garbage collection is ok (rej
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -12715,6 +12735,7 @@ test("regular actions are added to optimistic state when collection is created o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -12872,6 +12893,7 @@ test("regular actions are added to optimistic state with multiple actions when c
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -13084,6 +13106,7 @@ test("regular actions are added to optimistic state with multiple actions that a
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -13651,6 +13674,7 @@ test("backfilling a collection when there are optimistic actions but no previous
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -13822,6 +13846,7 @@ test("create collection applied after optimistic updates", async () => {
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -13964,6 +13989,7 @@ test("create collection applied after optimistic updates that are resolved out o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -14109,6 +14135,7 @@ test("create collection applied after optimistic updates (rejected)", async () =
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),
@@ -14248,6 +14275,7 @@ test("create collection applied after optimistic updates that are resolved out o
         collectionId: generateId(),
         collectionAction: {
             type: "Create",
+            creatorId: null,
             name: "Test",
             accessPolicy: {
                 accountGrantById: new Map([[account1.id, {level: "Manage"}]]),

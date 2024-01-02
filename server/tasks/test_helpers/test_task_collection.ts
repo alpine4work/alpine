@@ -53,6 +53,7 @@ export class TestTaskCollection {
                 collectionId: id,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session.account.id,
                     name,
                     accessPolicy: {
                         accountGrantById: new Map<AccountId, {level: TaskCollectionAccessLevel}>([
@@ -89,6 +90,7 @@ export class TestTaskCollection {
                 collectionId: id,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session.account.id,
                     name,
                     accessPolicy: {
                         accountGrantById: new Map([[session.account.id, {level: "Manage"}]]),

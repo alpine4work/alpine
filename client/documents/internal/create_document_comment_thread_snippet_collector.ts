@@ -1,7 +1,7 @@
 import {Node, ResolvedPos} from "prosemirror-model";
 import {getContentSnippet} from "~/shared/content/get_content_snippet.js";
 import {DocumentContent} from "~/shared/documents/document_content_schema.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";

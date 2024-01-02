@@ -229,6 +229,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session.accountId, {level: "Manage"}]]),
@@ -563,6 +564,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -618,6 +620,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -1361,6 +1364,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -1417,6 +1421,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -1475,6 +1480,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -1519,6 +1525,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
@@ -1568,6 +1575,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
@@ -1618,6 +1626,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
@@ -1634,6 +1643,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -1692,6 +1702,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -1708,6 +1719,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -1780,6 +1792,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -1826,6 +1839,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -1879,6 +1893,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -1934,6 +1949,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -1989,6 +2005,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -2047,6 +2064,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -2102,6 +2120,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2112,24 +2131,8 @@ describe("old style", () => {
         ]);
     });
 
-    test("can't create a collection twice", async () => {
+    test("can't create a collection with no creator", async () => {
         const collectionId = generateId<TaskCollectionId>();
-
-        await commitTaskActionTransaction(context.action(session1), space.id, [
-            {
-                type: "UpdateCollection",
-                time: clock.now(),
-                collectionId,
-                collectionAction: {
-                    type: "Create",
-                    name: "Test",
-                    accessPolicy: {
-                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
-                        defaultGrant: null,
-                    },
-                },
-            },
-        ]);
 
         await expect(
             commitTaskActionTransaction(context.action(session1), space.id, [
@@ -2139,6 +2142,7 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
+                        creatorId: null,
                         name: "Test",
                         accessPolicy: {
                             accountGrantById: new Map([
@@ -2149,7 +2153,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(FailedPreconditionError);
+        ).rejects.toThrow(PermissionDeniedError);
     });
 
     test("can't create a collection with the wrong creator", async () => {
@@ -2163,6 +2167,74 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
+                        creatorId: session2.account.id,
+                        name: "Test",
+                        accessPolicy: {
+                            accountGrantById: new Map([
+                                [taskAccount1.accountId, {level: "Manage"}],
+                            ]),
+                            defaultGrant: null,
+                        },
+                    },
+                },
+            ]),
+        ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    test("can't create a collection twice", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await commitTaskActionTransaction(context.action(session1), space.id, [
+            {
+                type: "UpdateCollection",
+                time: clock.now(),
+                collectionId,
+                collectionAction: {
+                    type: "Create",
+                    creatorId: session1.account.id,
+                    name: "Test",
+                    accessPolicy: {
+                        accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
+                        defaultGrant: null,
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "Create",
+                        creatorId: session1.account.id,
+                        name: "Test",
+                        accessPolicy: {
+                            accountGrantById: new Map([
+                                [taskAccount1.accountId, {level: "Manage"}],
+                            ]),
+                            defaultGrant: null,
+                        },
+                    },
+                },
+            ]),
+        ).rejects.toThrow(FailedPreconditionError);
+    });
+
+    test("can't create a collection with the wrong account in access policy", async () => {
+        const collectionId = generateId<TaskCollectionId>();
+
+        await expect(
+            commitTaskActionTransaction(context.action(session1), space.id, [
+                {
+                    type: "UpdateCollection",
+                    time: clock.now(),
+                    collectionId,
+                    collectionAction: {
+                        type: "Create",
+                        creatorId: session1.account.id,
                         name: "Test",
                         accessPolicy: {
                             accountGrantById: new Map([
@@ -2191,6 +2263,7 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
+                        creatorId: session1.account.id,
                         name: "Test",
                         accessPolicy: {
                             accountGrantById: new Map([
@@ -2215,6 +2288,7 @@ describe("old style", () => {
                     collectionId,
                     collectionAction: {
                         type: "Create",
+                        creatorId: session1.account.id,
                         name: "Test",
                         accessPolicy: {
                             accountGrantById: new Map([]),
@@ -2236,6 +2310,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2284,6 +2359,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2330,6 +2406,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2365,6 +2442,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2398,6 +2476,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2431,6 +2510,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2464,6 +2544,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -2500,6 +2581,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -2534,6 +2616,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2593,6 +2676,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2657,6 +2741,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2709,6 +2794,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2764,6 +2850,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2810,6 +2897,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2856,6 +2944,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2900,6 +2989,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -2941,6 +3031,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -2985,6 +3076,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -3027,6 +3119,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -3077,6 +3170,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -3122,6 +3216,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -3156,6 +3251,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -3190,6 +3286,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -3224,6 +3321,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -3261,6 +3359,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -3296,6 +3395,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -3346,6 +3446,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -3391,6 +3492,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -3425,6 +3527,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -3459,6 +3562,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -3493,6 +3597,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -3530,6 +3635,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -3565,6 +3671,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -3627,6 +3734,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -3678,6 +3786,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -3718,6 +3827,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -3758,6 +3868,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -3798,6 +3909,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -3841,6 +3953,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -3882,6 +3995,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -3965,6 +4079,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -4067,6 +4182,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -4085,6 +4201,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount2.accountId, {level: "Manage"}]]),
@@ -4112,6 +4229,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -4204,6 +4322,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -4997,6 +5116,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -5069,6 +5189,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -5139,6 +5260,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -5237,6 +5359,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -5519,6 +5642,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session2.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -5642,6 +5766,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([
@@ -6275,6 +6400,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -6382,6 +6508,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -6526,6 +6653,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -6740,6 +6868,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -6954,6 +7083,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -7168,6 +7298,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -7382,6 +7513,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -7600,6 +7732,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -8305,6 +8438,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -8541,6 +8675,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -8750,6 +8885,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -8763,6 +8899,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -8868,6 +9005,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -8881,6 +9019,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -9005,6 +9144,7 @@ describe("old style", () => {
                 collectionId: collectionId1,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -9018,6 +9158,7 @@ describe("old style", () => {
                 collectionId: collectionId2,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[session1.accountId, {level: "Manage"}]]),
@@ -10392,6 +10533,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -10446,6 +10588,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -10502,6 +10645,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -10561,6 +10705,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -10618,6 +10763,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -10684,6 +10830,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),
@@ -10752,6 +10899,7 @@ describe("old style", () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: session1.account.id,
                     name: "Test",
                     accessPolicy: {
                         accountGrantById: new Map([[taskAccount1.accountId, {level: "Manage"}]]),

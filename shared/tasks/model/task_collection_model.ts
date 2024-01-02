@@ -4,7 +4,7 @@ import {
     HybridLogicalTime,
     compareHybridLogicalTimes,
 } from "~/shared/helpers/clock/hybrid_logical_clock.js";
-import {SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
+import {AccountId, SpaceId, TaskCollectionId} from "~/shared/id/types/id_types.js";
 import {HybridLogicalTimeSchema} from "~/shared/schema/helpers/hybrid_logical_time_schema.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TaskUpdateCollectionAction} from "~/shared/tasks/actions/task_action.js";
@@ -22,6 +22,7 @@ const TaskCollectionModelDataSchema = Schema.object({
     spaceId: Schema.id<SpaceId>(),
 
     createdTime: HybridLogicalTimeSchema,
+    creatorId: Schema.id<AccountId>().nullable().default(null),
     deletedTime: HybridLogicalTimeSchema.nullable(),
     undeletedTime: HybridLogicalTimeSchema.nullable(),
 
@@ -57,6 +58,7 @@ export class TaskCollectionModel {
             spaceId,
             id: collectionId,
             createdTime: actionTime,
+            creatorId: action.creatorId,
             deletedTime: null,
             undeletedTime: null,
             name: new LabelStringRegister(action.name, actionTime),

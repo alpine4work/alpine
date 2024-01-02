@@ -35,6 +35,7 @@ import {
     PermissionDeniedError,
 } from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {runAllPromiseThunks, runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {
@@ -51,7 +52,6 @@ import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {isNonNullable} from "~/shared/helpers/control/is_non_nullable.js";
 import {stringifyForDeepEqualCheck} from "~/shared/helpers/control/stringify_for_deep_equal_check.js";
 import {arrayFromAsyncIterable} from "~/shared/helpers/iterable/array_from_async_iterable.js";
-import {filterMapArray} from "~/shared/helpers/iterable/filter_map_array.js";
 import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {mapAsyncIterableIterator} from "~/shared/helpers/iterable/map_async_iterable_iterator.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -214,9 +214,9 @@ const TaskStatusTypeRegister = createCrdtRegister(
 
 const TaskAssigneeAccountIdRegister = createCrdtRegister(Schema.id<AccountId>().nullable());
 
-type TaskStepCountByAccountId = ReturnType<(typeof TaskStepCountByAccountId)["new"]>;
+export type TaskStepCountByAccountId = ReturnType<(typeof TaskStepCountByAccountId)["new"]>;
 
-const TaskStepCountByAccountId = createSchemaLazyTransformClass<
+export const TaskStepCountByAccountId = createSchemaLazyTransformClass<
     Uint8Array,
     ReadonlyMap<AccountId, number>
 >(Schema.bytes, {
@@ -401,6 +401,14 @@ const TaskTable = DynamoTableSchema.new({
                     attributes: Schema.object({
                         spaceId: Schema.id<SpaceId>(),
                         createdTime: HybridLogicalTimeSchema,
+
+                        /**
+                         * The account who created this collection. Unlike tasks, the `creatorId` does
+                         * not influence permissions. Only the `accessPolicy` influences permissions.
+                         * The collection creator may lose access if they are removed from the
+                         * `accessPolicy`.
+                         */
+                        creatorId: Schema.id<AccountId>().nullable().default(null),
 
                         // We keep track of both `rawDeletedTime` and `rawUndeletedTime` for our
                         // collection in DynamoDB so we can create a full `TaskCollectionModel`. The
@@ -2627,12 +2635,19 @@ async function actuallyCommitTaskActionTransaction(
 
                 switch (collectionAction.type) {
                     case "Create": {
+                        if (collectionAction.creatorId !== state.getActorAccountId()) {
+                            throw new PermissionDeniedError(
+                                "Can only create a task with yourself as the creator",
+                            );
+                        }
+
                         const newCollectionItem: TaskCollectionEssentialAttributesItem = {
                             partitionType: "TaskCollection",
                             sortRangeType: "EssentialAttributes",
                             collectionId,
                             spaceId,
                             createdTime: action.time,
+                            creatorId: collectionAction.creatorId,
                             rawDeletedTime: null,
                             rawUndeletedTime: null,
                             name: new LabelStringRegister(collectionAction.name, action.time),
@@ -4089,6 +4104,7 @@ function convertTaskCollectionIndexDocToItem(
         collectionId: collection.id,
         spaceId: collection.spaceId,
         createdTime: collection.createdTime,
+        creatorId: collection.creatorId,
         rawDeletedTime: collection.rawDeletedTime,
         rawUndeletedTime: collection.rawUndeletedTime,
         name: collection.name,
@@ -4535,6 +4551,7 @@ function createTaskCollectionModelSearchResultFromItem(
             id: collectionItem.collectionId,
             spaceId: collectionItem.spaceId,
             createdTime: collectionItem.createdTime,
+            creatorId: collectionItem.creatorId,
             deletedTime: collectionItem.rawDeletedTime,
             undeletedTime: collectionItem.rawUndeletedTime,
             name: collectionItem.name,

@@ -9,6 +9,7 @@ export function prepareTaskCollectionForClient(
         id: collection.id,
         spaceId: collection.spaceId,
         createdTime: collection.createdTime,
+        creatorId: collection.creatorId,
         deletedTime: collection.rawDeletedTime,
         undeletedTime: collection.rawUndeletedTime,
         name: collection.name,
