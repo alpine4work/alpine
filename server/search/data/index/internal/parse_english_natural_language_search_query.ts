@@ -3,6 +3,7 @@ import levenshtein from "damerau-levenshtein";
 import {stemmer} from "stemmer";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {SearchEntityIdObject} from "~/shared/search/search_entity_id.js";
@@ -213,11 +214,10 @@ export function parseEnglishNaturalLanguageSearchQuery(
     const filters: Array<SearchNaturalLanguageFilter> = [];
     const controlPhrases: Array<View> = [];
 
-    for (let docIndex = 0; docIndex < doc.docs.length; docIndex++) {
-        const terms = doc.docs[docIndex]!;
-
+    // Iterate through each clause independently.
+    for (const terms of doc.clauses().docs) {
         const {filters: currentFilters, controlPhrases: currentControlPhrases} =
-            parseSearchNaturalLanguageFilters(doc, docIndex, terms, options);
+            parseSearchNaturalLanguageFilters(doc, terms, options);
 
         for (const filter of currentFilters) {
             filters.push(filter);
@@ -231,10 +231,15 @@ export function parseEnglishNaturalLanguageSearchQuery(
     const docWithoutControl = doc.clone();
     const controlDoc = nlp("");
 
-    // Remove all control phrases from our original search query and add them to a
-    // separate control query doc...
-    for (const controlPhrase of controlPhrases) {
+    // Remove all control phrases from our original search query. We remove control
+    // phrases in reverse so we don't move indexes in a way that makes it hard to
+    // remove the next phrase.
+    for (const controlPhrase of [...controlPhrases].reverse()) {
         docWithoutControl.remove(controlPhrase);
+    }
+
+    // Add all control phrases to a separate doc.
+    for (const controlPhrase of controlPhrases) {
         controlDoc.concat(controlPhrase);
     }
 
@@ -250,7 +255,6 @@ export function parseEnglishNaturalLanguageSearchQuery(
  */
 function parseSearchNaturalLanguageFilters(
     doc: View,
-    docIndex: number,
     terms: ReadonlyArray<Term>,
     options: {
         actorAccountId: AccountId;
@@ -270,7 +274,7 @@ function parseSearchNaturalLanguageFilters(
     const controlPhrases: Array<View> = [];
 
     while (state.term) {
-        const startTermIndex = state.termIndex;
+        const startTerm = state.term;
 
         // Add the terms from the start of this loop to where we parsed as a
         // "control phrase". Control phrases we remove from the search query so they
@@ -281,14 +285,21 @@ function parseSearchNaturalLanguageFilters(
         // "train" and a filter for entity types of "document" by the account with the
         // name "john".
         const addControlPhrase = () => {
-            const endTermIndex = state.termIndex;
+            const endTerm = assertExists(state.terms[state.termIndex - 1]);
+
+            addSpecificControlPhrase(startTerm, endTerm);
+        };
+
+        const addSpecificControlPhrase = (startTerm: Term, endTerm: Term) => {
+            assert(startTerm.index && endTerm.index);
+            assert(startTerm.index[0] === endTerm.index[0]);
 
             const pointer: Pointer = [
-                docIndex,
-                startTermIndex,
-                endTermIndex,
-                state.terms[startTermIndex]!.id,
-                state.terms[endTermIndex - 1]!.id,
+                startTerm.index[0],
+                startTerm.index[1],
+                endTerm.index[1]! + 1,
+                startTerm.id,
+                endTerm.id,
             ];
 
             const controlPhrase: View = (doc as any).toView([pointer]);
@@ -327,7 +338,7 @@ function parseSearchNaturalLanguageFilters(
                 }
 
                 // e.g. "documents created by john" or "messages sent by sara smith"
-                const accounts = parseAccountsIfPossible(state, options);
+                const accounts = parseAccountsByNameIfPossible(state, options);
                 if (accounts) {
                     // e.g. "documents created by john about..."
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
@@ -370,7 +381,7 @@ function parseSearchNaturalLanguageFilters(
                 }
 
                 // e.g. "documents written by john" or "posts authored by sara smith"
-                const accounts = parseAccountsIfPossible(state, options);
+                const accounts = parseAccountsByNameIfPossible(state, options);
                 if (accounts) {
                     // e.g. "documents written by john about..."
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
@@ -413,7 +424,7 @@ function parseSearchNaturalLanguageFilters(
                 }
 
                 // e.g. "documents updated by john" or "tasks updated by sara smith"
-                const accounts = parseAccountsIfPossible(state, options);
+                const accounts = parseAccountsByNameIfPossible(state, options);
                 if (accounts) {
                     // e.g. "documents updated by john about..."
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
@@ -454,7 +465,7 @@ function parseSearchNaturalLanguageFilters(
                 }
 
                 // e.g. "documents by john" or "messages from sara smith"
-                const accounts = parseAccountsIfPossible(state, options);
+                const accounts = parseAccountsByNameIfPossible(state, options);
                 if (accounts) {
                     // e.g. "documents by john about..."
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
@@ -537,7 +548,7 @@ function parseSearchNaturalLanguageFilters(
                 continue;
             }
 
-            const accounts = parseAccountsIfPossible(state, options);
+            const accounts = parseAccountsByNameIfPossible(state, options);
             if (accounts) {
                 // e.g. "documents john created" or "messages sara smith sent"
                 if (
@@ -610,7 +621,7 @@ function parseSearchNaturalLanguageFilters(
 
         // e.g. "my..."
         if (matchTerms.my.isFuzzyMatch(state.term)) {
-            state.advanceTerm();
+            const myTerm = state.advanceTerm();
 
             // e.g. "my documents" or "my messages"
             const entityTypes = parseSearchEntityTypesIfPossible(state);
@@ -628,13 +639,54 @@ function parseSearchNaturalLanguageFilters(
                 continue;
             }
 
+            if (myTerm.chunk === "Noun") {
+                let shouldContinue = false;
+
+                // e.g. "my ... documents"
+                //
+                // We allow this form to support queries like "john's train documents" or
+                // "sara's closed tasks" which sound very natural. The way this works is we
+                // allow any terms between the account name and entity type as long as
+                // they're all part of the same `Noun` chunk (as determined by `compromise`).
+                //
+                // [Chunks represents parts of a sentence][1] (e.g. noun phrase and
+                // verb phrase).
+                //
+                // [1]: https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/3-three/chunker/api/chunks.js#L1
+                while (state.term && state.term.chunk === "Noun") {
+                    const firstEntityTypesTerm = state.term;
+
+                    const entityTypes = parseSearchEntityTypesIfPossible(state);
+                    if (entityTypes) {
+                        // e.g. "john's documents about..."
+                        if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
+
+                        const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
+
+                        addSpecificControlPhrase(startTerm, myTerm);
+                        addSpecificControlPhrase(firstEntityTypesTerm, lastEntityTypesTerm);
+
+                        filters.push({
+                            accountIds: [actorAccountId],
+                            entityTypes,
+                            level: "CreatorOrMajorContributor",
+                        });
+                        shouldContinue = true;
+                        break;
+                    }
+
+                    state.advanceTerm();
+                }
+
+                if (shouldContinue) continue;
+            }
+
             // No match, try parsing the next term.
             continue;
         }
 
         // e.g. "john's..." or "sara smith's..."
-        // NOCOMMIT: Remove possessives
-        const accounts = parseAccountsIfPossible(state, options);
+        const accounts = parseAccountsByNameIfPossible(state, options);
         if (accounts) {
             // e.g. "john's documents" or "sara smith's messages"
             const entityTypes = parseSearchEntityTypesIfPossible(state);
@@ -650,6 +702,60 @@ function parseSearchNaturalLanguageFilters(
                     level: "CreatorOrMajorContributor",
                 });
                 continue;
+            }
+
+            const lastAccountNameTerm = assertExists(state.terms[state.termIndex - 1]);
+            if (lastAccountNameTerm.chunk === "Noun") {
+                let shouldContinue = false;
+
+                // e.g. "john's ... documents"
+                //
+                // We allow this form to support queries like "john's train documents" or
+                // "sara's closed tasks" which sound very natural. The way this works is we
+                // allow any terms between the account name and entity type as long as
+                // they're all part of the same `Noun` chunk (as determined by `compromise`).
+                //
+                // [Chunks represents parts of a sentence][1] (e.g. noun phrase and
+                // verb phrase).
+                //
+                // [1]: https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/3-three/chunker/api/chunks.js#L1
+                //
+                // NOTE(calebmer): More often then we'd like it looks like compromise is
+                // treating "john's" as "john has" instead of the possessive form of "john".
+                // For example in "john's closed tasks". The code that disambiguates `'s` may
+                // need to be updated.
+                //
+                // Disambiguating code:
+                // https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/2-two/contraction-two/compute/isPossessive.js#L45-L56
+                //
+                // Issue asking for guidance:
+                // https://github.com/spencermountain/compromise/issues/1074
+                while (state.term && state.term.chunk === "Noun") {
+                    const firstEntityTypesTerm = state.term;
+
+                    const entityTypes = parseSearchEntityTypesIfPossible(state);
+                    if (entityTypes) {
+                        // e.g. "john's documents about..."
+                        if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
+
+                        const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
+
+                        addSpecificControlPhrase(startTerm, lastAccountNameTerm);
+                        addSpecificControlPhrase(firstEntityTypesTerm, lastEntityTypesTerm);
+
+                        filters.push({
+                            accountIds: accounts.map(account => account.id),
+                            entityTypes,
+                            level: "CreatorOrMajorContributor",
+                        });
+                        shouldContinue = true;
+                        break;
+                    }
+
+                    state.advanceTerm();
+                }
+
+                if (shouldContinue) continue;
             }
 
             // No match, try parsing the next term.
@@ -759,7 +865,7 @@ export const accountNameFuseScoreMatchCutoff = 0.3;
  * state. First we see if there's a full name match (2-3 words). If there's no
  * match then we see if there's a short name match.
  */
-function parseAccountsIfPossible(
+function parseAccountsByNameIfPossible(
     state: SearchNaturalLanguageParserState,
     {
         accountNameIndex,

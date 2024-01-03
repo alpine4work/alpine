@@ -1662,6 +1662,18 @@ test("parses account name then entity type", () => {
         ],
     });
 
+    expect(parseEnglishNaturalLanguageSearchQuery("john", options)).toEqual({
+        queryText: "john",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john smith", options)).toEqual({
+        queryText: "john smith",
+        controlQueryText: "",
+        filters: [],
+    });
+
     expect(parseEnglishNaturalLanguageSearchQuery("jahn documents", options)).toEqual({
         queryText: "",
         controlQueryText: "jahn documents",
@@ -1706,6 +1718,321 @@ test("parses account name then entity type", () => {
 
     expect(parseEnglishNaturalLanguageSearchQuery("jaahns documents", options)).toEqual({
         queryText: "jaahns documents",
+        controlQueryText: "",
+        filters: [],
+    });
+});
+
+test("parses account name with some text between then entity type", () => {
+    expect(parseEnglishNaturalLanguageSearchQuery("my train documents", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "my documents",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john's train documents", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "john's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john smith's train documents", options)).toEqual(
+        {
+            queryText: "train",
+            controlQueryText: "john smith's documents",
+            filters: [
+                {
+                    accountIds: [accounts[1]!.id],
+                    entityTypes: ["Document"],
+                    level: "CreatorOrMajorContributor",
+                },
+            ],
+        },
+    );
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("my neat documents about georgia", options),
+    ).toEqual({
+        queryText: "neat georgia",
+        controlQueryText: "my documents about",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    // `compromise` is interpreting this as "john has neat documents about georgia"
+    // instead of interpreting "john's" as possessive. Find a way to tune
+    // `compromise` to consider this possessive instead.
+    //
+    // This is the code which disambiguates `'s` and needs to be updated:
+    // https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/2-two/contraction-two/compute/isPossessive.js#L45-L56
+    //
+    // Issue asking for guidance:
+    // https://github.com/spencermountain/compromise/issues/1074
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("john's neat documents about georgia", options),
+    ).toEqual({
+        queryText: "john's neat documents about georgia",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "john smith's neat documents about georgia",
+            options,
+        ),
+    ).toEqual({
+        queryText: "john smith's neat documents about georgia",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("my train documents about georgia", options),
+    ).toEqual({
+        queryText: "my train documents about georgia",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("john's train documents about georgia", options),
+    ).toEqual({
+        queryText: "john's train documents about georgia",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "john smith's train documents about georgia",
+            options,
+        ),
+    ).toEqual({
+        queryText: "john smith's train documents about georgia",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("my closed tasks", options)).toEqual({
+        queryText: "closed",
+        controlQueryText: "my tasks",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Task"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john's closed tasks", options)).toEqual({
+        queryText: "closed",
+        controlQueryText: "john's tasks",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Task"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john smith's closed tasks", options)).toEqual({
+        queryText: "closed",
+        controlQueryText: "john smith's tasks",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Task"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("my green documents", options)).toEqual({
+        queryText: "green",
+        controlQueryText: "my documents",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john's green documents", options)).toEqual({
+        queryText: "green",
+        controlQueryText: "john's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john smith's green documents", options)).toEqual(
+        {
+            queryText: "green",
+            controlQueryText: "john smith's documents",
+            filters: [
+                {
+                    accountIds: [accounts[1]!.id],
+                    entityTypes: ["Document"],
+                    level: "CreatorOrMajorContributor",
+                },
+            ],
+        },
+    );
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john's smith documents", options)).toEqual({
+        queryText: "smith",
+        controlQueryText: "john's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("my the cat in the hat documents", options),
+    ).toEqual({
+        queryText: "the cat in the hat",
+        controlQueryText: "my documents",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("john's the cat in the hat documents", options),
+    ).toEqual({
+        queryText: "the cat in the hat",
+        controlQueryText: "john's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "john smith's the cat in the hat documents",
+            options,
+        ),
+    ).toEqual({
+        queryText: "the cat in the hat",
+        controlQueryText: "john smith's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("my (the cat in the hat) documents", options),
+    ).toEqual({
+        queryText: "(the cat in the hat)",
+        controlQueryText: "my documents",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("john's (the cat in the hat) documents", options),
+    ).toEqual({
+        queryText: "(the cat in the hat)",
+        controlQueryText: "john's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "john smith's (the cat in the hat) documents",
+            options,
+        ),
+    ).toEqual({
+        queryText: "(the cat in the hat)",
+        controlQueryText: "john smith's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("my, the cat in the hat, chat messages", options),
+    ).toEqual({
+        queryText: "my, the cat in the hat, chat messages",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "john's, the cat in the hat, chat messages",
+            options,
+        ),
+    ).toEqual({
+        queryText: "john's, the cat in the hat, chat messages",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "john smith's, the cat in the hat, chat messages",
+            options,
+        ),
+    ).toEqual({
+        queryText: "john smith's, the cat in the hat, chat messages",
         controlQueryText: "",
         filters: [],
     });
