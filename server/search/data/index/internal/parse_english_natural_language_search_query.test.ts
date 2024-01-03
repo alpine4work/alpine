@@ -254,7 +254,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -266,7 +266,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -279,7 +279,7 @@ test("parses search entity type then account name", () => {
                 {
                     accountIds: [accounts[0]!.id],
                     entityTypes: ["Document"],
-                    level: "MajorContributor",
+                    level: "CreatorOrMajorContributor",
                 },
             ],
         },
@@ -292,7 +292,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -304,7 +304,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -318,7 +318,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -330,7 +330,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -342,7 +342,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -356,7 +356,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -368,7 +368,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[2]!.id, accounts[4]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -380,7 +380,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[2]!.id, accounts[4]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -392,7 +392,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[2]!.id, accounts[4]!.id],
                 entityTypes: ["PostComment"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -404,7 +404,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[2]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -416,7 +416,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[4]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -428,7 +428,7 @@ test("parses search entity type then account name", () => {
             {
                 accountIds: [accounts[2]!.id, accounts[4]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -500,7 +500,7 @@ test("parses search entity type then relationship then me", () => {
             {
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -520,7 +520,7 @@ test("parses search entity type then relationship then me", () => {
             {
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -534,7 +534,7 @@ test("parses search entity type then relationship then me", () => {
             {
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -714,7 +714,7 @@ test("parses search entity type then relationship then account name", () => {
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -734,7 +734,7 @@ test("parses search entity type then relationship then account name", () => {
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -748,7 +748,7 @@ test("parses search entity type then relationship then account name", () => {
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -898,7 +898,7 @@ test("parses search entity type then I then relationship", () => {
             {
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -916,7 +916,7 @@ test("parses search entity type then I then relationship", () => {
             {
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -930,7 +930,7 @@ test("parses search entity type then I then relationship", () => {
             {
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -1078,7 +1078,7 @@ test("parses search entity type then account first name then relationship", () =
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -1096,7 +1096,7 @@ test("parses search entity type then account first name then relationship", () =
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -1110,7 +1110,7 @@ test("parses search entity type then account first name then relationship", () =
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -1267,7 +1267,7 @@ test("parses search entity type then account full name then relationship", () =>
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -1287,7 +1287,7 @@ test("parses search entity type then account full name then relationship", () =>
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -1301,7 +1301,7 @@ test("parses search entity type then account full name then relationship", () =>
             {
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
-                level: "MajorContributor",
+                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -1406,5 +1406,307 @@ test("parses search entity type then account full name then relationship", () =>
                 level: "AnyContributor",
             },
         ],
+    });
+});
+
+test("parses account name then entity type", () => {
+    expect(parseEnglishNaturalLanguageSearchQuery("my documents", options)).toEqual({
+        queryText: "",
+        controlQueryText: "my documents",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("train my documents", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "my documents",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("my documents train", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "my documents",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("my documents about trains", options)).toEqual({
+        queryText: "trains",
+        controlQueryText: "my documents about",
+        filters: [
+            {
+                accountIds: [accounts[0]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john's documents", options)).toEqual({
+        queryText: "",
+        controlQueryText: "john's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("train john's documents", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "john's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john's documents train", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "john's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("john's documents about trains", options),
+    ).toEqual({
+        queryText: "trains",
+        controlQueryText: "john's documents about",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john smith's documents", options)).toEqual({
+        queryText: "",
+        controlQueryText: "john smith's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("train john smith's documents", options)).toEqual(
+        {
+            queryText: "train",
+            controlQueryText: "john smith's documents",
+            filters: [
+                {
+                    accountIds: [accounts[1]!.id],
+                    entityTypes: ["Document"],
+                    level: "CreatorOrMajorContributor",
+                },
+            ],
+        },
+    );
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john smith's documents train", options)).toEqual(
+        {
+            queryText: "train",
+            controlQueryText: "john smith's documents",
+            filters: [
+                {
+                    accountIds: [accounts[1]!.id],
+                    entityTypes: ["Document"],
+                    level: "CreatorOrMajorContributor",
+                },
+            ],
+        },
+    );
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("john smith's documents about trains", options),
+    ).toEqual({
+        queryText: "trains",
+        controlQueryText: "john smith's documents about",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("johns documents", options)).toEqual({
+        queryText: "",
+        controlQueryText: "johns documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("train johns documents", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "johns documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("johns documents train", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "johns documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("johns documents about trains", options)).toEqual(
+        {
+            queryText: "trains",
+            controlQueryText: "johns documents about",
+            filters: [
+                {
+                    accountIds: [accounts[1]!.id],
+                    entityTypes: ["Document"],
+                    level: "CreatorOrMajorContributor",
+                },
+            ],
+        },
+    );
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john smiths documents", options)).toEqual({
+        queryText: "",
+        controlQueryText: "john smiths documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("train john smiths documents", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "john smiths documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("john smiths documents train", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "john smiths documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("john smiths documents about trains", options),
+    ).toEqual({
+        queryText: "trains",
+        controlQueryText: "john smiths documents about",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("jahn documents", options)).toEqual({
+        queryText: "",
+        controlQueryText: "jahn documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("jahn's documents", options)).toEqual({
+        queryText: "",
+        controlQueryText: "jahn's documents",
+        filters: [
+            {
+                accountIds: [accounts[1]!.id],
+                entityTypes: ["Document"],
+                level: "CreatorOrMajorContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("jahns documents", options)).toEqual({
+        queryText: "jahns documents",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("jaahn documents", options)).toEqual({
+        queryText: "jaahn documents",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("jaahn's documents", options)).toEqual({
+        queryText: "jaahn's documents",
+        controlQueryText: "",
+        filters: [],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("jaahns documents", options)).toEqual({
+        queryText: "jaahns documents",
+        controlQueryText: "",
+        filters: [],
     });
 });

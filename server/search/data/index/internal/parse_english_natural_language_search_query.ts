@@ -125,6 +125,7 @@ const matchTermTexts = [
     "me",
     "about",
     "i",
+    "my",
 ] as const;
 
 const matchTerms = Object.fromEntries(
@@ -183,7 +184,7 @@ export type SearchNaturalLanguageFilter = SearchNaturalLanguageAccountFilter;
 export type SearchNaturalLanguageAccountFilter = {
     readonly accountIds: ReadonlyArray<AccountId>;
     readonly entityTypes: ReadonlyArray<SearchEntityIdObject["type"]>;
-    readonly level: "Creator" | "MajorContributor" | "AnyContributor";
+    readonly level: "Creator" | "CreatorOrMajorContributor" | "AnyContributor";
 };
 
 /**
@@ -363,7 +364,7 @@ function parseSearchNaturalLanguageFilters(
                     filters.push({
                         accountIds: [actorAccountId],
                         entityTypes,
-                        level: "MajorContributor",
+                        level: "CreatorOrMajorContributor",
                     });
                     continue;
                 }
@@ -379,7 +380,7 @@ function parseSearchNaturalLanguageFilters(
                     filters.push({
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
-                        level: "MajorContributor",
+                        level: "CreatorOrMajorContributor",
                     });
                     continue;
                 }
@@ -447,7 +448,7 @@ function parseSearchNaturalLanguageFilters(
                     filters.push({
                         accountIds: [actorAccountId],
                         entityTypes,
-                        level: "MajorContributor",
+                        level: "CreatorOrMajorContributor",
                     });
                     continue;
                 }
@@ -463,7 +464,7 @@ function parseSearchNaturalLanguageFilters(
                     filters.push({
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
-                        level: "MajorContributor",
+                        level: "CreatorOrMajorContributor",
                     });
                     continue;
                 }
@@ -509,7 +510,7 @@ function parseSearchNaturalLanguageFilters(
                 filters.push({
                     accountIds: [actorAccountId],
                     entityTypes,
-                    level: "MajorContributor",
+                    level: "CreatorOrMajorContributor",
                 });
                 continue;
             }
@@ -574,7 +575,7 @@ function parseSearchNaturalLanguageFilters(
                     filters.push({
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
-                        level: "MajorContributor",
+                        level: "CreatorOrMajorContributor",
                     });
                     continue;
                 }
@@ -600,6 +601,54 @@ function parseSearchNaturalLanguageFilters(
                 }
 
                 // No match, try parsing the next term.
+                continue;
+            }
+
+            // No match, try parsing the next term.
+            continue;
+        }
+
+        // e.g. "my..."
+        if (matchTerms.my.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+
+            // e.g. "my documents" or "my messages"
+            const entityTypes = parseSearchEntityTypesIfPossible(state);
+            if (entityTypes) {
+                // e.g. "my messages about..."
+                if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
+
+                addControlPhrase();
+
+                filters.push({
+                    accountIds: [actorAccountId],
+                    entityTypes,
+                    level: "CreatorOrMajorContributor",
+                });
+                continue;
+            }
+
+            // No match, try parsing the next term.
+            continue;
+        }
+
+        // e.g. "john's..." or "sara smith's..."
+        // NOCOMMIT: Remove possessives
+        const accounts = parseAccountsIfPossible(state, options);
+        if (accounts) {
+            // e.g. "john's documents" or "sara smith's messages"
+            const entityTypes = parseSearchEntityTypesIfPossible(state);
+            if (entityTypes) {
+                // e.g. "john's documents about..."
+                if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
+
+                addControlPhrase();
+
+                filters.push({
+                    accountIds: accounts.map(account => account.id),
+                    entityTypes,
+                    level: "CreatorOrMajorContributor",
+                });
                 continue;
             }
 
@@ -723,15 +772,15 @@ function parseAccountsIfPossible(
 ): ReadonlyArray<AccountModel> | null {
     if (!state.term?.tags?.has("Noun")) return null;
 
-    const name1 = state.term.text;
+    const name1 = stemEnglishPossessive(state.term.text);
 
     const name2 = state.terms[state.termIndex + 1]?.tags?.has("Noun")
-        ? `${name1} ${state.terms[state.termIndex + 1]!.text}`
+        ? stemEnglishPossessive(`${name1} ${state.terms[state.termIndex + 1]!.text}`)
         : null;
 
     const name3 =
         name2 !== null && state.terms[state.termIndex + 2]?.tags?.has("Noun")
-            ? `${name2} ${state.terms[state.termIndex + 2]!.text}`
+            ? stemEnglishPossessive(`${name2} ${state.terms[state.termIndex + 2]!.text}`)
             : null;
 
     // Try searching the most specific name first. So we search "Emily Lin"
@@ -789,4 +838,24 @@ function parseAccountsIfPossible(
     }
 
     return null;
+}
+
+/**
+ * Stems a possessive english string. Converts "John's" to "John". Adapted from
+ * a [Lucene token filter of the same name][1].
+ *
+ * [1]: https://github.com/apache/lucene/blob/5d6086e1994d766a3dd39a47b14a8cd80a7280e6/lucene/analysis/common/src/java/org/apache/lucene/analysis/en/EnglishPossessiveFilter.java#L32-L50
+ */
+function stemEnglishPossessive(text: string): string {
+    if (
+        text.length >= 2 &&
+        (text[text.length - 2] === "'" ||
+            text[text.length - 2] === "\u2019" ||
+            text[text.length - 2] === "\uFF07") &&
+        (text[text.length - 1] === "s" || text[text.length - 1] === "S")
+    ) {
+        text = text.slice(0, -2);
+    }
+
+    return text;
 }
