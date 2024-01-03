@@ -10,6 +10,7 @@ ts_project(
         "//:node_modules/aws4fetch",
         "//:node_modules/compromise",
         "//:node_modules/fs-extra",
+        "//:node_modules/fuse.js",
         "//admin/helpers",
         "//client/rpc",
         "//server/rpc",

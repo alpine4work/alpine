@@ -565,11 +565,24 @@ class SpaceAccountsCache {
             );
 
             const accountNameIndex = new Fuse<AccountModel>(accounts, {
-                getFn: account => account.initialData.name,
+                includeScore: true,
+                keys: [
+                    {
+                        name: "name",
+                        getFn: account => account.initialData.name,
+                    },
+                ],
             });
 
             const accountShortNameIndex = new Fuse<AccountModel>(accounts, {
-                getFn: account => getAccountShortNameWithoutFullNameTooltip(account.initialData),
+                includeScore: true,
+                keys: [
+                    {
+                        name: "name",
+                        getFn: account =>
+                            getAccountShortNameWithoutFullNameTooltip(account.initialData),
+                    },
+                ],
             });
 
             return {
