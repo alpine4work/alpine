@@ -1,0 +1,127 @@
+import nlp from "compromise";
+import {inspect} from "util";
+import {
+    possibleNamePattern,
+    possiblePossessiveNamePattern,
+} from "~/server/search/data/index/internal/parse_english_natural_language_search_query.js";
+
+test("name match considers all possible name forms", () => {
+    const pattern = possibleNamePattern;
+
+    expect(nlp("caleb").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb meredith").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb wesley meredith").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shruti").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shruti narkar").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily lin").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily jennifer lin").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily j lin").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit s").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit sathyanarayana").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahn").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahn mcdonough").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("xue").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("bhan").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("roro").has(`^${pattern}$`)).toEqual(true);
+
+    expect(nlp("caleb's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb meredith's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb wesley meredith's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shruti's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shruti narkar's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily lin's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily jennifer lin's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily j lin's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit s's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit sathyanarayana's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahn's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahn mcdonough's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("xue's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("bhan's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("roro's").has(`^${pattern}$`)).toEqual(true);
+
+    expect(nlp("calebs").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb merediths").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb wesley merediths").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shrutis").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shruti narkars").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emilys").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily lins").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily jennifer lins").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily j lins").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohits").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit s").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit sathyanarayanas").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahns").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahn mcdonoughs").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("xues").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("bhans").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("roros").has(`^${pattern}$`)).toEqual(true);
+});
+
+test("possessive name match considers all possible name forms", () => {
+    const pattern = possiblePossessiveNamePattern;
+
+    console.log(inspect(nlp.parseMatch(`^${pattern}$`), {depth: Infinity, colors: true}));
+    console.log(nlp("caleb's").has(`^${pattern}$`));
+    console.log(nlp("caleb's").match(`^${pattern}$`));
+    console.log(inspect(nlp("caleb's").json(), {depth: Infinity, colors: true}));
+
+    expect(nlp("caleb").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("caleb meredith").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("caleb wesley meredith").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("shruti").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("shruti narkar").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("emily").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("emily lin").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("emily jennifer lin").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("emily j lin").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("rohit").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("rohit s").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("rohit sathyanarayana").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("siobahn").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("siobahn mcdonough").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("xue").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("bhan").has(`^${pattern}$`)).toEqual(false);
+    expect(nlp("roro").has(`^${pattern}$`)).toEqual(false);
+
+    expect(nlp("caleb's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb meredith's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb wesley meredith's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shruti's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shruti narkar's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily lin's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily jennifer lin's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily j lin's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit s's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit sathyanarayana's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahn's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahn mcdonough's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("xue's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("bhan's").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("roro's").has(`^${pattern}$`)).toEqual(true);
+
+    expect(nlp("calebs").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb merediths").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("caleb wesley merediths").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shrutis").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("shruti narkars").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emilys").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily lins").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily jennifer lins").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("emily j lins").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohits").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit s").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("rohit sathyanarayanas").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahns").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("siobahn mcdonoughs").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("xues").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("bhans").has(`^${pattern}$`)).toEqual(true);
+    expect(nlp("roros").has(`^${pattern}$`)).toEqual(true);
+});
