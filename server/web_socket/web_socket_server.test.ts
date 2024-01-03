@@ -742,7 +742,7 @@ test("authorization error will close the connection", async () => {
     expect(authorizationFinishCount).toEqual(2);
 
     import.meta.jest.advanceTimersByTime(100);
-    await expect(ProcessContextModule.waitForTestTasks()).rejects.toThrow(authorizationError);
+    await ProcessContextModule.waitForTestTasks();
     await waitMacrotask();
 
     expect(authorizationStartCount).toEqual(2);

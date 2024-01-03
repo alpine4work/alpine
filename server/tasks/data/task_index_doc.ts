@@ -477,12 +477,16 @@ const TaskIndexSearchEntityJobSchema = Schema.object({
 export type TaskIndexDoc = MergeObjectIntersection<
     {
         readonly id: TaskId;
-    } & Omit<OpensearchIndexTypeType<typeof TaskIndexDocType>, "lastIndexSearchEntityJob"> & {
+    } & Omit<
+        OpensearchIndexTypeType<typeof TaskIndexDocType>,
+        "lastIndexSearchEntityJob" | "approximateActionCountByAccountId"
+    > & {
             // This type is used throughout `TaskRealtimeService` to represent a task. It
             // should not include bookkeeping properties from OpenSearch that won't be
             // updated in-memory.
             readonly version?: undefined;
             readonly lastIndexSearchEntityJob?: undefined;
+            readonly approximateActionCountByAccountId?: undefined;
         }
 >;
 
@@ -495,13 +499,16 @@ export type TaskIndexActualDoc = OpensearchIndexTypeType<typeof TaskIndexDocType
 /**
  * Both `TaskIndexDoc` and `TaskIndexActualDoc` are assignable to this type.
  */
-export type TaskIndexDocBase = Omit<TaskIndexActualDoc, "lastIndexSearchEntityJob">;
+export type TaskIndexDocBase = Omit<
+    TaskIndexActualDoc,
+    "lastIndexSearchEntityJob" | "approximateActionCountByAccountId"
+>;
 
 assertAssignableTypes<TaskIndexDoc, TaskIndexDocBase>();
 assertAssignableTypes<TaskIndexActualDoc, TaskIndexDocBase>();
 
-export type TaskApproximateActionCountByAccountId = ReturnType<
-    (typeof TaskApproximateActionCountByAccountId)["new"]
+export type TaskApproximateActionCountByAccountId = InstanceType<
+    typeof TaskApproximateActionCountByAccountId
 >;
 
 export const TaskApproximateActionCountByAccountId = createSchemaLazyTransformClass<
@@ -705,7 +712,7 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
                 serialize: value => value.serialize(),
                 deserialize: value => TaskApproximateActionCountByAccountId.fromSerialized(value),
             })
-            .default(TaskApproximateActionCountByAccountId.new(new Map())),
+            .default(new TaskApproximateActionCountByAccountId(new Map())),
     },
     computed: {
         fields: {

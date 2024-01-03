@@ -2199,8 +2199,15 @@ async function queryPostCommentChangeLogAssumingAuthorizedPost(
     // If our last change item has expired then other relevant changelog entries
     // may have also expired. The client will need to fully reset its state since
     // we don't have the data necessary to backfill.
-    if (isDatePossiblyLessThanWithUncertaintyWindow(lastCommentChangeExpirationTime, new Date()))
+    if (
+        isDatePossiblyLessThanWithUncertaintyWindow(
+            lastCommentChangeExpirationTime,
+            // Use `Date.now()` so tests can mock the `Date.now()` function.
+            new Date(Date.now()),
+        )
+    ) {
         return {type: "Unavailable"};
+    }
 
     const changes = await parallelMapAsyncIterableToArray(
         ForumTable.query(context, {

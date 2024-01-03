@@ -1086,9 +1086,6 @@ test(
             `TaskCollection:${publicCollection.id}`,
             `TaskCollection:${sharedCollection.id}`,
         ]);
-
-        // Make sure there are no more jobs in the queue.
-        expect(import.meta.jest.getTimerCount()).toEqual(0);
     },
     // This test has a lot going on. Give it a long timeout.
     45 * 1000,

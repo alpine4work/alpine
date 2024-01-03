@@ -9,6 +9,7 @@ ts_project(
         "//server:__subpackages__",
     ],
     deps = [
+        "//:node_modules/fuse.js",
         "//server/accounts",
         "//server/context",
         "//server/dynamo/core",

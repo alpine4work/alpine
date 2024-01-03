@@ -27,6 +27,7 @@ import {
 } from "~/shared/forum/post_content_schema.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
+import {AccountId} from "~/shared/id/types/id_types.js";
 import {
     MessageContentProsemirrorSchema,
     assertMessageContent,
@@ -1554,7 +1555,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
     });
 
     test("an account mentioned in the post's content is subscribed to notifications", async () => {
@@ -1582,7 +1583,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id]));
     });
 
     test("an unknown account in the post's content is not subscribed to notifications", async () => {
@@ -1591,6 +1592,8 @@ describe("Notification subscribers", () => {
             name: "Test",
         });
 
+        const missingAccountId = generateId<AccountId>();
+
         const post = await createPost(context.action(session1), {
             channelId: channel.id,
             content: assertPostContent(
@@ -1598,7 +1601,7 @@ describe("Notification subscribers", () => {
                     PostContentProsemirrorSchema.node("paragraph", {}, [
                         PostContentProsemirrorSchema.text("Hello, "),
                         PostContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: generateId()},
+                            mention: {accountId: missingAccountId},
                         }),
                         PostContentProsemirrorSchema.text("!"),
                     ]),
@@ -1610,7 +1613,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account]);
+        ).toEqual(new Set([session1.account.id, missingAccountId]));
     });
 
     test("a mentioned account from another space in the post's content is not subscribed to notifications", async () => {
@@ -1638,7 +1641,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id, otherSession.accountId]));
     });
 
     test("an account mentioned in the post's content is subscribed to notifications even if it is removed from the post's content", async () => {
@@ -1666,7 +1669,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id]));
 
         await updatePostContent(context.action(session1), {
             postId: post.id,
@@ -1683,7 +1686,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id]));
     });
 
     test("an account mentioned in the post's content after an update is subscribed to notifications", async () => {
@@ -1707,7 +1710,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
 
         await updatePostContent(context.action(session1), {
             postId: post.id,
@@ -1728,7 +1731,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id]));
     });
 
     test("an account that comments on a post is subscribed to notifications", async () => {
@@ -1746,7 +1749,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -1758,7 +1761,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id]));
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -1770,7 +1773,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id]));
 
         await createPostComment(context.action(session2), {
             postId: post.id,
@@ -1782,7 +1785,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id, session2.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, session2.account.id]));
     });
 
     test("an account that comments on a post is subscribed to notifications even if the comment is deleted", async () => {
@@ -1800,7 +1803,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -1812,7 +1815,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id]));
 
         await deletePostComment(context.action(session3), {
             postId: post.id,
@@ -1823,7 +1826,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id]));
     });
 
     test("an account that is mentioned in a post comment is subscribed to notifications", async () => {
@@ -1841,7 +1844,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -1863,7 +1866,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id, session4.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
     });
 
     test("an unknown account that is mentioned in a post comment is not subscribed to notifications", async () => {
@@ -1881,7 +1884,9 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
+
+        const missingAccountId = generateId<AccountId>();
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -1891,7 +1896,7 @@ describe("Notification subscribers", () => {
                     MessageContentProsemirrorSchema.node("paragraph", {}, [
                         MessageContentProsemirrorSchema.text("Hello, "),
                         MessageContentProsemirrorSchema.node("mention", {
-                            mention: {accountId: generateId()},
+                            mention: {accountId: missingAccountId},
                         }),
                         MessageContentProsemirrorSchema.text("!"),
                     ]),
@@ -1903,7 +1908,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, missingAccountId]));
     });
 
     test("a mentioned account from another space in a post comment is not subscribed to notifications", async () => {
@@ -1921,7 +1926,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -1943,7 +1948,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, otherSession.accountId]));
     });
 
     test("an account that is mentioned in a post comment is subscribed to notifications even if the message is updated to remove the mention", async () => {
@@ -1961,7 +1966,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -1983,7 +1988,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id, session4.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
 
         await updatePostCommentContent(context.action(session3), {
             postId: post.id,
@@ -2001,7 +2006,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id, session4.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
     });
 
     test("an account that is mentioned in a post comment is subscribed to notifications even if the message is deleted", async () => {
@@ -2019,7 +2024,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -2041,7 +2046,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id, session4.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
 
         await deletePostComment(context.action(session3), {
             postId: post.id,
@@ -2052,7 +2057,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id, session4.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
     });
 
     test("an account that is mentioned in a post comment after it is updated is subscribed to notifications", async () => {
@@ -2070,7 +2075,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id]);
+        ).toEqual(new Set([session1.account.id]));
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -2088,7 +2093,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id]));
 
         await updatePostCommentContent(context.action(session3), {
             postId: post.id,
@@ -2110,7 +2115,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id, session4.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, session4.account.id]));
     });
 
     test("notification subscribers are not duplicated and can be added from many different sources", async () => {
@@ -2138,7 +2143,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session2.account.id]);
+        ).toEqual(new Set([session1.account.id, session2.account.id]));
 
         await createPostComment(context.action(session1), {
             postId: post.id,
@@ -2156,7 +2161,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session2.account.id]);
+        ).toEqual(new Set([session1.account.id, session2.account.id]));
 
         await createPostComment(context.action(session3), {
             postId: post.id,
@@ -2178,7 +2183,7 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([session1.account.id, session3.account.id, session2.account.id]);
+        ).toEqual(new Set([session1.account.id, session3.account.id, session2.account.id]));
 
         const comment = await createPostComment(context.action(session2), {
             postId: post.id,
@@ -2200,12 +2205,14 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([
-            session1.account.id,
-            session3.account.id,
-            session2.account.id,
-            session4.account.id,
-        ]);
+        ).toEqual(
+            new Set([
+                session1.account.id,
+                session3.account.id,
+                session2.account.id,
+                session4.account.id,
+            ]),
+        );
 
         await updatePostCommentContent(context.action(session2), {
             postId: post.id,
@@ -2227,12 +2234,14 @@ describe("Notification subscribers", () => {
             await getPostNotificationSubscribers(context.systemAction(space.id), post.id).then(
                 ({accountIds}) => accountIds,
             ),
-        ).toEqual([
-            session1.account.id,
-            session3.account.id,
-            session2.account.id,
-            session4.account.id,
-            session5.account.id,
-        ]);
+        ).toEqual(
+            new Set([
+                session1.account.id,
+                session3.account.id,
+                session2.account.id,
+                session4.account.id,
+                session5.account.id,
+            ]),
+        );
     });
 });

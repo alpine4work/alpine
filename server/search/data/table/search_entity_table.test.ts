@@ -274,568 +274,591 @@ test("can't read affinitive items for the wrong space", async () => {
     );
 });
 
-test("can read affinitive items when there's a lot of stale points", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-
-    const {getCount} = getAffinitiveSearchEntityIdsEarlyReturnTestCounter.recordForTest(
-        session.account.id,
-    );
-
-    const documentCount = Math.floor(accountAffinitiveSearchEntitiesQueryPageLimit * 4.5);
-
-    const documents = await runAllPromises(
-        createArrayWithLength(documentCount, index =>
-            TestDocument.create(session, {title: `Document ${index + 1}`}),
-        ),
-    );
-
-    await ProcessContextModule.waitForTestTasks();
-
-    const currentTime = Date.now();
-
-    await runAllPromises(
-        documents.map(async (document, documentIndex) => {
-            const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
-
-            const lastUpdatedMonthsAgo = randomFloat(0, 1 / 2);
-            const actualPoints = expectedPoints * Math.exp(lastUpdatedMonthsAgo);
-            const lastUpdatedTime =
-                currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
-
-            const actualDecayedPoints = getCurrentSearchEntityAccountAffinityPoints(currentTime, {
-                points: actualPoints,
-                lastUpdatedTime,
-            });
-
-            expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
-            expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
-
-            await SearchEntityTable.createOrReplaceItem(context, {
-                partitionType: "Account",
-                sortRangeType: "SearchEntityAffinity",
-                spaceId: space.id,
-                accountId: session.account.id,
-                entityId: `Document:${document.id}`,
-                points: actualPoints,
-                pointsBucket: getSearchEntityAffinityPointsBucket(actualPoints),
-                lastUpdatedTime,
-                lastViewedTime: null,
-                expirationTime: new Date(
-                    currentTime + getSearchEntityAccountAffinityExpirationDuration(actualPoints),
-                ),
-            });
-        }),
-    );
-
-    expect(getCount()).toEqual(0);
-
-    expect(
-        (await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 10})).map(
-            ({entityId}) => entityId,
-        ),
-    ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(1);
-
-    expect(
-        (await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 20})).map(
-            ({entityId}) => entityId,
-        ),
-    ).toEqual(documents.slice(0, 20).map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(2);
-
-    expect(
-        (await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 30})).map(
-            ({entityId}) => entityId,
-        ),
-    ).toEqual(documents.slice(0, 30).map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(3);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(4);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit + 10,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 10)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(5);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit + 20,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 20)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(6);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(7);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(8);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(9);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: documents.length,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(documents.map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(9);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: documents.length + 10,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(documents.map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(9);
-});
-
-test("can read affinitive items when there's some stale points", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-
-    const {getCount} = getAffinitiveSearchEntityIdsEarlyReturnTestCounter.recordForTest(
-        session.account.id,
-    );
-
-    const documentCount = Math.floor(accountAffinitiveSearchEntitiesQueryPageLimit * 4.5);
-
-    const documents = await runAllPromises(
-        createArrayWithLength(documentCount, index =>
-            TestDocument.create(session, {title: `Document ${index + 1}`}),
-        ),
-    );
-
-    await ProcessContextModule.waitForTestTasks();
-
-    const currentTime = Date.now();
-
-    await runAllPromises(
-        documents.map(async (document, documentIndex) => {
-            const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
-
-            const lastUpdatedMonthsAgo = randomFloat(0, 1 / 15);
-            const actualPoints = expectedPoints * Math.exp(lastUpdatedMonthsAgo);
-            const lastUpdatedTime =
-                currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
-
-            const actualDecayedPoints = getCurrentSearchEntityAccountAffinityPoints(currentTime, {
-                points: actualPoints,
-                lastUpdatedTime,
-            });
-
-            expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
-            expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
-
-            await SearchEntityTable.createOrReplaceItem(context, {
-                partitionType: "Account",
-                sortRangeType: "SearchEntityAffinity",
-                spaceId: space.id,
-                accountId: session.account.id,
-                entityId: `Document:${document.id}`,
-                points: actualPoints,
-                pointsBucket: getSearchEntityAffinityPointsBucket(actualPoints),
-                lastUpdatedTime,
-                lastViewedTime: null,
-                expirationTime: new Date(
-                    currentTime + getSearchEntityAccountAffinityExpirationDuration(actualPoints),
-                ),
-            });
-        }),
-    );
-
-    expect(getCount()).toEqual(0);
-
-    expect(
-        (await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 10})).map(
-            ({entityId}) => entityId,
-        ),
-    ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(1);
-
-    expect(
-        (await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 20})).map(
-            ({entityId}) => entityId,
-        ),
-    ).toEqual(documents.slice(0, 20).map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(2);
-
-    expect(
-        (await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 30})).map(
-            ({entityId}) => entityId,
-        ),
-    ).toEqual(documents.slice(0, 30).map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(3);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(4);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit + 10,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 10)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(5);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit + 20,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 20)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(6);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(7);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(8);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(9);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: documents.length,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(documents.map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(9);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: documents.length + 10,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(documents.map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(9);
-});
-
-test("can read affinitive items when there's no stale points", async () => {
-    const space = await TestSpace.create(context);
-    const session = await space.createSession();
-
-    const {getCount} = getAffinitiveSearchEntityIdsEarlyReturnTestCounter.recordForTest(
-        session.account.id,
-    );
-
-    const documentCount = Math.floor(accountAffinitiveSearchEntitiesQueryPageLimit * 4.5);
-
-    const documents = await runAllPromises(
-        createArrayWithLength(documentCount, index =>
-            TestDocument.create(session, {title: `Document ${index + 1}`}),
-        ),
-    );
-
-    await ProcessContextModule.waitForTestTasks();
-
-    const currentTime = Date.now();
-
-    await runAllPromises(
-        documents.map(async (document, documentIndex) => {
-            const points = lerp(19, 0.1, documentIndex / (documentCount - 1));
-
-            await SearchEntityTable.createOrReplaceItem(context, {
-                partitionType: "Account",
-                sortRangeType: "SearchEntityAffinity",
-                spaceId: space.id,
-                accountId: session.account.id,
-                entityId: `Document:${document.id}`,
-                points,
-                pointsBucket: getSearchEntityAffinityPointsBucket(points),
-                lastUpdatedTime: currentTime,
-                lastViewedTime: null,
-                expirationTime: new Date(
-                    currentTime + getSearchEntityAccountAffinityExpirationDuration(points),
-                ),
-            });
-        }),
-    );
-
-    expect(getCount()).toEqual(0);
-
-    expect(
-        (await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 10})).map(
-            ({entityId}) => entityId,
-        ),
-    ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(1);
-
-    expect(
-        (await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 20})).map(
-            ({entityId}) => entityId,
-        ),
-    ).toEqual(documents.slice(0, 20).map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(2);
-
-    expect(
-        (await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 30})).map(
-            ({entityId}) => entityId,
-        ),
-    ).toEqual(documents.slice(0, 30).map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(3);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(4);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit + 10,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 10)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(5);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit + 20,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 20)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(6);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(7);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(8);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(
-        documents
-            .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20)
-            .map(document => `Document:${document.id}`),
-    );
-
-    expect(getCount()).toEqual(9);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: documents.length,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(documents.map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(9);
-
-    expect(
-        (
-            await getAffinitiveSearchEntityIds(session.action(), {
-                spaceId: space.id,
-                limit: documents.length + 10,
-            })
-        ).map(({entityId}) => entityId),
-    ).toEqual(documents.map(document => `Document:${document.id}`));
-
-    expect(getCount()).toEqual(9);
-});
+test(
+    "can read affinitive items when there's a lot of stale points",
+    async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const {getCount} = getAffinitiveSearchEntityIdsEarlyReturnTestCounter.recordForTest(
+            session.account.id,
+        );
+
+        const documentCount = Math.floor(accountAffinitiveSearchEntitiesQueryPageLimit * 4.5);
+
+        const documents = await runAllPromises(
+            createArrayWithLength(documentCount, index =>
+                TestDocument.create(session, {title: `Document ${index + 1}`}),
+            ),
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const currentTime = Date.now();
+
+        await runAllPromises(
+            documents.map(async (document, documentIndex) => {
+                const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
+
+                const lastUpdatedMonthsAgo = randomFloat(0, 1 / 2);
+                const actualPoints = expectedPoints * Math.exp(lastUpdatedMonthsAgo);
+                const lastUpdatedTime =
+                    currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
+
+                const actualDecayedPoints = getCurrentSearchEntityAccountAffinityPoints(
+                    currentTime,
+                    {
+                        points: actualPoints,
+                        lastUpdatedTime,
+                    },
+                );
+
+                expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
+                expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
+
+                await SearchEntityTable.createOrReplaceItem(context, {
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId: space.id,
+                    accountId: session.account.id,
+                    entityId: `Document:${document.id}`,
+                    points: actualPoints,
+                    pointsBucket: getSearchEntityAffinityPointsBucket(actualPoints),
+                    lastUpdatedTime,
+                    lastViewedTime: null,
+                    expirationTime: new Date(
+                        currentTime +
+                            getSearchEntityAccountAffinityExpirationDuration(actualPoints),
+                    ),
+                });
+            }),
+        );
+
+        expect(getCount()).toEqual(0);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 10})
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(1);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 20})
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.slice(0, 20).map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(2);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 30})
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.slice(0, 30).map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(3);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(4);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 10,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 10)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(5);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 20,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 20)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(6);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(7);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(8);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(9);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: documents.length,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(9);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: documents.length + 10,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(9);
+    },
+    // 2min timeout for this test
+    1000 * 60 * 2,
+);
+
+test(
+    "can read affinitive items when there's some stale points",
+    async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const {getCount} = getAffinitiveSearchEntityIdsEarlyReturnTestCounter.recordForTest(
+            session.account.id,
+        );
+
+        const documentCount = Math.floor(accountAffinitiveSearchEntitiesQueryPageLimit * 4.5);
+
+        const documents = await runAllPromises(
+            createArrayWithLength(documentCount, index =>
+                TestDocument.create(session, {title: `Document ${index + 1}`}),
+            ),
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const currentTime = Date.now();
+
+        await runAllPromises(
+            documents.map(async (document, documentIndex) => {
+                const expectedPoints = lerp(19, 0.1, documentIndex / (documentCount - 1));
+
+                const lastUpdatedMonthsAgo = randomFloat(0, 1 / 15);
+                const actualPoints = expectedPoints * Math.exp(lastUpdatedMonthsAgo);
+                const lastUpdatedTime =
+                    currentTime - Math.round(lastUpdatedMonthsAgo * monthDurationMs);
+
+                const actualDecayedPoints = getCurrentSearchEntityAccountAffinityPoints(
+                    currentTime,
+                    {
+                        points: actualPoints,
+                        lastUpdatedTime,
+                    },
+                );
+
+                expect(actualDecayedPoints).toBeLessThanOrEqual(expectedPoints + 0.001);
+                expect(actualDecayedPoints).toBeGreaterThanOrEqual(expectedPoints - 0.001);
+
+                await SearchEntityTable.createOrReplaceItem(context, {
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId: space.id,
+                    accountId: session.account.id,
+                    entityId: `Document:${document.id}`,
+                    points: actualPoints,
+                    pointsBucket: getSearchEntityAffinityPointsBucket(actualPoints),
+                    lastUpdatedTime,
+                    lastViewedTime: null,
+                    expirationTime: new Date(
+                        currentTime +
+                            getSearchEntityAccountAffinityExpirationDuration(actualPoints),
+                    ),
+                });
+            }),
+        );
+
+        expect(getCount()).toEqual(0);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 10})
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(1);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 20})
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.slice(0, 20).map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(2);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 30})
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.slice(0, 30).map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(3);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(4);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 10,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 10)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(5);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 20,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 20)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(6);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(7);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(8);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(9);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: documents.length,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(9);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: documents.length + 10,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(9);
+    },
+    // 2min timeout for this test
+    1000 * 60 * 2,
+);
+
+test(
+    "can read affinitive items when there's no stale points",
+    async () => {
+        const space = await TestSpace.create(context);
+        const session = await space.createSession();
+
+        const {getCount} = getAffinitiveSearchEntityIdsEarlyReturnTestCounter.recordForTest(
+            session.account.id,
+        );
+
+        const documentCount = Math.floor(accountAffinitiveSearchEntitiesQueryPageLimit * 4.5);
+
+        const documents = await runAllPromises(
+            createArrayWithLength(documentCount, index =>
+                TestDocument.create(session, {title: `Document ${index + 1}`}),
+            ),
+        );
+
+        await ProcessContextModule.waitForTestTasks();
+
+        const currentTime = Date.now();
+
+        await runAllPromises(
+            documents.map(async (document, documentIndex) => {
+                const points = lerp(19, 0.1, documentIndex / (documentCount - 1));
+
+                await SearchEntityTable.createOrReplaceItem(context, {
+                    partitionType: "Account",
+                    sortRangeType: "SearchEntityAffinity",
+                    spaceId: space.id,
+                    accountId: session.account.id,
+                    entityId: `Document:${document.id}`,
+                    points,
+                    pointsBucket: getSearchEntityAffinityPointsBucket(points),
+                    lastUpdatedTime: currentTime,
+                    lastViewedTime: null,
+                    expirationTime: new Date(
+                        currentTime + getSearchEntityAccountAffinityExpirationDuration(points),
+                    ),
+                });
+            }),
+        );
+
+        expect(getCount()).toEqual(0);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 10})
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.slice(0, 10).map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(1);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 20})
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.slice(0, 20).map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(2);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {spaceId: space.id, limit: 30})
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.slice(0, 30).map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(3);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(4);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 10,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 10)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(5);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit + 20,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit + 20)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(6);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(7);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 10)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(8);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(
+            documents
+                .slice(0, accountAffinitiveSearchEntitiesQueryPageLimit * 2 + 20)
+                .map(document => `Document:${document.id}`),
+        );
+
+        expect(getCount()).toEqual(9);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: documents.length,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(9);
+
+        expect(
+            (
+                await getAffinitiveSearchEntityIds(session.action(), {
+                    spaceId: space.id,
+                    limit: documents.length + 10,
+                })
+            ).map(({entityId}) => entityId),
+        ).toEqual(documents.map(document => `Document:${document.id}`));
+
+        expect(getCount()).toEqual(9);
+    },
+    // 2min timeout for this test
+    1000 * 60 * 2,
+);

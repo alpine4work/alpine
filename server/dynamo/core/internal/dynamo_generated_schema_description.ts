@@ -2525,6 +2525,15 @@ export const dynamoGeneratedSchemaDescription: {
                                         },
                                         "optional": false
                                     },
+                                    "creatorId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
+                                    },
                                     "name": {
                                         "valueSchema": {
                                             "type": "String"
@@ -4669,6 +4678,15 @@ export const dynamoGeneratedSchemaDescription: {
                                                                                     },
                                                                                     "optional": false
                                                                                 },
+                                                                                "creatorId": {
+                                                                                    "valueSchema": {
+                                                                                        "type": "Nullable",
+                                                                                        "schema": {
+                                                                                            "type": "Id"
+                                                                                        }
+                                                                                    },
+                                                                                    "optional": true
+                                                                                },
                                                                                 "name": {
                                                                                     "valueSchema": {
                                                                                         "type": "String"
@@ -5143,6 +5161,15 @@ export const dynamoGeneratedSchemaDescription: {
                                             "type": "Uint64"
                                         },
                                         "optional": false
+                                    },
+                                    "creatorId": {
+                                        "valueSchema": {
+                                            "type": "Nullable",
+                                            "schema": {
+                                                "type": "Id"
+                                            }
+                                        },
+                                        "optional": true
                                     },
                                     "rawDeletedTime": {
                                         "valueSchema": {
@@ -5847,6 +5874,12 @@ export const dynamoGeneratedSchemaDescription: {
                                             }
                                         },
                                         "optional": false
+                                    },
+                                    "stepCountByAccountId": {
+                                        "valueSchema": {
+                                            "type": "Bytes"
+                                        },
+                                        "optional": true
                                     },
                                     "updateLockVersion": {
                                         "valueSchema": {

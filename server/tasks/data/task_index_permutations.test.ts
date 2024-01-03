@@ -47,6 +47,7 @@ testTaskActionPermutations({
                 context.systemAction(space.id),
                 space.id,
                 action.accountId,
+                {consistency: "Strong"},
             );
 
             if (account.initialData.nameVersion === action.accountNameVersion) {

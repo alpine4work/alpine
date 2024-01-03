@@ -42,6 +42,7 @@ import {WebSocketServer} from "~/server/web_socket/web_socket_server.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
 import {ForkActionContextModule} from "~/shared/context/fork_action_context_module.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {
     InternalError,
@@ -484,7 +485,12 @@ runService({
 });
 
 async function createActorContextModule(
-    context: Context<DynamoContextModules & {cache: CacheContextModule}>,
+    context: Context<
+        DynamoContextModules & {
+            process: ProcessContextModule;
+            cache: CacheContextModule;
+        }
+    >,
     request: Request,
     tokenAgent: TokenAgent,
     spaceId: SpaceId,

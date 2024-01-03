@@ -51,6 +51,7 @@ import {assembleTaskCollectionSearchResults} from "~/server/tasks/data/task_tabl
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {FailedPreconditionError, InternalError, NotFoundError} from "~/shared/error/error.js";
 import {retryWithExponentialBackoff} from "~/shared/helpers/async/retry_with_exponential_backoff.js";
@@ -184,6 +185,7 @@ export async function deployTaskIndexes(tracer: TracerBase, client: OpensearchCl
  */
 export async function getTaskIndexDocsIfExist(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -209,6 +211,7 @@ export async function getTaskIndexDocsIfExist(
  */
 export async function getTaskCollectionIndexDocsIfExist(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -562,7 +565,7 @@ class TaskActionTransactionIndexState {
                         newTask = {
                             ...newTask,
                             approximateActionCountByAccountId:
-                                TaskApproximateActionCountByAccountId.new(
+                                new TaskApproximateActionCountByAccountId(
                                     approximateActionCountByAccountId,
                                 ),
                         };
@@ -1078,7 +1081,7 @@ async function actuallyIndexTaskAction(
                         lastIndexSearchEntityJob: null,
                         // `putTaskIndexDoc()` is responsible for adding our action count to this map.
                         approximateActionCountByAccountId:
-                            TaskApproximateActionCountByAccountId.new(new Map()),
+                            new TaskApproximateActionCountByAccountId(new Map()),
                     },
                     {
                         incrementApproximateActionCountType:
@@ -1483,6 +1486,7 @@ export const queryTaskIndexTestCounter = new TestCounter<SpaceId>();
  */
 export async function queryTaskIndex(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;

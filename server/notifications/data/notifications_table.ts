@@ -1952,11 +1952,15 @@ const processNotificationCreatePostEvent = createNotificationEventProcessor<
                     loudNotificationCount: 0,
                     postIds,
                     postAuthorIds,
-                    latestPost: {
-                        authorId: event.authorId,
-                        createdTime: event.createdTime,
-                        contentSnippet: event.contentSnippet,
-                    },
+                    latestPost:
+                        !oldItem ||
+                        oldItem.latestPost.createdTime.getTime() < event.createdTime.getTime()
+                            ? {
+                                  authorId: event.authorId,
+                                  createdTime: event.createdTime,
+                                  contentSnippet: event.contentSnippet,
+                              }
+                            : oldItem.latestPost,
                 };
             },
             {initialInboxItemIfExists: inboxItem},

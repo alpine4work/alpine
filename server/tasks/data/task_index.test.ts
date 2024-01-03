@@ -129,6 +129,7 @@ test("can't update collection from a different space", async () => {
                 collectionId,
                 collectionAction: {
                     type: "Create",
+                    creatorId: null,
                     name: "Test",
                     accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                 },
@@ -1504,39 +1505,39 @@ test("updates approximate action counts", async () => {
 
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 1}]]),
     );
 
     await task3.addCollection(session2, collection);
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}]]),
     );
 
     await task3.updatePriority(session3, "High");
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 1, continuousActionCount: 0}],
@@ -1549,13 +1550,13 @@ test("updates approximate action counts", async () => {
     await task3.updatePriority(session3, "Low", {time: time2});
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1565,13 +1566,13 @@ test("updates approximate action counts", async () => {
     await task3.updatePriority(session1, "Low", {time: time2});
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1581,13 +1582,13 @@ test("updates approximate action counts", async () => {
     await task3.updatePriority(session3, "Medium", {time: time1});
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1597,13 +1598,13 @@ test("updates approximate action counts", async () => {
     await task3.updatePriority(session1, "Medium");
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session1.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1614,13 +1615,13 @@ test("updates approximate action counts", async () => {
     await task1.updateAssignee(session1, session3);
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session1.account.id, {discreteActionCount: 2, continuousActionCount: 0}]]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1631,16 +1632,16 @@ test("updates approximate action counts", async () => {
     await task1.updateTitle(session3, wordTaskTitleTestScenario.update0);
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session1.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
             [session3.account.id, {discreteActionCount: 0, continuousActionCount: 1}],
         ]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1651,16 +1652,16 @@ test("updates approximate action counts", async () => {
     await task1.updateTitle(session3, wordTaskTitleTestScenario.update1);
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session1.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
             [session3.account.id, {discreteActionCount: 0, continuousActionCount: 2}],
         ]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1671,16 +1672,16 @@ test("updates approximate action counts", async () => {
     await task1.updateTitle(session1, wordTaskTitleTestScenario.update2);
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 0, continuousActionCount: 2}],
         ]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1691,16 +1692,16 @@ test("updates approximate action counts", async () => {
     await task1.updateTitle(session1, wordTaskTitleTestScenario.update2);
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 0, continuousActionCount: 2}],
         ]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1711,16 +1712,16 @@ test("updates approximate action counts", async () => {
     await task1.updateTitle(session3, wordTaskTitleTestScenario.update3);
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 0, continuousActionCount: 3}],
         ]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1731,16 +1732,16 @@ test("updates approximate action counts", async () => {
     await updateSessionActorAccountName(TestTask.action(session2), "Foo Bar");
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 0, continuousActionCount: 3}],
         ]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],
@@ -1751,16 +1752,16 @@ test("updates approximate action counts", async () => {
     await task3.updateParentTask(session2, task2);
     await ProcessContextModule.waitForTestTasks();
 
-    expect((await task1.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task1.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session1.account.id, {discreteActionCount: 2, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 0, continuousActionCount: 3}],
         ]),
     );
-    expect((await task2.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task2.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([[session2.account.id, {discreteActionCount: 1, continuousActionCount: 0}]]),
     );
-    expect((await task3.getIndexDoc()).approximateActionCountByAccountId.get()).toEqual(
+    expect((await task3.getIndexDocWithVersion()).approximateActionCountByAccountId.get()).toEqual(
         new Map([
             [session2.account.id, {discreteActionCount: 3, continuousActionCount: 1}],
             [session3.account.id, {discreteActionCount: 2, continuousActionCount: 0}],

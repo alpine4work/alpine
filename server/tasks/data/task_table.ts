@@ -25,6 +25,7 @@ import {withSendTaskIndexSearchEntityJobIfNeeded} from "~/server/tasks/data/task
 import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
+import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {createCrdtRegister} from "~/shared/crdt/crdt_register.js";
 import {
@@ -214,7 +215,7 @@ const TaskStatusTypeRegister = createCrdtRegister(
 
 const TaskAssigneeAccountIdRegister = createCrdtRegister(Schema.id<AccountId>().nullable());
 
-export type TaskStepCountByAccountId = ReturnType<(typeof TaskStepCountByAccountId)["new"]>;
+export type TaskStepCountByAccountId = InstanceType<typeof TaskStepCountByAccountId>;
 
 export const TaskStepCountByAccountId = createSchemaLazyTransformClass<
     Uint8Array,
@@ -655,7 +656,7 @@ const TaskTable = DynamoTableSchema.new({
                          */
                         // NOCOMMIT: Use this for search or delete it
                         stepCountByAccountId: TaskStepCountByAccountId.schema.default(
-                            TaskStepCountByAccountId.new(new Map()),
+                            new TaskStepCountByAccountId(new Map()),
                         ),
                     }),
                 },
@@ -1726,7 +1727,7 @@ class TaskActionTransactionCommitState {
                     sortRangeType: "Notepad",
                     accountId: this._context.actor.getAccountId(),
                     spaceId: this._spaceId,
-                    pageIds: TaskNotepadPageIdCompressedSet.new(new Set()),
+                    pageIds: new TaskNotepadPageIdCompressedSet(new Set()),
                 };
 
                 return notepadPagesItem;
@@ -2637,7 +2638,7 @@ async function actuallyCommitTaskActionTransaction(
                     case "Create": {
                         if (collectionAction.creatorId !== state.getActorAccountId()) {
                             throw new PermissionDeniedError(
-                                "Can only create a task with yourself as the creator",
+                                "Can only create a collection with yourself as the creator",
                             );
                         }
 
@@ -2831,7 +2832,7 @@ async function actuallyCommitTaskActionTransaction(
 
                 state.updateActorNotepadItem({
                     ...notepadItem,
-                    pageIds: TaskNotepadPageIdCompressedSet.new(newPageIds),
+                    pageIds: new TaskNotepadPageIdCompressedSet(newPageIds),
                 });
                 break;
             }
@@ -3179,6 +3180,7 @@ export const backfillTaskActionTransactionHistoryTestCounter = new TestCounter<S
  */
 export async function backfillTaskActionTransactionHistory(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -3347,6 +3349,7 @@ async function getTaskCollectionItemForAuthorization(
  */
 async function evaluateTaskCollectionAccessPolicy(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -3379,6 +3382,7 @@ async function evaluateTaskCollectionAccessPolicy(
 
 async function isTaskCollectionItemAccessAuthorized(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -3406,6 +3410,7 @@ async function isTaskCollectionItemAccessAuthorized(
 
 async function isTaskCollectionItemAccessAuthorizedAllowingDeletedTasks(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -3504,6 +3509,7 @@ export async function authorizeTaskCollectionAccess(
 // applied. Since actions are CRDTs reapplying is safe.
 export function isTaskCollectionIndexDocAccessAuthorized(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -3522,6 +3528,7 @@ export function isTaskCollectionIndexDocAccessAuthorized(
 
 async function isTaskItemAccessAuthorized(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -3555,6 +3562,7 @@ async function isTaskItemAccessAuthorized(
 
 async function isTaskItemAccessAuthorizedAllowingDeletedTasks(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -3840,6 +3848,7 @@ function getTaskCollectionItemPermissionDeniedErrorDisplayMessage(
 // applied. Since actions are CRDTs reapplying is safe.
 export function isTaskIndexDocAccessAuthorized(
     context: Context<{
+        process: ProcessContextModule;
         tracer: TracerContextModule;
         cache: CacheContextModule;
         dynamo: DynamoContextModule;
@@ -4152,7 +4161,7 @@ export async function getTaskNotepadPageIds(
             },
         ]);
 
-        notepadPageIds = TaskNotepadPageIdCompressedSet.new(new Set([notepadPageId]));
+        notepadPageIds = new TaskNotepadPageIdCompressedSet(new Set([notepadPageId]));
     }
 
     return notepadPageIds;
@@ -4190,7 +4199,7 @@ export async function getTaskNotesContentWithoutReferences(
         version: notesItem?.version ?? 0,
         content: notesItem?.content ?? emptyTaskNotesContent,
         stepCountByNonCreatorAccountId:
-            notesItem?.stepCountByAccountId ?? TaskStepCountByAccountId.new(new Map()),
+            notesItem?.stepCountByAccountId ?? new TaskStepCountByAccountId(new Map()),
     };
 }
 
@@ -4294,7 +4303,7 @@ export function updateTaskNotesContent(
             ]);
 
             let newStepCountByAccountId =
-                notesItem?.stepCountByAccountId ?? TaskStepCountByAccountId.new(new Map());
+                notesItem?.stepCountByAccountId ?? new TaskStepCountByAccountId(new Map());
 
             // Keep track of how much each account contributed to the task's notes.
             if (context.actor.getAccountId() !== taskItem.creatorId) {
@@ -4308,7 +4317,7 @@ export function updateTaskNotesContent(
                     stepCount + steps.length,
                 );
 
-                newStepCountByAccountId = TaskStepCountByAccountId.new(
+                newStepCountByAccountId = new TaskStepCountByAccountId(
                     actualNewStepCountByAccountId,
                 );
             }

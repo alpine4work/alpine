@@ -52,7 +52,7 @@ beforeAll(async () => {
         await runAllPromises([
             runAllPromises([
                 TokenAgentPublicSide.new({
-                    serviceName: "EdgeService",
+                    serviceName: "AppService",
                     appServicePublicKey: appServiceKeyPair.publicKey,
                     edgeServiceFamilyPublicKey: edgeServiceFamilyKeyPair.publicKey,
                     taskRealtimeServicePublicKey: taskRealtimeServiceKeyPair.publicKey,
@@ -60,7 +60,7 @@ beforeAll(async () => {
                 }),
                 AppServiceTokenAgentPrivateSide.new({
                     serviceName: "AppService",
-                    servicePrivateKey: edgeServiceFamilyKeyPair.privateKey,
+                    servicePrivateKey: appServiceKeyPair.privateKey,
                 }),
             ]).then(([publicSide, privateSide]) => ({publicSide, privateSide})),
             runAllPromises([

@@ -373,6 +373,11 @@ runService({
         // [1]: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/sticky-sessions.html
         // [2]: https://stackoverflow.com/questions/51301126/nodejs-clustering-with-sticky-session
         // [3]: https://github.com/indutny/sticky-session
+        //
+        // TODO(calebmer): It would be nice if sticky sessions directed all traffic for
+        // a `SpaceId` to one or two `AppService` instances. Probably two `AppService`
+        // instances to avoid bugs where we're depending on in-memory state. That way
+        // we could really take advantage of space-level in-memory caches.
         server.listen(port, () => {
             // Log when ready in production to help when debugging container startup.
             if (process.env.NODE_ENV === "production") {

@@ -609,7 +609,11 @@ export class TaskRealtimeQuery {
             }
         }
 
-        for (const {lastIndexSearchEntityJob, ...loadedTask} of loadedTasks) {
+        for (const {
+            lastIndexSearchEntityJob,
+            approximateActionCountByAccountId,
+            ...loadedTask
+        } of loadedTasks) {
             const {isFresh, taskEntry} = this.store.ensureTaskEntry(loadedTask);
 
             // Fresh task entries aren't up-to-date in realtime. We need to run our action

@@ -11,7 +11,7 @@ import {
 
 export function getTaskQueryNormalizedSortCursorForIndexDoc(
     sorts: ReadonlyArray<TaskQueryNormalizedSort>,
-    task: Omit<TaskIndexDoc, "lastIndexSearchEntityJob">,
+    task: Omit<TaskIndexDoc, "lastIndexSearchEntityJob" | "approximateActionCountByAccountId">,
 ): TaskQuerySortCursor {
     const cursor: Array<TaskQuerySortCursorValue> = [];
 
@@ -26,7 +26,7 @@ export function getTaskQueryNormalizedSortCursorForIndexDoc(
 
 function getTaskQueryNormalizedSortCursorValueForIndexDoc(
     sort: TaskQueryNormalizedSort,
-    task: Omit<TaskIndexDoc, "lastIndexSearchEntityJob">,
+    task: Omit<TaskIndexDoc, "lastIndexSearchEntityJob" | "approximateActionCountByAccountId">,
 ): TaskQuerySortCursorValue {
     switch (sort.type) {
         case "DisplayStatus": {

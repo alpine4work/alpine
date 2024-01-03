@@ -161,7 +161,7 @@ const DocumentIndexSearchEntityJobSchema = Schema.object({
     }),
 });
 
-export type DocumentStepCountByAccountId = ReturnType<(typeof DocumentStepCountByAccountId)["new"]>;
+export type DocumentStepCountByAccountId = InstanceType<typeof DocumentStepCountByAccountId>;
 
 export const DocumentStepCountByAccountId = createSchemaLazyTransformClass<
     Uint8Array,
@@ -285,7 +285,7 @@ const DocumentsTable = DynamoTableSchema.new({
                          */
                         // NOCOMMIT: Use this for search or delete it
                         stepCountByAccountId: DocumentStepCountByAccountId.schema.default(
-                            DocumentStepCountByAccountId.new(new Map()),
+                            new DocumentStepCountByAccountId(new Map()),
                         ),
                     }),
                 },
@@ -643,7 +643,7 @@ export async function createDocument(
                     sendTime: createdTime,
                     updatedTraits,
                 },
-                stepCountByAccountId: DocumentStepCountByAccountId.new(new Map()),
+                stepCountByAccountId: new DocumentStepCountByAccountId(new Map()),
             }),
             DocumentsTable.transactionCreateOrReplaceItem({
                 partitionType: "Document",
@@ -2046,7 +2046,7 @@ export async function updateDocumentContent(
                     stepCount + steps.length,
                 );
 
-                newStepCountByAccountId = DocumentStepCountByAccountId.new(
+                newStepCountByAccountId = new DocumentStepCountByAccountId(
                     actualNewStepCountByAccountId,
                 );
             }

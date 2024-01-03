@@ -172,9 +172,9 @@ export class TestTask {
     }
 
     public async getIndexDoc(options?: {realtime?: boolean}): Promise<TaskIndexDoc> {
-        const {version, lastIndexSearchEntityJob, ...task} = await this.getIndexDocWithVersion(
-            options,
-        );
+        const {version, approximateActionCountByAccountId, lastIndexSearchEntityJob, ...task} =
+            await this.getIndexDocWithVersion(options);
+
         return task;
     }
 

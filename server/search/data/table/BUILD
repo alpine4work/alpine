@@ -7,6 +7,9 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/spaces/test_helpers",
     ],
+    tests = {
+        "search_entity_table_test": {"size": "medium"},
+    },
     visibility = [
         "//admin/dynamo:__pkg__",
         "//server:__subpackages__",

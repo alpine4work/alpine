@@ -1187,7 +1187,12 @@ export class TaskRealtimeStoreInternal {
                 if (!task) {
                     promiseResolver.resolve(null);
                 } else {
-                    const {version, lastIndexSearchEntityJob, ...freshTask} = task;
+                    const {
+                        version,
+                        lastIndexSearchEntityJob,
+                        approximateActionCountByAccountId,
+                        ...freshTask
+                    } = task;
 
                     freshTaskById.set(taskId, {
                         freshTask,

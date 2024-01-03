@@ -1283,13 +1283,19 @@ class WebSocketServerConnectionWrapper<
             );
         } else {
             context.process.waitUntil(
-                authorizationPromise.then(() => {
-                    this._dangerouslySendRawMessageEvenWhenSoftClosedWithoutAuthorization(
-                        context,
-                        messageType,
-                        message,
-                    );
-                }),
+                authorizationPromise.then(
+                    () => {
+                        this._dangerouslySendRawMessageEvenWhenSoftClosedWithoutAuthorization(
+                            context,
+                            messageType,
+                            message,
+                        );
+                    },
+                    error => {
+                        // Ignore authorization error. We send a `ClosingWithError` message when
+                        // authorization fails so rejecting our `waitUntil()` is redundant.
+                    },
+                ),
             );
         }
     }

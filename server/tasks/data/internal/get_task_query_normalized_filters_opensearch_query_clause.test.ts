@@ -1596,6 +1596,7 @@ test("can filter by one of collections", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -1609,6 +1610,7 @@ test("can filter by one of collections", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -1622,6 +1624,7 @@ test("can filter by one of collections", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -1635,6 +1638,7 @@ test("can filter by one of collections", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -1818,6 +1822,7 @@ test("can filter by all of collections", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -1831,6 +1836,7 @@ test("can filter by all of collections", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -1844,6 +1850,7 @@ test("can filter by all of collections", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -1857,6 +1864,7 @@ test("can filter by all of collections", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2040,6 +2048,7 @@ test("can filter by excludes all of collections", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2053,6 +2062,7 @@ test("can filter by excludes all of collections", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2066,6 +2076,7 @@ test("can filter by excludes all of collections", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2079,6 +2090,7 @@ test("can filter by excludes all of collections", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2274,6 +2286,7 @@ test("can filter by empty collections", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2287,6 +2300,7 @@ test("can filter by empty collections", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2300,6 +2314,7 @@ test("can filter by empty collections", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2313,6 +2328,7 @@ test("can filter by empty collections", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2433,6 +2449,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2446,6 +2463,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2459,6 +2477,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2472,6 +2491,7 @@ test("can filter against collections without providing collection ids", async ()
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2621,6 +2641,7 @@ test("can merge collection filters in various ways", async () => {
             collectionId: collection1Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2634,6 +2655,7 @@ test("can merge collection filters in various ways", async () => {
             collectionId: collection2Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2647,6 +2669,7 @@ test("can merge collection filters in various ways", async () => {
             collectionId: collection3Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -2660,6 +2683,7 @@ test("can merge collection filters in various ways", async () => {
             collectionId: collection4Id,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -6091,6 +6115,7 @@ test("can filter for a single assigner account", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -6308,6 +6333,7 @@ test("can filter for multiple assigner accounts", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -6492,6 +6518,7 @@ test("can negative filter for a single assigner account", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -6709,6 +6736,7 @@ test("can negative filter for multiple assigner accounts", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -6893,6 +6921,7 @@ test("can filter with empty assigner accounts", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),
@@ -7074,6 +7103,7 @@ test("can merge assigner filters", async () => {
             collectionId,
             collectionAction: {
                 type: "Create",
+                creatorId: session1.account.id,
                 name: "Test",
                 accessPolicy: {
                     accountGrantById: new Map([[session1.account.id, {level: "Manage"}]]),

@@ -3376,11 +3376,15 @@ test("can unarchive inbox entries", async () => {
         }).then(massageInboxEntriesQuery),
     ).toEqual([]);
 
+    await ProcessContextModule.waitForTestTasks();
+
     await sendChatMessage(context.action(scenario.session2), {
         chatId: chat1Id,
         parentMessageIndex: null,
         content: createSimpleMessageContent("message1"),
     });
+
+    await ProcessContextModule.waitForTestTasks();
 
     await sendChatMessage(context.action(scenario.session3), {
         chatId: chat1Id,
@@ -3388,17 +3392,23 @@ test("can unarchive inbox entries", async () => {
         content: createSimpleMessageContent("message2"),
     });
 
+    await ProcessContextModule.waitForTestTasks();
+
     const message3 = await sendChatMessage(context.action(scenario.session1), {
         chatId: chat1Id,
         parentMessageIndex: null,
         content: createSimpleMessageContent("message3"),
     });
 
+    await ProcessContextModule.waitForTestTasks();
+
     const message4 = await sendChatMessage(context.action(scenario.session1), {
         chatId: chat2Id,
         parentMessageIndex: null,
         content: scenario.mentionAccount2MessageContent,
     });
+
+    await ProcessContextModule.waitForTestTasks();
 
     const message5 = await sendChatMessage(context.action(scenario.session1), {
         chatId: chat3Id,

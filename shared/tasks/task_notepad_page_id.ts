@@ -49,9 +49,7 @@ export const TaskNotepadPageIdSchema = Schema.integer as Schema<any> as Schema<T
  * deserialize from the database then serialize to the client, we don't need to
  * re-encode the compressed set.
  */
-export type TaskNotepadPageIdCompressedSet = ReturnType<
-    (typeof TaskNotepadPageIdCompressedSet)["new"]
->;
+export type TaskNotepadPageIdCompressedSet = InstanceType<typeof TaskNotepadPageIdCompressedSet>;
 
 export const TaskNotepadPageIdCompressedSet = createSchemaLazyTransformClass<
     VtencBigUint64Set,

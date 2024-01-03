@@ -2339,6 +2339,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2376,6 +2377,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2421,6 +2423,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2468,6 +2471,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2515,6 +2519,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2568,6 +2573,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2607,6 +2613,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2652,6 +2659,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2702,6 +2710,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2777,6 +2786,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2863,6 +2873,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -2936,6 +2947,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -3030,6 +3042,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -3100,6 +3113,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -3138,6 +3152,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -3185,6 +3200,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -3223,6 +3239,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -3270,6 +3287,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },
@@ -3314,6 +3332,7 @@ const taskActionTestCases: Array<{
                         collectionId,
                         collectionAction: {
                             type: "Create",
+                            creatorId: null,
                             name: "Test",
                             accessPolicy: {accountGrantById: new Map(), defaultGrant: null},
                         },

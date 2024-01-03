@@ -1,6 +1,13 @@
+import {assert} from "~/shared/helpers/control/assert.js";
 import {Schema} from "~/shared/schema/schema.js";
 
 const uninitializedSymbol = Symbol("uninitialized");
+
+export interface SchemaLazyTransformBase<SerializedValue, DeserializedValue> {
+    get(): DeserializedValue;
+    serialize(): SerializedValue;
+    getAvailable(): SerializedValue | DeserializedValue;
+}
 
 /**
  * Creates a class that lazily serializes/deserializes data from a schema. We
@@ -20,9 +27,19 @@ export function createSchemaLazyTransformClass<SerializedValue, DeserializedValu
         serialize: (value: DeserializedValue) => SerializedValue;
         deserialize: (value: SerializedValue) => DeserializedValue;
     },
-) {
-    return class SchemaLazyTransform {
-        public static schema = schema.transform<SchemaLazyTransform>({
+): {
+    readonly schema: Schema<SchemaLazyTransformBase<SerializedValue, DeserializedValue>>;
+    new (value: DeserializedValue): SchemaLazyTransformBase<SerializedValue, DeserializedValue>;
+    fromSerialized(
+        value: SerializedValue,
+    ): SchemaLazyTransformBase<SerializedValue, DeserializedValue>;
+} {
+    return class SchemaLazyTransform
+        implements SchemaLazyTransformBase<SerializedValue, DeserializedValue>
+    {
+        public static readonly schema = schema.transform<
+            SchemaLazyTransformBase<SerializedValue, DeserializedValue>
+        >({
             serialize: value => value.serialize(),
             deserialize: value => SchemaLazyTransform.fromSerialized(value),
         });
@@ -30,20 +47,23 @@ export function createSchemaLazyTransformClass<SerializedValue, DeserializedValu
         private _serializedValue: SerializedValue | typeof uninitializedSymbol;
         private _deserializedValue: DeserializedValue | typeof uninitializedSymbol;
 
-        private constructor(
-            serializedValue: SerializedValue | typeof uninitializedSymbol,
+        constructor(
             deserializedValue: DeserializedValue | typeof uninitializedSymbol,
+            serializedValue: SerializedValue | typeof uninitializedSymbol = uninitializedSymbol,
         ) {
+            assert(
+                (deserializedValue === uninitializedSymbol ? 1 : 0) +
+                    (serializedValue === uninitializedSymbol ? 1 : 0) ===
+                    1,
+                "Only one of `deserializedValue` or `serializedValue` may be initialized",
+            );
+
             this._serializedValue = serializedValue;
             this._deserializedValue = deserializedValue;
         }
 
-        public static new(value: DeserializedValue): SchemaLazyTransform {
-            return new SchemaLazyTransform(uninitializedSymbol, value);
-        }
-
         public static fromSerialized(serializedValue: SerializedValue) {
-            return new SchemaLazyTransform(serializedValue, uninitializedSymbol);
+            return new SchemaLazyTransform(uninitializedSymbol, serializedValue);
         }
 
         public get(): DeserializedValue {

@@ -2192,8 +2192,15 @@ async function queryChatMessageChangeLogAssumingAuthorizedPost(
     // If our last change item may have expired then other relevant changelog entries
     // may have also expired. The client will need to fully reset its state since
     // we don't have the data necessary to backfill.
-    if (isDatePossiblyLessThanWithUncertaintyWindow(lastMessageChangeExpirationTime, new Date()))
+    if (
+        isDatePossiblyLessThanWithUncertaintyWindow(
+            lastMessageChangeExpirationTime,
+            // Use `Date.now()` so tests can mock the `Date.now()` function.
+            new Date(Date.now()),
+        )
+    ) {
         return {type: "Unavailable"};
+    }
 
     const changes = await parallelMapAsyncIterableToArray(
         ChatTable.query(context, {
