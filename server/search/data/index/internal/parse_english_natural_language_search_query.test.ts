@@ -265,6 +265,42 @@ test("parses search entity type then account name", () => {
         ],
     });
 
+    expect(parseEnglishNaturalLanguageSearchQuery("documents by", options)).toEqual({
+        queryTexts: ["by"],
+        controlQueryTexts: ["documents"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents about by", options)).toEqual({
+        queryTexts: ["by"],
+        controlQueryTexts: ["documents about"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents by about", options)).toEqual({
+        queryTexts: ["by about"],
+        controlQueryTexts: ["documents"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
+            },
+        ],
+    });
+
     expect(parseEnglishNaturalLanguageSearchQuery("train documents by me", options)).toEqual({
         queryTexts: ["train"],
         controlQueryTexts: ["documents by me"],
@@ -1992,8 +2028,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john's neat documents about georgia", options),
     ).toEqual({
-        queryTexts: ["john's neat", "about georgia"],
-        controlQueryTexts: ["documents"],
+        queryTexts: ["john's neat", "georgia"],
+        controlQueryTexts: ["documents about"],
         filters: [
             {
                 entity: {types: ["Document"]},
@@ -2009,8 +2045,8 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryTexts: ["john smith's neat", "about georgia"],
-        controlQueryTexts: ["documents"],
+        queryTexts: ["john smith's neat", "georgia"],
+        controlQueryTexts: ["documents about"],
         filters: [
             {
                 entity: {types: ["Document"]},
@@ -2023,8 +2059,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("my train documents about georgia", options),
     ).toEqual({
-        queryTexts: ["my train", "about georgia"],
-        controlQueryTexts: ["documents"],
+        queryTexts: ["my train", "georgia"],
+        controlQueryTexts: ["documents about"],
         filters: [
             {
                 entity: {types: ["Document"]},
@@ -2037,8 +2073,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john's train documents about georgia", options),
     ).toEqual({
-        queryTexts: ["john's train", "about georgia"],
-        controlQueryTexts: ["documents"],
+        queryTexts: ["john's train", "georgia"],
+        controlQueryTexts: ["documents about"],
         filters: [
             {
                 entity: {types: ["Document"]},
@@ -2054,8 +2090,8 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryTexts: ["john smith's train", "about georgia"],
-        controlQueryTexts: ["documents"],
+        queryTexts: ["john smith's train", "georgia"],
+        controlQueryTexts: ["documents about"],
         filters: [
             {
                 entity: {types: ["Document"]},
@@ -2942,6 +2978,537 @@ test("parses entity type then date field then date", () => {
             {
                 entity: {types: ["Post"]},
                 accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+});
+
+test("parses entity type then multiple modifiers", () => {
+    const filter = {
+        entity: {types: ["Document"]},
+        accounts: {field: "Creator", ids: [accounts[0]!.id]},
+        time: {
+            field: "Created",
+            range: {
+                inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+            },
+        },
+    };
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created by me and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created by me and created yesterday"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created by me that were created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created by me that were created yesterday"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created by me and were created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created by me and were created yesterday"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created by me created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created by me created yesterday"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created yesterday and created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created yesterday and created by me"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created yesterday that were created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created yesterday that were created by me"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created yesterday and were created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created yesterday and were created by me"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created yesterday created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created yesterday created by me"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents written by me and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents written by me and created yesterday"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents updated by me and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents updated by me and created yesterday"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents written yesterday and created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents written yesterday and created by me"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents updated yesterday and created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents updated yesterday and created by me"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+});
+
+test("parses entity type then multiple modifiers won't double parse modifiers", () => {
+    const filter = {
+        entity: {types: ["Document"]},
+        accounts: {field: "Creator", ids: [accounts[0]!.id]},
+        time: {
+            field: "Created",
+            range: {
+                inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+            },
+        },
+    };
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created by me and created yesterday and created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created by me"],
+        controlQueryTexts: ["documents created by me and created yesterday"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents written by me and created yesterday and created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created by me"],
+        controlQueryTexts: ["documents written by me and created yesterday"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents updated by me and created yesterday and created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created by me"],
+        controlQueryTexts: ["documents updated by me and created yesterday"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created yesterday and created by me and created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created by me"],
+        controlQueryTexts: ["documents created yesterday and created by me"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents written yesterday and created by me and created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created by me"],
+        controlQueryTexts: ["documents written yesterday and created by me"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents updated yesterday and created by me and created by me",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created by me"],
+        controlQueryTexts: ["documents updated yesterday and created by me"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created by me and created yesterday and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created yesterday"],
+        controlQueryTexts: ["documents created by me and created yesterday"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents written by me and created yesterday and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created yesterday"],
+        controlQueryTexts: ["documents written by me and created yesterday"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents updated by me and created yesterday and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created yesterday"],
+        controlQueryTexts: ["documents updated by me and created yesterday"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents created yesterday and created by me and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created yesterday"],
+        controlQueryTexts: ["documents created yesterday and created by me"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents written yesterday and created by me and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created yesterday"],
+        controlQueryTexts: ["documents written yesterday and created by me"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents updated yesterday and created by me and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and created yesterday"],
+        controlQueryTexts: ["documents updated yesterday and created by me"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents by john by me", options)).toEqual({
+        queryTexts: ["by me"],
+        controlQueryTexts: ["documents by john"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents by me by john", options)).toEqual({
+        queryTexts: ["by john"],
+        controlQueryTexts: ["documents by me"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents from two days ago and then from yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["and then from yesterday"],
+        controlQueryTexts: ["documents from two days ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("1969-12-17T00:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("1970-01-16T00:00:00.000Z"),
+                    },
+                },
+            },
+        ],
+    });
+});
+
+test("parses simpler entity type then multiple modifiers", () => {
+    const filter = {
+        entity: {types: ["Document"]},
+        accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+        time: {
+            field: "Created",
+            range: {
+                inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+            },
+        },
+    };
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents by me created yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents by me created yesterday"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents by me that were created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents by me that were created yesterday"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "documents from me that were created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents from me that were created yesterday"],
+        filters: [filter],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents from yesterday that I created", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents from yesterday that I created"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents I created from yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents I created from yesterday"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {

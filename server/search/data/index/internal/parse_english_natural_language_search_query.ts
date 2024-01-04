@@ -69,6 +69,21 @@ type View = ReturnType<(typeof nlp)["tokenize"]>;
 type Term = View["docs"][number][number];
 type Pointer = View["fullPointer"][number];
 
+function createView(doc: View, startTerm: Term, endTerm: Term): View {
+    assert(startTerm.index && endTerm.index);
+    assert(startTerm.index[0] === endTerm.index[0]);
+
+    const pointer: Pointer = [
+        startTerm.index[0],
+        startTerm.index[1],
+        endTerm.index[1]! + 1,
+        startTerm.id,
+        endTerm.id,
+    ];
+
+    return (doc as any).toView([pointer]);
+}
+
 /**
  * Helper for fuzzy matching individual terms. Lower cases and stems text
  * before comparing edit distance (levenshtein with transposition). Stems so
@@ -143,6 +158,9 @@ const matchTermTexts = [
     "last",
     "before",
     "after",
+    "and",
+    "that",
+    "were",
 ] as const;
 
 const matchTerms = Object.fromEntries(
@@ -166,11 +184,13 @@ const matchTerms = Object.fromEntries(
  * [2]: https://github.com/graphql/graphql-js/blob/2aedf25e157d1d1c8fdfeaa4c0d2f3d9d3457dba/src/language/parser.ts#L255-L330
  */
 class SearchNaturalLanguageParserState {
+    public readonly doc: View;
     public readonly terms: ReadonlyArray<Term>;
     public readonly term: Term | null;
     public readonly termIndex = 0;
 
-    constructor(terms: ReadonlyArray<Term>) {
+    constructor(doc: View, terms: ReadonlyArray<Term>) {
+        this.doc = doc;
         this.terms = terms;
         this.term = this.termIndex < this.terms.length ? this.terms[this.termIndex]! : null;
     }
@@ -304,9 +324,9 @@ function parseSearchNaturalLanguageFilters(
     filters: ReadonlyArray<SearchNaturalLanguageFilter>;
     controlPhrases: ReadonlyArray<View>;
 } {
-    const {timeZone, currentTime, actorAccountId} = options;
+    const {actorAccountId} = options;
 
-    const state = new SearchNaturalLanguageParserState(terms);
+    const state = new SearchNaturalLanguageParserState(doc, terms);
     const filters: Array<SearchNaturalLanguageFilter> = [];
     const controlPhrases: Array<View> = [];
 
@@ -328,141 +348,7 @@ function parseSearchNaturalLanguageFilters(
         };
 
         const addSpecificControlPhrase = (startTerm: Term, endTerm: Term) => {
-            controlPhrases.push(createView(startTerm, endTerm));
-        };
-
-        const createView = (startTerm: Term, endTerm: Term): View => {
-            assert(startTerm.index && endTerm.index);
-            assert(startTerm.index[0] === endTerm.index[0]);
-
-            const pointer: Pointer = [
-                startTerm.index[0],
-                startTerm.index[1],
-                endTerm.index[1]! + 1,
-                startTerm.id,
-                endTerm.id,
-            ];
-
-            return (doc as any).toView([pointer]);
-        };
-
-        const advanceDateTermsAttemptingToParseDate = (
-            filterBase: Omit<SearchNaturalLanguageFilter, "time">,
-            field: "Created" | "LastUpdated",
-        ): {isSuccess: boolean} => {
-            let direction: "Before" | "After" | null = null;
-
-            // e.g. "...before..."
-            if (matchTerms.before.isFuzzyMatch(state.term)) {
-                state.advanceTerm();
-                direction = "Before";
-            }
-            // e.g. "...after..."
-            else if (matchTerms.after.isFuzzyMatch(state.term)) {
-                state.advanceTerm();
-                direction = "After";
-            }
-
-            // NOCOMMIT: "recently"
-            // NOCOMMIT: "new"
-
-            if (!state.term?.tags?.has("Date")) return {isSuccess: false};
-
-            const dateStartTerm = state.term;
-
-            // Consume the terms the `compromise-date` plugin tags as `Date`...
-            while (state.term?.tags?.has("Date")) {
-                state.advanceTerm();
-            }
-
-            const dateEndTerm = assertExists(state.terms[state.termIndex - 1]);
-
-            const dateView = createView(dateStartTerm, dateEndTerm);
-
-            // Parse the date text so we can use it as a filter.
-            const parsedDate = (dateView as any)
-                .dates({timezone: timeZone, today: currentTime})
-                .get()[0] as {start: DateString; end: DateString; timezone: TimeZone} | undefined;
-
-            if (!parsedDate) return {isSuccess: false};
-
-            let startDate = new Date(parsedDate.start);
-            let endDate = new Date(parsedDate.end);
-            const durationMs = endDate.getTime() - startDate.getTime();
-
-            switch (direction) {
-                case null: {
-                    const midDate = new Date(startDate.getTime() + durationMs / 2);
-
-                    const dayMs = 1000 * 60 * 60 * 24;
-
-                    // When the user targets a specific point in time like "2 hours ago", "2 days
-                    // ago", or "2 months ago" it's unlikely they mean the exact time 2
-                    // hours/days/months ago. So add some slop duration to our time filter. The
-                    // slop duration gets larger the further in the past the time the user
-                    // specifies is based on the hypothesis that the user's memory gets fuzzier the
-                    // further in the past we're looking for an entity.
-                    const slopDurationMs =
-                        getSlopDurationDays((currentTime.getTime() - midDate.getTime()) / dayMs) *
-                        dayMs;
-
-                    if (slopDurationMs > durationMs) {
-                        startDate = new Date(
-                            startDate.getTime() - (slopDurationMs - durationMs) / 2,
-                        );
-                        endDate = new Date(endDate.getTime() + (slopDurationMs - durationMs) / 2);
-                    }
-
-                    addControlPhrase();
-
-                    filters.push({
-                        ...filterBase,
-                        time: {
-                            field,
-                            range: {
-                                inclusiveLowerBoundDate: startDate,
-                                inclusiveUpperBoundDate: endDate,
-                            },
-                        },
-                    });
-
-                    return {isSuccess: true};
-                }
-                case "After": {
-                    addControlPhrase();
-
-                    filters.push({
-                        ...filterBase,
-                        time: {
-                            field,
-                            range: {
-                                inclusiveLowerBoundDate: startDate,
-                                inclusiveUpperBoundDate: null,
-                            },
-                        },
-                    });
-
-                    return {isSuccess: true};
-                }
-                case "Before": {
-                    addControlPhrase();
-
-                    filters.push({
-                        ...filterBase,
-                        time: {
-                            field,
-                            range: {
-                                inclusiveLowerBoundDate: null,
-                                inclusiveUpperBoundDate: endDate,
-                            },
-                        },
-                    });
-
-                    return {isSuccess: true};
-                }
-                default:
-                    throw exhaustive(direction);
-            }
+            controlPhrases.push(createView(doc, startTerm, endTerm));
         };
 
         // e.g. "documents...", "messages...", or "tasks..."
@@ -470,449 +356,37 @@ function parseSearchNaturalLanguageFilters(
         if (entityTypes) {
             const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
 
-            // e.g. "documents created by..." or "messages sent by..."
-            if (
-                (matchTerms.created.isFuzzyMatch(state.term) ||
-                    matchTerms.sent.isFuzzyMatch(state.term) ||
-                    matchTerms.posted.isFuzzyMatch(state.term)) &&
-                matchTerms.by.isFuzzyMatch(state.terms[state.termIndex + 1])
-            ) {
-                state.advanceTerm();
-                state.advanceTerm();
-
-                // e.g. "documents created by me" or "messages sent by me"
-                if (matchTerms.me.isFuzzyMatch(state.term)) {
-                    state.advanceTerm();
-
-                    // e.g. "documents created by me about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {field: "Creator", ids: [actorAccountId]},
-                        time: null,
-                    });
-                    continue;
-                }
-
-                // e.g. "documents created by john" or "messages sent by sara smith"
-                const accounts = parseAccountsByNameIfPossible(state, options);
-                if (accounts) {
-                    // e.g. "documents created by john about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {field: "Creator", ids: accounts.map(account => account.id)},
-                        time: null,
-                    });
-                    continue;
-                }
-
-                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
-
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: null,
-                    time: null,
-                });
-                continue;
-            }
-
-            // e.g. "documents written by..." or "posts authored by..."
-            if (
-                (matchTerms.written.isFuzzyMatch(state.term) ||
-                    matchTerms.authored.isFuzzyMatch(state.term)) &&
-                matchTerms.by.isFuzzyMatch(state.terms[state.termIndex + 1])
-            ) {
-                state.advanceTerm();
-                state.advanceTerm();
-
-                // e.g. "documents written by me" or "posts authored by me"
-                if (matchTerms.me.isFuzzyMatch(state.term)) {
-                    state.advanceTerm();
-
-                    // e.g. "documents written by me about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
-                        time: null,
-                    });
-                    continue;
-                }
-
-                // e.g. "documents written by john" or "posts authored by sara smith"
-                const accounts = parseAccountsByNameIfPossible(state, options);
-                if (accounts) {
-                    // e.g. "documents written by john about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {
-                            field: "CreatorOrMajorContributor",
-                            ids: accounts.map(account => account.id),
+            const {filterStartTerm, filterEndTerm, filter} =
+                parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm: startTerm,
+                        filterEndTerm: lastEntityTypesTerm,
+                        filter: {
+                            entity: {types: entityTypes},
+                            accounts: null,
+                            time: null,
                         },
-                        time: null,
-                    });
-                    continue;
-                }
-
-                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
-
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: null,
-                    time: null,
-                });
-                continue;
-            }
-
-            // e.g. "documents updated by..." or "tasks updated by..."
-            if (
-                (matchTerms.updated.isFuzzyMatch(state.term) ||
-                    matchTerms.modified.isFuzzyMatch(state.term)) &&
-                matchTerms.by.isFuzzyMatch(state.terms[state.termIndex + 1])
-            ) {
-                state.advanceTerm();
-                state.advanceTerm();
-
-                // e.g. "documents updated by me" or "tasks updated by me"
-                if (matchTerms.me.isFuzzyMatch(state.term)) {
-                    state.advanceTerm();
-
-                    // e.g. "documents updated by me about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {field: "AnyContributor", ids: [actorAccountId]},
-                        time: null,
-                    });
-                    continue;
-                }
-
-                // e.g. "documents updated by john" or "tasks updated by sara smith"
-                const accounts = parseAccountsByNameIfPossible(state, options);
-                if (accounts) {
-                    // e.g. "documents updated by john about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {
-                            field: "AnyContributor",
-                            ids: accounts.map(account => account.id),
-                        },
-                        time: null,
-                    });
-                    continue;
-                }
-
-                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
-
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: null,
-                    time: null,
-                });
-                continue;
-            }
-
-            const isFromFuzzyMatch = matchTerms.from.isFuzzyMatch(state.term);
-
-            // e.g. "documents by..." or "messages from..."
-            if (matchTerms.by.isFuzzyMatch(state.term) || isFromFuzzyMatch) {
-                state.advanceTerm();
-
-                // e.g. "documents by me" or "messages from me"
-                if (matchTerms.me.isFuzzyMatch(state.term)) {
-                    state.advanceTerm();
-
-                    // e.g. "documents by me about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
-                        time: null,
-                    });
-                    continue;
-                }
-
-                // e.g. "documents by john" or "messages from sara smith"
-                const accounts = parseAccountsByNameIfPossible(state, options);
-                if (accounts) {
-                    // e.g. "documents by john about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {
-                            field: "CreatorOrMajorContributor",
-                            ids: accounts.map(account => account.id),
-                        },
-                        time: null,
-                    });
-                    continue;
-                }
-
-                // e.g. "messages from yesterday"
-                let isSuccess = false;
-                if (isFromFuzzyMatch) {
-                    ({isSuccess} = advanceDateTermsAttemptingToParseDate(
-                        {entity: {types: entityTypes}, accounts: null},
-                        "Created",
-                    ));
-                }
-
-                if (!isSuccess) {
-                    addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: null,
-                        time: null,
-                    });
-                }
-                continue;
-            }
-
-            // e.g. "documents I created" or "messages I sent"
-            if (
-                matchTerms.i.isFuzzyMatch(state.term) &&
-                (matchTerms.created.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
-                    matchTerms.sent.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
-                    matchTerms.posted.isFuzzyMatch(state.terms[state.termIndex + 1]))
-            ) {
-                state.advanceTerm();
-                state.advanceTerm();
-
-                // e.g. "documents I created about"
-                if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                addControlPhrase();
-
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: {field: "Creator", ids: [actorAccountId]},
-                    time: null,
-                });
-                continue;
-            }
-
-            // e.g. "documents I wrote" or "posts I authored"
-            if (
-                matchTerms.i.isFuzzyMatch(state.term) &&
-                (matchTerms.wrote.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
-                    matchTerms.authored.isFuzzyMatch(state.terms[state.termIndex + 1]))
-            ) {
-                state.advanceTerm();
-                state.advanceTerm();
-
-                // e.g. "documents I wrote about"
-                if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                addControlPhrase();
-
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
-                    time: null,
-                });
-                continue;
-            }
-
-            // e.g. "documents I updated" or "tasks I updated"
-            if (
-                matchTerms.i.isFuzzyMatch(state.term) &&
-                (matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
-                    matchTerms.modified.isFuzzyMatch(state.terms[state.termIndex + 1]))
-            ) {
-                state.advanceTerm();
-                state.advanceTerm();
-
-                // e.g. "documents I updated about"
-                if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                addControlPhrase();
-
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: {field: "AnyContributor", ids: [actorAccountId]},
-                    time: null,
-                });
-                continue;
-            }
-
-            const accounts = parseAccountsByNameIfPossible(state, options);
-            if (accounts) {
-                // e.g. "documents john created" or "messages sara smith sent"
-                if (
-                    matchTerms.created.isFuzzyMatch(state.term) ||
-                    matchTerms.sent.isFuzzyMatch(state.term) ||
-                    matchTerms.posted.isFuzzyMatch(state.term)
-                ) {
-                    state.advanceTerm();
-
-                    // e.g. "documents john created about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {field: "Creator", ids: accounts.map(account => account.id)},
-                        time: null,
-                    });
-                    continue;
-                }
-
-                // e.g. "documents john wrote" or "posts sara smith authored"
-                if (
-                    matchTerms.wrote.isFuzzyMatch(state.term) ||
-                    matchTerms.authored.isFuzzyMatch(state.term)
-                ) {
-                    state.advanceTerm();
-
-                    // e.g. "documents john wrote about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {
-                            field: "CreatorOrMajorContributor",
-                            ids: accounts.map(account => account.id),
-                        },
-                        time: null,
-                    });
-                    continue;
-                }
-
-                // e.g. "documents john updated" or "tasks sara smith updated"
-                if (
-                    matchTerms.updated.isFuzzyMatch(state.term) ||
-                    matchTerms.modified.isFuzzyMatch(state.term)
-                ) {
-                    state.advanceTerm();
-
-                    // e.g. "documents john updated about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                    addControlPhrase();
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {
-                            field: "AnyContributor",
-                            ids: accounts.map(account => account.id),
-                        },
-                        time: null,
-                    });
-                    continue;
-                }
-
-                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
-
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: null,
-                    time: null,
-                });
-                continue;
-            }
-
-            // e.g. "documents created..." or "messages sent..."
-            if (
-                matchTerms.created.isFuzzyMatch(state.term) ||
-                matchTerms.sent.isFuzzyMatch(state.term) ||
-                matchTerms.posted.isFuzzyMatch(state.term) ||
-                matchTerms.written.isFuzzyMatch(state.term) ||
-                matchTerms.authored.isFuzzyMatch(state.term)
-            ) {
-                state.advanceTerm();
-
-                const {isSuccess} = advanceDateTermsAttemptingToParseDate(
-                    {entity: {types: entityTypes}, accounts: null},
-                    "Created",
+                        allowAccounts: true,
+                        allowTime: true,
+                        isFirstModifier: true,
+                    },
+                    options,
                 );
 
-                if (!isSuccess) {
-                    addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+            let actualFilterEndTerm = filterEndTerm;
 
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: null,
-                        time: null,
-                    });
-                }
-                continue;
-            }
-
-            const isLastFuzzyMatch = matchTerms.last.isFuzzyMatch(state.term);
-
-            // e.g. "documents updated..." or "documents last updated..."
+            // e.g. "documents about" or "messages from sara last week about"
             if (
-                matchTerms.updated.isFuzzyMatch(state.term) ||
-                matchTerms.modified.isFuzzyMatch(state.term) ||
-                (isLastFuzzyMatch &&
-                    (matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
-                        matchTerms.modified.isFuzzyMatch(state.terms[state.termIndex + 1])))
+                filterEndTerm === state.terms[state.termIndex - 1] &&
+                matchTerms.about.isFuzzyMatch(state.term)
             ) {
-                if (isLastFuzzyMatch) state.advanceTerm();
-                state.advanceTerm();
-
-                const {isSuccess} = advanceDateTermsAttemptingToParseDate(
-                    {entity: {types: entityTypes}, accounts: null},
-                    "LastUpdated",
-                );
-
-                if (!isSuccess) {
-                    addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: null,
-                        time: null,
-                    });
-                }
-                continue;
+                actualFilterEndTerm = state.advanceTerm();
             }
 
-            // e.g. "documents" or "chat messages"
-            //
-            // Fallback if no other text follows the entity types. It's very possible the
-            // user is trying to do a keyword search like "2023 marketing campaign
-            // messages". Ideally, we'd have a weaker version of control phrases that still
-            // supports 2gram/3gram matching in case the user is trying to keyword search.
+            addSpecificControlPhrase(filterStartTerm, actualFilterEndTerm);
 
-            addControlPhrase();
-
-            filters.push({
-                entity: {types: entityTypes},
-                accounts: null,
-                time: null,
-            });
+            filters.push(filter);
             continue;
         }
 
@@ -1190,6 +664,712 @@ function parseAccountsByNameIfPossible(
     }
 
     return null;
+}
+
+/**
+ * Parse modifiers after parsing search entity nouns. For example
+ * "documents..." or "messages...". Recursive since we may have multiple
+ * modifiers. For example "documents created by me and updated last week".
+ */
+function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+    state: SearchNaturalLanguageParserState,
+    {
+        filterStartTerm,
+        filterEndTerm,
+        filter,
+        allowAccounts,
+        allowTime,
+        isFirstModifier,
+    }: {
+        filterStartTerm: Term;
+        filterEndTerm: Term;
+        filter: SearchNaturalLanguageFilter;
+        allowAccounts: boolean;
+        allowTime: boolean;
+        isFirstModifier: boolean;
+    },
+    options: {
+        timeZone: TimeZone;
+        currentTime: Date;
+        actorAccountId: AccountId;
+        accountNameIndex: {
+            searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
+            searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
+        };
+    },
+): {
+    filterStartTerm: Term;
+    filterEndTerm: Term;
+    filter: SearchNaturalLanguageFilter;
+} {
+    if (!allowAccounts && !allowTime) {
+        return {filterStartTerm, filterEndTerm, filter};
+    }
+
+    const {actorAccountId} = options;
+
+    // e.g. "documents created by me and updated last month"
+    if (!isFirstModifier && matchTerms.and.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+
+        // e.g. "documents created last year and were updated by me"
+        if (matchTerms.were.isFuzzyMatch(state.term)) state.advanceTerm();
+    }
+
+    // e.g. "documents created last year that I updated"
+    if (!isFirstModifier && matchTerms.that.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+
+        // e.g. "documents created last year that were updated by me"
+        if (matchTerms.were.isFuzzyMatch(state.term)) state.advanceTerm();
+    }
+
+    // e.g. "documents created..." or "messages sent..."
+    if (
+        matchTerms.created.isFuzzyMatch(state.term) ||
+        matchTerms.sent.isFuzzyMatch(state.term) ||
+        matchTerms.posted.isFuzzyMatch(state.term)
+    ) {
+        state.advanceTerm();
+
+        // e.g. "documents created by..." or "messages sent by..."
+        if (allowAccounts && matchTerms.by.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+
+            // e.g. "documents created by me" or "messages sent by me"
+            if (matchTerms.me.isFuzzyMatch(state.term)) {
+                const endTerm = state.advanceTerm();
+
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: endTerm,
+                        filter: {
+                            ...filter,
+                            accounts: {field: "Creator", ids: [actorAccountId]},
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+
+            // e.g. "documents created by john" or "messages sent by sara smith"
+            const accounts = parseAccountsByNameIfPossible(state, options);
+            if (accounts) {
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                        filter: {
+                            ...filter,
+                            accounts: {field: "Creator", ids: accounts.map(account => account.id)},
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+
+            return {filterStartTerm, filterEndTerm, filter};
+        }
+
+        // e.g. "documents created before last week" or "messages sent yesterday"
+        if (allowTime) {
+            return continueParseSearchNaturalLanguageFilterDateModifier(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm,
+                    filter,
+                    allowAccounts,
+                    field: "Created",
+                },
+                options,
+            );
+        }
+
+        return {filterStartTerm, filterEndTerm, filter};
+    }
+
+    // e.g. "documents written..." or "posts authored..."
+    if (
+        matchTerms.written.isFuzzyMatch(state.term) ||
+        matchTerms.authored.isFuzzyMatch(state.term)
+    ) {
+        state.advanceTerm();
+
+        // e.g. "documents written by..." or "posts authored by..."
+        if (allowAccounts && matchTerms.by.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+
+            // e.g. "documents written by me" or "posts authored by me"
+            if (matchTerms.me.isFuzzyMatch(state.term)) {
+                const endTerm = state.advanceTerm();
+
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: endTerm,
+                        filter: {
+                            ...filter,
+                            accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+
+            // e.g. "documents written by john" or "posts authored by sara smith"
+            const accounts = parseAccountsByNameIfPossible(state, options);
+            if (accounts) {
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                        filter: {
+                            ...filter,
+                            accounts: {
+                                field: "CreatorOrMajorContributor",
+                                ids: accounts.map(account => account.id),
+                            },
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+
+            return {filterStartTerm, filterEndTerm, filter};
+        }
+
+        // e.g. "documents written before last week" or "posts authored yesterday"
+        if (allowTime) {
+            return continueParseSearchNaturalLanguageFilterDateModifier(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm,
+                    filter,
+                    allowAccounts,
+                    field: "Created",
+                },
+                options,
+            );
+        }
+
+        return {filterStartTerm, filterEndTerm, filter};
+    }
+
+    const isLastFuzzyMatch = matchTerms.last.isFuzzyMatch(state.term);
+
+    // e.g. "documents updated..." or "tasks updated..."
+    if (
+        matchTerms.updated.isFuzzyMatch(state.term) ||
+        matchTerms.modified.isFuzzyMatch(state.term) ||
+        (isLastFuzzyMatch &&
+            (matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
+                matchTerms.modified.isFuzzyMatch(state.terms[state.termIndex + 1])))
+    ) {
+        if (isLastFuzzyMatch) state.advanceTerm();
+        state.advanceTerm();
+
+        // e.g. "documents updated by..." or "tasks updated by..."
+        if (allowAccounts && matchTerms.by.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+
+            // e.g. "documents updated by me" or "tasks updated by me"
+            if (matchTerms.me.isFuzzyMatch(state.term)) {
+                const endTerm = state.advanceTerm();
+
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: endTerm,
+                        filter: {
+                            ...filter,
+                            accounts: {field: "AnyContributor", ids: [actorAccountId]},
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+
+            // e.g. "documents updated by john" or "tasks updated by sara smith"
+            const accounts = parseAccountsByNameIfPossible(state, options);
+            if (accounts) {
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                        filter: {
+                            ...filter,
+                            accounts: {
+                                field: "AnyContributor",
+                                ids: accounts.map(account => account.id),
+                            },
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+
+            return {filterStartTerm, filterEndTerm, filter};
+        }
+
+        // e.g. "documents updated before last week" or "tasks updated yesterday"
+        if (allowTime) {
+            return continueParseSearchNaturalLanguageFilterDateModifier(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm,
+                    filter,
+                    allowAccounts,
+                    field: "LastUpdated",
+                },
+                options,
+            );
+        }
+
+        return {filterStartTerm, filterEndTerm, filter};
+    }
+
+    const isFromFuzzyMatch = matchTerms.from.isFuzzyMatch(state.term);
+
+    // e.g. "documents by..." or "messages from..."
+    if (matchTerms.by.isFuzzyMatch(state.term) || isFromFuzzyMatch) {
+        state.advanceTerm();
+
+        // e.g. "documents by me" or "messages by me"
+        if (allowAccounts && matchTerms.me.isFuzzyMatch(state.term)) {
+            state.advanceTerm();
+
+            return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                    filter: {
+                        ...filter,
+                        accounts: {
+                            field: "CreatorOrMajorContributor",
+                            ids: [actorAccountId],
+                        },
+                    },
+                    allowAccounts: false,
+                    allowTime,
+                    isFirstModifier: false,
+                },
+                options,
+            );
+        }
+
+        if (allowAccounts) {
+            // e.g. "documents by john" or "messages by sara smith"
+            const accounts = parseAccountsByNameIfPossible(state, options);
+            if (accounts) {
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                        filter: {
+                            ...filter,
+                            accounts: {
+                                field: "CreatorOrMajorContributor",
+                                ids: accounts.map(account => account.id),
+                            },
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+        }
+
+        if (allowTime && isFromFuzzyMatch) {
+            return continueParseSearchNaturalLanguageFilterDateModifier(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm,
+                    filter,
+                    allowAccounts,
+                    field: "Created",
+                },
+                options,
+            );
+        }
+
+        return {filterStartTerm, filterEndTerm, filter};
+    }
+
+    // e.g. "documents I created" or "messages I sent"
+    if (
+        allowAccounts &&
+        matchTerms.i.isFuzzyMatch(state.term) &&
+        (matchTerms.created.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
+            matchTerms.sent.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
+            matchTerms.posted.isFuzzyMatch(state.terms[state.termIndex + 1]))
+    ) {
+        state.advanceTerm();
+        state.advanceTerm();
+
+        return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+            state,
+            {
+                filterStartTerm,
+                filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                filter: {
+                    ...filter,
+                    accounts: {
+                        field: "Creator",
+                        ids: [actorAccountId],
+                    },
+                },
+                allowAccounts: false,
+                allowTime,
+                isFirstModifier: false,
+            },
+            options,
+        );
+    }
+
+    // e.g. "documents I wrote" or "messages I authored"
+    if (
+        allowAccounts &&
+        matchTerms.i.isFuzzyMatch(state.term) &&
+        (matchTerms.wrote.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
+            matchTerms.authored.isFuzzyMatch(state.terms[state.termIndex + 1]))
+    ) {
+        state.advanceTerm();
+        state.advanceTerm();
+
+        return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+            state,
+            {
+                filterStartTerm,
+                filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                filter: {
+                    ...filter,
+                    accounts: {
+                        field: "CreatorOrMajorContributor",
+                        ids: [actorAccountId],
+                    },
+                },
+                allowAccounts: false,
+                allowTime,
+                isFirstModifier: false,
+            },
+            options,
+        );
+    }
+
+    // e.g. "documents I updated" or "tasks I updated"
+    if (
+        allowAccounts &&
+        matchTerms.i.isFuzzyMatch(state.term) &&
+        (matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
+            matchTerms.modified.isFuzzyMatch(state.terms[state.termIndex + 1]))
+    ) {
+        state.advanceTerm();
+        state.advanceTerm();
+
+        return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+            state,
+            {
+                filterStartTerm,
+                filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                filter: {
+                    ...filter,
+                    accounts: {
+                        field: "AnyContributor",
+                        ids: [actorAccountId],
+                    },
+                },
+                allowAccounts: false,
+                allowTime,
+                isFirstModifier: false,
+            },
+            options,
+        );
+    }
+
+    if (allowAccounts) {
+        const accounts = parseAccountsByNameIfPossible(state, options);
+        if (accounts) {
+            // e.g. "documents john created" or "messages sara smith sent"
+            if (
+                matchTerms.created.isFuzzyMatch(state.term) ||
+                matchTerms.sent.isFuzzyMatch(state.term) ||
+                matchTerms.posted.isFuzzyMatch(state.term)
+            ) {
+                state.advanceTerm();
+
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                        filter: {
+                            ...filter,
+                            accounts: {
+                                field: "Creator",
+                                ids: accounts.map(account => account.id),
+                            },
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+
+            // e.g. "documents john wrote" or "messages sara smith authored"
+            if (
+                matchTerms.wrote.isFuzzyMatch(state.term) ||
+                matchTerms.authored.isFuzzyMatch(state.term)
+            ) {
+                state.advanceTerm();
+
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                        filter: {
+                            ...filter,
+                            accounts: {
+                                field: "CreatorOrMajorContributor",
+                                ids: accounts.map(account => account.id),
+                            },
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+
+            // e.g. "documents john updated" or "tasks sara smith updated"
+            if (
+                matchTerms.updated.isFuzzyMatch(state.term) ||
+                matchTerms.modified.isFuzzyMatch(state.term)
+            ) {
+                state.advanceTerm();
+
+                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                    state,
+                    {
+                        filterStartTerm,
+                        filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                        filter: {
+                            ...filter,
+                            accounts: {
+                                field: "AnyContributor",
+                                ids: accounts.map(account => account.id),
+                            },
+                        },
+                        allowAccounts: false,
+                        allowTime,
+                        isFirstModifier: false,
+                    },
+                    options,
+                );
+            }
+        }
+    }
+
+    return {filterStartTerm, filterEndTerm, filter};
+}
+
+function continueParseSearchNaturalLanguageFilterDateModifier(
+    state: SearchNaturalLanguageParserState,
+    {
+        filterStartTerm,
+        filterEndTerm,
+        filter,
+        allowAccounts,
+        field,
+    }: {
+        filterStartTerm: Term;
+        filterEndTerm: Term;
+        filter: SearchNaturalLanguageFilter;
+        allowAccounts: boolean;
+        field: "Created" | "LastUpdated";
+    },
+    options: {
+        timeZone: TimeZone;
+        currentTime: Date;
+        actorAccountId: AccountId;
+        accountNameIndex: {
+            searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
+            searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
+        };
+    },
+): {
+    filterStartTerm: Term;
+    filterEndTerm: Term;
+    filter: SearchNaturalLanguageFilter;
+} {
+    let direction: "Before" | "After" | null = null;
+
+    // e.g. "...before..."
+    if (matchTerms.before.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+        direction = "Before";
+    }
+    // e.g. "...after..."
+    else if (matchTerms.after.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+        direction = "After";
+    }
+
+    // NOCOMMIT: "recently"
+    // NOCOMMIT: "new"
+
+    if (!state.term?.tags?.has("Date")) return {filterStartTerm, filterEndTerm, filter};
+
+    const {timeZone, currentTime} = options;
+    const dateStartTerm = state.term;
+
+    // Consume the terms the `compromise-date` plugin tags as `Date`...
+    while (state.term?.tags?.has("Date")) {
+        state.advanceTerm();
+    }
+
+    const dateEndTerm = assertExists(state.terms[state.termIndex - 1]);
+
+    const dateView = createView(state.doc, dateStartTerm, dateEndTerm);
+
+    // Parse the date text so we can use it as a filter.
+    const parsedDate = (dateView as any)
+        .dates({timezone: timeZone, today: currentTime})
+        .get()[0] as {start: DateString; end: DateString; timezone: TimeZone} | undefined;
+
+    if (!parsedDate) return {filterStartTerm, filterEndTerm, filter};
+
+    let startDate = new Date(parsedDate.start);
+    let endDate = new Date(parsedDate.end);
+    const durationMs = endDate.getTime() - startDate.getTime();
+
+    switch (direction) {
+        case null: {
+            const midDate = new Date(startDate.getTime() + durationMs / 2);
+
+            const dayMs = 1000 * 60 * 60 * 24;
+
+            // When the user targets a specific point in time like "2 hours ago", "2 days
+            // ago", or "2 months ago" it's unlikely they mean the exact time 2
+            // hours/days/months ago. So add some slop duration to our time filter. The
+            // slop duration gets larger the further in the past the time the user
+            // specifies is based on the hypothesis that the user's memory gets fuzzier the
+            // further in the past we're looking for an entity.
+            const slopDurationMs =
+                getSlopDurationDays((currentTime.getTime() - midDate.getTime()) / dayMs) * dayMs;
+
+            if (slopDurationMs > durationMs) {
+                startDate = new Date(startDate.getTime() - (slopDurationMs - durationMs) / 2);
+                endDate = new Date(endDate.getTime() + (slopDurationMs - durationMs) / 2);
+            }
+
+            return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                    filter: {
+                        ...filter,
+                        time: {
+                            field,
+                            range: {
+                                inclusiveLowerBoundDate: startDate,
+                                inclusiveUpperBoundDate: endDate,
+                            },
+                        },
+                    },
+                    allowAccounts,
+                    allowTime: false,
+                    isFirstModifier: false,
+                },
+                options,
+            );
+        }
+        case "After": {
+            return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                    filter: {
+                        ...filter,
+                        time: {
+                            field,
+                            range: {
+                                inclusiveLowerBoundDate: startDate,
+                                inclusiveUpperBoundDate: null,
+                            },
+                        },
+                    },
+                    allowAccounts,
+                    allowTime: false,
+                    isFirstModifier: false,
+                },
+                options,
+            );
+        }
+        case "Before": {
+            return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                state,
+                {
+                    filterStartTerm,
+                    filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                    filter: {
+                        ...filter,
+                        time: {
+                            field,
+                            range: {
+                                inclusiveLowerBoundDate: null,
+                                inclusiveUpperBoundDate: endDate,
+                            },
+                        },
+                    },
+                    allowAccounts,
+                    allowTime: false,
+                    isFirstModifier: false,
+                },
+                options,
+            );
+        }
+        default:
+            throw exhaustive(direction);
+    }
 }
 
 /**
