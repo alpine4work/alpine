@@ -5,6 +5,7 @@ import {stemmer} from "stemmer";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DateString} from "~/shared/helpers/date/date_string.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
@@ -48,6 +49,7 @@ nlp.plugin(nlpDatePlugin);
 // - my the cat in the hat documents
 // - trains from caleb's documents
 // - the documents created by me
+// - documents from before three months ago
 //
 // Creator:
 // - documents created by #Noun
@@ -141,7 +143,6 @@ const matchTermTexts = [
     "last",
     "before",
     "after",
-    "exactly",
 ] as const;
 
 const matchTerms = Object.fromEntries(
@@ -345,6 +346,125 @@ function parseSearchNaturalLanguageFilters(
             return (doc as any).toView([pointer]);
         };
 
+        const advanceDateTermsAttemptingToParseDate = (
+            filterBase: Omit<SearchNaturalLanguageFilter, "time">,
+            field: "Created" | "LastUpdated",
+        ): {isSuccess: boolean} => {
+            let direction: "Before" | "After" | null = null;
+
+            // e.g. "...before..."
+            if (matchTerms.before.isFuzzyMatch(state.term)) {
+                state.advanceTerm();
+                direction = "Before";
+            }
+            // e.g. "...after..."
+            else if (matchTerms.after.isFuzzyMatch(state.term)) {
+                state.advanceTerm();
+                direction = "After";
+            }
+
+            // NOCOMMIT: "recently"
+            // NOCOMMIT: "new"
+
+            if (!state.term?.tags?.has("Date")) return {isSuccess: false};
+
+            const dateStartTerm = state.term;
+
+            // Consume the terms the `compromise-date` plugin tags as `Date`...
+            while (state.term?.tags?.has("Date")) {
+                state.advanceTerm();
+            }
+
+            const dateEndTerm = assertExists(state.terms[state.termIndex - 1]);
+
+            const dateView = createView(dateStartTerm, dateEndTerm);
+
+            // Parse the date text so we can use it as a filter.
+            const parsedDate = (dateView as any)
+                .dates({timezone: timeZone, today: currentTime})
+                .get()[0] as {start: DateString; end: DateString; timezone: TimeZone} | undefined;
+
+            if (!parsedDate) return {isSuccess: false};
+
+            let startDate = new Date(parsedDate.start);
+            let endDate = new Date(parsedDate.end);
+            const durationMs = endDate.getTime() - startDate.getTime();
+
+            switch (direction) {
+                case null: {
+                    const midDate = new Date(startDate.getTime() + durationMs / 2);
+
+                    const dayMs = 1000 * 60 * 60 * 24;
+
+                    // When the user targets a specific point in time like "2 hours ago", "2 days
+                    // ago", or "2 months ago" it's unlikely they mean the exact time 2
+                    // hours/days/months ago. So add some slop duration to our time filter. The
+                    // slop duration gets larger the further in the past the time the user
+                    // specifies is based on the hypothesis that the user's memory gets fuzzier the
+                    // further in the past we're looking for an entity.
+                    const slopDurationMs =
+                        getSlopDurationDays((currentTime.getTime() - midDate.getTime()) / dayMs) *
+                        dayMs;
+
+                    if (slopDurationMs > durationMs) {
+                        startDate = new Date(
+                            startDate.getTime() - (slopDurationMs - durationMs) / 2,
+                        );
+                        endDate = new Date(endDate.getTime() + (slopDurationMs - durationMs) / 2);
+                    }
+
+                    addControlPhrase();
+
+                    filters.push({
+                        ...filterBase,
+                        time: {
+                            field,
+                            range: {
+                                inclusiveLowerBoundDate: startDate,
+                                inclusiveUpperBoundDate: endDate,
+                            },
+                        },
+                    });
+
+                    return {isSuccess: true};
+                }
+                case "After": {
+                    addControlPhrase();
+
+                    filters.push({
+                        ...filterBase,
+                        time: {
+                            field,
+                            range: {
+                                inclusiveLowerBoundDate: startDate,
+                                inclusiveUpperBoundDate: null,
+                            },
+                        },
+                    });
+
+                    return {isSuccess: true};
+                }
+                case "Before": {
+                    addControlPhrase();
+
+                    filters.push({
+                        ...filterBase,
+                        time: {
+                            field,
+                            range: {
+                                inclusiveLowerBoundDate: null,
+                                inclusiveUpperBoundDate: endDate,
+                            },
+                        },
+                    });
+
+                    return {isSuccess: true};
+                }
+                default:
+                    throw exhaustive(direction);
+            }
+        };
+
         // e.g. "documents...", "messages...", or "tasks..."
         const entityTypes = parseSearchEntityTypesIfPossible(state);
         if (entityTypes) {
@@ -513,11 +633,10 @@ function parseSearchNaturalLanguageFilters(
                 continue;
             }
 
+            const isFromFuzzyMatch = matchTerms.from.isFuzzyMatch(state.term);
+
             // e.g. "documents by..." or "messages from..."
-            if (
-                matchTerms.by.isFuzzyMatch(state.term) ||
-                matchTerms.from.isFuzzyMatch(state.term)
-            ) {
+            if (matchTerms.by.isFuzzyMatch(state.term) || isFromFuzzyMatch) {
                 state.advanceTerm();
 
                 // e.g. "documents by me" or "messages from me"
@@ -556,13 +675,24 @@ function parseSearchNaturalLanguageFilters(
                     continue;
                 }
 
-                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+                // e.g. "messages from yesterday"
+                let isSuccess = false;
+                if (isFromFuzzyMatch) {
+                    ({isSuccess} = advanceDateTermsAttemptingToParseDate(
+                        {entity: {types: entityTypes}, accounts: null},
+                        "Created",
+                    ));
+                }
 
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: null,
-                    time: null,
-                });
+                if (!isSuccess) {
+                    addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+
+                    filters.push({
+                        entity: {types: entityTypes},
+                        accounts: null,
+                        time: null,
+                    });
+                }
                 continue;
             }
 
@@ -712,95 +842,14 @@ function parseSearchNaturalLanguageFilters(
                 continue;
             }
 
-            const advanceDateTermsAttemptingToParseDate = (
-                filterBase: Omit<SearchNaturalLanguageFilter, "time">,
-                field: "Created" | "LastUpdated",
-            ): {isSuccess: boolean} => {
-                // NOCOMMIT:
-                //
-                // let direction: "Before" | "After" | "Exact" = "Before";
-
-                // // "...before..."
-                // if (matchTerms.before.isFuzzyMatch(state.term)) {
-                //     state.advanceTerm();
-                //     direction = "Before";
-                // }
-                // // "...after..."
-                // else if (matchTerms.after.isFuzzyMatch(state.term)) {
-                //     state.advanceTerm();
-                //     direction = "After";
-                // }
-                // // "...exactly..."
-                // else if (matchTerms.exactly.isFuzzyMatch(state.term)) {
-                //     state.advanceTerm();
-                //     direction = "Exact";
-                // }
-
-                // NOCOMMIT: "recently"
-                // NOCOMMIT: "new"
-
-                if (!state.term?.tags?.has("Date")) return {isSuccess: false};
-
-                const dateStartTerm = state.term;
-
-                // Consume the terms the `compromise-date` plugin tags as `Date`...
-                while (state.term?.tags?.has("Date")) {
-                    state.advanceTerm();
-                }
-
-                const dateEndTerm = assertExists(state.terms[state.termIndex - 1]);
-
-                const dateView = createView(dateStartTerm, dateEndTerm);
-
-                // Parse the date text so we can use it as a filter.
-                const parsedDate = (dateView as any)
-                    .dates({timezone: timeZone, today: currentTime})
-                    .get()[0] as
-                    | {start: DateString; end: DateString; timezone: TimeZone}
-                    | undefined;
-
-                if (!parsedDate) return {isSuccess: false};
-
-                let startDate = new Date(parsedDate.start);
-                let endDate = new Date(parsedDate.end);
-                const durationMs = endDate.getTime() - startDate.getTime();
-                const midDate = new Date(startDate.getTime() + durationMs / 2);
-
-                const dayMs = 1000 * 60 * 60 * 24;
-
-                // When the user targets a specific point in time like "2 hours ago", "2 days
-                // ago", or "2 months ago" it's unlikely they mean the exact time 2
-                // hours/days/months ago. So add some slop duration to our time filter. The
-                // slop duration gets larger the further in the past the time the user
-                // specifies is based on the hypothesis that the user's memory gets fuzzier the
-                // further in the past we're looking for an entity.
-                const slopDurationMs =
-                    getSlopDurationDays((currentTime.getTime() - midDate.getTime()) / dayMs) *
-                    dayMs;
-
-                if (slopDurationMs > durationMs) {
-                    startDate = new Date(startDate.getTime() - (slopDurationMs - durationMs) / 2);
-                    endDate = new Date(endDate.getTime() + (slopDurationMs - durationMs) / 2);
-                }
-
-                addControlPhrase();
-
-                filters.push({
-                    ...filterBase,
-                    time: {
-                        field,
-                        range: {
-                            inclusiveLowerBoundDate: startDate,
-                            inclusiveUpperBoundDate: endDate,
-                        },
-                    },
-                });
-
-                return {isSuccess: true};
-            };
-
-            // e.g. "documents created..."
-            if (matchTerms.created.isFuzzyMatch(state.term)) {
+            // e.g. "documents created..." or "messages sent..."
+            if (
+                matchTerms.created.isFuzzyMatch(state.term) ||
+                matchTerms.sent.isFuzzyMatch(state.term) ||
+                matchTerms.posted.isFuzzyMatch(state.term) ||
+                matchTerms.written.isFuzzyMatch(state.term) ||
+                matchTerms.authored.isFuzzyMatch(state.term)
+            ) {
                 state.advanceTerm();
 
                 const {isSuccess} = advanceDateTermsAttemptingToParseDate(
@@ -820,33 +869,17 @@ function parseSearchNaturalLanguageFilters(
                 continue;
             }
 
-            // e.g. "documents updated..."
-            if (matchTerms.updated.isFuzzyMatch(state.term)) {
-                state.advanceTerm();
+            const isLastFuzzyMatch = matchTerms.last.isFuzzyMatch(state.term);
 
-                const {isSuccess} = advanceDateTermsAttemptingToParseDate(
-                    {entity: {types: entityTypes}, accounts: null},
-                    "LastUpdated",
-                );
-
-                if (!isSuccess) {
-                    addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
-
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: null,
-                        time: null,
-                    });
-                }
-                continue;
-            }
-
-            // e.g. "documents last updated..."
+            // e.g. "documents updated..." or "documents last updated..."
             if (
-                matchTerms.last.isFuzzyMatch(state.term) &&
-                matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1])
+                matchTerms.updated.isFuzzyMatch(state.term) ||
+                matchTerms.modified.isFuzzyMatch(state.term) ||
+                (isLastFuzzyMatch &&
+                    (matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
+                        matchTerms.modified.isFuzzyMatch(state.terms[state.termIndex + 1])))
             ) {
-                state.advanceTerm();
+                if (isLastFuzzyMatch) state.advanceTerm();
                 state.advanceTerm();
 
                 const {isSuccess} = advanceDateTermsAttemptingToParseDate(

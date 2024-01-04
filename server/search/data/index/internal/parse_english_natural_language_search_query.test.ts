@@ -2753,3 +2753,203 @@ test("provides duration slop when referencing precise date", () => {
         ],
     });
 });
+
+test("parses entity type then date field then date", () => {
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 2 weeks ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 2 weeks ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-12-19T16:44:28.090Z"),
+                        inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents updated 2 weeks ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents updated 2 weeks ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-12-19T16:44:28.090Z"),
+                        inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents last updated 2 weeks ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents last updated 2 weeks ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-12-19T16:44:28.090Z"),
+                        inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents udpated 2 weeks ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents udpated 2 weeks ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-12-19T16:44:28.090Z"),
+                        inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents last udpated 2 weeks ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents last udpated 2 weeks ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-12-19T16:44:28.090Z"),
+                        inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents updated before 2 weeks ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents updated before 2 weeks ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: null,
+                        inclusiveUpperBoundDate: new Date("2023-12-22T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents updated after 2 weeks ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents updated after 2 weeks ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-12-21T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: null,
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("messages sent after yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["messages sent after yesterday"],
+        filters: [
+            {
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: null,
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("messages sent before yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["messages sent before yesterday"],
+        filters: [
+            {
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: null,
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("posts from yesterday", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["posts from yesterday"],
+        filters: [
+            {
+                entity: {types: ["Post"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+});
