@@ -5,6 +5,7 @@ import {
 } from "~/server/search/data/index/internal/parse_english_natural_language_search_query.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {assertTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 
 // Node.js ESM interop (#node-esm-migration)
@@ -72,6 +73,11 @@ const accountShortNameIndex = new Fuse(accounts, {
 });
 
 const options = {
+    // Use fixed date and time zone to make date parsing tests easier. Using a time
+    // zone that not all developer computers will be located in.
+    timeZone: assertTimeZone("America/Denver"),
+    currentTime: new Date("2024-01-04T13:50:03.726Z"),
+
     actorAccountId: accounts[0]!.id,
     accountNameIndex: {
         searchNames: (queryText: string) => {
@@ -252,6 +258,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "documents by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -264,6 +271,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "documents by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -277,6 +285,7 @@ test("parses search entity type then account name", () => {
             controlQueryText: "documents by me about",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[0]!.id],
                     entityTypes: ["Document"],
                     level: "CreatorOrMajorContributor",
@@ -290,6 +299,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "documents by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -302,6 +312,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "documents by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -316,6 +327,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "documents by john about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -328,6 +340,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "documents by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -340,6 +353,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "documents by john smith",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -354,6 +368,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "documents by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -366,6 +381,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "messages from emily",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[2]!.id, accounts[4]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                 level: "CreatorOrMajorContributor",
@@ -378,6 +394,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "comments from emily",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[2]!.id, accounts[4]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                 level: "CreatorOrMajorContributor",
@@ -390,6 +407,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "post comments from emily",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[2]!.id, accounts[4]!.id],
                 entityTypes: ["PostComment"],
                 level: "CreatorOrMajorContributor",
@@ -402,6 +420,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "messages from emily smith",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[2]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                 level: "CreatorOrMajorContributor",
@@ -414,6 +433,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "messages from emily lin",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[4]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                 level: "CreatorOrMajorContributor",
@@ -426,6 +446,7 @@ test("parses search entity type then account name", () => {
         controlQueryText: "messeges from emily",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[2]!.id, accounts[4]!.id],
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                 level: "CreatorOrMajorContributor",
@@ -440,9 +461,14 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("messages from sarah", options)).toEqual({
-        queryText: "messages from sarah",
-        controlQueryText: "",
-        filters: [],
+        queryText: "from sarah",
+        controlQueryText: "messages",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
+            },
+        ],
     });
 });
 
@@ -452,6 +478,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents created by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -460,9 +487,14 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents created me", options)).toEqual({
-        queryText: "documents created me",
-        controlQueryText: "",
-        filters: [],
+        queryText: "created me",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -472,6 +504,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents created by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -486,6 +519,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents created by me about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -498,6 +532,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents written by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -506,9 +541,14 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents written me", options)).toEqual({
-        queryText: "documents written me",
-        controlQueryText: "",
-        filters: [],
+        queryText: "written me",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -518,6 +558,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents written by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -532,6 +573,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents written by me about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -544,6 +586,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents updated by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -552,9 +595,14 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated me", options)).toEqual({
-        queryText: "documents updated me",
-        controlQueryText: "",
-        filters: [],
+        queryText: "updated me",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -564,6 +612,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents updated by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -578,6 +627,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents updated by me about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -590,6 +640,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents udpated by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -598,9 +649,14 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated me", options)).toEqual({
-        queryText: "documents udpated me",
-        controlQueryText: "",
-        filters: [],
+        queryText: "udpated me",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -610,6 +666,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents udpated by me",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -624,6 +681,7 @@ test("parses search entity type then relationship then me", () => {
         controlQueryText: "documents udpated by me about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -638,6 +696,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents created by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -645,10 +704,26 @@ test("parses search entity type then relationship then account name", () => {
         ],
     });
 
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created by sara", options)).toEqual({
+        queryText: "created by sara",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
+    });
+
     expect(parseEnglishNaturalLanguageSearchQuery("documents created john", options)).toEqual({
-        queryText: "documents created john",
-        controlQueryText: "",
-        filters: [],
+        queryText: "created john",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -658,6 +733,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents created by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -672,6 +748,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents created by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -686,6 +763,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents created by john smith",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -700,6 +778,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents created by john about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -712,6 +791,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents written by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -719,10 +799,26 @@ test("parses search entity type then relationship then account name", () => {
         ],
     });
 
+    expect(parseEnglishNaturalLanguageSearchQuery("documents written by sara", options)).toEqual({
+        queryText: "written by sara",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
+    });
+
     expect(parseEnglishNaturalLanguageSearchQuery("documents written john", options)).toEqual({
-        queryText: "documents written john",
-        controlQueryText: "",
-        filters: [],
+        queryText: "written john",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -732,6 +828,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents written by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -746,6 +843,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents written by john about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -758,6 +856,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents updated by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -766,9 +865,14 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated john", options)).toEqual({
-        queryText: "documents updated john",
-        controlQueryText: "",
-        filters: [],
+        queryText: "updated john",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -778,6 +882,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents updated by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -792,9 +897,21 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents updated by john about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents updated by sara", options)).toEqual({
+        queryText: "updated by sara",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
             },
         ],
     });
@@ -804,6 +921,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents udpated by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -812,9 +930,14 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated john", options)).toEqual({
-        queryText: "documents udpated john",
-        controlQueryText: "",
-        filters: [],
+        queryText: "udpated john",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -824,6 +947,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents udpated by john",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -838,6 +962,7 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryText: "documents udpated by john about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -852,6 +977,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I created",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -860,9 +986,14 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents I", options)).toEqual({
-        queryText: "documents I",
-        controlQueryText: "",
-        filters: [],
+        queryText: "I",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents I created", options)).toEqual({
@@ -870,6 +1001,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I created",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -884,6 +1016,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I created about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -896,6 +1029,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I wrote",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -904,9 +1038,14 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents wrote", options)).toEqual({
-        queryText: "documents wrote",
-        controlQueryText: "",
-        filters: [],
+        queryText: "wrote",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents I wrote", options)).toEqual({
@@ -914,6 +1053,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I wrote",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -928,6 +1068,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I wrote about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -940,6 +1081,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I updated",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -948,9 +1090,14 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated", options)).toEqual({
-        queryText: "documents updated",
-        controlQueryText: "",
-        filters: [],
+        queryText: "updated",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents I updated", options)).toEqual({
@@ -958,6 +1105,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I updated",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -972,6 +1120,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I updated about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -984,6 +1133,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I udpated",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -992,9 +1142,14 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated", options)).toEqual({
-        queryText: "documents udpated",
-        controlQueryText: "",
-        filters: [],
+        queryText: "udpated",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents I udpated", options)).toEqual({
@@ -1002,6 +1157,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I udpated",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1016,6 +1172,7 @@ test("parses search entity type then I then relationship", () => {
         controlQueryText: "documents I udpated about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1030,6 +1187,7 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryText: "documents john created",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -1038,9 +1196,14 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john", options)).toEqual({
-        queryText: "documents john",
-        controlQueryText: "",
-        filters: [],
+        queryText: "john",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents john created", options)).toEqual(
@@ -1049,6 +1212,7 @@ test("parses search entity type then account first name then relationship", () =
             controlQueryText: "documents john created",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "Creator",
@@ -1064,6 +1228,7 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryText: "documents john created about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -1076,6 +1241,7 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryText: "documents john wrote",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1084,9 +1250,14 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents wrote", options)).toEqual({
-        queryText: "documents wrote",
-        controlQueryText: "",
-        filters: [],
+        queryText: "wrote",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents john wrote", options)).toEqual({
@@ -1094,6 +1265,7 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryText: "documents john wrote",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1108,6 +1280,7 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryText: "documents john wrote about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1120,6 +1293,7 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryText: "documents john updated",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1128,9 +1302,14 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated", options)).toEqual({
-        queryText: "documents updated",
-        controlQueryText: "",
-        filters: [],
+        queryText: "updated",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents john updated", options)).toEqual(
@@ -1139,6 +1318,7 @@ test("parses search entity type then account first name then relationship", () =
             controlQueryText: "documents john updated",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "AnyContributor",
@@ -1154,6 +1334,7 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryText: "documents john updated about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1166,6 +1347,7 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryText: "documents john udpated",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1174,9 +1356,14 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated", options)).toEqual({
-        queryText: "documents udpated",
-        controlQueryText: "",
-        filters: [],
+        queryText: "udpated",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents john udpated", options)).toEqual(
@@ -1185,6 +1372,7 @@ test("parses search entity type then account first name then relationship", () =
             controlQueryText: "documents john udpated",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "AnyContributor",
@@ -1200,6 +1388,7 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryText: "documents john udpated about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1215,6 +1404,7 @@ test("parses search entity type then account full name then relationship", () =>
             controlQueryText: "documents john smith created",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "Creator",
@@ -1224,9 +1414,14 @@ test("parses search entity type then account full name then relationship", () =>
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john smith", options)).toEqual({
-        queryText: "documents john smith",
-        controlQueryText: "",
-        filters: [],
+        queryText: "john smith",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -1236,6 +1431,7 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryText: "documents john smith created",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -1253,6 +1449,7 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryText: "documents john smith created about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "Creator",
@@ -1265,6 +1462,7 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryText: "documents john smith wrote",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1273,9 +1471,14 @@ test("parses search entity type then account full name then relationship", () =>
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents wrote", options)).toEqual({
-        queryText: "documents wrote",
-        controlQueryText: "",
-        filters: [],
+        queryText: "wrote",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -1285,6 +1488,7 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryText: "documents john smith wrote",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1299,6 +1503,7 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryText: "documents john smith wrote about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1312,6 +1517,7 @@ test("parses search entity type then account full name then relationship", () =>
             controlQueryText: "documents john smith updated",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "AnyContributor",
@@ -1321,9 +1527,14 @@ test("parses search entity type then account full name then relationship", () =>
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated", options)).toEqual({
-        queryText: "documents updated",
-        controlQueryText: "",
-        filters: [],
+        queryText: "updated",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -1333,6 +1544,7 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryText: "documents john smith updated",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1350,6 +1562,7 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryText: "documents john smith updated about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1363,6 +1576,7 @@ test("parses search entity type then account full name then relationship", () =>
             controlQueryText: "documents john smith udpated",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "AnyContributor",
@@ -1372,9 +1586,14 @@ test("parses search entity type then account full name then relationship", () =>
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated", options)).toEqual({
-        queryText: "documents udpated",
-        controlQueryText: "",
-        filters: [],
+        queryText: "udpated",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -1384,6 +1603,7 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryText: "documents john smith udpated",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1401,6 +1621,7 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryText: "documents john smith udpated about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "AnyContributor",
@@ -1415,6 +1636,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "my documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1427,6 +1649,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "my documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1439,6 +1662,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "my documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1451,6 +1675,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "my documents about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1463,6 +1688,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1475,6 +1701,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1487,6 +1714,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1501,6 +1729,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john's documents about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1513,6 +1742,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john smith's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1526,6 +1756,7 @@ test("parses account name then entity type", () => {
             controlQueryText: "john smith's documents",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "CreatorOrMajorContributor",
@@ -1540,6 +1771,7 @@ test("parses account name then entity type", () => {
             controlQueryText: "john smith's documents",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "CreatorOrMajorContributor",
@@ -1555,6 +1787,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john smith's documents about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1567,6 +1800,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "johns documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1579,6 +1813,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "johns documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1591,6 +1826,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "johns documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1604,6 +1840,7 @@ test("parses account name then entity type", () => {
             controlQueryText: "johns documents about",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "CreatorOrMajorContributor",
@@ -1617,6 +1854,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john smiths documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1629,6 +1867,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john smiths documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1641,6 +1880,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john smiths documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1655,6 +1895,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "john smiths documents about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1679,6 +1920,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "jahn documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1691,6 +1933,7 @@ test("parses account name then entity type", () => {
         controlQueryText: "jahn's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1699,27 +1942,47 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jahns documents", options)).toEqual({
-        queryText: "jahns documents",
-        controlQueryText: "",
-        filters: [],
+        queryText: "jahns",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jaahn documents", options)).toEqual({
-        queryText: "jaahn documents",
-        controlQueryText: "",
-        filters: [],
+        queryText: "jaahn",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jaahn's documents", options)).toEqual({
-        queryText: "jaahn's documents",
-        controlQueryText: "",
-        filters: [],
+        queryText: "jaahn's",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jaahns documents", options)).toEqual({
-        queryText: "jaahns documents",
-        controlQueryText: "",
-        filters: [],
+        queryText: "jaahns",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 });
 
@@ -1729,6 +1992,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "my documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1741,6 +2005,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "john's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1754,6 +2019,7 @@ test("parses account name with some text between then entity type", () => {
             controlQueryText: "john smith's documents",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "CreatorOrMajorContributor",
@@ -1769,6 +2035,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "my documents about",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1788,9 +2055,14 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john's neat documents about georgia", options),
     ).toEqual({
-        queryText: "john's neat documents about georgia",
-        controlQueryText: "",
-        filters: [],
+        queryText: "john's neat about georgia",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -1799,25 +2071,40 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "john smith's neat documents about georgia",
-        controlQueryText: "",
-        filters: [],
+        queryText: "john smith's neat about georgia",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
         parseEnglishNaturalLanguageSearchQuery("my train documents about georgia", options),
     ).toEqual({
-        queryText: "my train documents about georgia",
-        controlQueryText: "",
-        filters: [],
+        queryText: "my train about georgia",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
         parseEnglishNaturalLanguageSearchQuery("john's train documents about georgia", options),
     ).toEqual({
-        queryText: "john's train documents about georgia",
-        controlQueryText: "",
-        filters: [],
+        queryText: "john's train about georgia",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(
@@ -1826,9 +2113,14 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "john smith's train documents about georgia",
-        controlQueryText: "",
-        filters: [],
+        queryText: "john smith's train about georgia",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("my closed tasks", options)).toEqual({
@@ -1836,6 +2128,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "my tasks",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Task"],
                 level: "CreatorOrMajorContributor",
@@ -1844,25 +2137,23 @@ test("parses account name with some text between then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john's closed tasks", options)).toEqual({
-        queryText: "closed",
-        controlQueryText: "john's tasks",
+        queryText: "john's closed",
+        controlQueryText: "tasks",
         filters: [
             {
-                accountIds: [accounts[1]!.id],
+                type: "StandaloneSearchEntityTypes",
                 entityTypes: ["Task"],
-                level: "CreatorOrMajorContributor",
             },
         ],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john smith's closed tasks", options)).toEqual({
-        queryText: "closed",
-        controlQueryText: "john smith's tasks",
+        queryText: "john smith's closed",
+        controlQueryText: "tasks",
         filters: [
             {
-                accountIds: [accounts[1]!.id],
+                type: "StandaloneSearchEntityTypes",
                 entityTypes: ["Task"],
-                level: "CreatorOrMajorContributor",
             },
         ],
     });
@@ -1872,6 +2163,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "my documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1884,6 +2176,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "john's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1897,6 +2190,7 @@ test("parses account name with some text between then entity type", () => {
             controlQueryText: "john smith's documents",
             filters: [
                 {
+                    type: "Account",
                     accountIds: [accounts[1]!.id],
                     entityTypes: ["Document"],
                     level: "CreatorOrMajorContributor",
@@ -1906,10 +2200,11 @@ test("parses account name with some text between then entity type", () => {
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("john's smith documents", options)).toEqual({
-        queryText: "smith",
-        controlQueryText: "john's documents",
+        queryText: "",
+        controlQueryText: "john's smith documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1924,6 +2219,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "my documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1938,6 +2234,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "john's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1955,6 +2252,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "john smith's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1969,6 +2267,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "my documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[0]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -1983,6 +2282,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "john's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -2000,6 +2300,7 @@ test("parses account name with some text between then entity type", () => {
         controlQueryText: "john smith's documents",
         filters: [
             {
+                type: "Account",
                 accountIds: [accounts[1]!.id],
                 entityTypes: ["Document"],
                 level: "CreatorOrMajorContributor",
@@ -2010,9 +2311,14 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("my, the cat in the hat, chat messages", options),
     ).toEqual({
-        queryText: "my, the cat in the hat, chat messages",
-        controlQueryText: "",
-        filters: [],
+        queryText: "my, the cat in the hat,",
+        controlQueryText: "chat messages",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["ChatMessage"],
+            },
+        ],
     });
 
     expect(
@@ -2021,9 +2327,14 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "john's, the cat in the hat, chat messages",
-        controlQueryText: "",
-        filters: [],
+        queryText: "john's, the cat in the hat,",
+        controlQueryText: "chat messages",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["ChatMessage"],
+            },
+        ],
     });
 
     expect(
@@ -2032,8 +2343,70 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "john smith's, the cat in the hat, chat messages",
-        controlQueryText: "",
-        filters: [],
+        queryText: "john smith's, the cat in the hat,",
+        controlQueryText: "chat messages",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["ChatMessage"],
+            },
+        ],
+    });
+});
+
+test("parses standalone entity type", () => {
+    expect(parseEnglishNaturalLanguageSearchQuery("documents", options)).toEqual({
+        queryText: "",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("train documents", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents train", options)).toEqual({
+        queryText: "train",
+        controlQueryText: "documents",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("chat message", options)).toEqual({
+        queryText: "",
+        controlQueryText: "chat message",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["ChatMessage"],
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("messages", options)).toEqual({
+        queryText: "",
+        controlQueryText: "messages",
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
+            },
+        ],
     });
 });

@@ -407,6 +407,9 @@ dependencies:
   compromise:
     specifier: ^14.10.1
     version: 14.10.1
+  compromise-dates:
+    specifier: ^3.4.2
+    version: 3.4.2(compromise@14.10.1)
   constructs:
     specifier: ^10.1.143
     version: 10.1.143
@@ -7928,6 +7931,16 @@ packages:
     engines: {node: '>= 6'}
     dev: false
 
+  /compromise-dates@3.4.2(compromise@14.10.1):
+    resolution: {integrity: sha512-Vkw0icat/3L99FYxrJgkS+vQKA+hU4TqGXwZJJIqSGPCviwK30zsnK9j513Y7mPkw8ktuegzlMsfRzQiHPkY6w==}
+    peerDependencies:
+      compromise: '>=14.2.0'
+    dependencies:
+      compromise: 14.10.1
+      spacetime: 7.1.4
+      spacetime-holiday: 0.3.0(spacetime@7.1.4)
+    dev: false
+
   /compromise@14.10.1:
     resolution: {integrity: sha512-GX91lZfJsma34HHifGlmnoWdu45PreuRFjrccCSAZq+r7Jb0wdKxKZWhyi8OSPvZ0+xk7LclDakUnd/Np57ZRQ==}
     engines: {node: '>=12.0.0'}
@@ -14762,6 +14775,18 @@ packages:
 
   /space-separated-tokens@2.0.1:
     resolution: {integrity: sha512-ekwEbFp5aqSPKaqeY1PGrlGQxPNaq+Cnx4+bE2D8sciBQrHpbwoBbawqTN2+6jPs9IdWxxiUcN0K2pkczD3zmw==}
+    dev: false
+
+  /spacetime-holiday@0.3.0(spacetime@7.1.4):
+    resolution: {integrity: sha512-rp4HRFJXxFL7CeKBFBMO2Xar2IyJyUpxY1ssAWCyf0iOvckwknvDgK04KwToASHX9vgd+4yQnTpytzJAs81R8g==}
+    peerDependencies:
+      spacetime: '>=6.3.0'
+    dependencies:
+      spacetime: 7.1.4
+    dev: false
+
+  /spacetime@7.1.4:
+    resolution: {integrity: sha512-ZzYuGjaMPE42p/fVU9Qcd+aMhgYzC83hgqMKyWlGILtponsLm5KJZgWzblLnOU8OblMQa3YXo/0IiZZ5JsTDfA==}
     dev: false
 
   /sprintf-js@1.0.3:

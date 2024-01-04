@@ -1,12 +1,17 @@
 import nlp from "compromise";
+import nlpDatePlugin from "compromise-dates";
 import levenshtein from "damerau-levenshtein";
 import {stemmer} from "stemmer";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {DateString} from "~/shared/helpers/date/date_string.js";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {AccountId} from "~/shared/id/types/id_types.js";
 import {SearchEntityIdObject} from "~/shared/search/search_entity_id.js";
+
+nlp.plugin(nlpDatePlugin);
 
 // NOCOMMIT:
 //
@@ -86,6 +91,12 @@ class SearchNaturalLanguageMatchTerm {
             () => stemmer(term.text.toLowerCase()),
         );
 
+        // Don't consider fuzzy matches for "chat". "Cat" and "hat" would be considered
+        // matches which are both common words in their own right.
+        if (this._text === "chat") {
+            return this._text === termText;
+        }
+
         // Same logic as OpenSearch with `fuzziness: "AUTO"`.
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/common-options.html#fuzziness
 
@@ -127,6 +138,9 @@ const matchTermTexts = [
     "about",
     "i",
     "my",
+    "last",
+    "before",
+    "after",
 ] as const;
 
 const matchTerms = Object.fromEntries(
@@ -180,9 +194,17 @@ class SearchNaturalLanguageParserState {
     }
 }
 
-export type SearchNaturalLanguageFilter = SearchNaturalLanguageAccountFilter;
+export type SearchNaturalLanguageFilter =
+    | SearchNaturalLanguageStandaloneEntityTypesFilter
+    | SearchNaturalLanguageAccountFilter;
+
+export type SearchNaturalLanguageStandaloneEntityTypesFilter = {
+    readonly type: "StandaloneSearchEntityTypes";
+    readonly entityTypes: ReadonlyArray<SearchEntityIdObject["type"]>;
+};
 
 export type SearchNaturalLanguageAccountFilter = {
+    readonly type: "Account";
     readonly accountIds: ReadonlyArray<AccountId>;
     readonly entityTypes: ReadonlyArray<SearchEntityIdObject["type"]>;
     readonly level: "Creator" | "CreatorOrMajorContributor" | "AnyContributor";
@@ -202,6 +224,8 @@ export type SearchNaturalLanguageAccountFilter = {
 export function parseEnglishNaturalLanguageSearchQuery(
     queryText: string,
     options: {
+        timeZone: TimeZone;
+        currentTime: Date;
         actorAccountId: AccountId;
         accountNameIndex: {
             searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
@@ -257,6 +281,8 @@ function parseSearchNaturalLanguageFilters(
     doc: View,
     terms: ReadonlyArray<Term>,
     options: {
+        timeZone: TimeZone;
+        currentTime: Date;
         actorAccountId: AccountId;
         accountNameIndex: {
             searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
@@ -267,7 +293,7 @@ function parseSearchNaturalLanguageFilters(
     filters: ReadonlyArray<SearchNaturalLanguageFilter>;
     controlPhrases: ReadonlyArray<View>;
 } {
-    const {actorAccountId} = options;
+    const {timeZone, currentTime, actorAccountId} = options;
 
     const state = new SearchNaturalLanguageParserState(terms);
     const filters: Array<SearchNaturalLanguageFilter> = [];
@@ -291,6 +317,10 @@ function parseSearchNaturalLanguageFilters(
         };
 
         const addSpecificControlPhrase = (startTerm: Term, endTerm: Term) => {
+            controlPhrases.push(createView(startTerm, endTerm));
+        };
+
+        const createView = (startTerm: Term, endTerm: Term): View => {
             assert(startTerm.index && endTerm.index);
             assert(startTerm.index[0] === endTerm.index[0]);
 
@@ -302,14 +332,14 @@ function parseSearchNaturalLanguageFilters(
                 endTerm.id,
             ];
 
-            const controlPhrase: View = (doc as any).toView([pointer]);
-
-            controlPhrases.push(controlPhrase);
+            return (doc as any).toView([pointer]);
         };
 
         // e.g. "documents...", "messages...", or "tasks..."
         const entityTypes = parseSearchEntityTypesIfPossible(state);
         if (entityTypes) {
+            const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
+
             // e.g. "documents created by..." or "messages sent by..."
             if (
                 (matchTerms.created.isFuzzyMatch(state.term) ||
@@ -330,6 +360,7 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: [actorAccountId],
                         entityTypes,
                         level: "Creator",
@@ -346,12 +377,21 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
                         level: "Creator",
                     });
                     continue;
                 }
+
+                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+
+                filters.push({
+                    type: "StandaloneSearchEntityTypes",
+                    entityTypes,
+                });
+                continue;
             }
 
             // e.g. "documents written by..." or "posts authored by..."
@@ -373,6 +413,7 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: [actorAccountId],
                         entityTypes,
                         level: "CreatorOrMajorContributor",
@@ -389,12 +430,21 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
                         level: "CreatorOrMajorContributor",
                     });
                     continue;
                 }
+
+                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+
+                filters.push({
+                    type: "StandaloneSearchEntityTypes",
+                    entityTypes,
+                });
+                continue;
             }
 
             // e.g. "documents updated by..." or "tasks updated by..."
@@ -416,6 +466,7 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: [actorAccountId],
                         entityTypes,
                         level: "AnyContributor",
@@ -432,12 +483,21 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
                         level: "AnyContributor",
                     });
                     continue;
                 }
+
+                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+
+                filters.push({
+                    type: "StandaloneSearchEntityTypes",
+                    entityTypes,
+                });
+                continue;
             }
 
             // e.g. "documents by..." or "messages from..."
@@ -457,6 +517,7 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: [actorAccountId],
                         entityTypes,
                         level: "CreatorOrMajorContributor",
@@ -473,12 +534,21 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
                         level: "CreatorOrMajorContributor",
                     });
                     continue;
                 }
+
+                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+
+                filters.push({
+                    type: "StandaloneSearchEntityTypes",
+                    entityTypes,
+                });
+                continue;
             }
 
             // e.g. "documents I created" or "messages I sent"
@@ -497,6 +567,7 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
+                    type: "Account",
                     accountIds: [actorAccountId],
                     entityTypes,
                     level: "Creator",
@@ -519,6 +590,7 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
+                    type: "Account",
                     accountIds: [actorAccountId],
                     entityTypes,
                     level: "CreatorOrMajorContributor",
@@ -541,6 +613,7 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
+                    type: "Account",
                     accountIds: [actorAccountId],
                     entityTypes,
                     level: "AnyContributor",
@@ -564,6 +637,7 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
                         level: "Creator",
@@ -584,6 +658,7 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
                         level: "CreatorOrMajorContributor",
@@ -604,6 +679,7 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
+                        type: "Account",
                         accountIds: accounts.map(account => account.id),
                         entityTypes,
                         level: "AnyContributor",
@@ -611,11 +687,99 @@ function parseSearchNaturalLanguageFilters(
                     continue;
                 }
 
-                // No match, try parsing the next term.
+                addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+
+                filters.push({
+                    type: "StandaloneSearchEntityTypes",
+                    entityTypes,
+                });
                 continue;
             }
 
-            // No match, try parsing the next term.
+            // NOCOMMIT
+            //
+            // const parseDatePartIfPossible = (level: "CreatedTime" | "LastUpdatedTime"): boolean => {
+            //     let direction: "Before" | "After" | null = null;
+
+            //     // "...before..."
+            //     if (matchTerms.before.isFuzzyMatch(state.term)) {
+            //         state.advanceTerm();
+            //         direction = "Before";
+            //     }
+            //     // "...after..."
+            //     else if (matchTerms.after.isFuzzyMatch(state.term)) {
+            //         state.advanceTerm();
+            //         direction = "After";
+            //     }
+
+            //     // NOCOMMIT: "recently"
+            //     // NOCOMMIT: "new"
+
+            //     if (state.term?.tags?.has("Date")) {
+            //         const dateStartTerm = state.term;
+
+            //         while (state.term?.tags?.has("Date")) {
+            //             state.advanceTerm();
+            //         }
+
+            //         const dateEndTerm = assertExists(state.terms[state.termIndex - 1]);
+
+            //         const dateView = createView(dateStartTerm, dateEndTerm);
+
+            //         const parsedDate = (dateView as any)
+            //             .dates({timezone: timeZone, today: currentTime})
+            //             .get()[0] as
+            //             | {start: DateString; end: DateString; timezone: TimeZone}
+            //             | undefined;
+            //     }
+
+            //     return false;
+            // };
+
+            // // e.g. "document created..."
+            // if (matchTerms.created.isFuzzyMatch(state.term)) {
+            //     state.advanceTerm();
+
+            //     if (parseDatePartIfPossible("CreatedTime")) {
+            //         continue;
+            //     }
+            // }
+
+            // // e.g. "document updated..."
+            // if (matchTerms.updated.isFuzzyMatch(state.term)) {
+            //     state.advanceTerm();
+
+            //     if (parseDatePartIfPossible("LastUpdatedTime")) {
+            //         continue;
+            //     }
+            // }
+
+            // // e.g. "document last updated..."
+            // if (
+            //     matchTerms.last.isFuzzyMatch(state.term) &&
+            //     matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1])
+            // ) {
+            //     state.advanceTerm();
+            //     state.advanceTerm();
+
+            //     if (parseDatePartIfPossible("LastUpdatedTime")) {
+            //         continue;
+            //     }
+            // }
+
+            // e.g. "documents" or "chat messages"
+            //
+            // Fallback if no other text follows the entity types. It's very possible the
+            // user is trying to do a keyword search like "2023 marketing campaign
+            // messages". Ideally, we'd have a weaker version of control phrases that still
+            // supports 2gram/3gram matching in case the user is trying to keyword search.
+
+            addControlPhrase();
+
+            filters.push({
+                type: "StandaloneSearchEntityTypes",
+                entityTypes,
+            });
             continue;
         }
 
@@ -632,6 +796,7 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
+                    type: "Account",
                     accountIds: [actorAccountId],
                     entityTypes,
                     level: "CreatorOrMajorContributor",
@@ -667,6 +832,7 @@ function parseSearchNaturalLanguageFilters(
                         addSpecificControlPhrase(firstEntityTypesTerm, lastEntityTypesTerm);
 
                         filters.push({
+                            type: "Account",
                             accountIds: [actorAccountId],
                             entityTypes,
                             level: "CreatorOrMajorContributor",
@@ -697,6 +863,7 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
+                    type: "Account",
                     accountIds: accounts.map(account => account.id),
                     entityTypes,
                     level: "CreatorOrMajorContributor",
@@ -744,6 +911,7 @@ function parseSearchNaturalLanguageFilters(
                         addSpecificControlPhrase(firstEntityTypesTerm, lastEntityTypesTerm);
 
                         filters.push({
+                            type: "Account",
                             accountIds: accounts.map(account => account.id),
                             entityTypes,
                             level: "CreatorOrMajorContributor",

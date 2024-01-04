@@ -33,6 +33,7 @@ ts_project(
         "//:node_modules/@types/mdast",
         "//:node_modules/@xenova/transformers",
         "//:node_modules/compromise",
+        "//:node_modules/compromise-dates",
         "//:node_modules/damerau-levenshtein",
         "//:node_modules/date-fns",
         "//:node_modules/fs-extra",
