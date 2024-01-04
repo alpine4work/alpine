@@ -110,6 +110,7 @@ const matchTermTexts = [
     "and",
     "that",
     "were",
+    "recently",
 ] as const;
 
 const matchTerms = Object.fromEntries(
@@ -1303,6 +1304,39 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
     filterEndTerm: Term;
     filter: SearchNaturalLanguageFilter;
 } {
+    const {timeZone, currentTime} = options;
+
+    // e.g. "documents updated recently"
+    if (matchTerms.recently.isFuzzyMatch(state.term)) {
+        state.advanceTerm();
+
+        return parseSearchNaturalLanguageFilterModifiers(
+            state,
+            {
+                filterStartTerm,
+                filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                filter: {
+                    ...filter,
+                    time: {
+                        field,
+                        range: {
+                            // We arbitrarily decide that "recently" means 3 days ago until now. Ideally
+                            // we'd sort by recency as well.
+                            inclusiveLowerBoundDate: new Date(
+                                currentTime.getTime() - 3 * (1000 * 60 * 60 * 24),
+                            ),
+                            inclusiveUpperBoundDate: null,
+                        },
+                    },
+                },
+                allowAccounts,
+                allowTime: false,
+                isFirstModifier: false,
+            },
+            options,
+        );
+    }
+
     const startTerm = state.term;
 
     let direction: "Before" | "After" | null = null;
@@ -1317,9 +1351,6 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
         state.advanceTerm();
         direction = "After";
     }
-
-    // NOCOMMIT: "recently"
-    // NOCOMMIT: "new"
 
     if (
         !state.term?.tags?.has("Date") ||
@@ -1345,7 +1376,6 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
         );
     }
 
-    const {timeZone, currentTime} = options;
     const dateStartTerm = state.term;
 
     // Consume the terms the `compromise-date` plugin tags as `Date`...

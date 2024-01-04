@@ -3914,3 +3914,63 @@ test("parses date modifier after account name then entity type", () => {
         ],
     });
 });
+
+test('parses the word "recently" in dates', () => {
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created recently", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created recently"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-01T13:50:03.726Z"),
+                        inclusiveUpperBoundDate: null,
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents i updated recently", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["documents i updated recently"],
+            filters: [
+                {
+                    entity: {types: ["Document"]},
+                    accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                    time: {
+                        field: "LastUpdated",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2024-01-01T13:50:03.726Z"),
+                            inclusiveUpperBoundDate: null,
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("chat messages sent recently by john", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["chat messages sent recently by john"],
+        filters: [
+            {
+                entity: {types: ["ChatMessage"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-01T13:50:03.726Z"),
+                        inclusiveUpperBoundDate: null,
+                    },
+                },
+            },
+        ],
+    });
+});
