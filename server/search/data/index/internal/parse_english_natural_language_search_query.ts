@@ -141,6 +141,7 @@ const matchTermTexts = [
     "last",
     "before",
     "after",
+    "exactly",
 ] as const;
 
 const matchTerms = Object.fromEntries(
@@ -194,20 +195,21 @@ class SearchNaturalLanguageParserState {
     }
 }
 
-export type SearchNaturalLanguageFilter =
-    | SearchNaturalLanguageStandaloneEntityTypesFilter
-    | SearchNaturalLanguageAccountFilter;
-
-export type SearchNaturalLanguageStandaloneEntityTypesFilter = {
-    readonly type: "StandaloneSearchEntityTypes";
-    readonly entityTypes: ReadonlyArray<SearchEntityIdObject["type"]>;
-};
-
-export type SearchNaturalLanguageAccountFilter = {
-    readonly type: "Account";
-    readonly accountIds: ReadonlyArray<AccountId>;
-    readonly entityTypes: ReadonlyArray<SearchEntityIdObject["type"]>;
-    readonly level: "Creator" | "CreatorOrMajorContributor" | "AnyContributor";
+export type SearchNaturalLanguageFilter = {
+    readonly entity: {
+        readonly types: ReadonlyArray<SearchEntityIdObject["type"]>;
+    } | null;
+    readonly accounts: {
+        readonly field: "Creator" | "CreatorOrMajorContributor" | "AnyContributor";
+        readonly ids: ReadonlyArray<AccountId>;
+    } | null;
+    readonly time: {
+        readonly field: "Created" | "LastUpdated";
+        readonly range:
+            | {readonly inclusiveUpperBoundDate: Date; readonly inclusiveLowerBoundDate: Date}
+            | {readonly inclusiveUpperBoundDate: Date; readonly inclusiveLowerBoundDate: null}
+            | {readonly inclusiveUpperBoundDate: null; readonly inclusiveLowerBoundDate: Date};
+    } | null;
 };
 
 /**
@@ -368,10 +370,9 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: [actorAccountId],
-                        entityTypes,
-                        level: "Creator",
+                        entity: {types: entityTypes},
+                        accounts: {field: "Creator", ids: [actorAccountId]},
+                        time: null,
                     });
                     continue;
                 }
@@ -385,10 +386,9 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: accounts.map(account => account.id),
-                        entityTypes,
-                        level: "Creator",
+                        entity: {types: entityTypes},
+                        accounts: {field: "Creator", ids: accounts.map(account => account.id)},
+                        time: null,
                     });
                     continue;
                 }
@@ -396,8 +396,9 @@ function parseSearchNaturalLanguageFilters(
                 addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
 
                 filters.push({
-                    type: "StandaloneSearchEntityTypes",
-                    entityTypes,
+                    entity: {types: entityTypes},
+                    accounts: null,
+                    time: null,
                 });
                 continue;
             }
@@ -421,10 +422,9 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: [actorAccountId],
-                        entityTypes,
-                        level: "CreatorOrMajorContributor",
+                        entity: {types: entityTypes},
+                        accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
+                        time: null,
                     });
                     continue;
                 }
@@ -438,10 +438,12 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: accounts.map(account => account.id),
-                        entityTypes,
-                        level: "CreatorOrMajorContributor",
+                        entity: {types: entityTypes},
+                        accounts: {
+                            field: "CreatorOrMajorContributor",
+                            ids: accounts.map(account => account.id),
+                        },
+                        time: null,
                     });
                     continue;
                 }
@@ -449,8 +451,9 @@ function parseSearchNaturalLanguageFilters(
                 addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
 
                 filters.push({
-                    type: "StandaloneSearchEntityTypes",
-                    entityTypes,
+                    entity: {types: entityTypes},
+                    accounts: null,
+                    time: null,
                 });
                 continue;
             }
@@ -474,10 +477,9 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: [actorAccountId],
-                        entityTypes,
-                        level: "AnyContributor",
+                        entity: {types: entityTypes},
+                        accounts: {field: "AnyContributor", ids: [actorAccountId]},
+                        time: null,
                     });
                     continue;
                 }
@@ -491,10 +493,12 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: accounts.map(account => account.id),
-                        entityTypes,
-                        level: "AnyContributor",
+                        entity: {types: entityTypes},
+                        accounts: {
+                            field: "AnyContributor",
+                            ids: accounts.map(account => account.id),
+                        },
+                        time: null,
                     });
                     continue;
                 }
@@ -502,8 +506,9 @@ function parseSearchNaturalLanguageFilters(
                 addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
 
                 filters.push({
-                    type: "StandaloneSearchEntityTypes",
-                    entityTypes,
+                    entity: {types: entityTypes},
+                    accounts: null,
+                    time: null,
                 });
                 continue;
             }
@@ -525,10 +530,9 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: [actorAccountId],
-                        entityTypes,
-                        level: "CreatorOrMajorContributor",
+                        entity: {types: entityTypes},
+                        accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
+                        time: null,
                     });
                     continue;
                 }
@@ -542,10 +546,12 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: accounts.map(account => account.id),
-                        entityTypes,
-                        level: "CreatorOrMajorContributor",
+                        entity: {types: entityTypes},
+                        accounts: {
+                            field: "CreatorOrMajorContributor",
+                            ids: accounts.map(account => account.id),
+                        },
+                        time: null,
                     });
                     continue;
                 }
@@ -553,8 +559,9 @@ function parseSearchNaturalLanguageFilters(
                 addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
 
                 filters.push({
-                    type: "StandaloneSearchEntityTypes",
-                    entityTypes,
+                    entity: {types: entityTypes},
+                    accounts: null,
+                    time: null,
                 });
                 continue;
             }
@@ -575,10 +582,9 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
-                    type: "Account",
-                    accountIds: [actorAccountId],
-                    entityTypes,
-                    level: "Creator",
+                    entity: {types: entityTypes},
+                    accounts: {field: "Creator", ids: [actorAccountId]},
+                    time: null,
                 });
                 continue;
             }
@@ -598,10 +604,9 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
-                    type: "Account",
-                    accountIds: [actorAccountId],
-                    entityTypes,
-                    level: "CreatorOrMajorContributor",
+                    entity: {types: entityTypes},
+                    accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
+                    time: null,
                 });
                 continue;
             }
@@ -621,10 +626,9 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
-                    type: "Account",
-                    accountIds: [actorAccountId],
-                    entityTypes,
-                    level: "AnyContributor",
+                    entity: {types: entityTypes},
+                    accounts: {field: "AnyContributor", ids: [actorAccountId]},
+                    time: null,
                 });
                 continue;
             }
@@ -645,10 +649,9 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: accounts.map(account => account.id),
-                        entityTypes,
-                        level: "Creator",
+                        entity: {types: entityTypes},
+                        accounts: {field: "Creator", ids: accounts.map(account => account.id)},
+                        time: null,
                     });
                     continue;
                 }
@@ -666,10 +669,12 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: accounts.map(account => account.id),
-                        entityTypes,
-                        level: "CreatorOrMajorContributor",
+                        entity: {types: entityTypes},
+                        accounts: {
+                            field: "CreatorOrMajorContributor",
+                            ids: accounts.map(account => account.id),
+                        },
+                        time: null,
                     });
                     continue;
                 }
@@ -687,10 +692,12 @@ function parseSearchNaturalLanguageFilters(
                     addControlPhrase();
 
                     filters.push({
-                        type: "Account",
-                        accountIds: accounts.map(account => account.id),
-                        entityTypes,
-                        level: "AnyContributor",
+                        entity: {types: entityTypes},
+                        accounts: {
+                            field: "AnyContributor",
+                            ids: accounts.map(account => account.id),
+                        },
+                        time: null,
                     });
                     continue;
                 }
@@ -698,82 +705,166 @@ function parseSearchNaturalLanguageFilters(
                 addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
 
                 filters.push({
-                    type: "StandaloneSearchEntityTypes",
-                    entityTypes,
+                    entity: {types: entityTypes},
+                    accounts: null,
+                    time: null,
                 });
                 continue;
             }
 
-            // NOCOMMIT
-            //
-            // const parseDatePartIfPossible = (level: "CreatedTime" | "LastUpdatedTime"): boolean => {
-            //     let direction: "Before" | "After" | null = null;
+            const advanceDateTermsAttemptingToParseDate = (
+                filterBase: Omit<SearchNaturalLanguageFilter, "time">,
+                field: "Created" | "LastUpdated",
+            ): {isSuccess: boolean} => {
+                // NOCOMMIT:
+                //
+                // let direction: "Before" | "After" | "Exact" = "Before";
 
-            //     // "...before..."
-            //     if (matchTerms.before.isFuzzyMatch(state.term)) {
-            //         state.advanceTerm();
-            //         direction = "Before";
-            //     }
-            //     // "...after..."
-            //     else if (matchTerms.after.isFuzzyMatch(state.term)) {
-            //         state.advanceTerm();
-            //         direction = "After";
-            //     }
+                // // "...before..."
+                // if (matchTerms.before.isFuzzyMatch(state.term)) {
+                //     state.advanceTerm();
+                //     direction = "Before";
+                // }
+                // // "...after..."
+                // else if (matchTerms.after.isFuzzyMatch(state.term)) {
+                //     state.advanceTerm();
+                //     direction = "After";
+                // }
+                // // "...exactly..."
+                // else if (matchTerms.exactly.isFuzzyMatch(state.term)) {
+                //     state.advanceTerm();
+                //     direction = "Exact";
+                // }
 
-            //     // NOCOMMIT: "recently"
-            //     // NOCOMMIT: "new"
+                // NOCOMMIT: "recently"
+                // NOCOMMIT: "new"
 
-            //     if (state.term?.tags?.has("Date")) {
-            //         const dateStartTerm = state.term;
+                if (!state.term?.tags?.has("Date")) return {isSuccess: false};
 
-            //         while (state.term?.tags?.has("Date")) {
-            //             state.advanceTerm();
-            //         }
+                const dateStartTerm = state.term;
 
-            //         const dateEndTerm = assertExists(state.terms[state.termIndex - 1]);
+                // Consume the terms the `compromise-date` plugin tags as `Date`...
+                while (state.term?.tags?.has("Date")) {
+                    state.advanceTerm();
+                }
 
-            //         const dateView = createView(dateStartTerm, dateEndTerm);
+                const dateEndTerm = assertExists(state.terms[state.termIndex - 1]);
 
-            //         const parsedDate = (dateView as any)
-            //             .dates({timezone: timeZone, today: currentTime})
-            //             .get()[0] as
-            //             | {start: DateString; end: DateString; timezone: TimeZone}
-            //             | undefined;
-            //     }
+                const dateView = createView(dateStartTerm, dateEndTerm);
 
-            //     return false;
-            // };
+                // Parse the date text so we can use it as a filter.
+                const parsedDate = (dateView as any)
+                    .dates({timezone: timeZone, today: currentTime})
+                    .get()[0] as
+                    | {start: DateString; end: DateString; timezone: TimeZone}
+                    | undefined;
 
-            // // e.g. "document created..."
-            // if (matchTerms.created.isFuzzyMatch(state.term)) {
-            //     state.advanceTerm();
+                if (!parsedDate) return {isSuccess: false};
 
-            //     if (parseDatePartIfPossible("CreatedTime")) {
-            //         continue;
-            //     }
-            // }
+                let startDate = new Date(parsedDate.start);
+                let endDate = new Date(parsedDate.end);
+                const durationMs = endDate.getTime() - startDate.getTime();
+                const midDate = new Date(startDate.getTime() + durationMs / 2);
 
-            // // e.g. "document updated..."
-            // if (matchTerms.updated.isFuzzyMatch(state.term)) {
-            //     state.advanceTerm();
+                const dayMs = 1000 * 60 * 60 * 24;
 
-            //     if (parseDatePartIfPossible("LastUpdatedTime")) {
-            //         continue;
-            //     }
-            // }
+                // When the user targets a specific point in time like "2 hours ago", "2 days
+                // ago", or "2 months ago" it's unlikely they mean the exact time 2
+                // hours/days/months ago. So add some slop duration to our time filter. The
+                // slop duration gets larger the further in the past the time the user
+                // specifies is based on the hypothesis that the user's memory gets fuzzier the
+                // further in the past we're looking for an entity.
+                const slopDurationMs =
+                    getSlopDurationDays((currentTime.getTime() - midDate.getTime()) / dayMs) *
+                    dayMs;
 
-            // // e.g. "document last updated..."
-            // if (
-            //     matchTerms.last.isFuzzyMatch(state.term) &&
-            //     matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1])
-            // ) {
-            //     state.advanceTerm();
-            //     state.advanceTerm();
+                if (slopDurationMs > durationMs) {
+                    startDate = new Date(startDate.getTime() - (slopDurationMs - durationMs) / 2);
+                    endDate = new Date(endDate.getTime() + (slopDurationMs - durationMs) / 2);
+                }
 
-            //     if (parseDatePartIfPossible("LastUpdatedTime")) {
-            //         continue;
-            //     }
-            // }
+                addControlPhrase();
+
+                filters.push({
+                    ...filterBase,
+                    time: {
+                        field,
+                        range: {
+                            inclusiveLowerBoundDate: startDate,
+                            inclusiveUpperBoundDate: endDate,
+                        },
+                    },
+                });
+
+                return {isSuccess: true};
+            };
+
+            // e.g. "documents created..."
+            if (matchTerms.created.isFuzzyMatch(state.term)) {
+                state.advanceTerm();
+
+                const {isSuccess} = advanceDateTermsAttemptingToParseDate(
+                    {entity: {types: entityTypes}, accounts: null},
+                    "Created",
+                );
+
+                if (!isSuccess) {
+                    addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+
+                    filters.push({
+                        entity: {types: entityTypes},
+                        accounts: null,
+                        time: null,
+                    });
+                }
+                continue;
+            }
+
+            // e.g. "documents updated..."
+            if (matchTerms.updated.isFuzzyMatch(state.term)) {
+                state.advanceTerm();
+
+                const {isSuccess} = advanceDateTermsAttemptingToParseDate(
+                    {entity: {types: entityTypes}, accounts: null},
+                    "LastUpdated",
+                );
+
+                if (!isSuccess) {
+                    addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+
+                    filters.push({
+                        entity: {types: entityTypes},
+                        accounts: null,
+                        time: null,
+                    });
+                }
+                continue;
+            }
+
+            // e.g. "documents last updated..."
+            if (
+                matchTerms.last.isFuzzyMatch(state.term) &&
+                matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1])
+            ) {
+                state.advanceTerm();
+                state.advanceTerm();
+
+                const {isSuccess} = advanceDateTermsAttemptingToParseDate(
+                    {entity: {types: entityTypes}, accounts: null},
+                    "LastUpdated",
+                );
+
+                if (!isSuccess) {
+                    addSpecificControlPhrase(startTerm, lastEntityTypesTerm);
+
+                    filters.push({
+                        entity: {types: entityTypes},
+                        accounts: null,
+                        time: null,
+                    });
+                }
+                continue;
+            }
 
             // e.g. "documents" or "chat messages"
             //
@@ -785,8 +876,9 @@ function parseSearchNaturalLanguageFilters(
             addControlPhrase();
 
             filters.push({
-                type: "StandaloneSearchEntityTypes",
-                entityTypes,
+                entity: {types: entityTypes},
+                accounts: null,
+                time: null,
             });
             continue;
         }
@@ -822,10 +914,9 @@ function parseSearchNaturalLanguageFilters(
                     addSpecificControlPhrase(firstEntityTypesTerm, lastEntityTypesTerm);
 
                     filters.push({
-                        type: "Account",
-                        accountIds,
-                        entityTypes,
-                        level: "CreatorOrMajorContributor",
+                        entity: {types: entityTypes},
+                        accounts: {field: "CreatorOrMajorContributor", ids: accountIds},
+                        time: null,
                     });
                     break;
                 }
@@ -847,10 +938,9 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
-                    type: "Account",
-                    accountIds: [actorAccountId],
-                    entityTypes,
-                    level: "CreatorOrMajorContributor",
+                    entity: {types: entityTypes},
+                    accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
+                    time: null,
                 });
                 continue;
             }
@@ -871,10 +961,12 @@ function parseSearchNaturalLanguageFilters(
                 addControlPhrase();
 
                 filters.push({
-                    type: "Account",
-                    accountIds: accounts.map(account => account.id),
-                    entityTypes,
-                    level: "CreatorOrMajorContributor",
+                    entity: {types: entityTypes},
+                    accounts: {
+                        field: "CreatorOrMajorContributor",
+                        ids: accounts.map(account => account.id),
+                    },
+                    time: null,
                 });
                 continue;
             }
@@ -1085,4 +1177,37 @@ function stemEnglishPossessive(text: string): string {
     }
 
     return text;
+}
+
+/**
+ * Model returning a slop duration (measured in days) based on the input
+ * duration (measured in days).
+ *
+ * When the user targets a date with natural language (e.g. "5 days ago") we
+ * add some slop around the date since it's unlikely they're targeting the
+ * exact date. We add more slop the further the time is in the past under the
+ * assumption the user's memory gets fuzzier the further away from the date
+ * we are.
+ *
+ * This model is based on a cubic regression of the following data points:
+ *
+ * - (5 minutes, 5 minutes)
+ * - (2 hours, 30 minutes)
+ * - (1 day, 1 hour)
+ * - (5 days, 1 day)
+ * - (60 days, 30 days)
+ * - (90 days, 30 days)
+ *
+ * The model is clamped to a maximum of 30 days.
+ */
+function getSlopDurationDays(x: number): number {
+    // Negative/positive durations produce the same result.
+    x = Math.abs(x);
+
+    // Where we intersect with y = 30. Higher x values should not go back down.
+    x = Math.min(x, 60);
+
+    const y = 0.025945 + 0.135694 * x + 0.013839 * x ** 2 - 0.000129 * x ** 3;
+
+    return Math.min(y, 30);
 }

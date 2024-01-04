@@ -258,10 +258,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["documents by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -271,10 +270,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["documents by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -285,10 +283,9 @@ test("parses search entity type then account name", () => {
             controlQueryTexts: ["documents by me about"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[0]!.id],
-                    entityTypes: ["Document"],
-                    level: "CreatorOrMajorContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -299,10 +296,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["documents by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -312,10 +308,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["documents by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -327,10 +322,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["documents by john about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -340,10 +334,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["documents by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -353,10 +346,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["documents by john smith"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -368,10 +360,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["documents by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -381,10 +372,12 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["messages from emily"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[2]!.id, accounts[4]!.id],
-                entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: {
+                    field: "CreatorOrMajorContributor",
+                    ids: [accounts[2]!.id, accounts[4]!.id],
+                },
+                time: null,
             },
         ],
     });
@@ -394,10 +387,12 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["comments from emily"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[2]!.id, accounts[4]!.id],
-                entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: {
+                    field: "CreatorOrMajorContributor",
+                    ids: [accounts[2]!.id, accounts[4]!.id],
+                },
+                time: null,
             },
         ],
     });
@@ -407,10 +402,12 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["post comments from emily"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[2]!.id, accounts[4]!.id],
-                entityTypes: ["PostComment"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["PostComment"]},
+                accounts: {
+                    field: "CreatorOrMajorContributor",
+                    ids: [accounts[2]!.id, accounts[4]!.id],
+                },
+                time: null,
             },
         ],
     });
@@ -420,10 +417,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["messages from emily smith"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[2]!.id],
-                entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[2]!.id]},
+                time: null,
             },
         ],
     });
@@ -433,10 +429,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["messages from emily lin"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[4]!.id],
-                entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[4]!.id]},
+                time: null,
             },
         ],
     });
@@ -446,10 +441,12 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["messeges from emily"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[2]!.id, accounts[4]!.id],
-                entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: {
+                    field: "CreatorOrMajorContributor",
+                    ids: [accounts[2]!.id, accounts[4]!.id],
+                },
+                time: null,
             },
         ],
     });
@@ -465,8 +462,9 @@ test("parses search entity type then account name", () => {
         controlQueryTexts: ["messages"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -478,10 +476,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents created by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -491,8 +488,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -504,10 +502,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents created by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -519,10 +516,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents created by me about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -532,10 +528,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents written by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -545,8 +540,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -558,10 +554,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents written by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -573,10 +568,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents written by me about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -586,10 +580,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents updated by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -599,8 +592,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -612,10 +606,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents updated by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -627,10 +620,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents updated by me about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -640,10 +632,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents udpated by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -653,8 +644,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -666,10 +658,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents udpated by me"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -681,10 +672,9 @@ test("parses search entity type then relationship then me", () => {
         controlQueryTexts: ["documents udpated by me about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -696,10 +686,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents created by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -709,8 +698,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -720,8 +710,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -733,10 +724,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents created by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -748,10 +738,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents created by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -763,10 +752,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents created by john smith"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -778,10 +766,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents created by john about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -791,10 +778,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents written by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -804,8 +790,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -815,8 +802,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -828,10 +816,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents written by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -843,10 +830,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents written by john about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -856,10 +842,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents updated by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -869,8 +854,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -882,10 +868,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents updated by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -897,10 +882,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents updated by john about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -910,8 +894,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -921,10 +906,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents udpated by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -934,8 +918,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -947,10 +932,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents udpated by john"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -962,10 +946,9 @@ test("parses search entity type then relationship then account name", () => {
         controlQueryTexts: ["documents udpated by john about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -977,10 +960,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I created"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -990,8 +972,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1001,10 +984,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I created"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1016,10 +998,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I created about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1029,10 +1010,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I wrote"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1042,8 +1022,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1053,10 +1034,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I wrote"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1068,10 +1048,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I wrote about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1081,10 +1060,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I updated"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1094,8 +1072,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1105,10 +1084,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I updated"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1120,10 +1098,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I updated about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1133,10 +1110,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I udpated"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1146,8 +1122,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1157,10 +1134,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I udpated"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1172,10 +1148,9 @@ test("parses search entity type then I then relationship", () => {
         controlQueryTexts: ["documents I udpated about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1187,10 +1162,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents john created"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1200,8 +1174,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1212,10 +1187,9 @@ test("parses search entity type then account first name then relationship", () =
             controlQueryTexts: ["documents john created"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "Creator",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -1228,10 +1202,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents john created about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1241,10 +1214,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents john wrote"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1254,8 +1226,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1265,10 +1238,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents john wrote"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1280,10 +1252,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents john wrote about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1293,10 +1264,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents john updated"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1306,8 +1276,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1318,10 +1289,9 @@ test("parses search entity type then account first name then relationship", () =
             controlQueryTexts: ["documents john updated"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "AnyContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -1334,10 +1304,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents john updated about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1347,10 +1316,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents john udpated"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1360,8 +1328,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1372,10 +1341,9 @@ test("parses search entity type then account first name then relationship", () =
             controlQueryTexts: ["documents john udpated"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "AnyContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -1388,10 +1356,9 @@ test("parses search entity type then account first name then relationship", () =
         controlQueryTexts: ["documents john udpated about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1404,10 +1371,9 @@ test("parses search entity type then account full name then relationship", () =>
             controlQueryTexts: ["documents john smith created"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "Creator",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -1418,8 +1384,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1431,10 +1398,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents john smith created"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1449,10 +1415,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents john smith created about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "Creator",
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1462,10 +1427,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents john smith wrote"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1475,8 +1439,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1488,10 +1453,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents john smith wrote"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1503,10 +1467,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents john smith wrote about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1517,10 +1480,9 @@ test("parses search entity type then account full name then relationship", () =>
             controlQueryTexts: ["documents john smith updated"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "AnyContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -1531,8 +1493,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1544,10 +1507,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents john smith updated"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1562,10 +1524,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents john smith updated about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1576,10 +1537,9 @@ test("parses search entity type then account full name then relationship", () =>
             controlQueryTexts: ["documents john smith udpated"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "AnyContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -1590,8 +1550,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1603,10 +1564,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents john smith udpated"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1621,10 +1581,9 @@ test("parses search entity type then account full name then relationship", () =>
         controlQueryTexts: ["documents john smith udpated about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "AnyContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1636,10 +1595,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["my documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1649,10 +1607,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["my documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1662,10 +1619,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["my documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1675,10 +1631,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["my documents about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -1688,10 +1643,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john's documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1701,10 +1655,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john's documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1714,10 +1667,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john's documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1729,10 +1681,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john's documents about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1742,10 +1693,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john smith's documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1756,10 +1706,9 @@ test("parses account name then entity type", () => {
             controlQueryTexts: ["john smith's documents"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "CreatorOrMajorContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -1771,10 +1720,9 @@ test("parses account name then entity type", () => {
             controlQueryTexts: ["john smith's documents"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "CreatorOrMajorContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -1787,10 +1735,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john smith's documents about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1800,10 +1747,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["johns documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1813,10 +1759,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["johns documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1826,10 +1771,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["johns documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1840,10 +1784,9 @@ test("parses account name then entity type", () => {
             controlQueryTexts: ["johns documents about"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "CreatorOrMajorContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -1854,10 +1797,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john smiths documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1867,10 +1809,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john smiths documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1880,10 +1821,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john smiths documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1895,10 +1835,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["john smiths documents about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1920,10 +1859,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["jahn documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1933,10 +1871,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["jahn's documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -1946,8 +1883,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1957,8 +1895,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1968,8 +1907,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1979,8 +1919,9 @@ test("parses account name then entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -1992,10 +1933,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["my", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -2005,10 +1945,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["john's", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -2019,10 +1958,9 @@ test("parses account name with some text between then entity type", () => {
             controlQueryTexts: ["john smith's", "documents"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "CreatorOrMajorContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -2035,10 +1973,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["my", "documents about"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -2059,8 +1996,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2075,8 +2013,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2088,8 +2027,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2101,8 +2041,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2117,8 +2058,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2128,10 +2070,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["my", "tasks"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Task"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Task"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -2141,8 +2082,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["tasks"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Task"],
+                entity: {types: ["Task"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2152,8 +2094,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["tasks"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Task"],
+                entity: {types: ["Task"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2163,10 +2106,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["my", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -2176,10 +2118,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["john's", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -2190,10 +2131,9 @@ test("parses account name with some text between then entity type", () => {
             controlQueryTexts: ["john smith's", "documents"],
             filters: [
                 {
-                    type: "Account",
-                    accountIds: [accounts[1]!.id],
-                    entityTypes: ["Document"],
-                    level: "CreatorOrMajorContributor",
+                    entity: {types: ["Document"]},
+                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    time: null,
                 },
             ],
         },
@@ -2204,10 +2144,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["john's smith documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -2219,10 +2158,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["my", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -2234,10 +2172,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["john's", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -2252,10 +2189,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["john smith's", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -2267,10 +2203,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["my", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[0]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: null,
             },
         ],
     });
@@ -2282,10 +2217,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["john's", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -2300,10 +2234,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["john smith's", "documents"],
         filters: [
             {
-                type: "Account",
-                accountIds: [accounts[1]!.id],
-                entityTypes: ["Document"],
-                level: "CreatorOrMajorContributor",
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: null,
             },
         ],
     });
@@ -2315,8 +2248,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["chat messages"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["ChatMessage"],
+                entity: {types: ["ChatMessage"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2331,8 +2265,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["chat messages"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["ChatMessage"],
+                entity: {types: ["ChatMessage"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2347,8 +2282,9 @@ test("parses account name with some text between then entity type", () => {
         controlQueryTexts: ["chat messages"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["ChatMessage"],
+                entity: {types: ["ChatMessage"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2360,8 +2296,9 @@ test("parses standalone entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2371,8 +2308,9 @@ test("parses standalone entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2382,8 +2320,9 @@ test("parses standalone entity type", () => {
         controlQueryTexts: ["documents"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2393,8 +2332,9 @@ test("parses standalone entity type", () => {
         controlQueryTexts: ["chat message"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["ChatMessage"],
+                entity: {types: ["ChatMessage"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2404,8 +2344,9 @@ test("parses standalone entity type", () => {
         controlQueryTexts: ["messages"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: null,
+                time: null,
             },
         ],
     });
@@ -2422,12 +2363,392 @@ test("correctly splits query texts", () => {
         controlQueryTexts: ["documents", "chat"],
         filters: [
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Document"],
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: null,
             },
             {
-                type: "StandaloneSearchEntityTypes",
-                entityTypes: ["Chat"],
+                entity: {types: ["Chat"]},
+                accounts: null,
+                time: null,
+            },
+        ],
+    });
+});
+
+test("provides duration slop when referencing precise date", () => {
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 1 minute ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 1 minute ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-04T13:30:18.830Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T14:07:48.621Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 2 minutes ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 2 minutes ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-04T13:29:14.759Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T14:06:52.692Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 5 minutes ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 5 minutes ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-04T13:26:02.540Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T14:04:04.911Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created 1 hour ago", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["documents created 1 hour ago"],
+            filters: [
+                {
+                    entity: {types: ["Document"]},
+                    accounts: null,
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2024-01-04T12:27:17.615Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-04T13:12:49.836Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 2 hours ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 2 hours ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-04T11:23:10.255Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T12:16:57.196Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 24 hours ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 24 hours ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T11:43:48.649Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-03T15:56:18.802Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created yesterday", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created yesterday"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created 2 days ago", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["documents created 2 days ago"],
+            filters: [
+                {
+                    entity: {types: ["Document"]},
+                    accounts: null,
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2024-01-02T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created 3 days ago", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["documents created 3 days ago"],
+            filters: [
+                {
+                    entity: {types: ["Document"]},
+                    accounts: null,
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2024-01-01T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-02T06:59:59.999Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created 4 days ago", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["documents created 4 days ago"],
+            filters: [
+                {
+                    entity: {types: ["Document"]},
+                    accounts: null,
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2023-12-31T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created 5 days ago", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["documents created 5 days ago"],
+            filters: [
+                {
+                    entity: {types: ["Document"]},
+                    accounts: null,
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2023-12-30T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2023-12-31T06:59:59.999Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created 6 days ago", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["documents created 6 days ago"],
+            filters: [
+                {
+                    entity: {types: ["Document"]},
+                    accounts: null,
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2023-12-29T04:00:41.781Z"),
+                            inclusiveUpperBoundDate: new Date("2023-12-30T09:59:18.217Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created last week", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created last week"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-12-25T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 2 weeks ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 2 weeks ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-12-19T16:44:28.090Z"),
+                        inclusiveUpperBoundDate: new Date("2023-12-23T21:15:31.908Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("documents created last month", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["documents created last month"],
+            filters: [
+                {
+                    entity: {types: ["Document"]},
+                    accounts: null,
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2023-12-01T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 2 months ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 2 months ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-10-20T17:59:59.999Z"),
+                        inclusiveUpperBoundDate: new Date("2023-11-19T17:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 3 months ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 3 months ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-09-19T17:59:59.999Z"),
+                        inclusiveUpperBoundDate: new Date("2023-10-19T17:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 4 months ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 4 months ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-08-20T17:59:59.999Z"),
+                        inclusiveUpperBoundDate: new Date("2023-09-19T17:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("documents created 6 months ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["documents created 6 months ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: null,
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-06-19T17:59:59.999Z"),
+                        inclusiveUpperBoundDate: new Date("2023-07-19T17:59:59.999Z"),
+                    },
+                },
             },
         ],
     });
