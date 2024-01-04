@@ -254,8 +254,8 @@ test("account name search matches names with slight typos", () => {
 
 test("parses search entity type then account name", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("documents by me", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents by me",
+        queryTexts: [],
+        controlQueryTexts: ["documents by me"],
         filters: [
             {
                 type: "Account",
@@ -267,8 +267,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents by me", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "documents by me",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents by me"],
         filters: [
             {
                 type: "Account",
@@ -281,8 +281,8 @@ test("parses search entity type then account name", () => {
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents by me about trains", options)).toEqual(
         {
-            queryText: "trains",
-            controlQueryText: "documents by me about",
+            queryTexts: ["trains"],
+            controlQueryTexts: ["documents by me about"],
             filters: [
                 {
                     type: "Account",
@@ -295,8 +295,8 @@ test("parses search entity type then account name", () => {
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents by john", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents by john",
+        queryTexts: [],
+        controlQueryTexts: ["documents by john"],
         filters: [
             {
                 type: "Account",
@@ -308,8 +308,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents by john", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "documents by john",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents by john"],
         filters: [
             {
                 type: "Account",
@@ -323,8 +323,8 @@ test("parses search entity type then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents by john about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents by john about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents by john about"],
         filters: [
             {
                 type: "Account",
@@ -336,8 +336,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents by john trains", options)).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents by john",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents by john"],
         filters: [
             {
                 type: "Account",
@@ -349,8 +349,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents by john smith", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents by john smith",
+        queryTexts: [],
+        controlQueryTexts: ["documents by john smith"],
         filters: [
             {
                 type: "Account",
@@ -364,8 +364,8 @@ test("parses search entity type then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("trains1 documents by john trains2", options),
     ).toEqual({
-        queryText: "trains1 trains2",
-        controlQueryText: "documents by john",
+        queryTexts: ["trains1", "trains2"],
+        controlQueryTexts: ["documents by john"],
         filters: [
             {
                 type: "Account",
@@ -377,8 +377,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("messages from emily", options)).toEqual({
-        queryText: "",
-        controlQueryText: "messages from emily",
+        queryTexts: [],
+        controlQueryTexts: ["messages from emily"],
         filters: [
             {
                 type: "Account",
@@ -390,8 +390,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("comments from emily", options)).toEqual({
-        queryText: "",
-        controlQueryText: "comments from emily",
+        queryTexts: [],
+        controlQueryTexts: ["comments from emily"],
         filters: [
             {
                 type: "Account",
@@ -403,8 +403,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("post comments from emily", options)).toEqual({
-        queryText: "",
-        controlQueryText: "post comments from emily",
+        queryTexts: [],
+        controlQueryTexts: ["post comments from emily"],
         filters: [
             {
                 type: "Account",
@@ -416,8 +416,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("messages from emily smith", options)).toEqual({
-        queryText: "",
-        controlQueryText: "messages from emily smith",
+        queryTexts: [],
+        controlQueryTexts: ["messages from emily smith"],
         filters: [
             {
                 type: "Account",
@@ -429,8 +429,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("messages from emily lin", options)).toEqual({
-        queryText: "",
-        controlQueryText: "messages from emily lin",
+        queryTexts: [],
+        controlQueryTexts: ["messages from emily lin"],
         filters: [
             {
                 type: "Account",
@@ -442,8 +442,8 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("messeges from emily", options)).toEqual({
-        queryText: "",
-        controlQueryText: "messeges from emily",
+        queryTexts: [],
+        controlQueryTexts: ["messeges from emily"],
         filters: [
             {
                 type: "Account",
@@ -455,14 +455,14 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("messsegees from emily", options)).toEqual({
-        queryText: "messsegees from emily",
-        controlQueryText: "",
+        queryTexts: ["messsegees from emily"],
+        controlQueryTexts: [],
         filters: [],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("messages from sarah", options)).toEqual({
-        queryText: "from sarah",
-        controlQueryText: "messages",
+        queryTexts: ["from sarah"],
+        controlQueryTexts: ["messages"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -474,8 +474,8 @@ test("parses search entity type then account name", () => {
 
 test("parses search entity type then relationship then me", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("documents created by me", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents created by me",
+        queryTexts: [],
+        controlQueryTexts: ["documents created by me"],
         filters: [
             {
                 type: "Account",
@@ -487,8 +487,8 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents created me", options)).toEqual({
-        queryText: "created me",
-        controlQueryText: "documents",
+        queryTexts: ["created me"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -500,8 +500,8 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents created by me", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents created by me",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents created by me"],
         filters: [
             {
                 type: "Account",
@@ -515,8 +515,8 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents created by me about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents created by me about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents created by me about"],
         filters: [
             {
                 type: "Account",
@@ -528,8 +528,8 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents written by me", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents written by me",
+        queryTexts: [],
+        controlQueryTexts: ["documents written by me"],
         filters: [
             {
                 type: "Account",
@@ -541,8 +541,8 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents written me", options)).toEqual({
-        queryText: "written me",
-        controlQueryText: "documents",
+        queryTexts: ["written me"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -554,8 +554,8 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents written by me", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents written by me",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents written by me"],
         filters: [
             {
                 type: "Account",
@@ -569,8 +569,8 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents written by me about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents written by me about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents written by me about"],
         filters: [
             {
                 type: "Account",
@@ -582,8 +582,8 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated by me", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents updated by me",
+        queryTexts: [],
+        controlQueryTexts: ["documents updated by me"],
         filters: [
             {
                 type: "Account",
@@ -595,8 +595,8 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated me", options)).toEqual({
-        queryText: "updated me",
-        controlQueryText: "documents",
+        queryTexts: ["updated me"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -608,8 +608,8 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents updated by me", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents updated by me",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents updated by me"],
         filters: [
             {
                 type: "Account",
@@ -623,8 +623,8 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents updated by me about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents updated by me about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents updated by me about"],
         filters: [
             {
                 type: "Account",
@@ -636,8 +636,8 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated by me", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents udpated by me",
+        queryTexts: [],
+        controlQueryTexts: ["documents udpated by me"],
         filters: [
             {
                 type: "Account",
@@ -649,8 +649,8 @@ test("parses search entity type then relationship then me", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated me", options)).toEqual({
-        queryText: "udpated me",
-        controlQueryText: "documents",
+        queryTexts: ["udpated me"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -662,8 +662,8 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents udpated by me", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents udpated by me",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents udpated by me"],
         filters: [
             {
                 type: "Account",
@@ -677,8 +677,8 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents udpated by me about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents udpated by me about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents udpated by me about"],
         filters: [
             {
                 type: "Account",
@@ -692,8 +692,8 @@ test("parses search entity type then relationship then me", () => {
 
 test("parses search entity type then relationship then account name", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("documents created by john", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents created by john",
+        queryTexts: [],
+        controlQueryTexts: ["documents created by john"],
         filters: [
             {
                 type: "Account",
@@ -705,8 +705,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents created by sara", options)).toEqual({
-        queryText: "created by sara",
-        controlQueryText: "documents",
+        queryTexts: ["created by sara"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -716,8 +716,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents created john", options)).toEqual({
-        queryText: "created john",
-        controlQueryText: "documents",
+        queryTexts: ["created john"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -729,8 +729,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents created by john", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents created by john",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents created by john"],
         filters: [
             {
                 type: "Account",
@@ -744,8 +744,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents created by john trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents created by john",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents created by john"],
         filters: [
             {
                 type: "Account",
@@ -759,8 +759,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents created by john smith", options),
     ).toEqual({
-        queryText: "",
-        controlQueryText: "documents created by john smith",
+        queryTexts: [],
+        controlQueryTexts: ["documents created by john smith"],
         filters: [
             {
                 type: "Account",
@@ -774,8 +774,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents created by john about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents created by john about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents created by john about"],
         filters: [
             {
                 type: "Account",
@@ -787,8 +787,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents written by john", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents written by john",
+        queryTexts: [],
+        controlQueryTexts: ["documents written by john"],
         filters: [
             {
                 type: "Account",
@@ -800,8 +800,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents written by sara", options)).toEqual({
-        queryText: "written by sara",
-        controlQueryText: "documents",
+        queryTexts: ["written by sara"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -811,8 +811,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents written john", options)).toEqual({
-        queryText: "written john",
-        controlQueryText: "documents",
+        queryTexts: ["written john"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -824,8 +824,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents written by john", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents written by john",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents written by john"],
         filters: [
             {
                 type: "Account",
@@ -839,8 +839,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents written by john about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents written by john about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents written by john about"],
         filters: [
             {
                 type: "Account",
@@ -852,8 +852,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated by john", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents updated by john",
+        queryTexts: [],
+        controlQueryTexts: ["documents updated by john"],
         filters: [
             {
                 type: "Account",
@@ -865,8 +865,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated john", options)).toEqual({
-        queryText: "updated john",
-        controlQueryText: "documents",
+        queryTexts: ["updated john"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -878,8 +878,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents updated by john", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents updated by john",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents updated by john"],
         filters: [
             {
                 type: "Account",
@@ -893,8 +893,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents updated by john about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents updated by john about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents updated by john about"],
         filters: [
             {
                 type: "Account",
@@ -906,8 +906,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated by sara", options)).toEqual({
-        queryText: "updated by sara",
-        controlQueryText: "documents",
+        queryTexts: ["updated by sara"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -917,8 +917,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated by john", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents udpated by john",
+        queryTexts: [],
+        controlQueryTexts: ["documents udpated by john"],
         filters: [
             {
                 type: "Account",
@@ -930,8 +930,8 @@ test("parses search entity type then relationship then account name", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated john", options)).toEqual({
-        queryText: "udpated john",
-        controlQueryText: "documents",
+        queryTexts: ["udpated john"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -943,8 +943,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents udpated by john", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents udpated by john",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents udpated by john"],
         filters: [
             {
                 type: "Account",
@@ -958,8 +958,8 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents udpated by john about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents udpated by john about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents udpated by john about"],
         filters: [
             {
                 type: "Account",
@@ -973,8 +973,8 @@ test("parses search entity type then relationship then account name", () => {
 
 test("parses search entity type then I then relationship", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("documents I created", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents I created",
+        queryTexts: [],
+        controlQueryTexts: ["documents I created"],
         filters: [
             {
                 type: "Account",
@@ -986,8 +986,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents I", options)).toEqual({
-        queryText: "I",
-        controlQueryText: "documents",
+        queryTexts: ["I"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -997,8 +997,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents I created", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "documents I created",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents I created"],
         filters: [
             {
                 type: "Account",
@@ -1012,8 +1012,8 @@ test("parses search entity type then I then relationship", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents I created about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents I created about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents I created about"],
         filters: [
             {
                 type: "Account",
@@ -1025,8 +1025,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents I wrote", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents I wrote",
+        queryTexts: [],
+        controlQueryTexts: ["documents I wrote"],
         filters: [
             {
                 type: "Account",
@@ -1038,8 +1038,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents wrote", options)).toEqual({
-        queryText: "wrote",
-        controlQueryText: "documents",
+        queryTexts: ["wrote"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1049,8 +1049,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents I wrote", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "documents I wrote",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents I wrote"],
         filters: [
             {
                 type: "Account",
@@ -1064,8 +1064,8 @@ test("parses search entity type then I then relationship", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents I wrote about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents I wrote about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents I wrote about"],
         filters: [
             {
                 type: "Account",
@@ -1077,8 +1077,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents I updated", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents I updated",
+        queryTexts: [],
+        controlQueryTexts: ["documents I updated"],
         filters: [
             {
                 type: "Account",
@@ -1090,8 +1090,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated", options)).toEqual({
-        queryText: "updated",
-        controlQueryText: "documents",
+        queryTexts: ["updated"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1101,8 +1101,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents I updated", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "documents I updated",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents I updated"],
         filters: [
             {
                 type: "Account",
@@ -1116,8 +1116,8 @@ test("parses search entity type then I then relationship", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents I updated about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents I updated about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents I updated about"],
         filters: [
             {
                 type: "Account",
@@ -1129,8 +1129,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents I udpated", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents I udpated",
+        queryTexts: [],
+        controlQueryTexts: ["documents I udpated"],
         filters: [
             {
                 type: "Account",
@@ -1142,8 +1142,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated", options)).toEqual({
-        queryText: "udpated",
-        controlQueryText: "documents",
+        queryTexts: ["udpated"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1153,8 +1153,8 @@ test("parses search entity type then I then relationship", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents I udpated", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "documents I udpated",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents I udpated"],
         filters: [
             {
                 type: "Account",
@@ -1168,8 +1168,8 @@ test("parses search entity type then I then relationship", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents I udpated about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents I udpated about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents I udpated about"],
         filters: [
             {
                 type: "Account",
@@ -1183,8 +1183,8 @@ test("parses search entity type then I then relationship", () => {
 
 test("parses search entity type then account first name then relationship", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("documents john created", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents john created",
+        queryTexts: [],
+        controlQueryTexts: ["documents john created"],
         filters: [
             {
                 type: "Account",
@@ -1196,8 +1196,8 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john", options)).toEqual({
-        queryText: "john",
-        controlQueryText: "documents",
+        queryTexts: ["john"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1208,8 +1208,8 @@ test("parses search entity type then account first name then relationship", () =
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents john created", options)).toEqual(
         {
-            queryText: "train",
-            controlQueryText: "documents john created",
+            queryTexts: ["train"],
+            controlQueryTexts: ["documents john created"],
             filters: [
                 {
                     type: "Account",
@@ -1224,8 +1224,8 @@ test("parses search entity type then account first name then relationship", () =
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents john created about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents john created about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents john created about"],
         filters: [
             {
                 type: "Account",
@@ -1237,8 +1237,8 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john wrote", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents john wrote",
+        queryTexts: [],
+        controlQueryTexts: ["documents john wrote"],
         filters: [
             {
                 type: "Account",
@@ -1250,8 +1250,8 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents wrote", options)).toEqual({
-        queryText: "wrote",
-        controlQueryText: "documents",
+        queryTexts: ["wrote"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1261,8 +1261,8 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents john wrote", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "documents john wrote",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents john wrote"],
         filters: [
             {
                 type: "Account",
@@ -1276,8 +1276,8 @@ test("parses search entity type then account first name then relationship", () =
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents john wrote about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents john wrote about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents john wrote about"],
         filters: [
             {
                 type: "Account",
@@ -1289,8 +1289,8 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john updated", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents john updated",
+        queryTexts: [],
+        controlQueryTexts: ["documents john updated"],
         filters: [
             {
                 type: "Account",
@@ -1302,8 +1302,8 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated", options)).toEqual({
-        queryText: "updated",
-        controlQueryText: "documents",
+        queryTexts: ["updated"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1314,8 +1314,8 @@ test("parses search entity type then account first name then relationship", () =
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents john updated", options)).toEqual(
         {
-            queryText: "train",
-            controlQueryText: "documents john updated",
+            queryTexts: ["train"],
+            controlQueryTexts: ["documents john updated"],
             filters: [
                 {
                     type: "Account",
@@ -1330,8 +1330,8 @@ test("parses search entity type then account first name then relationship", () =
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents john updated about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents john updated about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents john updated about"],
         filters: [
             {
                 type: "Account",
@@ -1343,8 +1343,8 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john udpated", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents john udpated",
+        queryTexts: [],
+        controlQueryTexts: ["documents john udpated"],
         filters: [
             {
                 type: "Account",
@@ -1356,8 +1356,8 @@ test("parses search entity type then account first name then relationship", () =
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated", options)).toEqual({
-        queryText: "udpated",
-        controlQueryText: "documents",
+        queryTexts: ["udpated"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1368,8 +1368,8 @@ test("parses search entity type then account first name then relationship", () =
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents john udpated", options)).toEqual(
         {
-            queryText: "train",
-            controlQueryText: "documents john udpated",
+            queryTexts: ["train"],
+            controlQueryTexts: ["documents john udpated"],
             filters: [
                 {
                     type: "Account",
@@ -1384,8 +1384,8 @@ test("parses search entity type then account first name then relationship", () =
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents john udpated about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents john udpated about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents john udpated about"],
         filters: [
             {
                 type: "Account",
@@ -1400,8 +1400,8 @@ test("parses search entity type then account first name then relationship", () =
 test("parses search entity type then account full name then relationship", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("documents john smith created", options)).toEqual(
         {
-            queryText: "",
-            controlQueryText: "documents john smith created",
+            queryTexts: [],
+            controlQueryTexts: ["documents john smith created"],
             filters: [
                 {
                     type: "Account",
@@ -1414,8 +1414,8 @@ test("parses search entity type then account full name then relationship", () =>
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john smith", options)).toEqual({
-        queryText: "john smith",
-        controlQueryText: "documents",
+        queryTexts: ["john smith"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1427,8 +1427,8 @@ test("parses search entity type then account full name then relationship", () =>
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents john smith created", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents john smith created",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents john smith created"],
         filters: [
             {
                 type: "Account",
@@ -1445,8 +1445,8 @@ test("parses search entity type then account full name then relationship", () =>
             options,
         ),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents john smith created about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents john smith created about"],
         filters: [
             {
                 type: "Account",
@@ -1458,8 +1458,8 @@ test("parses search entity type then account full name then relationship", () =>
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john smith wrote", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents john smith wrote",
+        queryTexts: [],
+        controlQueryTexts: ["documents john smith wrote"],
         filters: [
             {
                 type: "Account",
@@ -1471,8 +1471,8 @@ test("parses search entity type then account full name then relationship", () =>
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents wrote", options)).toEqual({
-        queryText: "wrote",
-        controlQueryText: "documents",
+        queryTexts: ["wrote"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1484,8 +1484,8 @@ test("parses search entity type then account full name then relationship", () =>
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents john smith wrote", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents john smith wrote",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents john smith wrote"],
         filters: [
             {
                 type: "Account",
@@ -1499,8 +1499,8 @@ test("parses search entity type then account full name then relationship", () =>
     expect(
         parseEnglishNaturalLanguageSearchQuery("documents john smith wrote about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents john smith wrote about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents john smith wrote about"],
         filters: [
             {
                 type: "Account",
@@ -1513,8 +1513,8 @@ test("parses search entity type then account full name then relationship", () =>
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john smith updated", options)).toEqual(
         {
-            queryText: "",
-            controlQueryText: "documents john smith updated",
+            queryTexts: [],
+            controlQueryTexts: ["documents john smith updated"],
             filters: [
                 {
                     type: "Account",
@@ -1527,8 +1527,8 @@ test("parses search entity type then account full name then relationship", () =>
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents updated", options)).toEqual({
-        queryText: "updated",
-        controlQueryText: "documents",
+        queryTexts: ["updated"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1540,8 +1540,8 @@ test("parses search entity type then account full name then relationship", () =>
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents john smith updated", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents john smith updated",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents john smith updated"],
         filters: [
             {
                 type: "Account",
@@ -1558,8 +1558,8 @@ test("parses search entity type then account full name then relationship", () =>
             options,
         ),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents john smith updated about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents john smith updated about"],
         filters: [
             {
                 type: "Account",
@@ -1572,8 +1572,8 @@ test("parses search entity type then account full name then relationship", () =>
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents john smith udpated", options)).toEqual(
         {
-            queryText: "",
-            controlQueryText: "documents john smith udpated",
+            queryTexts: [],
+            controlQueryTexts: ["documents john smith udpated"],
             filters: [
                 {
                     type: "Account",
@@ -1586,8 +1586,8 @@ test("parses search entity type then account full name then relationship", () =>
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents udpated", options)).toEqual({
-        queryText: "udpated",
-        controlQueryText: "documents",
+        queryTexts: ["udpated"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1599,8 +1599,8 @@ test("parses search entity type then account full name then relationship", () =>
     expect(
         parseEnglishNaturalLanguageSearchQuery("train documents john smith udpated", options),
     ).toEqual({
-        queryText: "train",
-        controlQueryText: "documents john smith udpated",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents john smith udpated"],
         filters: [
             {
                 type: "Account",
@@ -1617,8 +1617,8 @@ test("parses search entity type then account full name then relationship", () =>
             options,
         ),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "documents john smith udpated about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["documents john smith udpated about"],
         filters: [
             {
                 type: "Account",
@@ -1632,8 +1632,8 @@ test("parses search entity type then account full name then relationship", () =>
 
 test("parses account name then entity type", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("my documents", options)).toEqual({
-        queryText: "",
-        controlQueryText: "my documents",
+        queryTexts: [],
+        controlQueryTexts: ["my documents"],
         filters: [
             {
                 type: "Account",
@@ -1645,8 +1645,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train my documents", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "my documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["my documents"],
         filters: [
             {
                 type: "Account",
@@ -1658,8 +1658,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("my documents train", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "my documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["my documents"],
         filters: [
             {
                 type: "Account",
@@ -1671,8 +1671,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("my documents about trains", options)).toEqual({
-        queryText: "trains",
-        controlQueryText: "my documents about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["my documents about"],
         filters: [
             {
                 type: "Account",
@@ -1684,8 +1684,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john's documents", options)).toEqual({
-        queryText: "",
-        controlQueryText: "john's documents",
+        queryTexts: [],
+        controlQueryTexts: ["john's documents"],
         filters: [
             {
                 type: "Account",
@@ -1697,8 +1697,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train john's documents", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "john's documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["john's documents"],
         filters: [
             {
                 type: "Account",
@@ -1710,8 +1710,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john's documents train", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "john's documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["john's documents"],
         filters: [
             {
                 type: "Account",
@@ -1725,8 +1725,8 @@ test("parses account name then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john's documents about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "john's documents about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["john's documents about"],
         filters: [
             {
                 type: "Account",
@@ -1738,8 +1738,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john smith's documents", options)).toEqual({
-        queryText: "",
-        controlQueryText: "john smith's documents",
+        queryTexts: [],
+        controlQueryTexts: ["john smith's documents"],
         filters: [
             {
                 type: "Account",
@@ -1752,8 +1752,8 @@ test("parses account name then entity type", () => {
 
     expect(parseEnglishNaturalLanguageSearchQuery("train john smith's documents", options)).toEqual(
         {
-            queryText: "train",
-            controlQueryText: "john smith's documents",
+            queryTexts: ["train"],
+            controlQueryTexts: ["john smith's documents"],
             filters: [
                 {
                     type: "Account",
@@ -1767,8 +1767,8 @@ test("parses account name then entity type", () => {
 
     expect(parseEnglishNaturalLanguageSearchQuery("john smith's documents train", options)).toEqual(
         {
-            queryText: "train",
-            controlQueryText: "john smith's documents",
+            queryTexts: ["train"],
+            controlQueryTexts: ["john smith's documents"],
             filters: [
                 {
                     type: "Account",
@@ -1783,8 +1783,8 @@ test("parses account name then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john smith's documents about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "john smith's documents about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["john smith's documents about"],
         filters: [
             {
                 type: "Account",
@@ -1796,8 +1796,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("johns documents", options)).toEqual({
-        queryText: "",
-        controlQueryText: "johns documents",
+        queryTexts: [],
+        controlQueryTexts: ["johns documents"],
         filters: [
             {
                 type: "Account",
@@ -1809,8 +1809,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train johns documents", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "johns documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["johns documents"],
         filters: [
             {
                 type: "Account",
@@ -1822,8 +1822,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("johns documents train", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "johns documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["johns documents"],
         filters: [
             {
                 type: "Account",
@@ -1836,8 +1836,8 @@ test("parses account name then entity type", () => {
 
     expect(parseEnglishNaturalLanguageSearchQuery("johns documents about trains", options)).toEqual(
         {
-            queryText: "trains",
-            controlQueryText: "johns documents about",
+            queryTexts: ["trains"],
+            controlQueryTexts: ["johns documents about"],
             filters: [
                 {
                     type: "Account",
@@ -1850,8 +1850,8 @@ test("parses account name then entity type", () => {
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("john smiths documents", options)).toEqual({
-        queryText: "",
-        controlQueryText: "john smiths documents",
+        queryTexts: [],
+        controlQueryTexts: ["john smiths documents"],
         filters: [
             {
                 type: "Account",
@@ -1863,8 +1863,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train john smiths documents", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "john smiths documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["john smiths documents"],
         filters: [
             {
                 type: "Account",
@@ -1876,8 +1876,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john smiths documents train", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "john smiths documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["john smiths documents"],
         filters: [
             {
                 type: "Account",
@@ -1891,8 +1891,8 @@ test("parses account name then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john smiths documents about trains", options),
     ).toEqual({
-        queryText: "trains",
-        controlQueryText: "john smiths documents about",
+        queryTexts: ["trains"],
+        controlQueryTexts: ["john smiths documents about"],
         filters: [
             {
                 type: "Account",
@@ -1904,20 +1904,20 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john", options)).toEqual({
-        queryText: "john",
-        controlQueryText: "",
+        queryTexts: ["john"],
+        controlQueryTexts: [],
         filters: [],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john smith", options)).toEqual({
-        queryText: "john smith",
-        controlQueryText: "",
+        queryTexts: ["john smith"],
+        controlQueryTexts: [],
         filters: [],
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jahn documents", options)).toEqual({
-        queryText: "",
-        controlQueryText: "jahn documents",
+        queryTexts: [],
+        controlQueryTexts: ["jahn documents"],
         filters: [
             {
                 type: "Account",
@@ -1929,8 +1929,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jahn's documents", options)).toEqual({
-        queryText: "",
-        controlQueryText: "jahn's documents",
+        queryTexts: [],
+        controlQueryTexts: ["jahn's documents"],
         filters: [
             {
                 type: "Account",
@@ -1942,8 +1942,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jahns documents", options)).toEqual({
-        queryText: "jahns",
-        controlQueryText: "documents",
+        queryTexts: ["jahns"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1953,8 +1953,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jaahn documents", options)).toEqual({
-        queryText: "jaahn",
-        controlQueryText: "documents",
+        queryTexts: ["jaahn"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1964,8 +1964,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jaahn's documents", options)).toEqual({
-        queryText: "jaahn's",
-        controlQueryText: "documents",
+        queryTexts: ["jaahn's"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1975,8 +1975,8 @@ test("parses account name then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("jaahns documents", options)).toEqual({
-        queryText: "jaahns",
-        controlQueryText: "documents",
+        queryTexts: ["jaahns"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -1988,8 +1988,8 @@ test("parses account name then entity type", () => {
 
 test("parses account name with some text between then entity type", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("my train documents", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "my documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["my", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2001,8 +2001,8 @@ test("parses account name with some text between then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john's train documents", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "john's documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["john's", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2015,8 +2015,8 @@ test("parses account name with some text between then entity type", () => {
 
     expect(parseEnglishNaturalLanguageSearchQuery("john smith's train documents", options)).toEqual(
         {
-            queryText: "train",
-            controlQueryText: "john smith's documents",
+            queryTexts: ["train"],
+            controlQueryTexts: ["john smith's", "documents"],
             filters: [
                 {
                     type: "Account",
@@ -2031,8 +2031,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("my neat documents about georgia", options),
     ).toEqual({
-        queryText: "neat georgia",
-        controlQueryText: "my documents about",
+        queryTexts: ["neat", "georgia"],
+        controlQueryTexts: ["my", "documents about"],
         filters: [
             {
                 type: "Account",
@@ -2055,8 +2055,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john's neat documents about georgia", options),
     ).toEqual({
-        queryText: "john's neat about georgia",
-        controlQueryText: "documents",
+        queryTexts: ["john's neat", "about georgia"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2071,8 +2071,8 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "john smith's neat about georgia",
-        controlQueryText: "documents",
+        queryTexts: ["john smith's neat", "about georgia"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2084,8 +2084,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("my train documents about georgia", options),
     ).toEqual({
-        queryText: "my train about georgia",
-        controlQueryText: "documents",
+        queryTexts: ["my train", "about georgia"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2097,8 +2097,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john's train documents about georgia", options),
     ).toEqual({
-        queryText: "john's train about georgia",
-        controlQueryText: "documents",
+        queryTexts: ["john's train", "about georgia"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2113,8 +2113,8 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "john smith's train about georgia",
-        controlQueryText: "documents",
+        queryTexts: ["john smith's train", "about georgia"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2124,8 +2124,8 @@ test("parses account name with some text between then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("my closed tasks", options)).toEqual({
-        queryText: "closed",
-        controlQueryText: "my tasks",
+        queryTexts: ["closed"],
+        controlQueryTexts: ["my", "tasks"],
         filters: [
             {
                 type: "Account",
@@ -2137,8 +2137,8 @@ test("parses account name with some text between then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john's closed tasks", options)).toEqual({
-        queryText: "john's closed",
-        controlQueryText: "tasks",
+        queryTexts: ["john's closed"],
+        controlQueryTexts: ["tasks"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2148,8 +2148,8 @@ test("parses account name with some text between then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john smith's closed tasks", options)).toEqual({
-        queryText: "john smith's closed",
-        controlQueryText: "tasks",
+        queryTexts: ["john smith's closed"],
+        controlQueryTexts: ["tasks"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2159,8 +2159,8 @@ test("parses account name with some text between then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("my green documents", options)).toEqual({
-        queryText: "green",
-        controlQueryText: "my documents",
+        queryTexts: ["green"],
+        controlQueryTexts: ["my", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2172,8 +2172,8 @@ test("parses account name with some text between then entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("john's green documents", options)).toEqual({
-        queryText: "green",
-        controlQueryText: "john's documents",
+        queryTexts: ["green"],
+        controlQueryTexts: ["john's", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2186,8 +2186,8 @@ test("parses account name with some text between then entity type", () => {
 
     expect(parseEnglishNaturalLanguageSearchQuery("john smith's green documents", options)).toEqual(
         {
-            queryText: "green",
-            controlQueryText: "john smith's documents",
+            queryTexts: ["green"],
+            controlQueryTexts: ["john smith's", "documents"],
             filters: [
                 {
                     type: "Account",
@@ -2200,8 +2200,8 @@ test("parses account name with some text between then entity type", () => {
     );
 
     expect(parseEnglishNaturalLanguageSearchQuery("john's smith documents", options)).toEqual({
-        queryText: "",
-        controlQueryText: "john's smith documents",
+        queryTexts: [],
+        controlQueryTexts: ["john's smith documents"],
         filters: [
             {
                 type: "Account",
@@ -2215,8 +2215,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("my the cat in the hat documents", options),
     ).toEqual({
-        queryText: "the cat in the hat",
-        controlQueryText: "my documents",
+        queryTexts: ["the cat in the hat"],
+        controlQueryTexts: ["my", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2230,8 +2230,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john's the cat in the hat documents", options),
     ).toEqual({
-        queryText: "the cat in the hat",
-        controlQueryText: "john's documents",
+        queryTexts: ["the cat in the hat"],
+        controlQueryTexts: ["john's", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2248,8 +2248,8 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "the cat in the hat",
-        controlQueryText: "john smith's documents",
+        queryTexts: ["the cat in the hat"],
+        controlQueryTexts: ["john smith's", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2263,8 +2263,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("my (the cat in the hat) documents", options),
     ).toEqual({
-        queryText: "(the cat in the hat)",
-        controlQueryText: "my documents",
+        queryTexts: ["(the cat in the hat)"],
+        controlQueryTexts: ["my", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2278,8 +2278,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("john's (the cat in the hat) documents", options),
     ).toEqual({
-        queryText: "(the cat in the hat)",
-        controlQueryText: "john's documents",
+        queryTexts: ["(the cat in the hat)"],
+        controlQueryTexts: ["john's", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2296,8 +2296,8 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "(the cat in the hat)",
-        controlQueryText: "john smith's documents",
+        queryTexts: ["(the cat in the hat)"],
+        controlQueryTexts: ["john smith's", "documents"],
         filters: [
             {
                 type: "Account",
@@ -2311,8 +2311,8 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseEnglishNaturalLanguageSearchQuery("my, the cat in the hat, chat messages", options),
     ).toEqual({
-        queryText: "my, the cat in the hat,",
-        controlQueryText: "chat messages",
+        queryTexts: ["my, the cat in the hat,"],
+        controlQueryTexts: ["chat messages"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2327,8 +2327,8 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "john's, the cat in the hat,",
-        controlQueryText: "chat messages",
+        queryTexts: ["john's, the cat in the hat,"],
+        controlQueryTexts: ["chat messages"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2343,8 +2343,8 @@ test("parses account name with some text between then entity type", () => {
             options,
         ),
     ).toEqual({
-        queryText: "john smith's, the cat in the hat,",
-        controlQueryText: "chat messages",
+        queryTexts: ["john smith's, the cat in the hat,"],
+        controlQueryTexts: ["chat messages"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2356,8 +2356,8 @@ test("parses account name with some text between then entity type", () => {
 
 test("parses standalone entity type", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("documents", options)).toEqual({
-        queryText: "",
-        controlQueryText: "documents",
+        queryTexts: [],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2367,8 +2367,8 @@ test("parses standalone entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("train documents", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2378,8 +2378,8 @@ test("parses standalone entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("documents train", options)).toEqual({
-        queryText: "train",
-        controlQueryText: "documents",
+        queryTexts: ["train"],
+        controlQueryTexts: ["documents"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2389,8 +2389,8 @@ test("parses standalone entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("chat message", options)).toEqual({
-        queryText: "",
-        controlQueryText: "chat message",
+        queryTexts: [],
+        controlQueryTexts: ["chat message"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
@@ -2400,12 +2400,34 @@ test("parses standalone entity type", () => {
     });
 
     expect(parseEnglishNaturalLanguageSearchQuery("messages", options)).toEqual({
-        queryText: "",
-        controlQueryText: "messages",
+        queryTexts: [],
+        controlQueryTexts: ["messages"],
         filters: [
             {
                 type: "StandaloneSearchEntityTypes",
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
+            },
+        ],
+    });
+});
+
+test("correctly splits query texts", () => {
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "train1 train2 documents train3 train4 chat train5 train6",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["train1 train2", "train3 train4", "train5 train6"],
+        controlQueryTexts: ["documents", "chat"],
+        filters: [
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Document"],
+            },
+            {
+                type: "StandaloneSearchEntityTypes",
+                entityTypes: ["Chat"],
             },
         ],
     });

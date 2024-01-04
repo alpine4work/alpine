@@ -252,24 +252,32 @@ export function parseEnglishNaturalLanguageSearchQuery(
         }
     }
 
-    const docWithoutControl = doc.clone();
-    const controlDoc = nlp("");
+    const queryTexts: Array<string> = [];
+    const controlQueryTexts: Array<string> = [];
 
     // Remove all control phrases from our original search query. We remove control
     // phrases in reverse so we don't move indexes in a way that makes it hard to
     // remove the next phrase.
     for (const controlPhrase of [...controlPhrases].reverse()) {
-        docWithoutControl.remove(controlPhrase);
+        const controlPhraseAndAfter = controlPhrase.growRight("*");
+
+        controlQueryTexts.push(controlPhrase.text().trim());
+
+        const queryText = controlPhraseAndAfter.clone().remove(controlPhrase).text().trim();
+        if (queryText.length > 0) queryTexts.push(queryText);
+
+        doc.remove(controlPhraseAndAfter);
     }
 
-    // Add all control phrases to a separate doc.
-    for (const controlPhrase of controlPhrases) {
-        controlDoc.concat(controlPhrase);
-    }
+    const lastQueryText = doc.text().trim();
+    if (lastQueryText.length > 0) queryTexts.push(lastQueryText);
+
+    queryTexts.reverse();
+    controlQueryTexts.reverse();
 
     return {
-        queryText: docWithoutControl.trim().text(),
-        controlQueryText: controlDoc.trim().text(),
+        queryTexts,
+        controlQueryTexts,
         filters,
     };
 }
