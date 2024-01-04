@@ -14,57 +14,6 @@ import {SearchEntityIdObject} from "~/shared/search/search_entity_id.js";
 
 nlp.plugin(nlpDatePlugin);
 
-// NOCOMMIT:
-//
-// Features:
-// - People
-// - Time
-//
-// Examples:
-// - my documents
-// - emily's documents
-// - emily documents
-// - emilys documents
-// - message from emily about trains
-// - train message from emily
-// - documents i wrote
-// - documents i authored
-// - documents written by me
-// - train document by emily
-// - train document created recently
-// - train document created yesterday
-// - train document created last month
-// - train document updated recently
-// - new posts
-// - new train post in transit channel
-// - posts in transit channel
-// - train posts in transit channel
-// - caleb's train documents
-// - caleb meredith's documents
-// - shruti narkar's documents
-// - caleb meredith's train documents
-// - my train documents
-// - my blue train documents
-// - my documents about trains
-// - my the cat in the hat documents
-// - trains from caleb's documents
-// - the documents created by me
-// - documents from before three months ago
-//
-// Creator:
-// - documents created by #Noun
-//
-// MajorContributor:
-// - #Noun documents
-// - documents by #Noun
-// - documents written by #Noun
-// - documents authored by #Noun
-// - documents from #Noun
-//
-// AnyContributor:
-// - documents updated by #Noun
-// - documents modified by #Noun
-
 type View = ReturnType<(typeof nlp)["tokenize"]>;
 type Term = View["docs"][number][number];
 type Pointer = View["fullPointer"][number];
@@ -341,13 +290,7 @@ function parseSearchNaturalLanguageFilters(
         // For example: "train documents by john" turns into a keyword search for
         // "train" and a filter for entity types of "document" by the account with the
         // name "john".
-        const addControlPhrase = () => {
-            const endTerm = assertExists(state.terms[state.termIndex - 1]);
-
-            addSpecificControlPhrase(startTerm, endTerm);
-        };
-
-        const addSpecificControlPhrase = (startTerm: Term, endTerm: Term) => {
+        const addControlPhrase = (startTerm: Term, endTerm: Term) => {
             controlPhrases.push(createView(doc, startTerm, endTerm));
         };
 
@@ -384,7 +327,7 @@ function parseSearchNaturalLanguageFilters(
                 actualFilterEndTerm = state.advanceTerm();
             }
 
-            addSpecificControlPhrase(filterStartTerm, actualFilterEndTerm);
+            addControlPhrase(filterStartTerm, actualFilterEndTerm);
 
             filters.push(filter);
             continue;
@@ -443,8 +386,8 @@ function parseSearchNaturalLanguageFilters(
                         actualFilterEndTerm = state.advanceTerm();
                     }
 
-                    addSpecificControlPhrase(startTerm, lastTerm);
-                    addSpecificControlPhrase(filterStartTerm, actualFilterEndTerm);
+                    addControlPhrase(startTerm, lastTerm);
+                    addControlPhrase(filterStartTerm, actualFilterEndTerm);
 
                     filters.push(filter);
                     break;
@@ -492,7 +435,7 @@ function parseSearchNaturalLanguageFilters(
                     actualFilterEndTerm = state.advanceTerm();
                 }
 
-                addSpecificControlPhrase(filterStartTerm, actualFilterEndTerm);
+                addControlPhrase(filterStartTerm, actualFilterEndTerm);
 
                 filters.push(filter);
                 continue;
@@ -539,7 +482,7 @@ function parseSearchNaturalLanguageFilters(
                     actualFilterEndTerm = state.advanceTerm();
                 }
 
-                addSpecificControlPhrase(filterStartTerm, actualFilterEndTerm);
+                addControlPhrase(filterStartTerm, actualFilterEndTerm);
 
                 filters.push(filter);
                 continue;
