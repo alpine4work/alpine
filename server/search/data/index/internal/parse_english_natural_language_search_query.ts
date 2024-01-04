@@ -219,7 +219,7 @@ class SearchNaturalLanguageParserState {
 export type SearchNaturalLanguageFilter = {
     readonly entity: {
         readonly types: ReadonlyArray<SearchEntityIdObject["type"]>;
-    } | null;
+    };
     readonly accounts: {
         readonly field: "Creator" | "CreatorOrMajorContributor" | "AnyContributor";
         readonly ids: ReadonlyArray<AccountId>;
@@ -357,7 +357,7 @@ function parseSearchNaturalLanguageFilters(
             const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
 
             const {filterStartTerm, filterEndTerm, filter} =
-                parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                parseSearchNaturalLanguageFilterModifiers(
                     state,
                     {
                         filterStartTerm: startTerm,
@@ -671,7 +671,7 @@ function parseAccountsByNameIfPossible(
  * "documents..." or "messages...". Recursive since we may have multiple
  * modifiers. For example "documents created by me and updated last week".
  */
-function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+function parseSearchNaturalLanguageFilterModifiers(
     state: SearchNaturalLanguageParserState,
     {
         filterStartTerm,
@@ -740,7 +740,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             if (matchTerms.me.isFuzzyMatch(state.term)) {
                 const endTerm = state.advanceTerm();
 
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -751,7 +751,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "Created",
                     },
                     options,
                 );
@@ -760,7 +760,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             // e.g. "documents created by john" or "messages sent by sara smith"
             const accounts = parseAccountsByNameIfPossible(state, options);
             if (accounts) {
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -771,7 +771,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "Created",
                     },
                     options,
                 );
@@ -813,7 +813,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             if (matchTerms.me.isFuzzyMatch(state.term)) {
                 const endTerm = state.advanceTerm();
 
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -824,7 +824,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "Created",
                     },
                     options,
                 );
@@ -833,7 +833,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             // e.g. "documents written by john" or "posts authored by sara smith"
             const accounts = parseAccountsByNameIfPossible(state, options);
             if (accounts) {
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -847,7 +847,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "Created",
                     },
                     options,
                 );
@@ -895,7 +895,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             if (matchTerms.me.isFuzzyMatch(state.term)) {
                 const endTerm = state.advanceTerm();
 
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -906,7 +906,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "LastUpdated",
                     },
                     options,
                 );
@@ -915,7 +915,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             // e.g. "documents updated by john" or "tasks updated by sara smith"
             const accounts = parseAccountsByNameIfPossible(state, options);
             if (accounts) {
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -929,7 +929,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "LastUpdated",
                     },
                     options,
                 );
@@ -966,7 +966,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
         if (allowAccounts && matchTerms.me.isFuzzyMatch(state.term)) {
             state.advanceTerm();
 
-            return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+            return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                 state,
                 {
                     filterStartTerm,
@@ -980,7 +980,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                     },
                     allowAccounts: false,
                     allowTime,
-                    isFirstModifier: false,
+                    field: "Created",
                 },
                 options,
             );
@@ -990,7 +990,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             // e.g. "documents by john" or "messages by sara smith"
             const accounts = parseAccountsByNameIfPossible(state, options);
             if (accounts) {
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -1004,7 +1004,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "Created",
                     },
                     options,
                 );
@@ -1039,7 +1039,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
         state.advanceTerm();
         state.advanceTerm();
 
-        return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+        return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
             state,
             {
                 filterStartTerm,
@@ -1053,7 +1053,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                 },
                 allowAccounts: false,
                 allowTime,
-                isFirstModifier: false,
+                field: "Created",
             },
             options,
         );
@@ -1069,7 +1069,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
         state.advanceTerm();
         state.advanceTerm();
 
-        return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+        return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
             state,
             {
                 filterStartTerm,
@@ -1083,7 +1083,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                 },
                 allowAccounts: false,
                 allowTime,
-                isFirstModifier: false,
+                field: "Created",
             },
             options,
         );
@@ -1099,7 +1099,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
         state.advanceTerm();
         state.advanceTerm();
 
-        return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+        return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
             state,
             {
                 filterStartTerm,
@@ -1113,7 +1113,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                 },
                 allowAccounts: false,
                 allowTime,
-                isFirstModifier: false,
+                field: "LastUpdated",
             },
             options,
         );
@@ -1130,7 +1130,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             ) {
                 state.advanceTerm();
 
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -1144,7 +1144,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "Created",
                     },
                     options,
                 );
@@ -1157,7 +1157,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             ) {
                 state.advanceTerm();
 
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -1171,7 +1171,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "Created",
                     },
                     options,
                 );
@@ -1184,7 +1184,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
             ) {
                 state.advanceTerm();
 
-                return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+                return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                     state,
                     {
                         filterStartTerm,
@@ -1198,7 +1198,7 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
                         },
                         allowAccounts: false,
                         allowTime,
-                        isFirstModifier: false,
+                        field: "LastUpdated",
                     },
                     options,
                 );
@@ -1207,6 +1207,61 @@ function parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
     }
 
     return {filterStartTerm, filterEndTerm, filter};
+}
+
+function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
+    state: SearchNaturalLanguageParserState,
+    {
+        filterStartTerm,
+        filterEndTerm,
+        filter,
+        allowAccounts,
+        allowTime,
+        field,
+    }: {
+        filterStartTerm: Term;
+        filterEndTerm: Term;
+        filter: SearchNaturalLanguageFilter;
+        allowAccounts: boolean;
+        allowTime: boolean;
+        field: "Created" | "LastUpdated";
+    },
+    options: {
+        timeZone: TimeZone;
+        currentTime: Date;
+        actorAccountId: AccountId;
+        accountNameIndex: {
+            searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
+            searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
+        };
+    },
+) {
+    if (allowTime) {
+        return continueParseSearchNaturalLanguageFilterDateModifier(
+            state,
+            {
+                filterStartTerm,
+                filterEndTerm,
+                filter,
+                allowAccounts,
+                field,
+            },
+            options,
+        );
+    } else {
+        return parseSearchNaturalLanguageFilterModifiers(
+            state,
+            {
+                filterStartTerm,
+                filterEndTerm,
+                filter,
+                allowAccounts,
+                allowTime: false,
+                isFirstModifier: false,
+            },
+            options,
+        );
+    }
 }
 
 function continueParseSearchNaturalLanguageFilterDateModifier(
@@ -1238,6 +1293,8 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
     filterEndTerm: Term;
     filter: SearchNaturalLanguageFilter;
 } {
+    const startTerm = state.term;
+
     let direction: "Before" | "After" | null = null;
 
     // e.g. "...before..."
@@ -1254,7 +1311,29 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
     // NOCOMMIT: "recently"
     // NOCOMMIT: "new"
 
-    if (!state.term?.tags?.has("Date")) return {filterStartTerm, filterEndTerm, filter};
+    if (
+        !state.term?.tags?.has("Date") ||
+        // "from" is tagged as `Date` but `compromise-date` can't parse it. We do,
+        // however, need "from" in `parseSearchNaturalLanguageFilterModifiers()`.
+        state.term.normal === "from"
+    ) {
+        // We parsed some terms expecting a date but there was no date!
+        if (startTerm !== state.term) return {filterStartTerm, filterEndTerm, filter};
+
+        return parseSearchNaturalLanguageFilterModifiers(
+            state,
+            {
+                filterStartTerm,
+                filterEndTerm,
+                filter,
+                allowAccounts,
+                // `allowTime` is `true` because we haven't parsed a time yet.
+                allowTime: true,
+                isFirstModifier: false,
+            },
+            options,
+        );
+    }
 
     const {timeZone, currentTime} = options;
     const dateStartTerm = state.term;
@@ -1266,14 +1345,16 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
 
     const dateEndTerm = assertExists(state.terms[state.termIndex - 1]);
 
-    const dateView = createView(state.doc, dateStartTerm, dateEndTerm);
+    // Remove any surrounding context that could confuse the date parser.
+    const dateDoc = nlp(createView(state.doc, dateStartTerm, dateEndTerm).text());
 
     // Parse the date text so we can use it as a filter.
-    const parsedDate = (dateView as any)
-        .dates({timezone: timeZone, today: currentTime})
-        .get()[0] as {start: DateString; end: DateString; timezone: TimeZone} | undefined;
+    const parsedDate = (dateDoc as any).dates({timezone: timeZone, today: currentTime}).get()[0] as
+        | {start: DateString | null; end: DateString | null; timezone: TimeZone}
+        | undefined;
 
-    if (!parsedDate) return {filterStartTerm, filterEndTerm, filter};
+    if (!parsedDate || !parsedDate.start || !parsedDate.end)
+        return {filterStartTerm, filterEndTerm, filter};
 
     let startDate = new Date(parsedDate.start);
     let endDate = new Date(parsedDate.end);
@@ -1299,7 +1380,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
                 endDate = new Date(endDate.getTime() + (slopDurationMs - durationMs) / 2);
             }
 
-            return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+            return parseSearchNaturalLanguageFilterModifiers(
                 state,
                 {
                     filterStartTerm,
@@ -1322,7 +1403,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
             );
         }
         case "After": {
-            return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+            return parseSearchNaturalLanguageFilterModifiers(
                 state,
                 {
                     filterStartTerm,
@@ -1345,7 +1426,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
             );
         }
         case "Before": {
-            return parseSearchNaturalLanguageFilterModifiersAfterEntityTypes(
+            return parseSearchNaturalLanguageFilterModifiers(
                 state,
                 {
                     filterStartTerm,

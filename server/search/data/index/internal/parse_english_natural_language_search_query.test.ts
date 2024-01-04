@@ -3428,8 +3428,8 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
                 time: {
                     field: "Created",
                     range: {
-                        inclusiveLowerBoundDate: new Date("1969-12-17T00:00:00.000Z"),
-                        inclusiveUpperBoundDate: new Date("1970-01-16T00:00:00.000Z"),
+                        inclusiveLowerBoundDate: new Date("2024-01-02T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                     },
                 },
             },
@@ -3505,6 +3505,341 @@ test("parses simpler entity type then multiple modifiers", () => {
     ).toEqual({
         queryTexts: [],
         controlQueryTexts: ["documents I created from yesterday"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+});
+
+test("parses entity type then account then shortcuts to time", () => {
+    expect(parseEnglishNaturalLanguageSearchQuery("tasks I created yesterday", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks I created yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("tasks by me yesterday", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks by me yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("tasks created by me yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks created by me yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("tasks written by me yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks written by me yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("tasks I updated yesterday", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks I updated yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("tasks updated by me yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks updated by me yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("tasks john created yesterday", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["tasks john created yesterday"],
+            filters: [
+                {
+                    entity: {types: ["Task"]},
+                    accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(parseEnglishNaturalLanguageSearchQuery("tasks by john yesterday", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks by john yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("tasks created by john yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks created by john yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("tasks written by john yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks written by john yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("tasks john updated yesterday", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["tasks john updated yesterday"],
+            filters: [
+                {
+                    entity: {types: ["Task"]},
+                    accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                    time: {
+                        field: "LastUpdated",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("tasks updated by john yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks updated by john yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                time: {
+                    field: "LastUpdated",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("tasks I created before yesterday", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["tasks I created before yesterday"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: null,
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "tasks I created before and created yesterday",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["before and created yesterday"],
+        controlQueryTexts: ["tasks I created"],
+        filters: [
+            {
+                entity: {types: ["Task"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: null,
+            },
+        ],
+    });
+});
+
+test.skip("asdfasdf 2", () => {
+    expect(parseEnglishNaturalLanguageSearchQuery("messages from sara last week", options)).toEqual(
+        {
+            queryTexts: [],
+            controlQueryTexts: ["tasks I updated yesterday"],
+            filters: [
+                {
+                    entity: {types: ["Document"]},
+                    accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                    time: {
+                        field: "Created",
+                        range: {
+                            inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                        },
+                    },
+                },
+            ],
+        },
+    );
+});
+
+test.skip("asdfasdf 3", () => {
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("john's documents created 2 days ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["john's documents created 2 days ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("my documents created 2 days ago", options),
+    ).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["my documents created 2 days ago"],
         filters: [
             {
                 entity: {types: ["Document"]},
