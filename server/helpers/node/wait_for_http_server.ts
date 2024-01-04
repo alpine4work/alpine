@@ -5,8 +5,9 @@ import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js
 import {waitForProcessSpawn} from "~/server/helpers/node/wait_for_process_spawn.js";
 import {DeadlineExceededError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
-import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {quote} from "~/shared/helpers/string/quote.js";
+
+const originalSetTimeout = setTimeout;
 
 /**
  * Waits for an HTTP server to start listening at the provided host.
@@ -41,7 +42,11 @@ export async function waitForHttpServer(port: number) {
     await waitForProcessSpawn(subprocess);
 
     const timeoutPromiseResolver = createPromiseResolver();
-    const timeout = createTimeout(timeoutPromiseResolver.resolve, 60 * 1000);
+
+    // We can't use `wait()` or `setTimeout()` since Jest will override
+    // `setTimeout()` when `jest.useFakeTimers()` is on. But we want to wait the
+    // timeout anyway.
+    const timeoutId = originalSetTimeout(timeoutPromiseResolver.resolve, 60 * 1000);
 
     try {
         const {hasTimedOut} = await Promise.race([
@@ -58,6 +63,6 @@ export async function waitForHttpServer(port: number) {
     } finally {
         // If the race ends with the process exiting, clear our timeout so it doesn't
         // keep the Node.js process alive while we wait.
-        timeout.clear();
+        clearTimeout(timeoutId);
     }
 }

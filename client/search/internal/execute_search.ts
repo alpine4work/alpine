@@ -2,6 +2,7 @@ import {AppContext} from "~/client/context/app_context.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
 import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
 import {Store} from "~/client/helpers/store/store.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {
     OpensearchSearchHitExplanation,
@@ -105,6 +106,8 @@ export function executeSearch(
         // semantic search results are placed in the top `limit` keyword results but
         // `limit` is determined by view size.
         limit,
+        timeZone: getClientInfoWithoutListening().timeZone,
+        currentTime: new Date(),
         debugOptions: debugOptions ?? undefined,
     });
 

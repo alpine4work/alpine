@@ -181,7 +181,7 @@ class SearchNaturalLanguageParserState {
 export type SearchEnglishNaturalLanguageFilter = {
     readonly entityTypes: ReadonlyArray<SearchEntityIdObject["type"]>;
     readonly accounts: {
-        readonly field: "Creator" | "CreatorOrMajorContributor" | "AnyContributor";
+        readonly field: "Creator" | "MajorContributor" | "AnyContributor";
         readonly ids: ReadonlyArray<AccountId>;
     } | null;
     readonly time: {
@@ -375,7 +375,7 @@ function parseSearchNaturalLanguageFilters(
                                 filter: {
                                     entityTypes,
                                     accounts: {
-                                        field: "CreatorOrMajorContributor",
+                                        field: "MajorContributor",
                                         ids: accountIds,
                                     },
                                     time: null,
@@ -424,7 +424,7 @@ function parseSearchNaturalLanguageFilters(
                             filter: {
                                 entityTypes,
                                 accounts: {
-                                    field: "CreatorOrMajorContributor",
+                                    field: "MajorContributor",
                                     ids: [actorAccountId],
                                 },
                                 time: null,
@@ -471,7 +471,7 @@ function parseSearchNaturalLanguageFilters(
                             filter: {
                                 entityTypes,
                                 accounts: {
-                                    field: "CreatorOrMajorContributor",
+                                    field: "MajorContributor",
                                     ids: accounts.map(account => account.id),
                                 },
                                 time: null,
@@ -841,7 +841,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: endTerm,
                         filter: {
                             ...filter,
-                            accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
+                            accounts: {field: "MajorContributor", ids: [actorAccountId]},
                         },
                         allowAccounts: false,
                         allowTime,
@@ -862,7 +862,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filter: {
                             ...filter,
                             accounts: {
-                                field: "CreatorOrMajorContributor",
+                                field: "MajorContributor",
                                 ids: accounts.map(account => account.id),
                             },
                         },
@@ -995,7 +995,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                     filter: {
                         ...filter,
                         accounts: {
-                            field: "CreatorOrMajorContributor",
+                            field: "MajorContributor",
                             ids: [actorAccountId],
                         },
                     },
@@ -1019,7 +1019,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filter: {
                             ...filter,
                             accounts: {
-                                field: "CreatorOrMajorContributor",
+                                field: "MajorContributor",
                                 ids: accounts.map(account => account.id),
                             },
                         },
@@ -1098,7 +1098,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                 filter: {
                     ...filter,
                     accounts: {
-                        field: "CreatorOrMajorContributor",
+                        field: "MajorContributor",
                         ids: [actorAccountId],
                     },
                 },
@@ -1186,7 +1186,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filter: {
                             ...filter,
                             accounts: {
-                                field: "CreatorOrMajorContributor",
+                                field: "MajorContributor",
                                 ids: accounts.map(account => account.id),
                             },
                         },

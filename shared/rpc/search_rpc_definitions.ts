@@ -1,5 +1,6 @@
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {defineRpc} from "~/shared/rpc/internal/define_rpc.js";
+import {TimeZoneSchema} from "~/shared/schema/helpers/time_zone_schema.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SearchEntityAffinityIdSchema} from "~/shared/search/search_entity_affinity_id.js";
 import {SearchEntityAffinityInteractionSchema} from "~/shared/search/search_entity_affinity_interaction.js";
@@ -12,6 +13,8 @@ export const searchByKeywords = defineRpc({
         spaceId: Schema.id<SpaceId>(),
         queryText: Schema.string,
         limit: Schema.integer,
+        timeZone: TimeZoneSchema,
+        currentTime: Schema.date,
         debugOptions: SearchOptionsSchema.optional(),
     },
     output: {

@@ -33,6 +33,34 @@ export const SearchOptionsSchema = Schema.object({
     titleBoost: Schema.float,
 
     /**
+     * Options related to our English natural language query parsing.
+     */
+    englishNaturalLanguageParser: Schema.object({
+        /**
+         * Control text is text we've removed from the query and made optional. For
+         * example in the query "my documents about trains" the subtext "my documents
+         * about" is control text and "trains" is regular text.
+         *
+         * Given our natural language parsing can never be perfect, our query is
+         * modified to search for basically
+         * `match("trains") && (creatorId === actorId || match("my documents about"))`.
+         * But we want to demote hits to "my documents about" under hits on the
+         * `creatorId`.
+         *
+         * This is a delicate balance since we may want to rank great hits on control
+         * text (e.g. rare words get matched) higher than hits against our natural
+         * language filter.
+         */
+        controlMatchBoost: Schema.float,
+
+        /**
+         * The constant score we give to a hit that matches a filter from our English
+         * natural language parser.
+         */
+        filterConstantScore: Schema.float,
+    }),
+
+    /**
      * Interpolate between scores returned by `searchBySemantics()` and
      * `searchByKeywords()` using [linear interpolation][1]. This allows us to
      * merge results from the two search systems together. To interpolate we need
@@ -125,6 +153,23 @@ export const standardSearchOptions: SearchOptions = {
     // still less than 2 so a hit matching multiple body fields can beat a hit
     // matching one title field.
     titleBoost: 1.8,
+
+    englishNaturalLanguageParser: {
+        // Control matches are worth half as much as a regular text match.
+        //
+        // Hopefully, because this is so low OpenSearch considers it non-competitive
+        // to perform this search most of the time.
+        controlMatchBoost: 0.5,
+
+        // We get a keyword score of ~11 for a relatively rare word like "Spielberg"
+        // (contained in ~0.6% documents of [GoodWiki][1] dataset)
+        //
+        // We use that here so that even a match on a rare word (like an uncommon name)
+        // won't beat hits that match a filter.
+        //
+        // [1]: https://huggingface.co/datasets/euirim/goodwiki
+        filterConstantScore: 11,
+    },
 
     semanticToKeywordScoreInterpolation: {
         // Our first point is for a high confidence signal:

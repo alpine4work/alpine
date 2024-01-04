@@ -15,17 +15,24 @@ import {
     OpensearchGetDocWithoutSourceCommand,
     OpensearchIndexDocIfVersionCommand,
 } from "~/server/opensearch/opensearch_client.js";
-import {OpensearchIndex} from "~/server/opensearch/opensearch_index.js";
+import {
+    OpensearchIndex,
+    OpensearchIndexFlattenedKeysType,
+} from "~/server/opensearch/opensearch_index.js";
 import {
     OpensearchIndexTypeFlattenedKeysType,
     OpensearchIndexTypeStoredFieldsType,
     OpensearchIndexTypeType,
 } from "~/server/opensearch/opensearch_index_type.js";
-import {OpensearchQueryValue} from "~/server/opensearch/opensearch_query_clause.js";
+import {
+    OpensearchQueryClause,
+    OpensearchQueryValue,
+} from "~/server/opensearch/opensearch_query_clause.js";
 import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search_entity_job_description.js";
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
 import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
+import {parseEnglishNaturalLanguageSearchQuery} from "~/server/search/data/index/internal/parse_english_natural_language_search_query.js";
 import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
 import {
     SearchEntityIndexDefaultGrantType,
@@ -39,7 +46,11 @@ import {
 import {SearchEntityMedia} from "~/server/search/data/index/internal/search_entity_media.js";
 import {SearchEntityIndexSystemActionContext} from "~/server/search/data/index/search_entity_index_system_action_context.js";
 import {internalGetAffinitiveSearchEntityIds} from "~/server/search/data/table/search_entity_table.js";
-import {authorizeSpaceAccess, getAccount} from "~/server/spaces/spaces_table.js";
+import {
+    authorizeSpaceAccess,
+    getAccount,
+    getSpaceAccountNameSearchIndex,
+} from "~/server/spaces/spaces_table.js";
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Context} from "~/shared/context/context.js";
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
@@ -59,6 +70,7 @@ import {
     defaultUncertaintyWindowMs,
     isDateDefinitelyLessThanWithUncertaintyWindow,
 } from "~/shared/helpers/date/is_date_less_than_with_uncertainty_window.js";
+import {TimeZone} from "~/shared/helpers/date/time_zone.js";
 import {filterMapIterable} from "~/shared/helpers/iterable/filter_map_iterable.js";
 import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {StableRandom} from "~/shared/helpers/number/stable_random.js";
@@ -548,14 +560,20 @@ export async function processIndexSearchEntityJob(
                 ),
             );
 
-            const majorContributorIds: Array<AccountId> = [];
-            const minorContributorIds: Array<AccountId> = [];
+            const majorContributorIds = new Set<AccountId>();
+            const anyContributorIds = new Set<AccountId>();
+
+            if (entity.creatorId !== null) {
+                majorContributorIds.add(entity.creatorId);
+                anyContributorIds.add(entity.creatorId);
+            }
 
             for (const [contributorId, type] of entity.contributorIds) {
                 if (type === "Major") {
-                    majorContributorIds.push(contributorId);
+                    majorContributorIds.add(contributorId);
+                    anyContributorIds.add(contributorId);
                 } else {
-                    minorContributorIds.push(contributorId);
+                    anyContributorIds.add(contributorId);
                 }
             }
 
@@ -576,8 +594,8 @@ export async function processIndexSearchEntityJob(
                 body: entity.body,
                 media: entity.media,
                 creatorId: entity.creatorId,
-                majorContributorIds,
-                minorContributorIds,
+                majorContributorIds: Array.from(majorContributorIds),
+                anyContributorIds: Array.from(anyContributorIds),
             };
 
             const newDocForSemanticIndex: OpensearchClientDocWithIdAndVersion<
@@ -737,11 +755,15 @@ export async function searchByKeywords(
         spaceId,
         queryText,
         limit,
+        timeZone,
+        currentTime,
         debugOptions,
     }: {
         spaceId: SpaceId;
         queryText: string;
         limit: number;
+        timeZone: TimeZone;
+        currentTime: Date;
         debugOptions?: SearchOptions;
     },
 ): Promise<{
@@ -763,36 +785,206 @@ export async function searchByKeywords(
 
     const options = debugOptions ?? standardSearchOptions;
 
+    const {queryTexts, controlQueryTexts, filters} = parseEnglishNaturalLanguageSearchQuery(
+        queryText,
+        {
+            timeZone,
+            currentTime,
+            actorAccountId: context.actor.getAccountId(),
+            accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
+        },
+    );
+
+    type QueryClause = OpensearchQueryClause<
+        OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>
+    >;
+
+    const createQueryTextClause = (
+        boost: number,
+        queryTexts: ReadonlyArray<string>,
+    ): QueryClause | null => {
+        const clauses = queryTexts.map(
+            (queryText): QueryClause => ({
+                multi_match: {
+                    query: new OpensearchQueryValue(queryText),
+                    // The more fields matched, the better!
+                    //
+                    // - If you match a shingle it will also implicitly match the main field.
+                    //   So we get limited phrase matching.
+                    // - Matches in title fields are boosted above matches in body fields.
+                    type: "most_fields",
+                    fields:
+                        boost === 1
+                            ? [
+                                  `title^${options.titleBoost}`,
+                                  `title._2gram^${options.titleBoost}`,
+                                  `title._3gram^${options.titleBoost}`,
+                                  "body",
+                                  "body._2gram",
+                                  "body._3gram",
+                              ]
+                            : [
+                                  `title^${options.titleBoost * boost}`,
+                                  `title._2gram^${options.titleBoost * boost}`,
+                                  `title._3gram^${options.titleBoost * boost}`,
+                                  `body^${boost}`,
+                                  `body._2gram^${boost}`,
+                                  `body._3gram^${boost}`,
+                              ],
+                    // Still match even if the query text has typos.
+                    fuzziness: "AUTO",
+                },
+            }),
+        );
+
+        if (clauses.length === 0) return null;
+
+        return clauses.length === 1
+            ? clauses[0]!
+            : // Use a disjunction max when we have multiple `queryText`s. Since the `match`
+              // uses an "OR" operator not "AND". We want to use the best score across all
+              // `queryText`s instead of adding the scores together.
+              {dis_max: {queries: clauses}};
+    };
+
+    const queryTextClause = createQueryTextClause(1, queryTexts);
+
+    const must: Array<QueryClause> = [];
+    if (queryTextClause) must.push(queryTextClause);
+
+    // Keep track of the fields we're using to filter by time. If we only filter by
+    // updated time then let's use updated time to sort as well.
+    const timeFilterFields = new Set<"Created" | "LastUpdated">();
+
+    // If we parsed some filters using natural language, then add them to our
+    // query. The filters are "OR"d together so we use a disjunction max query.
+    if (controlQueryTexts.length > 0 || filters.length > 0) {
+        const createTermQueryClause = (
+            flattenedKey: OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>,
+            values: ReadonlyArray<JsonValue>,
+        ): QueryClause => {
+            if (values.length === 1)
+                return {term: {[flattenedKey]: new OpensearchQueryValue(values[0]!)}};
+
+            return {terms: {[flattenedKey]: new OpensearchQueryValue(values)}};
+        };
+
+        const filterClauses = filters.map((filter): QueryClause => {
+            const filterMust: Array<QueryClause> = [
+                createTermQueryClause("type", filter.entityTypes),
+            ];
+
+            if (filter.accounts) {
+                switch (filter.accounts.field) {
+                    case "Creator": {
+                        filterMust.push(createTermQueryClause("creatorId", filter.accounts.ids));
+                        break;
+                    }
+                    case "MajorContributor": {
+                        filterMust.push(
+                            createTermQueryClause("majorContributorIds", filter.accounts.ids),
+                        );
+                        break;
+                    }
+                    case "AnyContributor": {
+                        filterMust.push(
+                            createTermQueryClause("anyContributorIds", filter.accounts.ids),
+                        );
+                        break;
+                    }
+                    default:
+                        throw exhaustive(filter.accounts.field);
+                }
+            }
+
+            if (filter.time) {
+                timeFilterFields.add(filter.time.field);
+
+                switch (filter.time.field) {
+                    case "Created": {
+                        filterMust.push({
+                            range: {
+                                createdTime: {
+                                    gte: filter.time.range.inclusiveLowerBoundDate
+                                        ? new OpensearchQueryValue(
+                                              filter.time.range.inclusiveLowerBoundDate.toISOString(),
+                                          )
+                                        : undefined,
+                                    lte: filter.time.range.inclusiveUpperBoundDate
+                                        ? new OpensearchQueryValue(
+                                              filter.time.range.inclusiveUpperBoundDate.toISOString(),
+                                          )
+                                        : undefined,
+                                },
+                            },
+                        });
+                        break;
+                    }
+                    case "LastUpdated": {
+                        filterMust.push({
+                            range: {
+                                lastUpdatedTime: {
+                                    gte: filter.time.range.inclusiveLowerBoundDate
+                                        ? new OpensearchQueryValue(
+                                              filter.time.range.inclusiveLowerBoundDate.toISOString(),
+                                          )
+                                        : undefined,
+                                    lte: filter.time.range.inclusiveUpperBoundDate
+                                        ? new OpensearchQueryValue(
+                                              filter.time.range.inclusiveUpperBoundDate.toISOString(),
+                                          )
+                                        : undefined,
+                                },
+                            },
+                        });
+                        break;
+                    }
+                    default:
+                        throw exhaustive(filter.time.field);
+                }
+            }
+
+            return {
+                constant_score: {
+                    boost: options.englishNaturalLanguageParser.filterConstantScore,
+                    filter: {bool: {filter: filterMust}},
+                },
+            };
+        });
+
+        const controlQueryTextClause = createQueryTextClause(
+            options.englishNaturalLanguageParser.controlMatchBoost,
+            controlQueryTexts,
+        );
+
+        must.push({
+            dis_max: {
+                queries: [
+                    ...filterClauses,
+                    ...(controlQueryTextClause ? [controlQueryTextClause] : []),
+                ],
+            },
+        });
+    }
+
     const {hits} = await context.opensearch.searchWithoutSource(SearchEntityKeywordIndex, spaceId, {
         explain: !!debugOptions,
         size: limit,
         storedFields: ["title", "media"],
-        sort: ["_score"],
+        sort: [
+            "_score",
+
+            // Default to sorting by `createdTime` when scores are tied, but if we parse an
+            // update time natural language filter then sort by update time.
+            timeFilterFields.size === 0 || timeFilterFields.has("Created")
+                ? {createdTime: {order: "desc", missing: "_last"}}
+                : {lastUpdatedTime: {order: "desc", missing: "_last"}},
+
+            "_doc",
+        ],
         query: {
             bool: {
-                must: [
-                    {
-                        multi_match: {
-                            query: new OpensearchQueryValue(queryText),
-                            // The more fields matched, the better!
-                            //
-                            // - If you match a shingle it will also implicitly match the main field.
-                            //   So we get limited phrase matching.
-                            // - Matches in title fields are boosted above matches in body fields.
-                            type: "most_fields",
-                            fields: [
-                                `title^${options.titleBoost}`,
-                                `title._2gram^${options.titleBoost}`,
-                                `title._3gram^${options.titleBoost}`,
-                                "body",
-                                "body._2gram",
-                                "body._3gram",
-                            ],
-                            // Still match even if the query text has typos.
-                            fuzziness: "AUTO",
-                        },
-                    },
-                ],
+                must,
 
                 // Use filter context to only match content the user is allowed to see. The
                 // content must be in our space and must grant access to the account. Either

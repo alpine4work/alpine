@@ -894,3 +894,34 @@ export async function getSessionActorAccountSpaces(context: ServerSessionActionC
                   ),
     };
 }
+
+/**
+ * Get a server-side in-memory search index for accounts in the provided
+ * `SpaceId`. The search index is powered by Fuse.js. The search index is
+ * cached in memory. So if space accounts have already been loaded for this
+ * space, calling this function is instant.
+ */
+export async function getSpaceAccountNameSearchIndex(
+    context: ServerActionContext,
+    spaceId: SpaceId,
+): Promise<{
+    searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
+    searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
+}> {
+    const {accountNameIndex, accountShortNameIndex} = await spaceAccountsCache.getData(
+        context,
+        spaceId,
+    );
+
+    return {
+        searchNames: queryText => {
+            return accountNameIndex.search(queryText) as Array<{item: AccountModel; score: number}>;
+        },
+        searchShortNames: queryText => {
+            return accountShortNameIndex.search(queryText) as Array<{
+                item: AccountModel;
+                score: number;
+            }>;
+        },
+    };
+}

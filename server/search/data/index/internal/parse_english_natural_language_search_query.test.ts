@@ -259,7 +259,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -307,7 +307,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -320,7 +320,7 @@ test("parses search entity type then account name", () => {
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                    accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                     time: null,
                 },
             ],
@@ -333,7 +333,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -345,7 +345,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -359,7 +359,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -371,7 +371,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -383,7 +383,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -397,7 +397,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -410,7 +410,7 @@ test("parses search entity type then account name", () => {
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                 accounts: {
-                    field: "CreatorOrMajorContributor",
+                    field: "MajorContributor",
                     ids: [accounts[2]!.id, accounts[4]!.id],
                 },
                 time: null,
@@ -425,7 +425,7 @@ test("parses search entity type then account name", () => {
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                 accounts: {
-                    field: "CreatorOrMajorContributor",
+                    field: "MajorContributor",
                     ids: [accounts[2]!.id, accounts[4]!.id],
                 },
                 time: null,
@@ -440,7 +440,7 @@ test("parses search entity type then account name", () => {
             {
                 entityTypes: ["PostComment"],
                 accounts: {
-                    field: "CreatorOrMajorContributor",
+                    field: "MajorContributor",
                     ids: [accounts[2]!.id, accounts[4]!.id],
                 },
                 time: null,
@@ -454,7 +454,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[2]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[2]!.id]},
                 time: null,
             },
         ],
@@ -466,7 +466,7 @@ test("parses search entity type then account name", () => {
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[4]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[4]!.id]},
                 time: null,
             },
         ],
@@ -479,7 +479,7 @@ test("parses search entity type then account name", () => {
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
                 accounts: {
-                    field: "CreatorOrMajorContributor",
+                    field: "MajorContributor",
                     ids: [accounts[2]!.id, accounts[4]!.id],
                 },
                 time: null,
@@ -565,7 +565,7 @@ test("parses search entity type then relationship then me", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -591,7 +591,7 @@ test("parses search entity type then relationship then me", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -605,7 +605,7 @@ test("parses search entity type then relationship then me", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -815,7 +815,7 @@ test("parses search entity type then relationship then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -853,7 +853,7 @@ test("parses search entity type then relationship then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -867,7 +867,7 @@ test("parses search entity type then relationship then account name", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1047,7 +1047,7 @@ test("parses search entity type then I then relationship", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1071,7 +1071,7 @@ test("parses search entity type then I then relationship", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1085,7 +1085,7 @@ test("parses search entity type then I then relationship", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1251,7 +1251,7 @@ test("parses search entity type then account first name then relationship", () =
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1275,7 +1275,7 @@ test("parses search entity type then account first name then relationship", () =
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1289,7 +1289,7 @@ test("parses search entity type then account first name then relationship", () =
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1464,7 +1464,7 @@ test("parses search entity type then account full name then relationship", () =>
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1490,7 +1490,7 @@ test("parses search entity type then account full name then relationship", () =>
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1504,7 +1504,7 @@ test("parses search entity type then account full name then relationship", () =>
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1632,7 +1632,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1644,7 +1644,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1656,7 +1656,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1668,7 +1668,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1680,7 +1680,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1692,7 +1692,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1704,7 +1704,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1718,7 +1718,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1730,7 +1730,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1743,7 +1743,7 @@ test("parses account name then entity type", () => {
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -1757,7 +1757,7 @@ test("parses account name then entity type", () => {
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -1772,7 +1772,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1784,7 +1784,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1796,7 +1796,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1808,7 +1808,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1821,7 +1821,7 @@ test("parses account name then entity type", () => {
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -1834,7 +1834,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1846,7 +1846,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1858,7 +1858,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1872,7 +1872,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1896,7 +1896,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1908,7 +1908,7 @@ test("parses account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1970,7 +1970,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1982,7 +1982,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1995,7 +1995,7 @@ test("parses account name with some text between then entity type", () => {
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -2010,7 +2010,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -2107,7 +2107,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -2143,7 +2143,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -2155,7 +2155,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -2168,7 +2168,7 @@ test("parses account name with some text between then entity type", () => {
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -2181,7 +2181,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -2195,7 +2195,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -2209,7 +2209,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -2226,7 +2226,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -2240,7 +2240,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -2254,7 +2254,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -2271,7 +2271,7 @@ test("parses account name with some text between then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -3102,7 +3102,7 @@ test("parses entity type then multiple modifiers", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3207,7 +3207,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3309,7 +3309,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3395,7 +3395,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -3407,7 +3407,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -3440,7 +3440,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
 test("parses simpler entity type then multiple modifiers", () => {
     const filter = {
         entityTypes: ["Document"],
-        accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+        accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
         time: {
             field: "Created",
             range: {
@@ -3546,7 +3546,7 @@ test("parses entity type then account then shortcuts to time", () => {
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3586,7 +3586,7 @@ test("parses entity type then account then shortcuts to time", () => {
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3662,7 +3662,7 @@ test("parses entity type then account then shortcuts to time", () => {
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3702,7 +3702,7 @@ test("parses entity type then account then shortcuts to time", () => {
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3797,7 +3797,7 @@ test("parses entity type then account then shortcuts to time", () => {
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3816,7 +3816,7 @@ test("parses entity type then account then shortcuts to time", () => {
             filters: [
                 {
                     entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                    accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                     time: {
                         field: "Created",
                         range: {
@@ -3839,7 +3839,7 @@ test("parses date modifier after account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3859,7 +3859,7 @@ test("parses date modifier after account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3879,7 +3879,7 @@ test("parses date modifier after account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3902,7 +3902,7 @@ test("parses date modifier after account name then entity type", () => {
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3962,7 +3962,7 @@ test('parses the word "recently" in dates', () => {
         filters: [
             {
                 entityTypes: ["ChatMessage"],
-                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {

@@ -115,9 +115,6 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
          * whatever we get when we read the search entity is what we use here.
          */
         createdTime: new OpensearchIndexDateType({
-            // NOTE(calebmer, 2023-12-20): We don't currently have use cases for
-            // filtering/sorting by `createdTime`. But it seems like a pretty basic search
-            // capability to have so adding it to avoid a reindex if we ever need it.
             isFilterable: true,
             isSortable: true,
         }).store(),
@@ -134,10 +131,6 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
          * underlying entity.
          */
         lastUpdatedTime: new OpensearchIndexDateType({
-            // NOTE(calebmer, 2023-12-20): We don't currently have use cases for
-            // filtering/sorting by `lastUpdatedTime`. But it seems like a pretty basic
-            // search capability to have so adding it to avoid a reindex if we ever
-            // need it.
             isFilterable: true,
             isSortable: true,
         }).store(),
@@ -268,20 +261,25 @@ export const SearchEntityKeywordIndexDocType = OpensearchIndexObjectType.new({
             .default(null),
 
         /**
-         * Accounts who made major updates to this search entity. The main authors of a
-         * document, for instance. May contain `creatorId` but will not contain
-         * accounts from `minorContributorIds`.
+         * Accounts who made major updates to this search entity. Or the creator.
+         * The creator is always considered a major contributor in our index even
+         * if they made a minority of updates. The main authors of a document, for
+         * instance.
+         *
+         * Will not contain minor contributors.
          */
         majorContributorIds: new OpensearchIndexArrayType(
             new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
         ).default([]),
 
         /**
-         * Accounts who made minor updates to this search entity. An account who left a
-         * single comment on a document, for instance. May contain `creatorId` but will
-         * not contain accounts from `majorContributorIds`.
+         * Accounts who made any update to this search entity, major or minor,
+         * including the creator. An account who left a single comment on a document,
+         * for instance.
+         *
+         * To get minor contributors, subtract the major contributor set from this one.
          */
-        minorContributorIds: new OpensearchIndexArrayType(
+        anyContributorIds: new OpensearchIndexArrayType(
             new OpensearchIndexKeywordType({isFilterable: true}).validate<AccountId>(isId),
         ).default([]),
     },

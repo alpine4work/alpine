@@ -40,7 +40,9 @@ export type OpensearchQueryClause<FlattenedKeys extends string> =
     | OpensearchMultiMatchQueryClause<FlattenedKeys>
     | OpensearchKnnQueryClause<FlattenedKeys>
     | OpensearchNestedQueryClause<FlattenedKeys>
-    | OpensearchBooleanQueryClause<FlattenedKeys>;
+    | OpensearchBooleanQueryClause<FlattenedKeys>
+    | OpensearchDisjunctionMatchQueryClause<FlattenedKeys>
+    | OpensearchConstantScoreQueryClause<FlattenedKeys>;
 
 type OpensearchQueryClauseField<FlattenedKeys extends string, Value> = {
     [Key in FlattenedKeys]?: Value;
@@ -52,7 +54,10 @@ type OpensearchQueryClauseField<FlattenedKeys extends string, Value> = {
  * https://opensearch.org/docs/latest/query-dsl/term/#term
  */
 export type OpensearchTermQueryClause<FlattenedKeys extends string> = {
-    terms: OpensearchQueryClauseField<FlattenedKeys, OpensearchQueryValue<Array<JsonValue>>>;
+    terms: OpensearchQueryClauseField<
+        FlattenedKeys,
+        OpensearchQueryValue<ReadonlyArray<JsonValue>>
+    >;
 };
 
 /**
@@ -253,6 +258,34 @@ export type OpensearchFilterBooleanQueryClause<FlattenedKeys extends string> = {
       }
     | {}
 );
+
+/**
+ * Disjunction match operator. The result must match at least one of the
+ * queries. The winning query is the one with the highest score.
+ *
+ * https://opensearch.org/docs/latest/query-dsl/compound/disjunction-max/
+ */
+export type OpensearchDisjunctionMatchQueryClause<FlattenedKeys extends string> = {
+    dis_max: {
+        queries: Array<OpensearchQueryClause<FlattenedKeys>>;
+        tie_breaker?: number;
+    };
+};
+
+/**
+ * A constant score query wraps a filter query and assigns all documents in the
+ * results a relevance score equal to the value of the `boost` parameter. Thus,
+ * all returned documents have an equal relevance score, and term
+ * frequency/inverse document frequency (TF/IDF) is not considered.
+ *
+ * https://opensearch.org/docs/latest/query-dsl/compound/constant-score/
+ */
+export type OpensearchConstantScoreQueryClause<FlattenedKeys extends string> = {
+    constant_score: {
+        filter: OpensearchQueryClause<FlattenedKeys>;
+        boost: number;
+    };
+};
 
 /**
  * Get a string description of the OpenSearch query clause. It is JSON except
