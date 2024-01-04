@@ -354,7 +354,7 @@ function parseSearchNaturalLanguageFilters(
                 if (matchTerms.me.isFuzzyMatch(state.term)) {
                     state.advanceTerm();
 
-                    // e.g. "documents created by me about..."
+                    // e.g. "documents created by me about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -371,7 +371,7 @@ function parseSearchNaturalLanguageFilters(
                 // e.g. "documents created by john" or "messages sent by sara smith"
                 const accounts = parseAccountsByNameIfPossible(state, options);
                 if (accounts) {
-                    // e.g. "documents created by john about..."
+                    // e.g. "documents created by john about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -407,7 +407,7 @@ function parseSearchNaturalLanguageFilters(
                 if (matchTerms.me.isFuzzyMatch(state.term)) {
                     state.advanceTerm();
 
-                    // e.g. "documents written by me about..."
+                    // e.g. "documents written by me about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -424,7 +424,7 @@ function parseSearchNaturalLanguageFilters(
                 // e.g. "documents written by john" or "posts authored by sara smith"
                 const accounts = parseAccountsByNameIfPossible(state, options);
                 if (accounts) {
-                    // e.g. "documents written by john about..."
+                    // e.g. "documents written by john about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -460,7 +460,7 @@ function parseSearchNaturalLanguageFilters(
                 if (matchTerms.me.isFuzzyMatch(state.term)) {
                     state.advanceTerm();
 
-                    // e.g. "documents updated by me about..."
+                    // e.g. "documents updated by me about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -477,7 +477,7 @@ function parseSearchNaturalLanguageFilters(
                 // e.g. "documents updated by john" or "tasks updated by sara smith"
                 const accounts = parseAccountsByNameIfPossible(state, options);
                 if (accounts) {
-                    // e.g. "documents updated by john about..."
+                    // e.g. "documents updated by john about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -511,7 +511,7 @@ function parseSearchNaturalLanguageFilters(
                 if (matchTerms.me.isFuzzyMatch(state.term)) {
                     state.advanceTerm();
 
-                    // e.g. "documents by me about..."
+                    // e.g. "documents by me about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -528,7 +528,7 @@ function parseSearchNaturalLanguageFilters(
                 // e.g. "documents by john" or "messages from sara smith"
                 const accounts = parseAccountsByNameIfPossible(state, options);
                 if (accounts) {
-                    // e.g. "documents by john about..."
+                    // e.g. "documents by john about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -561,7 +561,7 @@ function parseSearchNaturalLanguageFilters(
                 state.advanceTerm();
                 state.advanceTerm();
 
-                // e.g. "documents I created about..."
+                // e.g. "documents I created about"
                 if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                 addControlPhrase();
@@ -584,7 +584,7 @@ function parseSearchNaturalLanguageFilters(
                 state.advanceTerm();
                 state.advanceTerm();
 
-                // e.g. "documents I wrote about..."
+                // e.g. "documents I wrote about"
                 if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                 addControlPhrase();
@@ -607,7 +607,7 @@ function parseSearchNaturalLanguageFilters(
                 state.advanceTerm();
                 state.advanceTerm();
 
-                // e.g. "documents I updated about..."
+                // e.g. "documents I updated about"
                 if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                 addControlPhrase();
@@ -631,7 +631,7 @@ function parseSearchNaturalLanguageFilters(
                 ) {
                     state.advanceTerm();
 
-                    // e.g. "documents john created about..."
+                    // e.g. "documents john created about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -652,7 +652,7 @@ function parseSearchNaturalLanguageFilters(
                 ) {
                     state.advanceTerm();
 
-                    // e.g. "documents john wrote about..."
+                    // e.g. "documents john wrote about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -673,7 +673,7 @@ function parseSearchNaturalLanguageFilters(
                 ) {
                     state.advanceTerm();
 
-                    // e.g. "documents john updated about..."
+                    // e.g. "documents john updated about"
                     if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                     addControlPhrase();
@@ -783,14 +783,57 @@ function parseSearchNaturalLanguageFilters(
             continue;
         }
 
+        const advanceNounChunkAttemptingToParseEntityTypes = (
+            accountIds: ReadonlyArray<AccountId>,
+        ) => {
+            const lastTerm = state.terms[state.termIndex - 1];
+            if (lastTerm?.chunk !== "Noun") return;
+
+            // e.g. "my ... documents" or "john's ... documents"
+            //
+            // We allow this form to support queries like "john's train documents" or
+            // "sara's closed tasks" which sound very natural. The way this works is we
+            // allow any terms between the account name and entity type as long as
+            // they're all part of the same `Noun` chunk (as determined by `compromise`).
+            //
+            // [Chunks represents parts of a sentence][1] (e.g. noun phrase and
+            // verb phrase).
+            //
+            // [1]: https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/3-three/chunker/api/chunks.js#L1
+            while (state.term && state.term.chunk === "Noun") {
+                const firstEntityTypesTerm = state.term;
+
+                const entityTypes = parseSearchEntityTypesIfPossible(state);
+                if (entityTypes) {
+                    // e.g. "john's documents about"
+                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
+
+                    const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
+
+                    addSpecificControlPhrase(startTerm, lastTerm);
+                    addSpecificControlPhrase(firstEntityTypesTerm, lastEntityTypesTerm);
+
+                    filters.push({
+                        type: "Account",
+                        accountIds,
+                        entityTypes,
+                        level: "CreatorOrMajorContributor",
+                    });
+                    break;
+                }
+
+                state.advanceTerm();
+            }
+        };
+
         // e.g. "my..."
         if (matchTerms.my.isFuzzyMatch(state.term)) {
-            const myTerm = state.advanceTerm();
+            state.advanceTerm();
 
             // e.g. "my documents" or "my messages"
             const entityTypes = parseSearchEntityTypesIfPossible(state);
             if (entityTypes) {
-                // e.g. "my messages about..."
+                // e.g. "my messages about"
                 if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                 addControlPhrase();
@@ -804,50 +847,7 @@ function parseSearchNaturalLanguageFilters(
                 continue;
             }
 
-            if (myTerm.chunk === "Noun") {
-                let shouldContinue = false;
-
-                // e.g. "my ... documents"
-                //
-                // We allow this form to support queries like "john's train documents" or
-                // "sara's closed tasks" which sound very natural. The way this works is we
-                // allow any terms between the account name and entity type as long as
-                // they're all part of the same `Noun` chunk (as determined by `compromise`).
-                //
-                // [Chunks represents parts of a sentence][1] (e.g. noun phrase and
-                // verb phrase).
-                //
-                // [1]: https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/3-three/chunker/api/chunks.js#L1
-                while (state.term && state.term.chunk === "Noun") {
-                    const firstEntityTypesTerm = state.term;
-
-                    const entityTypes = parseSearchEntityTypesIfPossible(state);
-                    if (entityTypes) {
-                        // e.g. "john's documents about..."
-                        if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                        const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
-
-                        addSpecificControlPhrase(startTerm, myTerm);
-                        addSpecificControlPhrase(firstEntityTypesTerm, lastEntityTypesTerm);
-
-                        filters.push({
-                            type: "Account",
-                            accountIds: [actorAccountId],
-                            entityTypes,
-                            level: "CreatorOrMajorContributor",
-                        });
-                        shouldContinue = true;
-                        break;
-                    }
-
-                    state.advanceTerm();
-                }
-
-                if (shouldContinue) continue;
-            }
-
-            // No match, try parsing the next term.
+            advanceNounChunkAttemptingToParseEntityTypes([actorAccountId]);
             continue;
         }
 
@@ -857,7 +857,7 @@ function parseSearchNaturalLanguageFilters(
             // e.g. "john's documents" or "sara smith's messages"
             const entityTypes = parseSearchEntityTypesIfPossible(state);
             if (entityTypes) {
-                // e.g. "john's documents about..."
+                // e.g. "john's documents about"
                 if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
 
                 addControlPhrase();
@@ -871,62 +871,7 @@ function parseSearchNaturalLanguageFilters(
                 continue;
             }
 
-            const lastAccountNameTerm = assertExists(state.terms[state.termIndex - 1]);
-            if (lastAccountNameTerm.chunk === "Noun") {
-                let shouldContinue = false;
-
-                // e.g. "john's ... documents"
-                //
-                // We allow this form to support queries like "john's train documents" or
-                // "sara's closed tasks" which sound very natural. The way this works is we
-                // allow any terms between the account name and entity type as long as
-                // they're all part of the same `Noun` chunk (as determined by `compromise`).
-                //
-                // [Chunks represents parts of a sentence][1] (e.g. noun phrase and
-                // verb phrase).
-                //
-                // [1]: https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/3-three/chunker/api/chunks.js#L1
-                //
-                // NOTE(calebmer): More often then we'd like it looks like compromise is
-                // treating "john's" as "john has" instead of the possessive form of "john".
-                // For example in "john's closed tasks". The code that disambiguates `'s` may
-                // need to be updated.
-                //
-                // Disambiguating code:
-                // https://github.com/spencermountain/compromise/blob/4ef66b3e5798c63f3f0f3b7935ffae1597b6dd3b/src/2-two/contraction-two/compute/isPossessive.js#L45-L56
-                //
-                // Issue asking for guidance:
-                // https://github.com/spencermountain/compromise/issues/1074
-                while (state.term && state.term.chunk === "Noun") {
-                    const firstEntityTypesTerm = state.term;
-
-                    const entityTypes = parseSearchEntityTypesIfPossible(state);
-                    if (entityTypes) {
-                        // e.g. "john's documents about..."
-                        if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
-
-                        const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
-
-                        addSpecificControlPhrase(startTerm, lastAccountNameTerm);
-                        addSpecificControlPhrase(firstEntityTypesTerm, lastEntityTypesTerm);
-
-                        filters.push({
-                            type: "Account",
-                            accountIds: accounts.map(account => account.id),
-                            entityTypes,
-                            level: "CreatorOrMajorContributor",
-                        });
-                        shouldContinue = true;
-                        break;
-                    }
-
-                    state.advanceTerm();
-                }
-
-                if (shouldContinue) continue;
-            }
-
-            // No match, try parsing the next term.
+            advanceNounChunkAttemptingToParseEntityTypes(accounts.map(account => account.id));
             continue;
         }
 
