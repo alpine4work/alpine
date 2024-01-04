@@ -3790,22 +3790,38 @@ test("parses entity type then account then shortcuts to time", () => {
             },
         ],
     });
-});
 
-test.skip("asdfasdf 2", () => {
-    expect(parseEnglishNaturalLanguageSearchQuery("messages from sara last week", options)).toEqual(
+    expect(parseEnglishNaturalLanguageSearchQuery("messages from me last week", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["messages from me last week"],
+        filters: [
+            {
+                entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2023-12-25T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("messages from john last week", options)).toEqual(
         {
             queryTexts: [],
-            controlQueryTexts: ["tasks I updated yesterday"],
+            controlQueryTexts: ["messages from john last week"],
             filters: [
                 {
-                    entity: {types: ["Document"]},
-                    accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                    entity: {types: ["ChatMessage", "DocumentComment", "PostComment"]},
+                    accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
                     time: {
                         field: "Created",
                         range: {
-                            inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
-                            inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                            inclusiveLowerBoundDate: new Date("2023-12-25T07:00:00.000Z"),
+                            inclusiveUpperBoundDate: new Date("2024-01-01T06:59:59.999Z"),
                         },
                     },
                 },
@@ -3814,21 +3830,21 @@ test.skip("asdfasdf 2", () => {
     );
 });
 
-test.skip("asdfasdf 3", () => {
+test("parses date modifier after account name then entity type", () => {
     expect(
-        parseEnglishNaturalLanguageSearchQuery("john's documents created 2 days ago", options),
+        parseEnglishNaturalLanguageSearchQuery("my documents created two days ago", options),
     ).toEqual({
         queryTexts: [],
-        controlQueryTexts: ["john's documents created 2 days ago"],
+        controlQueryTexts: ["my documents created two days ago"],
         filters: [
             {
                 entity: {types: ["Document"]},
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
-                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
-                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                        inclusiveLowerBoundDate: new Date("2024-01-02T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                     },
                 },
             },
@@ -3836,19 +3852,62 @@ test.skip("asdfasdf 3", () => {
     });
 
     expect(
-        parseEnglishNaturalLanguageSearchQuery("my documents created 2 days ago", options),
+        parseEnglishNaturalLanguageSearchQuery("john's documents created two days ago", options),
     ).toEqual({
         queryTexts: [],
-        controlQueryTexts: ["my documents created 2 days ago"],
+        controlQueryTexts: ["john's documents created two days ago"],
         filters: [
             {
                 entity: {types: ["Document"]},
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
-                        inclusiveLowerBoundDate: new Date("2024-01-03T07:00:00.000Z"),
-                        inclusiveUpperBoundDate: new Date("2024-01-04T06:59:59.999Z"),
+                        inclusiveLowerBoundDate: new Date("2024-01-02T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery("my green documents created two days ago", options),
+    ).toEqual({
+        queryTexts: ["green"],
+        controlQueryTexts: ["my", "documents created two days ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[0]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-02T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
+                    },
+                },
+            },
+        ],
+    });
+
+    expect(
+        parseEnglishNaturalLanguageSearchQuery(
+            "john's green documents created two days ago",
+            options,
+        ),
+    ).toEqual({
+        queryTexts: ["green"],
+        controlQueryTexts: ["john's", "documents created two days ago"],
+        filters: [
+            {
+                entity: {types: ["Document"]},
+                accounts: {field: "CreatorOrMajorContributor", ids: [accounts[1]!.id]},
+                time: {
+                    field: "Created",
+                    range: {
+                        inclusiveLowerBoundDate: new Date("2024-01-02T07:00:00.000Z"),
+                        inclusiveUpperBoundDate: new Date("2024-01-03T06:59:59.999Z"),
                     },
                 },
             },

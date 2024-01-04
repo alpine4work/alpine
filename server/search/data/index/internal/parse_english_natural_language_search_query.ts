@@ -412,19 +412,41 @@ function parseSearchNaturalLanguageFilters(
 
                 const entityTypes = parseSearchEntityTypesIfPossible(state);
                 if (entityTypes) {
-                    // e.g. "john's documents about"
-                    if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
+                    const {filterStartTerm, filterEndTerm, filter} =
+                        parseSearchNaturalLanguageFilterModifiers(
+                            state,
+                            {
+                                filterStartTerm: firstEntityTypesTerm,
+                                filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                                filter: {
+                                    entity: {types: entityTypes},
+                                    accounts: {
+                                        field: "CreatorOrMajorContributor",
+                                        ids: accountIds,
+                                    },
+                                    time: null,
+                                },
+                                allowAccounts: false,
+                                allowTime: true,
+                                isFirstModifier: true,
+                            },
+                            options,
+                        );
 
-                    const lastEntityTypesTerm = assertExists(state.terms[state.termIndex - 1]);
+                    let actualFilterEndTerm = filterEndTerm;
+
+                    // e.g. "john's documents about"
+                    if (
+                        filterEndTerm === state.terms[state.termIndex - 1] &&
+                        matchTerms.about.isFuzzyMatch(state.term)
+                    ) {
+                        actualFilterEndTerm = state.advanceTerm();
+                    }
 
                     addSpecificControlPhrase(startTerm, lastTerm);
-                    addSpecificControlPhrase(firstEntityTypesTerm, lastEntityTypesTerm);
+                    addSpecificControlPhrase(filterStartTerm, actualFilterEndTerm);
 
-                    filters.push({
-                        entity: {types: entityTypes},
-                        accounts: {field: "CreatorOrMajorContributor", ids: accountIds},
-                        time: null,
-                    });
+                    filters.push(filter);
                     break;
                 }
 
@@ -439,16 +461,40 @@ function parseSearchNaturalLanguageFilters(
             // e.g. "my documents" or "my messages"
             const entityTypes = parseSearchEntityTypesIfPossible(state);
             if (entityTypes) {
+                const {filterStartTerm, filterEndTerm, filter} =
+                    parseSearchNaturalLanguageFilterModifiers(
+                        state,
+                        {
+                            filterStartTerm: startTerm,
+                            filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                            filter: {
+                                entity: {types: entityTypes},
+                                accounts: {
+                                    field: "CreatorOrMajorContributor",
+                                    ids: [actorAccountId],
+                                },
+                                time: null,
+                            },
+                            allowAccounts: false,
+                            allowTime: true,
+                            isFirstModifier: true,
+                        },
+                        options,
+                    );
+
+                let actualFilterEndTerm = filterEndTerm;
+
                 // e.g. "my messages about"
-                if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
+                if (
+                    filterEndTerm === state.terms[state.termIndex - 1] &&
+                    matchTerms.about.isFuzzyMatch(state.term)
+                ) {
+                    actualFilterEndTerm = state.advanceTerm();
+                }
 
-                addControlPhrase();
+                addSpecificControlPhrase(filterStartTerm, actualFilterEndTerm);
 
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: {field: "CreatorOrMajorContributor", ids: [actorAccountId]},
-                    time: null,
-                });
+                filters.push(filter);
                 continue;
             }
 
@@ -462,19 +508,40 @@ function parseSearchNaturalLanguageFilters(
             // e.g. "john's documents" or "sara smith's messages"
             const entityTypes = parseSearchEntityTypesIfPossible(state);
             if (entityTypes) {
+                const {filterStartTerm, filterEndTerm, filter} =
+                    parseSearchNaturalLanguageFilterModifiers(
+                        state,
+                        {
+                            filterStartTerm: startTerm,
+                            filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
+                            filter: {
+                                entity: {types: entityTypes},
+                                accounts: {
+                                    field: "CreatorOrMajorContributor",
+                                    ids: accounts.map(account => account.id),
+                                },
+                                time: null,
+                            },
+                            allowAccounts: false,
+                            allowTime: true,
+                            isFirstModifier: true,
+                        },
+                        options,
+                    );
+
+                let actualFilterEndTerm = filterEndTerm;
+
                 // e.g. "john's documents about"
-                if (matchTerms.about.isFuzzyMatch(state.term)) state.advanceTerm();
+                if (
+                    filterEndTerm === state.terms[state.termIndex - 1] &&
+                    matchTerms.about.isFuzzyMatch(state.term)
+                ) {
+                    actualFilterEndTerm = state.advanceTerm();
+                }
 
-                addControlPhrase();
+                addSpecificControlPhrase(filterStartTerm, actualFilterEndTerm);
 
-                filters.push({
-                    entity: {types: entityTypes},
-                    accounts: {
-                        field: "CreatorOrMajorContributor",
-                        ids: accounts.map(account => account.id),
-                    },
-                    time: null,
-                });
+                filters.push(filter);
                 continue;
             }
 
