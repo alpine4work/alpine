@@ -58,7 +58,7 @@ import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder
 //   https://cyberworlds.dev/s/111hc413nfdxa6vwspnhm3ejsc/documents/r0jzswspqf11nmy1g0zh3n6y4r
 
 export const paragraphLineHeight = "1.375rem";
-const paragraphMargin = spacing["2"];
+export const paragraphMargin = spacing["2"];
 
 export const docClassName = style({
     minHeight: "100%",

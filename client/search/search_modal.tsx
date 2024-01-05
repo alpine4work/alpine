@@ -1,4 +1,6 @@
-import {MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {assignInlineVars} from "@vanilla-extract/dynamic";
+import classNames from "classnames";
+import {Lightbulb, MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useRef} from "react";
 import {Box} from "~/client/design/box.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
@@ -34,7 +36,12 @@ import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_af
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult} from "~/shared/search/search_result.js";
-import {colorSchemeVars, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
+import {
+    colorSchemeVars,
+    contentSchemaStyles,
+    spinAnimationClassName,
+    sprinkles,
+} from "~/shared/styles/styles.js";
 
 // Export the preload hook from our internal folder so it can be used by code
 // depending on `//client/search`.
@@ -327,12 +334,64 @@ export function SearchModal({
                             overflow="hidden"
                             borderLeft="grey-10"
                         >
-                            {activePeek && (
+                            {activePeek ? (
                                 <SearchModalPeekContent
                                     // Fully remount whenever the peek changes...
                                     key={activePeek.id}
                                     peek={activePeek}
                                 />
+                            ) : (
+                                <Box
+                                    width="full"
+                                    height="full"
+                                    overflow="hidden"
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="flex-end"
+                                >
+                                    <Box
+                                        width="full"
+                                        padding="10"
+                                        fontSize="100"
+                                        userSelect="text"
+                                        color="grey-40"
+                                    >
+                                        <Box
+                                            display="flex"
+                                            alignItems="center"
+                                            gap="1"
+                                            paddingBottom="4"
+                                        >
+                                            <Lightbulb size={spacing["4"]} />
+                                            <Box>Tip: Try advanced searches like…</Box>
+                                        </Box>
+                                        <Box>
+                                            {[
+                                                "my documents",
+                                                "messages from alex last week",
+                                                "tasks I updated yesterday",
+                                                "posts by jordan",
+                                            ].map((example, i) => (
+                                                <Box
+                                                    key={i}
+                                                    className={classNames(
+                                                        contentSchemaStyles.listItemClassName,
+                                                        contentSchemaStyles.bulletListItemClassName,
+                                                    )}
+                                                    style={{
+                                                        ...assignInlineVars({
+                                                            [contentSchemaStyles.listItemIndentationVar]:
+                                                                "0",
+                                                        }),
+                                                    }}
+                                                    paddingBottom="1.5"
+                                                >
+                                                    <Box paddingLeft="2">{example}</Box>
+                                                </Box>
+                                            ))}
+                                        </Box>
+                                    </Box>
+                                </Box>
                             )}
                         </Box>
                     </Box>
