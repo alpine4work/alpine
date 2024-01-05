@@ -77,6 +77,7 @@ import {StableRandom} from "~/shared/helpers/number/stable_random.js";
 import {JsonValue} from "~/shared/helpers/types/json_value.js";
 import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {AccountId, SpaceId} from "~/shared/id/types/id_types.js";
+import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {
     SearchEntityId,
     parseSearchEntityId,
@@ -1083,12 +1084,46 @@ export async function searchByKeywords(
                 title: hit.fields.title?.[0] ?? null,
                 bodyTextSnippet,
                 media: resultMedia,
-                explanation: hit.explanation,
+                explanation: hit.explanation
+                    ? enrichOpensearchSearchHitExplanation(hit.explanation)
+                    : undefined,
             };
         }),
     );
 
     return {results};
+}
+
+function enrichOpensearchSearchHitExplanation(
+    explanation: OpensearchSearchHitExplanation,
+): OpensearchSearchHitExplanation {
+    // If we have a `ConstantScore` in our explanation the means we parsed a
+    // natural language filter from the query text and the natural language filter
+    // matched!
+    //
+    // We only use constant score queries for natural language filters currently.
+    if (/ConstantScore/i.test(explanation.description)) {
+        return {
+            value: explanation.value,
+            description: "\u2699\uFE0F natural language filter match:",
+            details: [explanation],
+        };
+    }
+
+    let hasChildExplanationChanged = false;
+
+    const newChildExplanations = explanation.details.map(childExplanation => {
+        const newChildExplanation = enrichOpensearchSearchHitExplanation(childExplanation);
+
+        if (childExplanation !== newChildExplanation) {
+            hasChildExplanationChanged = true;
+        }
+
+        return newChildExplanation;
+    });
+
+    if (!hasChildExplanationChanged) return explanation;
+    return {...explanation, details: newChildExplanations};
 }
 
 /**

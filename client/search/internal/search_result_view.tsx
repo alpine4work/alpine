@@ -10,6 +10,7 @@ import {RemLength, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/
 import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {countIterable} from "~/shared/helpers/iterable/count_iterable.js";
+import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchResult, SearchResultMedia} from "~/shared/search/search_result.js";
@@ -389,17 +390,21 @@ function SearchResultViewExplainDebugWidget({
     explanation: OpensearchSearchHitExplanation;
 }) {
     // When we add to a search result score using factors other than OpenSearch
-    // BM25 we include a ✨ emoji to communicate this is a "smart" score addition.
-    // To make it easier to spot scores affected by AI magic (semantic search or
-    // affinity search) we want to put the same emoji in the explain button.
-    const hasSparkleInExplanation = useMemo(() => {
+    // BM25 we include an emoji to communicate this is a "smart" score addition. We
+    // use a sparkle for semantic search and a heart for search results the user
+    // has an affinity for. To make it easier to spot scores affected by AI magic
+    // (semantic search or affinity search) we want to put the same emoji in the
+    // explain button.
+    const emojis = useMemo(() => {
         const stack = [explanation];
+        const maxValueByEmoji = new Map<string, number>();
 
         while (stack.length > 0) {
             const currentExplanation = stack.pop()!;
 
-            if (currentExplanation.description.includes("✨")) {
-                return true;
+            for (const {emoji} of iterateEmojis(currentExplanation.description)) {
+                const maxValue = maxValueByEmoji.get(emoji) ?? 0;
+                maxValueByEmoji.set(emoji, Math.max(maxValue, currentExplanation.value));
             }
 
             for (const childExplanation of currentExplanation.details) {
@@ -407,7 +412,10 @@ function SearchResultViewExplainDebugWidget({
             }
         }
 
-        return false;
+        return Array.from(maxValueByEmoji)
+            .sort(([, a], [, b]) => b - a)
+            .map(([emoji]) => emoji)
+            .join("");
     }, [explanation]);
 
     return (
@@ -455,7 +463,7 @@ function SearchResultViewExplainDebugWidget({
                     event.stopPropagation();
                 }}
             >
-                {hasSparkleInExplanation ? "✨ " : ""}Explain
+                {emojis.length > 0 ? `${emojis} ` : ""}Explain
             </button>
         </OverlayTriggerButton>
     );

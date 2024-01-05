@@ -333,7 +333,9 @@ export function useSearchState({
                     explanation: result.explanation
                         ? addSumOperandToOpensearchSearchHitExplanation(result.explanation, {
                               value: additionalScore,
-                              description: `✨ interpolated affinity score, computed as (m * x) + b from:`,
+                              // `\u2764\uFE0F` is the red heart emoji. It needs two Unicode
+                              // code points to render correctly.
+                              description: `\u2764\uFE0F interpolated affinity score, computed as (m * x) + b from:`,
                               details: [
                                   {
                                       value: affinityResult.score,
