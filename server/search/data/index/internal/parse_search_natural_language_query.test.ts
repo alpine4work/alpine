@@ -101,156 +101,169 @@ const options = {
 
 test("parses search entity type then account name", () => {
     expect(parseSearchNaturalLanguageQuery("documents by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents by", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["by"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents about by", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["by"],
         controlQueryTexts: ["documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents by about", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["by about"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents by me about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents by me about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents by john about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents by john about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents by john trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents by john smith", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents by john smith"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("trains1 documents by john trains2", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains1", "trains2"],
         controlQueryTexts: ["documents by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("messages from emily", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["messages from emily"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {
+                account: {
                     field: "MajorContributor",
                     ids: [accounts[2]!.id, accounts[4]!.id],
                 },
@@ -260,12 +273,13 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("comments from emily", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["comments from emily"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {
+                account: {
                     field: "MajorContributor",
                     ids: [accounts[2]!.id, accounts[4]!.id],
                 },
@@ -275,12 +289,13 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("post comments from emily", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["post comments from emily"],
         filters: [
             {
                 entityTypes: ["PostComment"],
-                accounts: {
+                account: {
                     field: "MajorContributor",
                     ids: [accounts[2]!.id, accounts[4]!.id],
                 },
@@ -290,36 +305,39 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("messages from emily smith", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["messages from emily smith"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {field: "MajorContributor", ids: [accounts[2]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[2]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("messages from emily lin", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["messages from emily lin"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {field: "MajorContributor", ids: [accounts[4]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[4]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("messeges from emily", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["messeges from emily"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {
+                account: {
                     field: "MajorContributor",
                     ids: [accounts[2]!.id, accounts[4]!.id],
                 },
@@ -329,18 +347,20 @@ test("parses search entity type then account name", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("messsegees from emily", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["messsegees from emily"],
         controlQueryTexts: [],
         filters: [],
     });
 
     expect(parseSearchNaturalLanguageQuery("messages from sarah", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["from sarah"],
         controlQueryTexts: ["messages"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
@@ -349,36 +369,39 @@ test("parses search entity type then account name", () => {
 
 test("parses search entity type then relationship then me", () => {
     expect(parseSearchNaturalLanguageQuery("documents created by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created me", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["created me"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents created by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents created by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -387,48 +410,52 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents created by me about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents created by me about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents written by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents written by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents written me", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["written me"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents written by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents written by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -437,48 +464,52 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents written by me about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents written by me about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents updated by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents updated by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents updated me", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["updated me"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents updated by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents updated by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -487,48 +518,52 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents updated by me about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents updated by me about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents udpated by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents udpated by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents udpated me", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["udpated me"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents udpated by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents udpated by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -537,12 +572,13 @@ test("parses search entity type then relationship then me", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents udpated by me about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents udpated by me about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -551,72 +587,78 @@ test("parses search entity type then relationship then me", () => {
 
 test("parses search entity type then relationship then account name", () => {
     expect(parseSearchNaturalLanguageQuery("documents created by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created by sara", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["created by sara"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created john", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["created john"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents created by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents created by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created by john trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents created by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created by john smith", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created by john smith"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -625,60 +667,65 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents created by john about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents created by john about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents written by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents written by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents written by sara", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["written by sara"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents written john", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["written john"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents written by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents written by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -687,48 +734,52 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents written by john about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents written by john about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents updated by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents updated by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents updated john", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["updated john"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents updated by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents updated by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -737,60 +788,65 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents updated by john about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents updated by john about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents updated by sara", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["updated by sara"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents udpated by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents udpated by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents udpated john", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["udpated john"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents udpated by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents udpated by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -799,12 +855,13 @@ test("parses search entity type then relationship then account name", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents udpated by john about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents udpated by john about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -813,192 +870,208 @@ test("parses search entity type then relationship then account name", () => {
 
 test("parses search entity type then I then relationship", () => {
     expect(parseSearchNaturalLanguageQuery("documents I created", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents I created"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents I", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["I"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents I created", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents I created"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents I created about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents I created about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents I wrote", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents I wrote"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents wrote", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["wrote"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents I wrote", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents I wrote"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents I wrote about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents I wrote about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents I updated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents I updated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents updated", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["updated"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents I updated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents I updated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents I updated about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents I updated about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents I udpated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents I udpated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents udpated", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["udpated"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents I udpated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents I udpated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents I udpated about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents I udpated about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1007,36 +1080,39 @@ test("parses search entity type then I then relationship", () => {
 
 test("parses search entity type then account first name then relationship", () => {
     expect(parseSearchNaturalLanguageQuery("documents john created", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents john created"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents john", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["john"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents john created", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents john created"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1044,12 +1120,13 @@ test("parses search entity type then account first name then relationship", () =
 
     expect(parseSearchNaturalLanguageQuery("documents john created about trains", options)).toEqual(
         {
+            isLowConfidence: false,
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john created about"],
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                    account: {field: "Creator", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -1057,84 +1134,91 @@ test("parses search entity type then account first name then relationship", () =
     );
 
     expect(parseSearchNaturalLanguageQuery("documents john wrote", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents john wrote"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents wrote", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["wrote"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents john wrote", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents john wrote"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents john wrote about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents john wrote about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents john updated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents john updated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents updated", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["updated"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents john updated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents john updated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1142,12 +1226,13 @@ test("parses search entity type then account first name then relationship", () =
 
     expect(parseSearchNaturalLanguageQuery("documents john updated about trains", options)).toEqual(
         {
+            isLowConfidence: false,
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john updated about"],
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                    account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -1155,36 +1240,39 @@ test("parses search entity type then account first name then relationship", () =
     );
 
     expect(parseSearchNaturalLanguageQuery("documents john udpated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents john udpated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents udpated", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["udpated"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents john udpated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents john udpated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1192,12 +1280,13 @@ test("parses search entity type then account first name then relationship", () =
 
     expect(parseSearchNaturalLanguageQuery("documents john udpated about trains", options)).toEqual(
         {
+            isLowConfidence: false,
             queryTexts: ["trains"],
             controlQueryTexts: ["documents john udpated about"],
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                    account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -1207,36 +1296,39 @@ test("parses search entity type then account first name then relationship", () =
 
 test("parses search entity type then account full name then relationship", () => {
     expect(parseSearchNaturalLanguageQuery("documents john smith created", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents john smith created"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents john smith", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["john smith"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents john smith created", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents john smith created"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1245,48 +1337,52 @@ test("parses search entity type then account full name then relationship", () =>
     expect(
         parseSearchNaturalLanguageQuery("documents john smith created about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents john smith created about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents john smith wrote", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents john smith wrote"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents wrote", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["wrote"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents john smith wrote", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents john smith wrote"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1295,48 +1391,52 @@ test("parses search entity type then account full name then relationship", () =>
     expect(
         parseSearchNaturalLanguageQuery("documents john smith wrote about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents john smith wrote about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents john smith updated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents john smith updated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents updated", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["updated"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents john smith updated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents john smith updated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1345,48 +1445,52 @@ test("parses search entity type then account full name then relationship", () =>
     expect(
         parseSearchNaturalLanguageQuery("documents john smith updated about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents john smith updated about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents john smith udpated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents john smith udpated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents udpated", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["udpated"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents john smith udpated", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["documents john smith udpated"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1395,12 +1499,13 @@ test("parses search entity type then account full name then relationship", () =>
     expect(
         parseSearchNaturalLanguageQuery("documents john smith udpated about trains", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["documents john smith udpated about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1409,132 +1514,143 @@ test("parses search entity type then account full name then relationship", () =>
 
 test("parses account name then entity type", () => {
     expect(parseSearchNaturalLanguageQuery("my documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["my documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train my documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["my documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("my documents train", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["my documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("my documents about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["my documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john's documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["john's documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train john's documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["john's documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john's documents train", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["john's documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john's documents about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["john's documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john smith's documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["john smith's documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train john smith's documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["john smith's documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john smith's documents train", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["john smith's documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -1542,12 +1658,13 @@ test("parses account name then entity type", () => {
 
     expect(parseSearchNaturalLanguageQuery("john smith's documents about trains", options)).toEqual(
         {
+            isLowConfidence: false,
             queryTexts: ["trains"],
             controlQueryTexts: ["john smith's documents about"],
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                    account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -1555,180 +1672,196 @@ test("parses account name then entity type", () => {
     );
 
     expect(parseSearchNaturalLanguageQuery("johns documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["johns documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train johns documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["johns documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("johns documents train", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["johns documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("johns documents about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["johns documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john smiths documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["john smiths documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train john smiths documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["john smiths documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john smiths documents train", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["john smiths documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john smiths documents about trains", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["trains"],
         controlQueryTexts: ["john smiths documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["john"],
         controlQueryTexts: [],
         filters: [],
     });
 
     expect(parseSearchNaturalLanguageQuery("john smith", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["john smith"],
         controlQueryTexts: [],
         filters: [],
     });
 
     expect(parseSearchNaturalLanguageQuery("johna documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["johna documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("johna's documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["johna's documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("jahn documents", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["jahn"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("jaahn documents", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["jaahn"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("jaahn's documents", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["jaahn's"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("jaahns documents", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["jaahns"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
@@ -1737,48 +1870,52 @@ test("parses account name then entity type", () => {
 
 test("parses account name with some text between then entity type", () => {
     expect(parseSearchNaturalLanguageQuery("my train documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["my", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john's train documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["john's", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john smith's train documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["train"],
         controlQueryTexts: ["john smith's", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("my neat documents about georgia", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["neat", "georgia"],
         controlQueryTexts: ["my", "documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1795,12 +1932,13 @@ test("parses account name with some text between then entity type", () => {
     // https://github.com/spencermountain/compromise/issues/1074
     expect(parseSearchNaturalLanguageQuery("john's neat documents about georgia", options)).toEqual(
         {
+            isLowConfidence: true,
             queryTexts: ["john's neat", "georgia"],
             controlQueryTexts: ["documents about"],
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: null,
+                    account: null,
                     time: null,
                 },
             ],
@@ -1810,24 +1948,26 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john smith's neat documents about georgia", options),
     ).toEqual({
+        isLowConfidence: true,
         queryTexts: ["john smith's neat", "georgia"],
         controlQueryTexts: ["documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("my train documents about georgia", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["my train", "georgia"],
         controlQueryTexts: ["documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
@@ -1836,12 +1976,13 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john's train documents about georgia", options),
     ).toEqual({
+        isLowConfidence: true,
         queryTexts: ["john's train", "georgia"],
         controlQueryTexts: ["documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
@@ -1850,108 +1991,117 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john smith's train documents about georgia", options),
     ).toEqual({
+        isLowConfidence: true,
         queryTexts: ["john smith's train", "georgia"],
         controlQueryTexts: ["documents about"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("my closed tasks", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["closed"],
         controlQueryTexts: ["my", "tasks"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john's closed tasks", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["john's closed"],
         controlQueryTexts: ["tasks"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john smith's closed tasks", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["john smith's closed"],
         controlQueryTexts: ["tasks"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("my green documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["green"],
         controlQueryTexts: ["my", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john's green documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["green"],
         controlQueryTexts: ["john's", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john smith's green documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["green"],
         controlQueryTexts: ["john smith's", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("john's smith documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["john's smith documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("my the cat in the hat documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["the cat in the hat"],
         controlQueryTexts: ["my", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -1959,12 +2109,13 @@ test("parses account name with some text between then entity type", () => {
 
     expect(parseSearchNaturalLanguageQuery("john's the cat in the hat documents", options)).toEqual(
         {
+            isLowConfidence: false,
             queryTexts: ["the cat in the hat"],
             controlQueryTexts: ["john's", "documents"],
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                    account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                     time: null,
                 },
             ],
@@ -1974,24 +2125,26 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john smith's the cat in the hat documents", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["the cat in the hat"],
         controlQueryTexts: ["john smith's", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("my (the cat in the hat) documents", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["(the cat in the hat)"],
         controlQueryTexts: ["my", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -2000,12 +2153,13 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john's (the cat in the hat) documents", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["(the cat in the hat)"],
         controlQueryTexts: ["john's", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -2014,12 +2168,13 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john smith's (the cat in the hat) documents", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["(the cat in the hat)"],
         controlQueryTexts: ["john smith's", "documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
@@ -2028,12 +2183,13 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("my, the cat in the hat, chat messages", options),
     ).toEqual({
+        isLowConfidence: true,
         queryTexts: ["my, the cat in the hat,"],
         controlQueryTexts: ["chat messages"],
         filters: [
             {
                 entityTypes: ["ChatMessage"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
@@ -2042,12 +2198,13 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john's, the cat in the hat, chat messages", options),
     ).toEqual({
+        isLowConfidence: true,
         queryTexts: ["john's, the cat in the hat,"],
         controlQueryTexts: ["chat messages"],
         filters: [
             {
                 entityTypes: ["ChatMessage"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
@@ -2056,12 +2213,13 @@ test("parses account name with some text between then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john smith's, the cat in the hat, chat messages", options),
     ).toEqual({
+        isLowConfidence: true,
         queryTexts: ["john smith's, the cat in the hat,"],
         controlQueryTexts: ["chat messages"],
         filters: [
             {
                 entityTypes: ["ChatMessage"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
@@ -2070,60 +2228,65 @@ test("parses account name with some text between then entity type", () => {
 
 test("parses standalone entity type", () => {
     expect(parseSearchNaturalLanguageQuery("documents", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: [],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("train documents", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["train"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents train", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: ["train"],
         controlQueryTexts: ["documents"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("chat message", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: [],
         controlQueryTexts: ["chat message"],
         filters: [
             {
                 entityTypes: ["ChatMessage"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("messages", options)).toEqual({
+        isLowConfidence: true,
         queryTexts: [],
         controlQueryTexts: ["messages"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
@@ -2137,17 +2300,18 @@ test("correctly splits query texts", () => {
             options,
         ),
     ).toEqual({
+        isLowConfidence: true,
         queryTexts: ["train1 train2", "train3 train4", "train5 train6"],
         controlQueryTexts: ["documents", "chat"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: null,
             },
             {
                 entityTypes: ["Chat"],
-                accounts: null,
+                account: null,
                 time: null,
             },
         ],
@@ -2156,12 +2320,13 @@ test("correctly splits query texts", () => {
 
 test("provides duration slop when referencing precise date", () => {
     expect(parseSearchNaturalLanguageQuery("documents created 1 minute ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 1 minute ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2174,12 +2339,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 2 minutes ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 2 minutes ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2192,12 +2358,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 5 minutes ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 5 minutes ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2210,12 +2377,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 1 hour ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 1 hour ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2228,12 +2396,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 2 hours ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 2 hours ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2246,12 +2415,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 24 hours ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 24 hours ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2264,12 +2434,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created yesterday"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2282,12 +2453,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 2 days ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 2 days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2300,12 +2472,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 3 days ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 3 days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2318,12 +2491,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 4 days ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 4 days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2336,12 +2510,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 5 days ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 5 days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2354,12 +2529,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 6 days ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 6 days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2372,12 +2548,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created last week", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created last week"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2390,12 +2567,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 2 weeks ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 2 weeks ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2408,12 +2586,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created last month", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created last month"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2426,12 +2605,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 2 months ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 2 months ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2444,12 +2624,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 3 months ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 3 months ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2462,12 +2643,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 4 months ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 4 months ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2480,12 +2662,13 @@ test("provides duration slop when referencing precise date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents created 6 months ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 6 months ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2500,12 +2683,13 @@ test("provides duration slop when referencing precise date", () => {
 
 test("parses entity type then date field then date", () => {
     expect(parseSearchNaturalLanguageQuery("documents created 2 weeks ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created 2 weeks ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2518,12 +2702,13 @@ test("parses entity type then date field then date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents updated 2 weeks ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents updated 2 weeks ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -2536,12 +2721,13 @@ test("parses entity type then date field then date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents last updated 2 weeks ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents last updated 2 weeks ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -2554,12 +2740,13 @@ test("parses entity type then date field then date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents udpated 2 weeks ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents udpated 2 weeks ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -2572,12 +2759,13 @@ test("parses entity type then date field then date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents last udpated 2 weeks ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents last udpated 2 weeks ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -2592,12 +2780,13 @@ test("parses entity type then date field then date", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents updated before 2 weeks ago", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents updated before 2 weeks ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -2611,12 +2800,13 @@ test("parses entity type then date field then date", () => {
 
     expect(parseSearchNaturalLanguageQuery("documents updated after 2 weeks ago", options)).toEqual(
         {
+            isLowConfidence: false,
             queryTexts: [],
             controlQueryTexts: ["documents updated after 2 weeks ago"],
             filters: [
                 {
                     entityTypes: ["Document"],
-                    accounts: null,
+                    account: null,
                     time: {
                         field: "LastUpdated",
                         range: {
@@ -2630,12 +2820,13 @@ test("parses entity type then date field then date", () => {
     );
 
     expect(parseSearchNaturalLanguageQuery("messages sent after yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["messages sent after yesterday"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2648,12 +2839,13 @@ test("parses entity type then date field then date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("messages sent before yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["messages sent before yesterday"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2666,12 +2858,13 @@ test("parses entity type then date field then date", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("posts from yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["posts from yesterday"],
         filters: [
             {
                 entityTypes: ["Post"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -2687,7 +2880,7 @@ test("parses entity type then date field then date", () => {
 test("parses entity type then multiple modifiers", () => {
     const filter = {
         entityTypes: ["Document"],
-        accounts: {field: "Creator", ids: [accounts[0]!.id]},
+        account: {field: "Creator", ids: [accounts[0]!.id]},
         time: {
             field: "Created",
             range: {
@@ -2700,6 +2893,7 @@ test("parses entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents created by me and created yesterday", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created by me and created yesterday"],
         filters: [filter],
@@ -2711,6 +2905,7 @@ test("parses entity type then multiple modifiers", () => {
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created by me that were created yesterday"],
         filters: [filter],
@@ -2722,6 +2917,7 @@ test("parses entity type then multiple modifiers", () => {
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created by me and were created yesterday"],
         filters: [filter],
@@ -2730,6 +2926,7 @@ test("parses entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents created by me created yesterday", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created by me created yesterday"],
         filters: [filter],
@@ -2738,6 +2935,7 @@ test("parses entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents created yesterday and created by me", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created yesterday and created by me"],
         filters: [filter],
@@ -2749,6 +2947,7 @@ test("parses entity type then multiple modifiers", () => {
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created yesterday that were created by me"],
         filters: [filter],
@@ -2760,6 +2959,7 @@ test("parses entity type then multiple modifiers", () => {
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created yesterday and were created by me"],
         filters: [filter],
@@ -2768,6 +2968,7 @@ test("parses entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents created yesterday created by me", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created yesterday created by me"],
         filters: [filter],
@@ -2776,12 +2977,13 @@ test("parses entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents written by me and created yesterday", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents written by me and created yesterday"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -2796,12 +2998,13 @@ test("parses entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents updated by me and created yesterday", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents updated by me and created yesterday"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -2816,6 +3019,7 @@ test("parses entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents written yesterday and created by me", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents written yesterday and created by me"],
         filters: [filter],
@@ -2824,12 +3028,13 @@ test("parses entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents updated yesterday and created by me", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents updated yesterday and created by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -2845,7 +3050,7 @@ test("parses entity type then multiple modifiers", () => {
 test("parses entity type then multiple modifiers won't double parse modifiers", () => {
     const filter = {
         entityTypes: ["Document"],
-        accounts: {field: "Creator", ids: [accounts[0]!.id]},
+        account: {field: "Creator", ids: [accounts[0]!.id]},
         time: {
             field: "Created",
             range: {
@@ -2861,6 +3066,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created by me"],
         controlQueryTexts: ["documents created by me and created yesterday"],
         filters: [filter],
@@ -2872,12 +3078,13 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created by me"],
         controlQueryTexts: ["documents written by me and created yesterday"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -2895,12 +3102,13 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created by me"],
         controlQueryTexts: ["documents updated by me and created yesterday"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -2918,6 +3126,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created by me"],
         controlQueryTexts: ["documents created yesterday and created by me"],
         filters: [filter],
@@ -2929,6 +3138,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created by me"],
         controlQueryTexts: ["documents written yesterday and created by me"],
         filters: [filter],
@@ -2940,12 +3150,13 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created by me"],
         controlQueryTexts: ["documents updated yesterday and created by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -2963,6 +3174,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created yesterday"],
         controlQueryTexts: ["documents created by me and created yesterday"],
         filters: [filter],
@@ -2974,12 +3186,13 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created yesterday"],
         controlQueryTexts: ["documents written by me and created yesterday"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -2997,12 +3210,13 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created yesterday"],
         controlQueryTexts: ["documents updated by me and created yesterday"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3020,6 +3234,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created yesterday"],
         controlQueryTexts: ["documents created yesterday and created by me"],
         filters: [filter],
@@ -3031,6 +3246,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created yesterday"],
         controlQueryTexts: ["documents written yesterday and created by me"],
         filters: [filter],
@@ -3042,12 +3258,13 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and created yesterday"],
         controlQueryTexts: ["documents updated yesterday and created by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -3060,24 +3277,26 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
     });
 
     expect(parseSearchNaturalLanguageQuery("documents by john by me", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["by me"],
         controlQueryTexts: ["documents by john"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("documents by me by john", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: ["by john"],
         controlQueryTexts: ["documents by me"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
@@ -3089,12 +3308,13 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
             options,
         ),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["and then from yesterday"],
         controlQueryTexts: ["documents from two days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -3110,7 +3330,7 @@ test("parses entity type then multiple modifiers won't double parse modifiers", 
 test("parses simpler entity type then multiple modifiers", () => {
     const filter = {
         entityTypes: ["Document"],
-        accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+        account: {field: "MajorContributor", ids: [accounts[0]!.id]},
         time: {
             field: "Created",
             range: {
@@ -3121,6 +3341,7 @@ test("parses simpler entity type then multiple modifiers", () => {
     };
 
     expect(parseSearchNaturalLanguageQuery("documents by me created yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents by me created yesterday"],
         filters: [filter],
@@ -3129,6 +3350,7 @@ test("parses simpler entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents by me that were created yesterday", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents by me that were created yesterday"],
         filters: [filter],
@@ -3137,6 +3359,7 @@ test("parses simpler entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents from me that were created yesterday", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents from me that were created yesterday"],
         filters: [filter],
@@ -3145,12 +3368,13 @@ test("parses simpler entity type then multiple modifiers", () => {
     expect(
         parseSearchNaturalLanguageQuery("documents from yesterday that I created", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents from yesterday that I created"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3163,12 +3387,13 @@ test("parses simpler entity type then multiple modifiers", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents I created from yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents I created from yesterday"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3183,12 +3408,13 @@ test("parses simpler entity type then multiple modifiers", () => {
 
 test("parses entity type then account then shortcuts to time", () => {
     expect(parseSearchNaturalLanguageQuery("tasks I created yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks I created yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3201,12 +3427,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks by me yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks by me yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3219,12 +3446,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks created by me yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks created by me yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3237,12 +3465,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks written by me yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks written by me yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3255,12 +3484,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks I updated yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks I updated yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -3273,12 +3503,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks updated by me yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks updated by me yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -3291,12 +3522,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks john created yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks john created yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3309,12 +3541,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks by john yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks by john yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3327,12 +3560,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks created by john yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks created by john yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "Creator", ids: [accounts[1]!.id]},
+                account: {field: "Creator", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3345,12 +3579,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks written by john yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks written by john yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3363,12 +3598,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks john updated yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks john updated yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -3381,12 +3617,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks updated by john yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks updated by john yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "AnyContributor", ids: [accounts[1]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -3399,12 +3636,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("tasks I created before yesterday", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["tasks I created before yesterday"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3419,24 +3657,26 @@ test("parses entity type then account then shortcuts to time", () => {
     expect(
         parseSearchNaturalLanguageQuery("tasks I created before and created yesterday", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["before and created yesterday"],
         controlQueryTexts: ["tasks I created"],
         filters: [
             {
                 entityTypes: ["Task"],
-                accounts: {field: "Creator", ids: [accounts[0]!.id]},
+                account: {field: "Creator", ids: [accounts[0]!.id]},
                 time: null,
             },
         ],
     });
 
     expect(parseSearchNaturalLanguageQuery("messages from me last week", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["messages from me last week"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3449,12 +3689,13 @@ test("parses entity type then account then shortcuts to time", () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("messages from john last week", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["messages from john last week"],
         filters: [
             {
                 entityTypes: ["ChatMessage", "DocumentComment", "PostComment"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3469,12 +3710,13 @@ test("parses entity type then account then shortcuts to time", () => {
 
 test("parses date modifier after account name then entity type", () => {
     expect(parseSearchNaturalLanguageQuery("my documents created two days ago", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["my documents created two days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3489,12 +3731,13 @@ test("parses date modifier after account name then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john's documents created two days ago", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["john's documents created two days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3509,12 +3752,13 @@ test("parses date modifier after account name then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("my green documents created two days ago", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["green"],
         controlQueryTexts: ["my", "documents created two days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[0]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3529,12 +3773,13 @@ test("parses date modifier after account name then entity type", () => {
     expect(
         parseSearchNaturalLanguageQuery("john's green documents created two days ago", options),
     ).toEqual({
+        isLowConfidence: false,
         queryTexts: ["green"],
         controlQueryTexts: ["john's", "documents created two days ago"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                 time: {
                     field: "Created",
                     range: {
@@ -3549,12 +3794,13 @@ test("parses date modifier after account name then entity type", () => {
 
 test('parses the word "recently" in dates', () => {
     expect(parseSearchNaturalLanguageQuery("documents created recently", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents created recently"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: null,
+                account: null,
                 time: {
                     field: "Created",
                     range: {
@@ -3567,12 +3813,13 @@ test('parses the word "recently" in dates', () => {
     });
 
     expect(parseSearchNaturalLanguageQuery("documents i updated recently", options)).toEqual({
+        isLowConfidence: false,
         queryTexts: [],
         controlQueryTexts: ["documents i updated recently"],
         filters: [
             {
                 entityTypes: ["Document"],
-                accounts: {field: "AnyContributor", ids: [accounts[0]!.id]},
+                account: {field: "AnyContributor", ids: [accounts[0]!.id]},
                 time: {
                     field: "LastUpdated",
                     range: {
@@ -3586,12 +3833,13 @@ test('parses the word "recently" in dates', () => {
 
     expect(parseSearchNaturalLanguageQuery("chat messages sent recently by john", options)).toEqual(
         {
+            isLowConfidence: false,
             queryTexts: [],
             controlQueryTexts: ["chat messages sent recently by john"],
             filters: [
                 {
                     entityTypes: ["ChatMessage"],
-                    accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                    account: {field: "MajorContributor", ids: [accounts[1]!.id]},
                     time: {
                         field: "Created",
                         range: {

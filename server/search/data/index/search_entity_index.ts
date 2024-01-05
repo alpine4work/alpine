@@ -786,12 +786,13 @@ export async function searchByKeywords(
 
     const options = debugOptions ?? standardSearchOptions;
 
-    const {queryTexts, controlQueryTexts, filters} = parseSearchNaturalLanguageQuery(queryText, {
-        timeZone,
-        currentTime,
-        actorAccountId: context.actor.getAccountId(),
-        accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
-    });
+    const {queryTexts, controlQueryTexts, filters, isLowConfidence} =
+        parseSearchNaturalLanguageQuery(queryText, {
+            timeZone,
+            currentTime,
+            actorAccountId: context.actor.getAccountId(),
+            accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
+        });
 
     type QueryClause = OpensearchQueryClause<
         OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>
@@ -881,26 +882,26 @@ export async function searchByKeywords(
                 createTermQueryClause("type", filter.entityTypes),
             ];
 
-            if (filter.accounts) {
-                switch (filter.accounts.field) {
+            if (filter.account) {
+                switch (filter.account.field) {
                     case "Creator": {
-                        filterMust.push(createTermQueryClause("creatorId", filter.accounts.ids));
+                        filterMust.push(createTermQueryClause("creatorId", filter.account.ids));
                         break;
                     }
                     case "MajorContributor": {
                         filterMust.push(
-                            createTermQueryClause("majorContributorIds", filter.accounts.ids),
+                            createTermQueryClause("majorContributorIds", filter.account.ids),
                         );
                         break;
                     }
                     case "AnyContributor": {
                         filterMust.push(
-                            createTermQueryClause("anyContributorIds", filter.accounts.ids),
+                            createTermQueryClause("anyContributorIds", filter.account.ids),
                         );
                         break;
                     }
                     default:
-                        throw exhaustive(filter.accounts.field);
+                        throw exhaustive(filter.account.field);
                 }
             }
 
@@ -953,14 +954,18 @@ export async function searchByKeywords(
 
             return {
                 constant_score: {
-                    boost: options.naturalLanguage.filterConstantScore,
+                    boost: isLowConfidence
+                        ? options.naturalLanguage.filterConstantScoreIfLowConfidence
+                        : options.naturalLanguage.filterConstantScore,
                     filter: {bool: {filter: filterMust}},
                 },
             };
         });
 
         const controlQueryTextClause = createQueryTextClause(
-            options.naturalLanguage.controlMatchBoost,
+            isLowConfidence
+                ? options.naturalLanguage.controlMatchBoostIfLowConfidence
+                : options.naturalLanguage.controlMatchBoost,
             controlQueryTexts,
         );
 
@@ -1172,15 +1177,31 @@ export async function searchBySemantics(
         spaceId,
         queryText,
         limit,
+        timeZone,
+        currentTime,
     }: {
         spaceId: SpaceId;
         queryText: string;
         limit: number;
+        timeZone: TimeZone;
+        currentTime: Date;
     },
 ): Promise<{
     results: Array<SearchResult>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
+
+    const {filters, isLowConfidence} = parseSearchNaturalLanguageQuery(queryText, {
+        timeZone,
+        currentTime,
+        actorAccountId: context.actor.getAccountId(),
+        accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
+    });
+
+    // If we have high confidence natural language filters then don't perform
+    // semantic search. Since semantic search will invent meaning that disagrees
+    // with the meaning we've determined for the user by parsing their query.
+    if (filters.length > 0 && !isLowConfidence) return {results: []};
 
     const [queryEmbeddingVector] = await context.languageModel.model.embed(
         context.tracer.getTracer(),

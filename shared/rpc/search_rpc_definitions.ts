@@ -28,6 +28,8 @@ export const searchBySemantics = defineRpc({
         spaceId: Schema.id<SpaceId>(),
         queryText: Schema.string,
         limit: Schema.integer,
+        timeZone: TimeZoneSchema,
+        currentTime: Schema.date,
     },
     output: {
         results: Schema.array(SearchResultSchema),

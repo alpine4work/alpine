@@ -72,6 +72,26 @@ export const SearchOptionsSchema = Schema.object({
          * natural language parser.
          */
         filterConstantScore: Schema.float,
+
+        /**
+         * `controlMatchBoost` when we're not confident the user wanted a natural
+         * language search.
+         *
+         * If we're only filtering search entity types (e.g. with the query
+         * "documents") we use a higher control match boost since the natural
+         * language filter is ambiguous.
+         */
+        controlMatchBoostIfLowConfidence: Schema.float,
+
+        /**
+         * `filterConstantScore` when we're not confident the user wanted a natural
+         * language search.
+         *
+         * If we're only filtering search entity types (e.g. with the query
+         * "documents") we use a different, lower, score since the natural language
+         * filter is ambiguous.
+         */
+        filterConstantScoreIfLowConfidence: Schema.float,
     }),
 
     /**
@@ -202,6 +222,17 @@ export const standardSearchOptions: SearchOptions = {
         // With `controlMatchBoost` set to 0.5, in order to beat the filter score a hit
         // needs two great title hits (1gram hit and 2gram hit).
         filterConstantScore: 20,
+
+        // If we're not confident the user wanted a natural language search, treat
+        // control text keyword matches as if they were regular keyword matches. For
+        // example, typing the word "documents" will match entities with the word
+        // document and entities of type document about equally.
+        controlMatchBoostIfLowConfidence: 1,
+
+        // If we're not confident the user wanted a natural language search, treat
+        // matches against our natural language filter the same as great keyword
+        // matches.
+        filterConstantScoreIfLowConfidence: 11,
     },
 
     semanticToKeywordScoreInterpolation: {

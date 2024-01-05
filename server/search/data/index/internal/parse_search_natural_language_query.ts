@@ -181,7 +181,7 @@ class SearchNaturalLanguageParserState {
  */
 export type SearchNaturalLanguageFilter = {
     readonly entityTypes: ReadonlyArray<SearchEntityIdObject["type"]>;
-    readonly accounts: {
+    readonly account: {
         readonly field: "Creator" | "MajorContributor" | "AnyContributor";
         readonly ids: ReadonlyArray<AccountId>;
     } | null;
@@ -215,7 +215,12 @@ export function parseSearchNaturalLanguageQuery(
         actorAccountId: AccountId;
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
-) {
+): {
+    queryTexts: ReadonlyArray<string>;
+    controlQueryTexts: ReadonlyArray<string>;
+    filters: ReadonlyArray<SearchNaturalLanguageFilter>;
+    isLowConfidence: boolean;
+} {
     const doc = nlp(queryText);
 
     const filters: Array<SearchNaturalLanguageFilter> = [];
@@ -262,6 +267,17 @@ export function parseSearchNaturalLanguageQuery(
         queryTexts,
         controlQueryTexts,
         filters,
+
+        // We have low confidence the user wants natural language filters if every
+        // filter we parsed only filters on `entityTypes`. These are queries like
+        // "train documents" or simply "channels".
+        //
+        // When we have low confidence natural language filters, we still apply the
+        // filters but we don't rank them as highly.
+        isLowConfidence:
+            filters.length !== 0
+                ? filters.every(filter => filter.account === null && filter.time === null)
+                : false,
     };
 }
 
@@ -315,10 +331,10 @@ function parseSearchNaturalLanguageFilters(
                         filterEndTerm: lastEntityTypesTerm,
                         filter: {
                             entityTypes,
-                            accounts: null,
+                            account: null,
                             time: null,
                         },
-                        allowAccounts: true,
+                        allowAccount: true,
                         allowTime: true,
                         isFirstModifier: true,
                     },
@@ -371,13 +387,13 @@ function parseSearchNaturalLanguageFilters(
                                 filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                                 filter: {
                                     entityTypes,
-                                    accounts: {
+                                    account: {
                                         field: "MajorContributor",
                                         ids: accountIds,
                                     },
                                     time: null,
                                 },
-                                allowAccounts: false,
+                                allowAccount: false,
                                 allowTime: true,
                                 isFirstModifier: true,
                             },
@@ -420,13 +436,13 @@ function parseSearchNaturalLanguageFilters(
                             filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                             filter: {
                                 entityTypes,
-                                accounts: {
+                                account: {
                                     field: "MajorContributor",
                                     ids: [actorAccountId],
                                 },
                                 time: null,
                             },
-                            allowAccounts: false,
+                            allowAccount: false,
                             allowTime: true,
                             isFirstModifier: true,
                         },
@@ -467,13 +483,13 @@ function parseSearchNaturalLanguageFilters(
                             filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                             filter: {
                                 entityTypes,
-                                accounts: {
+                                account: {
                                     field: "MajorContributor",
                                     ids: accounts.map(account => account.id),
                                 },
                                 time: null,
                             },
-                            allowAccounts: false,
+                            allowAccount: false,
                             allowTime: true,
                             isFirstModifier: true,
                         },
@@ -683,14 +699,14 @@ function parseSearchNaturalLanguageFilterModifiers(
         filterStartTerm,
         filterEndTerm,
         filter,
-        allowAccounts,
+        allowAccount,
         allowTime,
         isFirstModifier,
     }: {
         filterStartTerm: Term;
         filterEndTerm: Term;
         filter: SearchNaturalLanguageFilter;
-        allowAccounts: boolean;
+        allowAccount: boolean;
         allowTime: boolean;
         isFirstModifier: boolean;
     },
@@ -705,7 +721,7 @@ function parseSearchNaturalLanguageFilterModifiers(
     filterEndTerm: Term;
     filter: SearchNaturalLanguageFilter;
 } {
-    if (!allowAccounts && !allowTime) {
+    if (!allowAccount && !allowTime) {
         return {filterStartTerm, filterEndTerm, filter};
     }
 
@@ -736,7 +752,7 @@ function parseSearchNaturalLanguageFilterModifiers(
         state.advanceTerm();
 
         // e.g. "documents created by..." or "messages sent by..."
-        if (allowAccounts && matchTerms.by.isFuzzyMatch(state.term)) {
+        if (allowAccount && matchTerms.by.isFuzzyMatch(state.term)) {
             state.advanceTerm();
 
             // e.g. "documents created by me" or "messages sent by me"
@@ -750,9 +766,9 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: endTerm,
                         filter: {
                             ...filter,
-                            accounts: {field: "Creator", ids: [actorAccountId]},
+                            account: {field: "Creator", ids: [actorAccountId]},
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "Created",
                     },
@@ -770,9 +786,9 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                         filter: {
                             ...filter,
-                            accounts: {field: "Creator", ids: accounts.map(account => account.id)},
+                            account: {field: "Creator", ids: accounts.map(account => account.id)},
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "Created",
                     },
@@ -791,7 +807,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                     filterStartTerm,
                     filterEndTerm,
                     filter,
-                    allowAccounts,
+                    allowAccount,
                     field: "Created",
                 },
                 options,
@@ -809,7 +825,7 @@ function parseSearchNaturalLanguageFilterModifiers(
         state.advanceTerm();
 
         // e.g. "documents written by..." or "posts authored by..."
-        if (allowAccounts && matchTerms.by.isFuzzyMatch(state.term)) {
+        if (allowAccount && matchTerms.by.isFuzzyMatch(state.term)) {
             state.advanceTerm();
 
             // e.g. "documents written by me" or "posts authored by me"
@@ -823,9 +839,9 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: endTerm,
                         filter: {
                             ...filter,
-                            accounts: {field: "MajorContributor", ids: [actorAccountId]},
+                            account: {field: "MajorContributor", ids: [actorAccountId]},
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "Created",
                     },
@@ -843,12 +859,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                         filter: {
                             ...filter,
-                            accounts: {
+                            account: {
                                 field: "MajorContributor",
                                 ids: accounts.map(account => account.id),
                             },
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "Created",
                     },
@@ -867,7 +883,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                     filterStartTerm,
                     filterEndTerm,
                     filter,
-                    allowAccounts,
+                    allowAccount,
                     field: "Created",
                 },
                 options,
@@ -891,7 +907,7 @@ function parseSearchNaturalLanguageFilterModifiers(
         state.advanceTerm();
 
         // e.g. "documents updated by..." or "tasks updated by..."
-        if (allowAccounts && matchTerms.by.isFuzzyMatch(state.term)) {
+        if (allowAccount && matchTerms.by.isFuzzyMatch(state.term)) {
             state.advanceTerm();
 
             // e.g. "documents updated by me" or "tasks updated by me"
@@ -905,9 +921,9 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: endTerm,
                         filter: {
                             ...filter,
-                            accounts: {field: "AnyContributor", ids: [actorAccountId]},
+                            account: {field: "AnyContributor", ids: [actorAccountId]},
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "LastUpdated",
                     },
@@ -925,12 +941,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                         filter: {
                             ...filter,
-                            accounts: {
+                            account: {
                                 field: "AnyContributor",
                                 ids: accounts.map(account => account.id),
                             },
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "LastUpdated",
                     },
@@ -949,7 +965,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                     filterStartTerm,
                     filterEndTerm,
                     filter,
-                    allowAccounts,
+                    allowAccount,
                     field: "LastUpdated",
                 },
                 options,
@@ -966,7 +982,7 @@ function parseSearchNaturalLanguageFilterModifiers(
         state.advanceTerm();
 
         // e.g. "documents by me" or "messages by me"
-        if (allowAccounts && matchTerms.me.isFuzzyMatch(state.term)) {
+        if (allowAccount && matchTerms.me.isFuzzyMatch(state.term)) {
             state.advanceTerm();
 
             return maybeContinueParseSearchNaturalLanguageFilterDateModifier(
@@ -976,12 +992,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                     filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                     filter: {
                         ...filter,
-                        accounts: {
+                        account: {
                             field: "MajorContributor",
                             ids: [actorAccountId],
                         },
                     },
-                    allowAccounts: false,
+                    allowAccount: false,
                     allowTime,
                     field: "Created",
                 },
@@ -989,7 +1005,7 @@ function parseSearchNaturalLanguageFilterModifiers(
             );
         }
 
-        if (allowAccounts) {
+        if (allowAccount) {
             // e.g. "documents by john" or "messages by sara smith"
             const accounts = parseAccountsByNameIfPossible(state, options);
             if (accounts) {
@@ -1000,12 +1016,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                         filter: {
                             ...filter,
-                            accounts: {
+                            account: {
                                 field: "MajorContributor",
                                 ids: accounts.map(account => account.id),
                             },
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "Created",
                     },
@@ -1021,7 +1037,7 @@ function parseSearchNaturalLanguageFilterModifiers(
                     filterStartTerm,
                     filterEndTerm,
                     filter,
-                    allowAccounts,
+                    allowAccount,
                     field: "Created",
                 },
                 options,
@@ -1033,7 +1049,7 @@ function parseSearchNaturalLanguageFilterModifiers(
 
     // e.g. "documents I created" or "messages I sent"
     if (
-        allowAccounts &&
+        allowAccount &&
         matchTerms.i.isFuzzyMatch(state.term) &&
         (matchTerms.created.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
             matchTerms.sent.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
@@ -1049,12 +1065,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                 filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                 filter: {
                     ...filter,
-                    accounts: {
+                    account: {
                         field: "Creator",
                         ids: [actorAccountId],
                     },
                 },
-                allowAccounts: false,
+                allowAccount: false,
                 allowTime,
                 field: "Created",
             },
@@ -1064,7 +1080,7 @@ function parseSearchNaturalLanguageFilterModifiers(
 
     // e.g. "documents I wrote" or "messages I authored"
     if (
-        allowAccounts &&
+        allowAccount &&
         matchTerms.i.isFuzzyMatch(state.term) &&
         (matchTerms.wrote.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
             matchTerms.authored.isFuzzyMatch(state.terms[state.termIndex + 1]))
@@ -1079,12 +1095,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                 filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                 filter: {
                     ...filter,
-                    accounts: {
+                    account: {
                         field: "MajorContributor",
                         ids: [actorAccountId],
                     },
                 },
-                allowAccounts: false,
+                allowAccount: false,
                 allowTime,
                 field: "Created",
             },
@@ -1094,7 +1110,7 @@ function parseSearchNaturalLanguageFilterModifiers(
 
     // e.g. "documents I updated" or "tasks I updated"
     if (
-        allowAccounts &&
+        allowAccount &&
         matchTerms.i.isFuzzyMatch(state.term) &&
         (matchTerms.updated.isFuzzyMatch(state.terms[state.termIndex + 1]) ||
             matchTerms.modified.isFuzzyMatch(state.terms[state.termIndex + 1]))
@@ -1109,12 +1125,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                 filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                 filter: {
                     ...filter,
-                    accounts: {
+                    account: {
                         field: "AnyContributor",
                         ids: [actorAccountId],
                     },
                 },
-                allowAccounts: false,
+                allowAccount: false,
                 allowTime,
                 field: "LastUpdated",
             },
@@ -1122,7 +1138,7 @@ function parseSearchNaturalLanguageFilterModifiers(
         );
     }
 
-    if (allowAccounts) {
+    if (allowAccount) {
         const accounts = parseAccountsByNameIfPossible(state, options);
         if (accounts) {
             // e.g. "documents john created" or "messages sara smith sent"
@@ -1140,12 +1156,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                         filter: {
                             ...filter,
-                            accounts: {
+                            account: {
                                 field: "Creator",
                                 ids: accounts.map(account => account.id),
                             },
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "Created",
                     },
@@ -1167,12 +1183,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                         filter: {
                             ...filter,
-                            accounts: {
+                            account: {
                                 field: "MajorContributor",
                                 ids: accounts.map(account => account.id),
                             },
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "Created",
                     },
@@ -1194,12 +1210,12 @@ function parseSearchNaturalLanguageFilterModifiers(
                         filterEndTerm: assertExists(state.terms[state.termIndex - 1]),
                         filter: {
                             ...filter,
-                            accounts: {
+                            account: {
                                 field: "AnyContributor",
                                 ids: accounts.map(account => account.id),
                             },
                         },
-                        allowAccounts: false,
+                        allowAccount: false,
                         allowTime,
                         field: "LastUpdated",
                     },
@@ -1218,14 +1234,14 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
         filterStartTerm,
         filterEndTerm,
         filter,
-        allowAccounts,
+        allowAccount,
         allowTime,
         field,
     }: {
         filterStartTerm: Term;
         filterEndTerm: Term;
         filter: SearchNaturalLanguageFilter;
-        allowAccounts: boolean;
+        allowAccount: boolean;
         allowTime: boolean;
         field: "Created" | "LastUpdated";
     },
@@ -1243,7 +1259,7 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                 filterStartTerm,
                 filterEndTerm,
                 filter,
-                allowAccounts,
+                allowAccount,
                 field,
             },
             options,
@@ -1255,7 +1271,7 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
                 filterStartTerm,
                 filterEndTerm,
                 filter,
-                allowAccounts,
+                allowAccount,
                 allowTime: false,
                 isFirstModifier: false,
             },
@@ -1270,13 +1286,13 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
         filterStartTerm,
         filterEndTerm,
         filter,
-        allowAccounts,
+        allowAccount,
         field,
     }: {
         filterStartTerm: Term;
         filterEndTerm: Term;
         filter: SearchNaturalLanguageFilter;
-        allowAccounts: boolean;
+        allowAccount: boolean;
         field: "Created" | "LastUpdated";
     },
     options: {
@@ -1315,7 +1331,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
                         },
                     },
                 },
-                allowAccounts,
+                allowAccount,
                 allowTime: false,
                 isFirstModifier: false,
             },
@@ -1353,7 +1369,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
                 filterStartTerm,
                 filterEndTerm,
                 filter,
-                allowAccounts,
+                allowAccount,
                 // `allowTime` is `true` because we haven't parsed a time yet.
                 allowTime: true,
                 isFirstModifier: false,
@@ -1421,7 +1437,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
                             },
                         },
                     },
-                    allowAccounts,
+                    allowAccount,
                     allowTime: false,
                     isFirstModifier: false,
                 },
@@ -1444,7 +1460,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
                             },
                         },
                     },
-                    allowAccounts,
+                    allowAccount,
                     allowTime: false,
                     isFirstModifier: false,
                 },
@@ -1467,7 +1483,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
                             },
                         },
                     },
-                    allowAccounts,
+                    allowAccount,
                     allowTime: false,
                     isFirstModifier: false,
                 },
