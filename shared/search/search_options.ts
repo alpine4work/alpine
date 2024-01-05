@@ -164,11 +164,15 @@ export const standardSearchOptions: SearchOptions = {
         // We get a keyword score of ~11 for a relatively rare word like "Spielberg"
         // (contained in ~0.6% documents of [GoodWiki][1] dataset)
         //
-        // We use that here so that even a match on a rare word (like an uncommon name)
-        // won't beat hits that match a filter.
+        // Our constant score is then approximately 11 * `titleBoost` (`titleBoost` is
+        // currently 1.8). So our constant score is equivalent to one great title
+        // match.
+        //
+        // With `controlMatchBoost` set to 0.5, in order to beat the filter score a hit
+        // needs two great title hits (1gram hit and 2gram hit).
         //
         // [1]: https://huggingface.co/datasets/euirim/goodwiki
-        filterConstantScore: 11,
+        filterConstantScore: 20,
     },
 
     semanticToKeywordScoreInterpolation: {

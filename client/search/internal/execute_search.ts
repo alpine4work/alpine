@@ -258,6 +258,7 @@ export function executeSearch(
                         score: actualScore,
                         explanation: withExplanation ? actualScoreExplanation : undefined,
                     });
+                    continue;
                 }
 
                 // If there was no keyword search result for the semantic search result we
