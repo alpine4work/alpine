@@ -179,7 +179,7 @@ class SearchNaturalLanguageParserState {
  * If we parse multiple filters from a query string then all the filters are
  * `OR`d together.
  */
-export type SearchEnglishNaturalLanguageFilter = {
+export type SearchNaturalLanguageFilter = {
     readonly entityTypes: ReadonlyArray<SearchEntityIdObject["type"]>;
     readonly accounts: {
         readonly field: "Creator" | "MajorContributor" | "AnyContributor";
@@ -204,8 +204,10 @@ export type SearchEnglishNaturalLanguageFilter = {
  * language! It's likely we'll get it wrong from time to time. So we recommend
  * you still do a keyword search with the control terms ("documents by john" in
  * the above query) as a fallback.
+ *
+ * Right now, English is the only supported language.
  */
-export function parseEnglishNaturalLanguageSearchQuery(
+export function parseSearchNaturalLanguageQuery(
     queryText: string,
     options: {
         timeZone: TimeZone;
@@ -216,7 +218,7 @@ export function parseEnglishNaturalLanguageSearchQuery(
 ) {
     const doc = nlp(queryText);
 
-    const filters: Array<SearchEnglishNaturalLanguageFilter> = [];
+    const filters: Array<SearchNaturalLanguageFilter> = [];
     const controlPhrases: Array<View> = [];
 
     // Iterate through each clause independently.
@@ -276,13 +278,13 @@ function parseSearchNaturalLanguageFilters(
         accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
-    filters: ReadonlyArray<SearchEnglishNaturalLanguageFilter>;
+    filters: ReadonlyArray<SearchNaturalLanguageFilter>;
     controlPhrases: ReadonlyArray<View>;
 } {
     const {actorAccountId} = options;
 
     const state = new SearchNaturalLanguageParserState(doc, terms);
-    const filters: Array<SearchEnglishNaturalLanguageFilter> = [];
+    const filters: Array<SearchNaturalLanguageFilter> = [];
     const controlPhrases: Array<View> = [];
 
     while (state.term) {
@@ -687,7 +689,7 @@ function parseSearchNaturalLanguageFilterModifiers(
     }: {
         filterStartTerm: Term;
         filterEndTerm: Term;
-        filter: SearchEnglishNaturalLanguageFilter;
+        filter: SearchNaturalLanguageFilter;
         allowAccounts: boolean;
         allowTime: boolean;
         isFirstModifier: boolean;
@@ -701,7 +703,7 @@ function parseSearchNaturalLanguageFilterModifiers(
 ): {
     filterStartTerm: Term;
     filterEndTerm: Term;
-    filter: SearchEnglishNaturalLanguageFilter;
+    filter: SearchNaturalLanguageFilter;
 } {
     if (!allowAccounts && !allowTime) {
         return {filterStartTerm, filterEndTerm, filter};
@@ -1222,7 +1224,7 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
     }: {
         filterStartTerm: Term;
         filterEndTerm: Term;
-        filter: SearchEnglishNaturalLanguageFilter;
+        filter: SearchNaturalLanguageFilter;
         allowAccounts: boolean;
         allowTime: boolean;
         field: "Created" | "LastUpdated";
@@ -1273,7 +1275,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
     }: {
         filterStartTerm: Term;
         filterEndTerm: Term;
-        filter: SearchEnglishNaturalLanguageFilter;
+        filter: SearchNaturalLanguageFilter;
         allowAccounts: boolean;
         field: "Created" | "LastUpdated";
     },
@@ -1286,7 +1288,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
 ): {
     filterStartTerm: Term;
     filterEndTerm: Term;
-    filter: SearchEnglishNaturalLanguageFilter;
+    filter: SearchNaturalLanguageFilter;
 } {
     const {timeZone, currentTime} = options;
 

@@ -35,7 +35,7 @@ export const SearchOptionsSchema = Schema.object({
     /**
      * Options related to our English natural language query parsing.
      */
-    englishNaturalLanguageParser: Schema.object({
+    naturalLanguage: Schema.object({
         /**
          * Control text is text we've removed from the query and made optional. For
          * example in the query "my documents about trains" the subtext "my documents
@@ -154,7 +154,7 @@ export const standardSearchOptions: SearchOptions = {
     // matching one title field.
     titleBoost: 1.8,
 
-    englishNaturalLanguageParser: {
+    naturalLanguage: {
         // Control matches are worth half as much as a regular text match.
         //
         // Hopefully, because this is so low OpenSearch considers it non-competitive

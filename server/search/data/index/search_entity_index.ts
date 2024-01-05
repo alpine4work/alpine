@@ -32,8 +32,8 @@ import {IndexSearchEntityJobDescription} from "~/server/search/core/index_search
 import {SearchEntityDependencyId} from "~/server/search/core/search_entity_dependency_id.js";
 import {getSearchEntityDependencyIdsAffectedByUpdate} from "~/server/search/core/search_entity_update.js";
 import {getSearchEntity} from "~/server/search/data/index/internal/get_search_entity.js";
-import {parseEnglishNaturalLanguageSearchQuery} from "~/server/search/data/index/internal/parse_english_natural_language_search_query.js";
 import {parseSearchContent} from "~/server/search/data/index/internal/parse_search_content.js";
+import {parseSearchNaturalLanguageQuery} from "~/server/search/data/index/internal/parse_search_natural_language_query.js";
 import {
     SearchEntityIndexDefaultGrantType,
     SearchEntityIndexDefaultGrantTypeIntegerMapping,
@@ -786,15 +786,12 @@ export async function searchByKeywords(
 
     const options = debugOptions ?? standardSearchOptions;
 
-    const {queryTexts, controlQueryTexts, filters} = parseEnglishNaturalLanguageSearchQuery(
-        queryText,
-        {
-            timeZone,
-            currentTime,
-            actorAccountId: context.actor.getAccountId(),
-            accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
-        },
-    );
+    const {queryTexts, controlQueryTexts, filters} = parseSearchNaturalLanguageQuery(queryText, {
+        timeZone,
+        currentTime,
+        actorAccountId: context.actor.getAccountId(),
+        accountNameIndex: await getSpaceAccountNameSearchIndex(context, spaceId),
+    });
 
     type QueryClause = OpensearchQueryClause<
         OpensearchIndexFlattenedKeysType<typeof SearchEntityKeywordIndex>
@@ -956,14 +953,14 @@ export async function searchByKeywords(
 
             return {
                 constant_score: {
-                    boost: options.englishNaturalLanguageParser.filterConstantScore,
+                    boost: options.naturalLanguage.filterConstantScore,
                     filter: {bool: {filter: filterMust}},
                 },
             };
         });
 
         const controlQueryTextClause = createQueryTextClause(
-            options.englishNaturalLanguageParser.controlMatchBoost,
+            options.naturalLanguage.controlMatchBoost,
             controlQueryTexts,
         );
 
