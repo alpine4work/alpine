@@ -834,6 +834,15 @@ export async function searchByKeywords(
                               ],
                     // Still match even if the query text has typos.
                     fuzziness: "AUTO",
+                    // Require the first character to be correct for a fuzzy query to match. This
+                    // reduces the amount of fuzzy searching we need to do and also discards some
+                    // ridiculous fuzzy matches. For example, we see "my documents" get matched to
+                    // the 2gram "30 documents". For a 1gram "my" doesn't match "30" since
+                    // `fuzziness: "AUTO"` requires an exact match for two character strings.
+                    // However the 2gram "my documents" can have two edits which makes
+                    // "30 documents" a valid match. Also "be documents" or "of documents". A prefix
+                    // length of 1 prevents these from being valid matches.
+                    prefix_length: 1,
                 },
             }),
         );

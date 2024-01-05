@@ -139,6 +139,7 @@ export type OpensearchMultiMatchQueryClause<FlattenedKeys extends string> = {
         type?: "best_fields" | "most_fields" | "phrase_prefix" | "bool_prefix";
         fields: Array<FlattenedKeys | `${FlattenedKeys}^${number}`>;
         fuzziness?: "AUTO" | number;
+        prefix_length?: number;
     };
 };
 
