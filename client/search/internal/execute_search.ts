@@ -4,10 +4,7 @@ import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
-import {
-    OpensearchSearchHitExplanation,
-    addSumOperandToOpensearchSearchHitExplanation,
-} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
+import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
 import {searchByKeywords, searchBySemantics} from "~/shared/rpc/search_rpc_definitions.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult} from "~/shared/search/search_result.js";
@@ -188,45 +185,63 @@ export function executeSearch(
                 semanticResultByEntityId.delete(keywordResult.entityId);
 
                 const additionalScore = slope * semanticResult.score + intercept;
+                const actualKeywordScore = Math.max(
+                    options.minKeywordScoreForSemanticResult,
+                    keywordResult.score,
+                );
+                const actualScore = actualKeywordScore + additionalScore;
 
                 // If we have both a keyword result and a semantic result, then we want to use
                 // the title and body snippet from the keyword result.
                 newResults.push({
                     ...keywordResult,
-                    score: keywordResult.score + additionalScore,
+                    score: actualScore,
                     explanation: keywordResult.explanation
-                        ? addSumOperandToOpensearchSearchHitExplanation(keywordResult.explanation, {
-                              value: additionalScore,
-                              description: `✨ interpolated semantic score, computed as (m * x) + b from:`,
+                        ? {
+                              value: actualScore,
+                              description: "sum of:",
                               details: [
                                   {
-                                      value: semanticResult.score,
-                                      description: "x, semantic score",
-                                      details: [],
+                                      value: additionalScore,
+                                      description: `✨ interpolated semantic score, computed as (m * x) + b from:`,
+                                      details: [
+                                          {
+                                              value: semanticResult.score,
+                                              description: "x, semantic score",
+                                              details: [],
+                                          },
+                                          {
+                                              value: slope,
+                                              description: "m, slope",
+                                              details: [],
+                                          },
+                                          {
+                                              value: intercept,
+                                              description: "b, intercept",
+                                              details: [],
+                                          },
+                                      ],
                                   },
                                   {
-                                      value: slope,
-                                      description: "m, slope",
-                                      details: [],
-                                  },
-                                  {
-                                      value: intercept,
-                                      description: "b, intercept",
-                                      details: [],
+                                      value: actualKeywordScore,
+                                      description: "max of:",
+                                      details: [
+                                          {
+                                              value: options.minKeywordScoreForSemanticResult,
+                                              description: "min keyword score for semantic result",
+                                              details: [],
+                                          },
+                                          keywordResult.explanation,
+                                      ],
                                   },
                               ],
-                          })
+                          }
                         : undefined,
                 });
             }
 
-            const remainingSemanticResults = Array.from(semanticResultByEntityId.values());
-            remainingSemanticResults.sort((result1, result2) => result2.score - result1.score);
-
-            for (let i = 0; i < remainingSemanticResults.length; i++) {
-                const semanticResult = remainingSemanticResults[i]!;
+            for (const semanticResult of semanticResultByEntityId.values()) {
                 const actualScore = slope * semanticResult.score + intercept;
-                const rank = i + 1;
 
                 const actualScoreExplanation: OpensearchSearchHitExplanation = {
                     value: actualScore,
@@ -250,75 +265,19 @@ export function executeSearch(
                     ],
                 };
 
-                // If we found all possible keyword search results then we know for sure we
-                // wouldn't find semantic results if we kept searching.
-                if (keywordSearchState.value.results.length < limit) {
-                    newResults.push({
-                        ...semanticResult,
-                        score: actualScore,
-                        explanation: withExplanation ? actualScoreExplanation : undefined,
-                    });
-                    continue;
-                }
-
-                // If there was no keyword search result for the semantic search result we
-                // assume that if we kept paginating through keyword search results we'd
-                // eventually find a match. That way semantic search results with no keyword
-                // result match can be competitive with other keyword results.
-                //
-                // To do this, we assume the remaining semantic results have keyword results in
-                // the same order as the remaining semantic results right after they keyword
-                // results we do have. Then we extrapolate scores for these keyword results and
-                // add them to the semantic results.
-                //
-                // Of course, all these assumptions probably don't hold most of the time.
-                // However, subjectively we get correct looking results. Often semantic results
-                // would have a keyword match if we had a high enough `limit`. They keyword
-                // result's score would be less than the minimum score of keyword results we
-                // do have.
-                const extrapolatedKeywordScore =
-                    minKeywordScore -
-                    rank *
-                        ((maxKeywordScore - minKeywordScore) /
-                            keywordSearchState.value.results.length);
-
-                // Make sure when adding semantic results we interpolate their scores into the
-                // keyword score range. Otherwise good scores like 0.9 would always be last.
                 newResults.push({
                     ...semanticResult,
-                    score: actualScore + extrapolatedKeywordScore,
+                    score: actualScore + options.minKeywordScoreForSemanticResult,
                     explanation: withExplanation
                         ? {
-                              value: actualScore + extrapolatedKeywordScore,
+                              value: actualScore + options.minKeywordScoreForSemanticResult,
                               description: "sum of:",
                               details: [
                                   actualScoreExplanation,
                                   {
-                                      value: extrapolatedKeywordScore,
-                                      description:
-                                          "extrapolated keyword score, computed as a - (r * (b - a) / l) from:",
-                                      details: [
-                                          {
-                                              value: rank,
-                                              description: "r, extrapolated keyword search rank",
-                                              details: [],
-                                          },
-                                          {
-                                              value: minKeywordScore,
-                                              description: "a, minimum keyword result score",
-                                              details: [],
-                                          },
-                                          {
-                                              value: maxKeywordScore,
-                                              description: "b, maximum keyword result score",
-                                              details: [],
-                                          },
-                                          {
-                                              value: keywordSearchState.value.results.length,
-                                              description: "l, keyword result count",
-                                              details: [],
-                                          },
-                                      ],
+                                      value: options.minKeywordScoreForSemanticResult,
+                                      description: "min keyword score for semantic result",
+                                      details: [],
                                   },
                               ],
                           }

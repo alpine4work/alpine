@@ -33,6 +33,20 @@ export const SearchOptionsSchema = Schema.object({
     titleBoost: Schema.float,
 
     /**
+     * Minimum keyword score contribution for a semantic search result.
+     *
+     * - If there is only a semantic match (no keyword match) this value is added
+     *   to the interpolated semantic score to get the final result.
+     *
+     * - If there is a keyword match, we take the max of the keyword score and this
+     *   value.
+     *
+     * This lets you set a relevance "floor" for semantic search results. If you
+     * got a semantic search result, odds are it's meaningful.
+     */
+    minKeywordScoreForSemanticResult: Schema.float,
+
+    /**
      * Options related to our English natural language query parsing.
      */
     naturalLanguage: Schema.object({
@@ -139,6 +153,22 @@ export const SearchOptionsSchema = Schema.object({
 });
 
 /**
+ * We get a keyword score of ~11 for a relatively rare word like "Spielberg"
+ * (contained in ~0.6% documents of [GoodWiki][1] dataset).
+ *
+ * [1]: https://huggingface.co/datasets/euirim/goodwiki
+ */
+const greatBodyKeywordScore = 11;
+
+/**
+ * We get a keyword score of ~3 for a somewhat common noun like "video"
+ * (contained in ~21.9% documents of [GoodWiki][1] dataset)
+ *
+ * [1]: https://huggingface.co/datasets/euirim/goodwiki
+ */
+const fineBodyKeywordScore = 3;
+
+/**
  * The standard search options we use in production.
  *
  * You may change these options if you have internal access and enter search
@@ -154,6 +184,10 @@ export const standardSearchOptions: SearchOptions = {
     // matching one title field.
     titleBoost: 1.8,
 
+    // The relevance "floor" for a semantic result. Same as a great body keyword
+    // score match.
+    minKeywordScoreForSemanticResult: 11,
+
     naturalLanguage: {
         // Control matches are worth half as much as a regular text match.
         //
@@ -161,28 +195,19 @@ export const standardSearchOptions: SearchOptions = {
         // to perform this search most of the time.
         controlMatchBoost: 0.5,
 
-        // We get a keyword score of ~11 for a relatively rare word like "Spielberg"
-        // (contained in ~0.6% documents of [GoodWiki][1] dataset)
-        //
-        // Our constant score is then approximately 11 * `titleBoost` (`titleBoost` is
-        // currently 1.8). So our constant score is equivalent to one great title
+        // Our constant score approximately `greatBodyKeywordScore * titleBoost`
+        // (currently 11 * 1.8). So our constant score is equivalent to one great title
         // match.
         //
         // With `controlMatchBoost` set to 0.5, in order to beat the filter score a hit
         // needs two great title hits (1gram hit and 2gram hit).
-        //
-        // [1]: https://huggingface.co/datasets/euirim/goodwiki
         filterConstantScore: 20,
     },
 
     semanticToKeywordScoreInterpolation: {
         // Our first point is for a high confidence signal:
         point1: {
-            // We get a keyword score of ~11 for a relatively rare word like "Spielberg"
-            // (contained in ~0.6% documents of [GoodWiki][1] dataset)
-            //
-            // [1]: https://huggingface.co/datasets/euirim/goodwiki
-            keywordScore: 11,
+            keywordScore: greatBodyKeywordScore,
 
             // This is the score from the `all-MiniLM-L6-v2` model for "british currency
             // history" vs a passage from the first section of the "[Penny (British decimal
@@ -194,11 +219,7 @@ export const standardSearchOptions: SearchOptions = {
 
         // Our second point is for a low confidence signal:
         point2: {
-            // We get a keyword score of ~3 for a somewhat common noun like "video"
-            // (contained in ~21.9% documents of [GoodWiki][1] dataset)
-            //
-            // [1]: https://huggingface.co/datasets/euirim/goodwiki
-            keywordScore: 3,
+            keywordScore: fineBodyKeywordScore,
 
             // This is the score from the `all-MiniLM-L6-v2` model for "marketing result"
             // vs a passage from the "[Big King][1]" Wikipedia article's [double supreme
@@ -216,11 +237,7 @@ export const standardSearchOptions: SearchOptions = {
     affinityToKeywordScoreInterpolation: {
         // Our first point is for a high confidence signal:
         point1: {
-            // We get a keyword score of ~11 for a relatively rare word like "Spielberg"
-            // (contained in ~0.6% documents of [GoodWiki][1] dataset)
-            //
-            // [1]: https://huggingface.co/datasets/euirim/goodwiki
-            keywordScore: 11,
+            keywordScore: greatBodyKeywordScore,
 
             // An affinity score of 21 is equivalent to ~1.75 hours of viewing time for a
             // search entity (without considering decay)
@@ -229,11 +246,7 @@ export const standardSearchOptions: SearchOptions = {
 
         // Our second point is for a low confidence signal:
         point2: {
-            // We get a keyword score of ~3 for a somewhat common noun like "video"
-            // (contained in ~21.9% documents of [GoodWiki][1] dataset)
-            //
-            // [1]: https://huggingface.co/datasets/euirim/goodwiki
-            keywordScore: 3,
+            keywordScore: fineBodyKeywordScore,
 
             // An affinity score of 1 is equivalent to viewing a search entity once
             // (without considering decay)
