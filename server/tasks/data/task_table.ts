@@ -654,7 +654,6 @@ const TaskTable = DynamoTableSchema.new({
                          * `approximateActionCountByAccountId` to get an overall relative measure of
                          * contribution for the task.
                          */
-                        // NOCOMMIT: Use this for search or delete it
                         stepCountByAccountId: TaskStepCountByAccountId.schema.default(
                             new TaskStepCountByAccountId(new Map()),
                         ),

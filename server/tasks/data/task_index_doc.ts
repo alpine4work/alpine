@@ -706,7 +706,6 @@ export const TaskIndexDocType = OpensearchIndexObjectType.new({
          * This map was not around prior to 2024-01-02. So tasks created before
          * then (and until this deploys) will not have an accurate action count map.
          */
-        // NOCOMMIT: Use this for search or delete it
         approximateActionCountByAccountId: new OpensearchIndexBinaryType()
             .transform<TaskApproximateActionCountByAccountId>({
                 serialize: value => value.serialize(),

@@ -283,7 +283,6 @@ const DocumentsTable = DynamoTableSchema.new({
                          * then (and until this deploys) will not have an accurate step count map. All
                          * steps will be counted towards the `creatorId`.
                          */
-                        // NOCOMMIT: Use this for search or delete it
                         stepCountByAccountId: DocumentStepCountByAccountId.schema.default(
                             new DocumentStepCountByAccountId(new Map()),
                         ),
