@@ -1,10 +1,12 @@
 import _Fuse from "fuse.js";
+import {parseEnglishNaturalLanguageSearchQuery} from "~/server/search/data/index/internal/parse_english_natural_language_search_query.js";
 import {
-    accountNameFuseScoreMatchCutoff,
-    parseEnglishNaturalLanguageSearchQuery,
-} from "~/server/search/data/index/internal/parse_english_natural_language_search_query.js";
+    accountNameIndexFuseMinMatchCharLength,
+    accountNameIndexFuseScoreMatchCutoff,
+} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {getAccountShortNameWithoutFullNameTooltip} from "~/shared/accounts/get_account_short_name_without_full_name_tooltip.js";
+import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assertTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {generateId} from "~/shared/id/id.js";
 
@@ -54,6 +56,7 @@ const accounts = [
 
 const accountNameIndex = new Fuse(accounts, {
     includeScore: true,
+    minMatchCharLength: accountNameIndexFuseMinMatchCharLength,
     keys: [
         {
             name: "name",
@@ -64,6 +67,7 @@ const accountNameIndex = new Fuse(accounts, {
 
 const accountShortNameIndex = new Fuse(accounts, {
     includeScore: true,
+    minMatchCharLength: accountNameIndexFuseMinMatchCharLength,
     keys: [
         {
             name: "name",
@@ -81,176 +85,19 @@ const options = {
     actorAccountId: accounts[0]!.id,
     accountNameIndex: {
         searchNames: (queryText: string) => {
-            return accountNameIndex.search(queryText) as Array<{item: AccountModel; score: number}>;
+            return filterMapArray(accountNameIndex.search(queryText), match => {
+                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return null;
+                return match.item;
+            });
         },
         searchShortNames: (queryText: string) => {
-            return accountShortNameIndex.search(queryText) as Array<{
-                item: AccountModel;
-                score: number;
-            }>;
+            return filterMapArray(accountShortNameIndex.search(queryText), match => {
+                if (match.score! >= accountNameIndexFuseScoreMatchCutoff) return null;
+                return match.item;
+            });
         },
     },
 };
-
-test("account name search matches names with slight typos", () => {
-    const nameIndex = new Fuse(
-        [{name: "Caleb Meredith"}, {name: "Siobahn McDonough"}, {name: "Xue Seng Tay"}],
-        {
-            keys: ["name"],
-            includeScore: true,
-        },
-    );
-
-    const shortNameIndex = new Fuse([{name: "Caleb"}, {name: "Siobahn"}, {name: "Xue"}], {
-        keys: ["name"],
-        includeScore: true,
-    });
-
-    const search = (index: Fuse<unknown>, queryText: string) => {
-        return index
-            .search(queryText)
-            .map(result => ({...result, isMatch: result.score! < accountNameFuseScoreMatchCutoff}));
-    };
-
-    expect(search(shortNameIndex, "Caleb")).toEqual([
-        {score: 2.220446049250313e-16, refIndex: 0, item: {name: "Caleb"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "caleb")).toEqual([
-        {score: 2.220446049250313e-16, refIndex: 0, item: {name: "Caleb"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Calebs")).toEqual([
-        {score: 0.16666666666666666, refIndex: 0, item: {name: "Caleb"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Baleb")).toEqual([
-        {score: 0.2, refIndex: 0, item: {name: "Caleb"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "baleb")).toEqual([
-        {score: 0.2, refIndex: 0, item: {name: "Caleb"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Siobahn")).toEqual([
-        {score: 2.220446049250313e-16, refIndex: 1, item: {name: "Siobahn"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "siobahn")).toEqual([
-        {score: 2.220446049250313e-16, refIndex: 1, item: {name: "Siobahn"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Siobahns")).toEqual([
-        {score: 0.125, refIndex: 1, item: {name: "Siobahn"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Siobahnn")).toEqual([
-        {score: 0.125, refIndex: 1, item: {name: "Siobahn"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Soibahn")).toEqual([
-        {score: 0.2857142857142857, refIndex: 1, item: {name: "Siobahn"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Soobahn")).toEqual([
-        {score: 0.14285714285714285, refIndex: 1, item: {name: "Siobahn"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Soibann")).toEqual([
-        {score: 0.42857142857142855, refIndex: 1, item: {name: "Siobahn"}, isMatch: false},
-    ]);
-    expect(search(shortNameIndex, "Soobann")).toEqual([
-        {score: 0.2857142857142857, refIndex: 1, item: {name: "Siobahn"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Floorbhan")).toEqual([]);
-    expect(search(shortNameIndex, "Xue")).toEqual([
-        {score: 2.220446049250313e-16, refIndex: 2, item: {name: "Xue"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Xues")).toEqual([
-        {score: 0.25, refIndex: 2, item: {name: "Xue"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Xu")).toEqual([
-        {score: 0.001, refIndex: 2, item: {name: "Xue"}, isMatch: true},
-    ]);
-    expect(search(shortNameIndex, "Xuu")).toEqual([
-        {score: 0.3333333333333333, refIndex: 2, item: {name: "Xue"}, isMatch: false},
-    ]);
-    expect(search(shortNameIndex, "Shue")).toEqual([
-        {score: 0.5, refIndex: 2, item: {name: "Xue"}, isMatch: false},
-    ]);
-
-    expect(search(nameIndex, "Caleb")).toEqual([
-        {score: 0.007568328950209746, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Caleb Meredith")).toEqual([
-        {score: 8.569061098350962e-12, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Calebs Meredith")).toEqual([
-        {score: 0.14740203517287173, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Caleb Merediths")).toEqual([
-        {score: 0.14740203517287173, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Calebs Merediths")).toEqual([
-        {score: 0.22988751153791454, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "caleb meredith")).toEqual([
-        {score: 8.569061098350962e-12, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Baleb Meredith")).toEqual([
-        {score: 0.15477024809952394, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "baleb meredith")).toEqual([
-        {score: 0.15477024809952394, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Baleb Meredeth")).toEqual([
-        {score: 0.2526478959047245, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Baleb Merideth")).toEqual([
-        {score: 0.33652102717835264, refIndex: 0, item: {name: "Caleb Meredith"}, isMatch: false},
-    ]);
-    expect(search(nameIndex, "Siobahn McDonough")).toEqual([
-        {
-            score: 8.569061098350962e-12,
-            refIndex: 1,
-            item: {name: "Siobahn McDonough"},
-            isMatch: true,
-        },
-    ]);
-    expect(search(nameIndex, "siobahn mcdonough")).toEqual([
-        {
-            score: 8.569061098350962e-12,
-            refIndex: 1,
-            item: {name: "Siobahn McDonough"},
-            isMatch: true,
-        },
-    ]);
-    expect(search(nameIndex, "Siobahnn McDonough")).toEqual([
-        {score: 0.12957533457264178, refIndex: 1, item: {name: "Siobahn McDonough"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Soibahn McDonough")).toEqual([
-        {score: 0.22024234348850422, refIndex: 1, item: {name: "Siobahn McDonough"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Soobahn McDonough")).toEqual([
-        {score: 0.13491884435321336, refIndex: 1, item: {name: "Siobahn McDonough"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Soibann McDonough")).toEqual([
-        {score: 0.29335759711558734, refIndex: 1, item: {name: "Siobahn McDonough"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Soobann McDonough")).toEqual([
-        {score: 0.22024234348850422, refIndex: 1, item: {name: "Siobahn McDonough"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Floorbhan McDonough")).toEqual([
-        {score: 0.4426639328044773, refIndex: 1, item: {name: "Siobahn McDonough"}, isMatch: false},
-    ]);
-    expect(search(nameIndex, "Xue Seng Tay")).toEqual([
-        {score: 9.287439764962262e-10, refIndex: 2, item: {name: "Xue Seng Tay"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Xue Seng")).toEqual([
-        {score: 0.01857804455091699, refIndex: 2, item: {name: "Xue Seng Tay"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Xue")).toEqual([
-        {score: 0.01857804455091699, refIndex: 2, item: {name: "Xue Seng Tay"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Xu Seng Tay")).toEqual([
-        {score: 0.2506781151995667, refIndex: 2, item: {name: "Xue Seng Tay"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Xuu Seng Tay")).toEqual([
-        {score: 0.23840338694026153, refIndex: 2, item: {name: "Xue Seng Tay"}, isMatch: true},
-    ]);
-    expect(search(nameIndex, "Shue Seng Tay")).toEqual([
-        {score: 0.33958538680775424, refIndex: 2, item: {name: "Xue Seng Tay"}, isMatch: false},
-    ]);
-});
 
 test("parses search entity type then account name", () => {
     expect(parseEnglishNaturalLanguageSearchQuery("documents by me", options)).toEqual({
@@ -1890,32 +1737,32 @@ test("parses account name then entity type", () => {
         filters: [],
     });
 
+    expect(parseEnglishNaturalLanguageSearchQuery("johna documents", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["johna documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                time: null,
+            },
+        ],
+    });
+
+    expect(parseEnglishNaturalLanguageSearchQuery("johna's documents", options)).toEqual({
+        queryTexts: [],
+        controlQueryTexts: ["johna's documents"],
+        filters: [
+            {
+                entityTypes: ["Document"],
+                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
+                time: null,
+            },
+        ],
+    });
+
     expect(parseEnglishNaturalLanguageSearchQuery("jahn documents", options)).toEqual({
-        queryTexts: [],
-        controlQueryTexts: ["jahn documents"],
-        filters: [
-            {
-                entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
-                time: null,
-            },
-        ],
-    });
-
-    expect(parseEnglishNaturalLanguageSearchQuery("jahn's documents", options)).toEqual({
-        queryTexts: [],
-        controlQueryTexts: ["jahn's documents"],
-        filters: [
-            {
-                entityTypes: ["Document"],
-                accounts: {field: "MajorContributor", ids: [accounts[1]!.id]},
-                time: null,
-            },
-        ],
-    });
-
-    expect(parseEnglishNaturalLanguageSearchQuery("jahns documents", options)).toEqual({
-        queryTexts: ["jahns"],
+        queryTexts: ["jahn"],
         controlQueryTexts: ["documents"],
         filters: [
             {

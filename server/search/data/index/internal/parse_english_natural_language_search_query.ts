@@ -2,6 +2,7 @@ import nlp from "compromise";
 import nlpDatePlugin from "compromise-dates";
 import levenshtein from "damerau-levenshtein";
 import {stemmer} from "stemmer";
+import {SpaceAccountNameSearchIndex} from "~/server/spaces/spaces_table.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -210,10 +211,7 @@ export function parseEnglishNaturalLanguageSearchQuery(
         timeZone: TimeZone;
         currentTime: Date;
         actorAccountId: AccountId;
-        accountNameIndex: {
-            searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
-            searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
-        };
+        accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ) {
     const doc = nlp(queryText);
@@ -275,10 +273,7 @@ function parseSearchNaturalLanguageFilters(
         timeZone: TimeZone;
         currentTime: Date;
         actorAccountId: AccountId;
-        accountNameIndex: {
-            searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
-            searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
-        };
+        accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
     filters: ReadonlyArray<SearchEnglishNaturalLanguageFilter>;
@@ -611,10 +606,7 @@ function parseAccountsByNameIfPossible(
     {
         accountNameIndex,
     }: {
-        accountNameIndex: {
-            searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
-            searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
-        };
+        accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): ReadonlyArray<AccountModel> | null {
     if (!state.term?.tags?.has("Noun")) return null;
@@ -633,54 +625,45 @@ function parseAccountsByNameIfPossible(
     // Try searching the most specific name first. So we search "Emily Lin"
     // not "Emily".
     if (name3 !== null) {
-        const results = accountNameIndex
-            .searchNames(name3)
-            .filter(result => result.score < accountNameFuseScoreMatchCutoff);
-
-        if (results.length > 0) {
+        const accounts = accountNameIndex.searchNames(name3);
+        if (accounts.length > 0) {
             state.advanceTerm();
             state.advanceTerm();
             state.advanceTerm();
 
-            return results.map(({item}) => item);
+            return accounts;
         }
     }
 
     if (name2 !== null) {
-        const results = accountNameIndex
-            .searchNames(name2)
-            .filter(result => result.score < accountNameFuseScoreMatchCutoff);
+        const accounts = accountNameIndex.searchNames(name2);
 
-        if (results.length > 0) {
+        if (accounts.length > 0) {
             state.advanceTerm();
             state.advanceTerm();
 
-            return results.map(({item}) => item);
+            return accounts;
         }
     }
 
     {
-        const results = accountNameIndex
-            .searchNames(name1)
-            .filter(result => result.score < accountNameFuseScoreMatchCutoff);
+        const accounts = accountNameIndex.searchNames(name1);
 
-        if (results.length > 0) {
+        if (accounts.length > 0) {
             state.advanceTerm();
 
-            return results.map(({item}) => item);
+            return accounts;
         }
     }
 
     // Try searching short names if we didn't find a full name match.
     {
-        const results = accountNameIndex
-            .searchShortNames(name1)
-            .filter(result => result.score < accountNameFuseScoreMatchCutoff);
+        const accounts = accountNameIndex.searchShortNames(name1);
 
-        if (results.length > 0) {
+        if (accounts.length > 0) {
             state.advanceTerm();
 
-            return results.map(({item}) => item);
+            return accounts;
         }
     }
 
@@ -713,10 +696,7 @@ function parseSearchNaturalLanguageFilterModifiers(
         timeZone: TimeZone;
         currentTime: Date;
         actorAccountId: AccountId;
-        accountNameIndex: {
-            searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
-            searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
-        };
+        accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
     filterStartTerm: Term;
@@ -1251,10 +1231,7 @@ function maybeContinueParseSearchNaturalLanguageFilterDateModifier(
         timeZone: TimeZone;
         currentTime: Date;
         actorAccountId: AccountId;
-        accountNameIndex: {
-            searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
-            searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
-        };
+        accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ) {
     if (allowTime) {
@@ -1304,10 +1281,7 @@ function continueParseSearchNaturalLanguageFilterDateModifier(
         timeZone: TimeZone;
         currentTime: Date;
         actorAccountId: AccountId;
-        accountNameIndex: {
-            searchNames(queryText: string): Array<{item: AccountModel; score: number}>;
-            searchShortNames(queryText: string): Array<{item: AccountModel; score: number}>;
-        };
+        accountNameIndex: SpaceAccountNameSearchIndex;
     },
 ): {
     filterStartTerm: Term;
