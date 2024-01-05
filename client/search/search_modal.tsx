@@ -1,14 +1,26 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
-import {Lightbulb, MagnifyingGlass, SpinnerGap} from "phosphor-react";
-import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useRef} from "react";
+import {
+    ArrowLeft,
+    ArrowRight,
+    KeyReturn,
+    Lightbulb,
+    MagnifyingGlass,
+    SpinnerGap,
+} from "phosphor-react";
+import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useRef, useState} from "react";
+import {createPath} from "react-router";
 import {Box} from "~/client/design/box.js";
+import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
+import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
+import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
@@ -16,7 +28,8 @@ import {
     PeekSwitcherStatePeek,
     usePeekSwitcherState,
 } from "~/client/peek/use_peek_switcher_state.js";
-import {useRootNavigate} from "~/client/remix/use_navigate.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     SearchResultView,
     minSearchResultViewHeight,
@@ -28,10 +41,12 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {UnimplementedError} from "~/shared/error/error.js";
+import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
+import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
+import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
 import {SearchEntityIdObject, parseSearchEntityId} from "~/shared/search/search_entity_id.js";
 import {SearchOptions} from "~/shared/search/search_options.js";
@@ -49,11 +64,6 @@ export {usePreloadSearchByAffinity as usePreloadAffinitiveSearchEntities} from "
 
 // NOCOMMIT: No results view
 
-// NOCOMMIT:
-// - Root navigate from within peek should close search modal
-// - Opening task should navigate within peek
-// - Backwards/forwards button for peek
-
 export function SearchModal({
     initialQueryText,
     onClose,
@@ -64,7 +74,7 @@ export function SearchModal({
     debugOptions: SearchOptions | null;
 }) {
     const {space} = useSpaceContext();
-    const rootNavigate = useRootNavigate();
+    const navigate = useNavigate();
 
     const inputRef = useRef<HTMLInputElement>(null);
     const resultListContainerRef = useRef<HTMLDivElement>(null);
@@ -126,6 +136,32 @@ export function SearchModal({
         // we'll display a large loading indicator in the result list while we wait for
         // results to load.
         !!output.results;
+
+    const openActivePeek = useEvent(
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async ({
+            shouldOpenLinkInSeparateTab,
+        }: {
+            shouldOpenLinkInSeparateTab: boolean;
+        }): Promise<void> => {
+            if (!activePeek) return;
+
+            const spacePath = convertPeekPathToSpacePath(activePeek.history.location);
+            if (!spacePath) throw new InternalError("Can only expand peek routes");
+
+            if (shouldOpenLinkInSeparateTab) {
+                window.open(
+                    createPath(spacePath),
+                    "_blank",
+                    // Important security measure. See:
+                    // https://mathiasbynens.github.io/rel-noopener
+                    "noopener noreferrer",
+                );
+            } else {
+                await navigate(spacePath);
+            }
+        },
+    );
 
     return (
         <Modal
@@ -227,8 +263,6 @@ export function SearchModal({
                             break;
                         }
 
-                        // NOCOMMIT: We need some other way to navigate besides `Enter`. Something that works on
-                        // a touch device like an iPad.
                         case "Enter": {
                             const inputElement = assertExists(inputRef.current);
 
@@ -255,9 +289,7 @@ export function SearchModal({
 
                             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                             // Eventually switch to new page with a loading spinner?
-                            void rootNavigate(
-                                getSearchEntityIdPath(space.id, selectedPeek.extra.entityId),
-                            ).finally(onClose);
+                            void openActivePeek({shouldOpenLinkInSeparateTab: false});
                             break;
                         }
                     }
@@ -324,6 +356,7 @@ export function SearchModal({
                                     results={output.results}
                                     selectedPeek={selectedPeek}
                                     switchPeek={switchPeek}
+                                    openActivePeek={openActivePeek}
                                 />
                             )}
                         </Box>
@@ -339,6 +372,8 @@ export function SearchModal({
                                     // Fully remount whenever the peek changes...
                                     key={activePeek.id}
                                     peek={activePeek}
+                                    openActivePeek={openActivePeek}
+                                    onClose={onClose}
                                 />
                             ) : (
                                 <Box
@@ -479,6 +514,7 @@ function SearchModalResultList({
     results,
     selectedPeek,
     switchPeek,
+    openActivePeek,
 }: {
     results: ReadonlyArray<SearchResult>;
     selectedPeek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}> | null;
@@ -490,6 +526,7 @@ function SearchModalResultList({
             } | null,
         ) => Promise<void>
     >;
+    openActivePeek: (options: {shouldOpenLinkInSeparateTab: boolean}) => Promise<void>;
 }) {
     const {space} = useSpaceContext();
 
@@ -545,11 +582,14 @@ function SearchModalResultList({
                                         });
                                     }
                                 }}
+                                onDoubleClick={() => {
+                                    void openActivePeek({shouldOpenLinkInSeparateTab: false});
+                                }}
                             />
                         ),
                     };
                 },
-                [results, selectedPeek?.extra.entityId, space.id, switchPeek],
+                [openActivePeek, results, selectedPeek?.extra.entityId, space.id, switchPeek],
             )}
         />
     );
@@ -609,35 +649,130 @@ function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityI
 
 function SearchModalPeekContent({
     peek,
+    openActivePeek,
+    onClose,
 }: {
     peek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}>;
+    openActivePeek: (options: {shouldOpenLinkInSeparateTab: boolean}) => Promise<void>;
+    onClose: () => void;
 }) {
     const routerResult = usePromise(peek.routerPromise);
 
+    const [historyPosition, setHistoryPosition] = useState(() => ({
+        index: peek.history.index,
+        entriesLength: peek.history.entries.length,
+    }));
+
+    useEffect(() => {
+        if (routerResult.isPending) return;
+
+        const update = () => {
+            setHistoryPosition(historyPosition => {
+                const newHistoryPosition = {
+                    index: peek.history.index,
+                    entriesLength: peek.history.entries.length,
+                };
+                return !isDeepEqual(historyPosition, newHistoryPosition)
+                    ? newHistoryPosition
+                    : historyPosition;
+            });
+        };
+
+        update();
+
+        return routerResult.value.subscribe(update);
+    }, [peek.history, routerResult.isPending, routerResult.value]);
+
     return (
         <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
-            {!routerResult.isPending ? (
-                <PeekRemixEmbed
-                    peekId={peek.id}
-                    withMobileLayout={true}
-                    // Don't record view interactions when looking at a search entity in the search
-                    // modal. The user is discovering an entity to open so may have pretty low
-                    // intent when looking at an entity.
-                    //
-                    // This also means the "last opened" time we show for affinitive search entities
-                    // won't change.
-                    withoutSearchEntityViewAffinityInteraction={true}
-                    router={routerResult.value}
-                />
-            ) : (
-                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
-                    <SpinnerGap
-                        className={spinAnimationClassName}
-                        color={colorSchemeVars["grey-70"]}
-                        size={spacing["6"]}
+            <Box
+                flexGrow="1"
+                width="full"
+                height="full"
+                overflow="hidden"
+                display="flex"
+                flexDirection="column"
+            >
+                {!routerResult.isPending ? (
+                    <PeekRemixEmbed
+                        peekId={peek.id}
+                        withMobileLayout={true}
+                        // Don't record view interactions when looking at a search entity in the search
+                        // modal. The user is discovering an entity to open so may have pretty low
+                        // intent when looking at an entity.
+                        //
+                        // This also means the "last opened" time we show for affinitive search entities
+                        // won't change.
+                        withoutSearchEntityViewAffinityInteraction={true}
+                        router={routerResult.value}
+                        onGoBackOverflow={onClose}
                     />
+                ) : (
+                    <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
+                        <SpinnerGap
+                            className={spinAnimationClassName}
+                            color={colorSchemeVars["grey-70"]}
+                            size={spacing["6"]}
+                        />
+                    </Box>
+                )}
+            </Box>
+            <Box
+                // NOTE(calebmer): Design-wise I'd love to not have this bottom bar at all. But
+                // it provides important system functionality for operating the preview. These
+                // are all non-essential tertiary actions. Which is why they're on the bottom
+                // Most of the time I hope people are hitting enter on their keyboard to expand
+                // or double clicking search items.
+                height="8"
+                borderTop="grey-10"
+                display="flex"
+                alignItems="center"
+            >
+                <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                    <IconButton
+                        size="xs"
+                        description="Back"
+                        tooltipPlacement="top"
+                        isDisabled={!(historyPosition.index > 0)}
+                        onPress={() => peek.history.go(-1)}
+                    >
+                        <ArrowLeft />
+                    </IconButton>
+                    <IconButton
+                        size="xs"
+                        description="Forwards"
+                        tooltipPlacement="top"
+                        isDisabled={!(historyPosition.index < historyPosition.entriesLength - 1)}
+                        onPress={() => peek.history.go(1)}
+                    >
+                        <ArrowRight />
+                    </IconButton>
                 </Box>
-            )}
+                <Box flexGrow="1" />
+                <Box paddingRight="1">
+                    <Button
+                        height="5"
+                        paddingX="2"
+                        keyboardShortcutHint={
+                            <Box display="flex" alignItems="center" gap="1">
+                                <KeyReturn />
+                                <Box>enter</Box>
+                            </Box>
+                        }
+                        pressErrorTitle="Couldn’t open"
+                        onPress={event =>
+                            openActivePeek({
+                                shouldOpenLinkInSeparateTab: isOpenLinkInSeparateTabPointerEvent(
+                                    event,
+                                    getClientInfoWithoutListening(),
+                                ),
+                            })
+                        }
+                    >
+                        Open
+                    </Button>
+                </Box>
+            </Box>
         </Box>
     );
 }

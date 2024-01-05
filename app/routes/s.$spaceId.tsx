@@ -1,15 +1,27 @@
 import {Outlet, ShouldRevalidateFunction} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
-import {useContext, useEffect, useMemo} from "react";
-import {UNSAFE_DataRouterStateContext as DataRouterStateContext, useRouteError} from "react-router";
+import {Component, ReactNode, useContext, useEffect, useMemo, useRef} from "react";
+import {
+    UNSAFE_DataRouterStateContext as DataRouterStateContext,
+    useLocation,
+    useRouteError,
+} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
-import {attachDevConsoleForAccountInProduction} from "~/client/dev/dev_console.js";
+import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
+import {
+    attachDevConsoleForAccountInProduction,
+    useDevConsoleSettingsObject,
+} from "~/client/dev/dev_console.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
+import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {PeekStackContextProvider} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
+import {SearchModal} from "~/client/search/search_modal.js";
 import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
 import {SpaceRouteErrorRenderer} from "~/client/spaces/space_route_error_renderer.js";
@@ -22,9 +34,15 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
+import {
+    SearchOptions,
+    SearchOptionsSchema,
+    standardSearchOptions,
+} from "~/shared/search/search_options.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
@@ -85,8 +103,11 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
  */
 export default function SpaceLayoutRoute() {
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
-
+    const location = useLocation();
+    const error = useRouteError();
     const rawLoaderData = dataRouterStateContext.loaderData["routes/s.$spaceId"];
+    const isInitialAppRender = useIsInitialAppRender();
+    const clientInfo = useClientInfo();
 
     // `useLoaderData()` doesn't work in an error boundary. We use this exact
     // component for error and catch boundaries to avoid remounting when navigating
@@ -96,8 +117,6 @@ export default function SpaceLayoutRoute() {
         () => (rawLoaderData ? getLoaderDataWithSchema(LoaderSchema, rawLoaderData) : null),
         [rawLoaderData],
     );
-
-    const error = useRouteError();
 
     // If it's our `/s/:spaceId` route throwing then we won't be able to render the
     // state chrome so let a parent error boundary handle it.
@@ -109,7 +128,38 @@ export default function SpaceLayoutRoute() {
         attachDevConsoleForAccountInProduction(currentAccount);
     }, [currentAccount]);
 
-    const clientInfo = useClientInfo();
+    const [searchState, setSearchState] = useStateWithDependencies<
+        {initialQueryText: string} | null,
+        [string]
+    >(
+        null,
+        // Reset search state whenever the location changes.
+        [location.key],
+    );
+
+    // NOCOMMIT: This dev console interface is kinda janky
+    const debugOptions: SearchOptions & {
+        readonly isEnabled: boolean;
+    } = useDevConsoleSettingsObject("searchDebugOptions", searchOptionsDevConsoleSettingsConfig);
+
+    // On initial render, if there's a `search` query parameter then open our
+    // search modal.
+    useEffect(() => {
+        if (isInitialAppRender) return;
+
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.has("search")) {
+            const initialQueryText = url.searchParams.get("search") ?? "";
+
+            setSearchState(searchState => {
+                if (searchState) return searchState;
+                return {initialQueryText};
+            });
+        }
+    }, [isInitialAppRender, setSearchState]);
+
+    const lastShiftKeyDownTimeRef = useRef<number | null>(null);
 
     return (
         <GlobalKeyDownEvent
@@ -146,36 +196,79 @@ export default function SpaceLayoutRoute() {
                         }
                         break;
                     }
+
+                    // Double shift opens the search modal.
+                    case "Shift": {
+                        if (!event.altKey && !event.metaKey && !event.ctrlKey) {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            const currentTime = Date.now();
+                            const lastShiftKeyDownTime = lastShiftKeyDownTimeRef.current;
+                            lastShiftKeyDownTimeRef.current = currentTime;
+
+                            if (
+                                lastShiftKeyDownTime !== null &&
+                                currentTime - lastShiftKeyDownTime < doubleClickDelayMs
+                            ) {
+                                setSearchState(searchState => {
+                                    if (searchState) return searchState;
+                                    return {initialQueryText: ""};
+                                });
+                            }
+                        }
+                        break;
+                    }
                 }
             }}
         >
-            <SpaceContextProvider
-                // Re-render everything when the space changes.
-                key={space.id}
-                space={space}
-                currentAccount={currentAccount}
-            >
-                <TaskRealtimeClientContextProvider spaceId={space.id}>
-                    <ContextMenuManager />
-                    <Box
-                        display="flex"
-                        flexDirection="column"
-                        height="full"
-                        overflow="hidden"
-                        position="relative"
-                        zIndex="0"
-                    >
-                        <PeekStackContextProvider>
-                            <SpaceLayoutTopBar space={space} initialInbox={inbox} />
-                            {error !== undefined ? (
-                                <SpaceRouteErrorRenderer error={error} />
-                            ) : (
-                                <Outlet />
-                            )}
-                        </PeekStackContextProvider>
-                    </Box>
-                </TaskRealtimeClientContextProvider>
-            </SpaceContextProvider>
+            <RootNavigationContextProvider>
+                <SpaceContextProvider
+                    // Re-render everything when the space changes.
+                    key={space.id}
+                    space={space}
+                    currentAccount={currentAccount}
+                >
+                    <TaskRealtimeClientContextProvider spaceId={space.id}>
+                        <ContextMenuManager />
+                        <Box
+                            display="flex"
+                            flexDirection="column"
+                            height="full"
+                            overflow="hidden"
+                            position="relative"
+                            zIndex="0"
+                        >
+                            <PeekStackContextProvider>
+                                <SpaceLayoutTopBar
+                                    space={space}
+                                    initialInbox={inbox}
+                                    onSearchInputPress={() => {
+                                        setSearchState(searchState => {
+                                            if (searchState) return searchState;
+                                            return {initialQueryText: ""};
+                                        });
+                                    }}
+                                />
+                                {error !== undefined ? (
+                                    <SpaceRouteErrorRenderer error={error} />
+                                ) : (
+                                    <Outlet />
+                                )}
+                            </PeekStackContextProvider>
+                        </Box>
+                        {searchState && (
+                            <SearchModalErrorBoundary>
+                                <SearchModal
+                                    initialQueryText={searchState.initialQueryText}
+                                    onClose={() => setSearchState(null)}
+                                    debugOptions={debugOptions.isEnabled ? debugOptions : null}
+                                />
+                            </SearchModalErrorBoundary>
+                        )}
+                    </TaskRealtimeClientContextProvider>
+                </SpaceContextProvider>
+            </RootNavigationContextProvider>
         </GlobalKeyDownEvent>
     );
 }
@@ -186,3 +279,54 @@ export default function SpaceLayoutRoute() {
 // Making sure there's no remount on error requires careful patching to Remix
 // and React Router.
 export const ErrorBoundary = SpaceLayoutRoute;
+
+const searchOptionsDevConsoleSettingsConfig = {
+    isEnabled: {
+        defaultValue: false,
+        schema: Schema.boolean,
+    },
+    ...Object.fromEntries(
+        mapIterable(SearchOptionsSchema.propertySchemaByKey, ([key, propertySchema]) => [
+            key,
+            {
+                defaultValue: (standardSearchOptions as any)[key],
+                schema: propertySchema.valueSchema,
+            },
+        ]),
+    ),
+} as {
+    isEnabled: {
+        defaultValue: boolean;
+        schema: Schema<boolean>;
+    };
+} & {
+    [Key in keyof SearchOptions]: {
+        defaultValue: SearchOptions[Key];
+        schema: Schema<SearchOptions[Key]>;
+    };
+};
+
+/**
+ * Protect against infinite error loops with `<SearchModal>`. If
+ * `<SearchModal>` errs on initial render while rendering we'll re-render at
+ * the nearest error boundary which will attempt to render `<SearchModal>`
+ * again because `search` is in the URL causing an infinite error loop. With
+ * this error boundary if `<SearchModal>` errs, we make sure not to render it
+ * again by clearing `search` from the URL.
+ */
+class SearchModalErrorBoundary extends Component<{children: ReactNode}> {
+    public override componentDidCatch(error: unknown) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("search");
+
+        // Silently update the URL without telling Remix so our components don't
+        // re-render unnecessarily.
+        window.history.replaceState(null, "", url);
+
+        throw error;
+    }
+
+    public override render() {
+        return this.props.children;
+    }
+}

@@ -180,9 +180,9 @@ export function NavigationEventContextProvider({
         <NavigationEventContext.Provider
             value={useCallback(
                 (to: To, options?: NavigateOptions) => {
-                    const result = parentOnNavigate?.(to, options);
-                    if (result?.preventDefault) return result;
-                    return onNavigate(to, options);
+                    const result = onNavigate(to, options);
+                    if (result.preventDefault) return result;
+                    return parentOnNavigate?.(to, options) ?? {preventDefault: false};
                 },
                 [onNavigate, parentOnNavigate],
             )}

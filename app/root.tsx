@@ -35,10 +35,7 @@ import {ClientInfoContextProvider} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
-import {
-    RootNavigationContextProvider,
-    WaitForNavigationContextProvider,
-} from "~/client/remix/use_navigate.js";
+import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {SwrCacheContextProvider} from "~/client/rpc/use_swr.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -238,19 +235,17 @@ export default function Root() {
                                 <IsMobileContextProvider>
                                     <SwrCacheContextProvider>
                                         <WaitForNavigationContextProvider>
-                                            <RootNavigationContextProvider>
-                                                <GlobalKeyDownRootContextProvider>
-                                                    <AccountClientStoreContextProvider>
-                                                        <OverlayScopeContextProvider>
-                                                            <TooltipCoordinationContextProvider>
-                                                                <ToastContextProvider>
-                                                                    {children}
-                                                                </ToastContextProvider>
-                                                            </TooltipCoordinationContextProvider>
-                                                        </OverlayScopeContextProvider>
-                                                    </AccountClientStoreContextProvider>
-                                                </GlobalKeyDownRootContextProvider>
-                                            </RootNavigationContextProvider>
+                                            <GlobalKeyDownRootContextProvider>
+                                                <AccountClientStoreContextProvider>
+                                                    <OverlayScopeContextProvider>
+                                                        <TooltipCoordinationContextProvider>
+                                                            <ToastContextProvider>
+                                                                {children}
+                                                            </ToastContextProvider>
+                                                        </TooltipCoordinationContextProvider>
+                                                    </OverlayScopeContextProvider>
+                                                </AccountClientStoreContextProvider>
+                                            </GlobalKeyDownRootContextProvider>
                                         </WaitForNavigationContextProvider>
                                     </SwrCacheContextProvider>
                                 </IsMobileContextProvider>

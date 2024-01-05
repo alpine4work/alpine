@@ -86,7 +86,7 @@ function Button(
         /**
          * A keyboard shortcut that will display in a tooltip on the button.
          */
-        keyboardShortcutHint?: string;
+        keyboardShortcutHint?: ReactNode;
 
         /**
          * Are we waiting for some asynchronous action that was initiated by our button

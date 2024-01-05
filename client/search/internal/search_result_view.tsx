@@ -69,12 +69,14 @@ export function SearchResultView({
     isFirstEntry,
     isLastEntry,
     onPressStart,
+    onDoubleClick,
 }: {
     result: SearchResult;
     isSelected: boolean;
     isFirstEntry: boolean;
     isLastEntry: boolean;
     onPressStart: () => void;
+    onDoubleClick: () => void;
 }) {
     const typeDisplay = useMemo(() => {
         if (result.entityId === "TaskNotepad") {
@@ -102,6 +104,7 @@ export function SearchResultView({
                     onPressStart?.();
                 }
             }}
+            onDoubleClick={onDoubleClick}
         >
             <Box
                 position="relative"

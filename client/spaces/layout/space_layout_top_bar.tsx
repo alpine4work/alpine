@@ -19,9 +19,11 @@ import {SpaceModel} from "~/shared/spaces/space_model.js";
 export function SpaceLayoutTopBar({
     space,
     initialInbox,
+    onSearchInputPress,
 }: {
     space: SpaceModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    onSearchInputPress: () => void;
 }) {
     const isMobile = useIsMobile();
 
@@ -69,7 +71,7 @@ export function SpaceLayoutTopBar({
             {!isMobile && (
                 // NOTE(calebmer): For now the search bar looks whack on mobile. Since it's not
                 // even implemented and only used to frame the design, hide it for now.
-                <SpaceLayoutTopBarSearchInput space={space} />
+                <SpaceLayoutTopBarSearchInput space={space} onPress={onSearchInputPress} />
             )}
             <Box
                 width="48"
