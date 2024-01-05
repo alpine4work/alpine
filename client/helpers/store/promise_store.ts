@@ -3,7 +3,7 @@ import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {PromiseState} from "~/shared/helpers/async/promise_state.js";
 
-const pendingState: PromiseState<never> = {status: "pending"};
+export const pendingPromiseState: PromiseState<never> = {status: "pending"};
 
 /**
  * Create a store which updates with a promise's state. Starts as pending when
@@ -12,7 +12,9 @@ const pendingState: PromiseState<never> = {status: "pending"};
  */
 export function createPromiseStore<Value>(promise: PromiseLike<Value>): Store<PromiseState<Value>> {
     const initialState =
-        promise instanceof PromiseImmediate ? promise.getStateWithoutListening() : pendingState;
+        promise instanceof PromiseImmediate
+            ? promise.getStateWithoutListening()
+            : pendingPromiseState;
 
     const store = new ValueStore(initialState);
 

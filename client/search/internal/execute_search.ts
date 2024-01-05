@@ -1,7 +1,8 @@
 import {AppContext} from "~/client/context/app_context.js";
 import {ConstStore} from "~/client/helpers/store/const_store.js";
-import {createPromiseStore} from "~/client/helpers/store/promise_store.js";
+import {createPromiseStore, pendingPromiseState} from "~/client/helpers/store/promise_store.js";
 import {Store} from "~/client/helpers/store/store.js";
+import {ValueStore} from "~/client/helpers/store/value_store.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {OpensearchSearchHitExplanation} from "~/shared/opensearch/opensearch_search_hit_explanation.js";
@@ -76,6 +77,11 @@ export const emptyExecuteSearchOutput: ExecuteSearchOutput = {
  * search since we both need to embed the query then search in vector space. So
  * we present keyword search results to the user as soon as we have them then
  * mix in semantic search results once we get them.
+ *
+ * You control when `searchBySemantics()` is called. You must call
+ * `executeSearchBySemantics()` at some point otherwise this function will
+ * return a pending store forever. This capability is provided so we can delay
+ * calling `executeSearchBySemantics()` while the user is actively typing.
  */
 export function executeSearch(
     context: AppContext,
@@ -90,11 +96,20 @@ export function executeSearch(
         limit: number;
         debugOptions: SearchOptions | null;
     },
-): Store<ExecuteSearchOutput> {
+): Store<ExecuteSearchOutput> & {
+    executeSearchBySemantics(): void;
+} {
     // If the query is empty then return no search results.
-    if (queryText.length === 0) return new ConstStore(emptyExecuteSearchOutput);
+    if (queryText.length === 0) {
+        return Object.assign(new ConstStore(emptyExecuteSearchOutput), {
+            executeSearchBySemantics: () => {},
+        });
+    }
 
     const options = debugOptions ?? standardSearchOptions;
+
+    const timeZone = getClientInfoWithoutListening().timeZone;
+    const currentTime = new Date();
 
     const keywordSearchPromise = searchByKeywords(context, {
         spaceId,
@@ -103,21 +118,37 @@ export function executeSearch(
         // semantic search results are placed in the top `limit` keyword results but
         // `limit` is determined by view size.
         limit,
-        timeZone: getClientInfoWithoutListening().timeZone,
-        currentTime: new Date(),
+        timeZone,
+        currentTime,
         debugOptions: debugOptions ?? undefined,
     });
 
-    const semanticSearchPromise = searchBySemantics(context, {
-        spaceId,
-        queryText,
-        limit: semanticSearchResultLimit,
-    });
+    const semanticSearchPromiseStore = new ValueStore<ReturnType<typeof searchBySemantics> | null>(
+        null,
+    );
+
+    const executeSearchBySemantics = () => {
+        if (semanticSearchPromiseStore.getSnapshot() !== null) return;
+
+        semanticSearchPromiseStore.set(
+            searchBySemantics(context, {
+                spaceId,
+                queryText,
+                limit: semanticSearchResultLimit,
+                timeZone,
+                currentTime,
+            }),
+        );
+    };
 
     const keywordSearchStore = createPromiseStore(keywordSearchPromise);
-    const semanticSearchStore = createPromiseStore(semanticSearchPromise);
+    const semanticSearchStore = semanticSearchPromiseStore.flatMap(semanticSearchPromise =>
+        semanticSearchPromise
+            ? createPromiseStore(semanticSearchPromise)
+            : new ConstStore(pendingPromiseState),
+    );
 
-    return Store.map(
+    const store = Store.map(
         keywordSearchStore,
         semanticSearchStore,
         (keywordSearchState, semanticSearchState): ExecuteSearchOutput => {
@@ -295,4 +326,6 @@ export function executeSearch(
             };
         },
     );
+
+    return Object.assign(store, {executeSearchBySemantics});
 }

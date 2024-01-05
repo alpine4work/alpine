@@ -156,9 +156,12 @@ function reduceSearchState(state: SearchState, action: SearchAction): SearchStat
             return {
                 ...state,
                 wordTypingTimeoutTime: null,
-                executionStack: state.executionStack.push(
-                    createSearchStateExecution(state.trimmedQueryText),
-                ),
+                executionStack:
+                    state.executionStack.latestExecution.queryText !== state.trimmedQueryText
+                        ? state.executionStack.push(
+                              createSearchStateExecution(state.trimmedQueryText),
+                          )
+                        : state.executionStack,
             };
         }
         default:
@@ -247,12 +250,14 @@ export function useSearchState({
             spaceId: space.id,
             limit,
             debugOptions,
+            isTyping: searchState.wordTypingTimeoutTime !== null,
         });
     }, [
         context,
         debugOptions,
         resultListContainerRef,
         searchState.executionStack.latestExecution,
+        searchState.wordTypingTimeoutTime,
         space.id,
     ]);
 
@@ -395,7 +400,12 @@ type SearchStateExecution = Store<SearchStateExecutionOutput> & {
     readonly queryText: string;
     execute(
         context: AppContext,
-        options: {spaceId: SpaceId; limit: number; debugOptions: SearchOptions | null},
+        options: {
+            spaceId: SpaceId;
+            limit: number;
+            debugOptions: SearchOptions | null;
+            isTyping: boolean;
+        },
     ): void;
 };
 
@@ -419,6 +429,7 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
             {
                 queryText,
                 execute: () => {},
+                pauseExecute: () => {},
             },
         );
     }
@@ -427,29 +438,42 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
         debugOptions: SearchOptions | null;
     } | null = null;
 
+    const store = new ValueStore<
+        Store<ExecuteSearchOutput> & {
+            executeSearchBySemantics?: () => void;
+        }
+    >(new ConstStore(pendingExecuteSearchOutput));
+
     const execute = (
         context: AppContext,
         {
             spaceId,
             limit,
             debugOptions,
+            isTyping,
         }: {
             spaceId: SpaceId;
             limit: number;
             debugOptions: SearchOptions | null;
+            isTyping: boolean;
         },
     ) => {
         if (lastExecution === null) {
             lastExecution = {debugOptions};
 
-            store.set(
-                executeSearch(context, {
-                    spaceId,
-                    queryText,
-                    limit,
-                    debugOptions,
-                }),
-            );
+            const nextStore = executeSearch(context, {
+                spaceId,
+                queryText,
+                limit,
+                debugOptions,
+            });
+
+            // If the user is actively typing, we want to delay sending
+            // `searchBySemantics()` until we have the final query. That way we reduce cost
+            // by avoiding executing semantic search on meaningless intermediate queries.
+            if (!isTyping) nextStore.executeSearchBySemantics();
+
+            store.set(nextStore);
         }
         // If debug options changed, we'll re-execute. We need to keep the last results
         // around since once an execution has non-null `results` it should never return
@@ -465,17 +489,20 @@ function createSearchStateExecution(queryText: string): SearchStateExecution {
                     debugOptions,
                 });
 
+                // Don't bother trying to debounce semantic search in debug mode.
+                nextStore.executeSearchBySemantics();
+
                 return Store.map(lastStore, nextStore, (lastResult, nextResult) => {
                     if (nextResult.results === null) return {...lastResult, isPending: true};
                     return nextResult;
                 });
             });
+        } else if (!isTyping) {
+            // Once the user is done typing, we need to call `executeSearchBySemantics()`
+            // if we haven't already.
+            store.getSnapshot().executeSearchBySemantics?.();
         }
     };
-
-    const store = new ValueStore<Store<ExecuteSearchOutput>>(
-        new ConstStore(pendingExecuteSearchOutput),
-    );
 
     return Object.assign(
         store.flat().map(result => ({
