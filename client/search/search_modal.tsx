@@ -610,8 +610,12 @@ function getSearchEntityIdPath(
 function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityIdObject): string {
     switch (entityId.type) {
         case "Account": {
-            // NOCOMMIT
-            throw new UnimplementedError("TODO");
+            // NOTE(calebmer): Eventually I'd like to have a profile page for accounts.
+            // Since we don't currently have that, route to a 1:1 chat with the account.
+            //
+            // Though even if we had a profile page for accounts, routing to the 1:1 chat
+            // in search may be more useful.
+            return `/s/${spaceId}/chat/with/${entityId.accountId}`;
         }
         case "Document": {
             return `/s/${spaceId}/documents/${entityId.documentId}`;
