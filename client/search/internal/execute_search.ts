@@ -11,6 +11,18 @@ import {SearchOptions, standardSearchOptions} from "~/shared/search/search_optio
 import {SearchResult} from "~/shared/search/search_result.js";
 
 /**
+ * The maximum number of keyword search results we look for. These search
+ * results form the base of the list we present to the user. We mix semantic
+ * search results on top and boost any results the user has an affinity for.
+ *
+ * Keyword search also performs natural language parsing on the query and
+ * searches with any filters parsed from the user's query.
+ */
+// TODO(calebmer): Should consider implementing keyword search result infinite
+// loading someday. Not implementing now since I ran out of time in the cycle.
+const keywordSearchResultLimit = 30;
+
+/**
  * The maximum number of semantic search results we look for. These search
  * results are mixed with our keyword search results. Semantic search results
  * can be expensive to compute so we don't load too many.
@@ -114,10 +126,7 @@ export function executeSearch(
     const keywordSearchPromise = searchByKeywords(context, {
         spaceId,
         queryText,
-        // NOCOMMIT: What to do about limit here and infinite loading. Kinda weird that
-        // semantic search results are placed in the top `limit` keyword results but
-        // `limit` is determined by view size.
-        limit,
+        limit: keywordSearchResultLimit,
         timeZone,
         currentTime,
         debugOptions: debugOptions ?? undefined,
