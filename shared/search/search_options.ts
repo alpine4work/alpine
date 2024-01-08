@@ -230,9 +230,9 @@ export const standardSearchOptions: SearchOptions = {
         controlMatchBoostIfLowConfidence: 1,
 
         // If we're not confident the user wanted a natural language search, treat
-        // matches against our natural language filter the same as great keyword
-        // matches.
-        filterConstantScoreIfLowConfidence: 11,
+        // matches against our natural language filter about the same as a great
+        // body keyword match plus a fine title keyword match (currently 11 + 3 * 1.8).
+        filterConstantScoreIfLowConfidence: 16.4,
     },
 
     semanticToKeywordScoreInterpolation: {
