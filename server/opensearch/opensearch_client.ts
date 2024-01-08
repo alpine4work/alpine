@@ -1,5 +1,4 @@
 import createJsonBigInt from "json-bigint";
-import {inspect} from "util";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {OpensearchHighlightClause} from "~/server/opensearch/opensearch_highlight_clause.js";

@@ -54,7 +54,8 @@ import {
 import {emptyContentReferences} from "~/shared/content/content_references.js";
 import {Context} from "~/shared/context/context.js";
 import {formatPrettyRelativeDateWithoutFullTimeTooltip} from "~/shared/design/format_pretty_relative_date_without_full_time_tooltip.js";
-import {InternalError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {createArrayWithLength} from "~/shared/helpers/array/create_array_with_length.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {stableShuffleArray} from "~/shared/helpers/array/stable_shuffle_array.js";
@@ -750,6 +751,17 @@ export async function processIndexSearchEntityJob(
 }
 
 /**
+ * Limit search query text length to avoid excessive resource usage.
+ */
+function assertSearchQueryTextLength(queryText: string) {
+    if (queryText.length >= 140) {
+        throw new InvalidArgumentError("Search query too long", {
+            displayMessage: errorDisplayMessage`Your search text is too long. Try removing some words.`,
+        });
+    }
+}
+
+/**
  * Search for entities in a space by keyword. Returns entities that almost
  * exactly match the query text (some typos are tolerated). Entities with the
  * query text in their title or that match an exact phrase rank higher.
@@ -779,6 +791,8 @@ export async function searchByKeywords(
     results: Array<SearchResult>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
+
+    assertSearchQueryTextLength(queryText);
 
     // You must have internal access to try different `debugOptions`. Setting
     // `debugOptions` not only lets you change search ranking but also enables
@@ -812,43 +826,75 @@ export async function searchByKeywords(
     ): QueryClause | null => {
         const clauses = queryTexts.map(
             (queryText): QueryClause => ({
-                multi_match: {
-                    query: new OpensearchQueryValue(queryText),
+                bool: {
+                    minimum_should_match: 1,
+
+                    // If both matched then should will add together there scores.
+                    //
                     // The more fields matched, the better!
                     //
                     // - If you match a shingle it will also implicitly match the main field.
                     //   So we get limited phrase matching.
                     // - Matches in title fields are boosted above matches in body fields.
-                    type: "most_fields",
-                    fields:
-                        boost === 1
-                            ? [
-                                  `title^${options.titleBoost}`,
-                                  `title._2gram^${options.titleBoost}`,
-                                  `title._3gram^${options.titleBoost}`,
-                                  "body",
-                                  "body._2gram",
-                                  "body._3gram",
-                              ]
-                            : [
-                                  `title^${options.titleBoost * boost}`,
-                                  `title._2gram^${options.titleBoost * boost}`,
-                                  `title._3gram^${options.titleBoost * boost}`,
-                                  `body^${boost}`,
-                                  `body._2gram^${boost}`,
-                                  `body._3gram^${boost}`,
-                              ],
-                    // Still match even if the query text has typos.
-                    fuzziness: "AUTO",
-                    // Require the first character to be correct for a fuzzy query to match. This
-                    // reduces the amount of fuzzy searching we need to do and also discards some
-                    // ridiculous fuzzy matches. For example, we see "my documents" get matched to
-                    // the 2gram "30 documents". For a 1gram "my" doesn't match "30" since
-                    // `fuzziness: "AUTO"` requires an exact match for two character strings.
-                    // However the 2gram "my documents" can have two edits which makes
-                    // "30 documents" a valid match. Also "be documents" or "of documents". A prefix
-                    // length of 1 prevents these from being valid matches.
-                    prefix_length: 1,
+                    should: [
+                        {
+                            multi_match: {
+                                query: new OpensearchQueryValue(queryText),
+                                type: "most_fields",
+                                fields:
+                                    boost === 1
+                                        ? [`title^${options.titleBoost}`, "body"]
+                                        : [`title^${options.titleBoost * boost}`, `body^${boost}`],
+
+                                ...(queryText.length < 100
+                                    ? {
+                                          // Still match even if the query text has typos.
+                                          //
+                                          // We only fuzzy match short queries. For longer queries we run into the
+                                          // OpenSearch max clause limit error.
+                                          //
+                                          // We only fuzzy match when searching the individual word index. This is
+                                          // because fuzziness works by expanding a query to include valid terms within
+                                          // edit distance. This risks running into the max clause count OpenSearch limit
+                                          // when used excessively. So only allow exact matches when searching the 2gram
+                                          // and 3gram fields. This also has the effect of a 2gram match + 1gram match
+                                          // beating a rare typo (which would have a high score due to low document
+                                          // frequency).
+                                          fuzziness: "AUTO",
+                                          // Require the first character to be correct for a fuzzy query to match. This
+                                          // reduces the amount of fuzzy searching we need to do and also discards some
+                                          // ridiculous fuzzy matches. For example, we see "my documents" get matched to
+                                          // the 2gram "30 documents". For a 1gram "my" doesn't match "30" since
+                                          // `fuzziness: "AUTO"` requires an exact match for two character strings.
+                                          // However the 2gram "my documents" can have two edits which makes
+                                          // "30 documents" a valid match. Also "be documents" or "of documents". A prefix
+                                          // length of 1 prevents these from being valid matches.
+                                          prefix_length: 1,
+                                      }
+                                    : {}),
+                            },
+                        },
+                        {
+                            multi_match: {
+                                query: new OpensearchQueryValue(queryText),
+                                type: "most_fields",
+                                fields:
+                                    boost === 1
+                                        ? [
+                                              `title._2gram^${options.titleBoost}`,
+                                              `title._3gram^${options.titleBoost}`,
+                                              "body._2gram",
+                                              "body._3gram",
+                                          ]
+                                        : [
+                                              `title._2gram^${options.titleBoost * boost}`,
+                                              `title._3gram^${options.titleBoost * boost}`,
+                                              `body._2gram^${boost}`,
+                                              `body._3gram^${boost}`,
+                                          ],
+                            },
+                        },
+                    ],
                 },
             }),
         );
@@ -1198,6 +1244,8 @@ export async function searchBySemantics(
     results: Array<SearchResult>;
 }> {
     await authorizeSpaceAccess(context, spaceId);
+
+    assertSearchQueryTextLength(queryText);
 
     const {filters, isLowConfidence} = parseSearchNaturalLanguageQuery(queryText, {
         timeZone,
