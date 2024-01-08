@@ -9,6 +9,7 @@ import {
     SpinnerGap,
 } from "phosphor-react";
 import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useRef, useState} from "react";
+import {PressEvent} from "react-aria";
 import {createPath} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
@@ -45,6 +46,8 @@ import {InternalError, UnimplementedError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
+import {noop} from "~/shared/helpers/control/noop.js";
+import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
@@ -381,8 +384,9 @@ export function SearchModal({
                                     height="full"
                                     overflow="hidden"
                                     display="flex"
-                                    justifyContent="center"
-                                    alignItems="flex-end"
+                                    flexDirection="column"
+                                    justifyContent="flex-end"
+                                    alignItems="center"
                                 >
                                     <Box
                                         width="full"
@@ -426,6 +430,14 @@ export function SearchModal({
                                             ))}
                                         </Box>
                                     </Box>
+                                    <SearchModalPeekContentBottomBar
+                                        isBackDisabled={true}
+                                        onBackPress={noop}
+                                        isForwardsDisabled={true}
+                                        onForwardsPress={noop}
+                                        isOpenDisabled={true}
+                                        onOpenPress={noop}
+                                    />
                                 </Box>
                             )}
                         </Box>
@@ -720,61 +732,91 @@ function SearchModalPeekContent({
                     </Box>
                 )}
             </Box>
-            <Box
-                // NOTE(calebmer): Design-wise I'd love to not have this bottom bar at all. But
-                // it provides important system functionality for operating the preview. These
-                // are all non-essential tertiary actions. Which is why they're on the bottom
-                // Most of the time I hope people are hitting enter on their keyboard to expand
-                // or double clicking search items.
-                height="8"
-                borderTop="grey-10"
-                display="flex"
-                alignItems="center"
-            >
-                <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                    <IconButton
-                        size="xs"
-                        description="Back"
-                        tooltipPlacement="top"
-                        isDisabled={!(historyPosition.index > 0)}
-                        onPress={() => peek.history.go(-1)}
-                    >
-                        <ArrowLeft />
-                    </IconButton>
-                    <IconButton
-                        size="xs"
-                        description="Forwards"
-                        tooltipPlacement="top"
-                        isDisabled={!(historyPosition.index < historyPosition.entriesLength - 1)}
-                        onPress={() => peek.history.go(1)}
-                    >
-                        <ArrowRight />
-                    </IconButton>
-                </Box>
-                <Box flexGrow="1" />
-                <Box paddingRight="1">
-                    <Button
-                        height="5"
-                        paddingX="2"
-                        keyboardShortcutHint={
-                            <Box display="flex" alignItems="center" gap="1">
-                                <KeyReturn />
-                                <Box>enter</Box>
-                            </Box>
-                        }
-                        pressErrorTitle="Couldn’t open"
-                        onPress={event =>
-                            openActivePeek({
-                                shouldOpenLinkInSeparateTab: isOpenLinkInSeparateTabPointerEvent(
-                                    event,
-                                    getClientInfoWithoutListening(),
-                                ),
-                            })
-                        }
-                    >
-                        Open
-                    </Button>
-                </Box>
+            <SearchModalPeekContentBottomBar
+                isBackDisabled={!(historyPosition.index > 0)}
+                onBackPress={() => peek.history.go(-1)}
+                isForwardsDisabled={!(historyPosition.index < historyPosition.entriesLength - 1)}
+                onForwardsPress={() => peek.history.go(1)}
+                isOpenDisabled={false}
+                onOpenPress={event =>
+                    openActivePeek({
+                        shouldOpenLinkInSeparateTab: isOpenLinkInSeparateTabPointerEvent(
+                            event,
+                            getClientInfoWithoutListening(),
+                        ),
+                    })
+                }
+            />
+        </Box>
+    );
+}
+
+// NOTE(calebmer): Design-wise I'd love to not have this bottom bar at all. But
+// it provides important system functionality for operating the preview. These
+// are all non-essential tertiary actions. Which is why they're on the bottom
+// Most of the time I hope people are hitting enter on their keyboard to expand
+// or double clicking search items.
+function SearchModalPeekContentBottomBar({
+    isBackDisabled,
+    onBackPress,
+    isForwardsDisabled,
+    onForwardsPress,
+    isOpenDisabled,
+    onOpenPress,
+}: {
+    isBackDisabled: boolean;
+    onBackPress: () => void;
+    isForwardsDisabled: boolean;
+    onForwardsPress: () => void;
+    isOpenDisabled: boolean;
+    onOpenPress: (event: PressEvent) => MaybePromise<void>;
+}) {
+    return (
+        <Box
+            flexShrink="0"
+            width="full"
+            height="8"
+            borderTop="grey-10"
+            display="flex"
+            alignItems="center"
+        >
+            <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                <IconButton
+                    size="xs"
+                    description="Back"
+                    tooltipPlacement="top"
+                    isDisabled={isBackDisabled}
+                    onPress={onBackPress}
+                >
+                    <ArrowLeft />
+                </IconButton>
+                <IconButton
+                    size="xs"
+                    description="Forwards"
+                    tooltipPlacement="top"
+                    isDisabled={isForwardsDisabled}
+                    onPress={onForwardsPress}
+                >
+                    <ArrowRight />
+                </IconButton>
+            </Box>
+            <Box flexGrow="1" />
+            <Box paddingRight="1">
+                <Button
+                    height="5"
+                    paddingX="2"
+                    keyboardShortcutHint={
+                        <Box display="flex" alignItems="center" gap="1">
+                            <KeyReturn />
+                            <Box>enter</Box>
+                        </Box>
+                    }
+                    isDisabled={isOpenDisabled}
+                    pressErrorTitle="Couldn’t open"
+                    onPress={onOpenPress}
+                >
+                    Open
+                </Button>
             </Box>
         </Box>
     );
