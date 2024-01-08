@@ -130,6 +130,9 @@ function getDefaultsFromConfig<Config extends UnknownDevConsoleSettingsObjectCon
 /**
  * Expose an object on the developer console. Properties can be read and written
  * and are kept automatically in sync with the react component.
+ *
+ * @deprecated Currently only used in one place. Could we replace with a
+ * one-off `useDevConsoleTool()`?
  */
 export function useDevConsoleSettingsObject<Config extends UnknownDevConsoleSettingsObjectConfig>(
     groupKey: string,

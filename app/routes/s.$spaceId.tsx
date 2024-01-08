@@ -11,12 +11,13 @@ import {ContextMenuManager} from "~/client/design/context_menu.js";
 import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 import {
     attachDevConsoleForAccountInProduction,
-    useDevConsoleSettingsObject,
+    useDevConsoleTool,
 } from "~/client/dev/dev_console.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
+import {useLocalStorage} from "~/client/helpers/use_local_storage.js";
 import {PeekStackContextProvider} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
@@ -34,10 +35,9 @@ import {AccountModel} from "~/shared/accounts/account_model.js";
 import {createDynamoGeneralRealtimeItemSchema} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {
     SearchOptions,
     SearchOptionsSchema,
@@ -94,6 +94,16 @@ export async function loader({context: loaderContext, params}: LoaderArgs) {
     );
 }
 
+const SearchDebugOptionsSchema = Schema.object({
+    isDebugModeEnabled: Schema.boolean,
+    options: SearchOptionsSchema,
+});
+
+const defaultSearchDebugOptionsSchema: SchemaType<typeof SearchDebugOptionsSchema> = {
+    isDebugModeEnabled: false,
+    options: standardSearchOptions,
+};
+
 /**
  * Routes that render under `/s/$spaceId` should generally render
  * `<SpaceRouteScrollView>` as their parent since it contains best practices for
@@ -137,10 +147,23 @@ export default function SpaceLayoutRoute() {
         [location.key],
     );
 
-    // NOCOMMIT: This dev console interface is kinda janky
-    const debugOptions: SearchOptions & {
-        readonly isEnabled: boolean;
-    } = useDevConsoleSettingsObject("searchDebugOptions", searchOptionsDevConsoleSettingsConfig);
+    const [debugOptions, setDebugOptions] = useLocalStorage(
+        "cyberworlds/searchDebugOptions",
+        SearchDebugOptionsSchema,
+        defaultSearchDebugOptionsSchema,
+    );
+
+    useDevConsoleTool("search", () => ({
+        toggleDebugMode: () =>
+            setDebugOptions({
+                ...debugOptions,
+                isDebugModeEnabled: !debugOptions.isDebugModeEnabled,
+            }),
+
+        getDebugOptions: () => debugOptions.options,
+        setDebugOptions: (options: SearchOptions) =>
+            setDebugOptions({isDebugModeEnabled: debugOptions.isDebugModeEnabled, options}),
+    }));
 
     // On initial render, if there's a `search` query parameter then open our
     // search modal.
@@ -262,7 +285,11 @@ export default function SpaceLayoutRoute() {
                                 <SearchModal
                                     initialQueryText={searchState.initialQueryText}
                                     onClose={() => setSearchState(null)}
-                                    debugOptions={debugOptions.isEnabled ? debugOptions : null}
+                                    debugOptions={
+                                        debugOptions.isDebugModeEnabled
+                                            ? debugOptions.options
+                                            : null
+                                    }
                                 />
                             </SearchModalErrorBoundary>
                         )}
@@ -279,32 +306,6 @@ export default function SpaceLayoutRoute() {
 // Making sure there's no remount on error requires careful patching to Remix
 // and React Router.
 export const ErrorBoundary = SpaceLayoutRoute;
-
-const searchOptionsDevConsoleSettingsConfig = {
-    isEnabled: {
-        defaultValue: false,
-        schema: Schema.boolean,
-    },
-    ...Object.fromEntries(
-        mapIterable(SearchOptionsSchema.propertySchemaByKey, ([key, propertySchema]) => [
-            key,
-            {
-                defaultValue: (standardSearchOptions as any)[key],
-                schema: propertySchema.valueSchema,
-            },
-        ]),
-    ),
-} as {
-    isEnabled: {
-        defaultValue: boolean;
-        schema: Schema<boolean>;
-    };
-} & {
-    [Key in keyof SearchOptions]: {
-        defaultValue: SearchOptions[Key];
-        schema: Schema<SearchOptions[Key]>;
-    };
-};
 
 /**
  * Protect against infinite error loops with `<SearchModal>`. If

@@ -1,4 +1,5 @@
-import {Schema, SchemaType} from "~/shared/schema/schema.js";
+import {mapIterable} from "~/shared/helpers/iterable/map_iterable.js";
+import {ObjectSchema, Schema, SchemaType} from "~/shared/schema/schema.js";
 
 /**
  * Options that configure details of how a search is executed. If you have
@@ -8,9 +9,9 @@ import {Schema, SchemaType} from "~/shared/schema/schema.js";
  * Setting the right search options is more art than science. Small changes may
  * have a major impact on search results.
  */
-export type SearchOptions = SchemaType<typeof SearchOptionsSchema>;
+export type SearchOptions = SchemaType<typeof SearchOptionsActualSchema>;
 
-export const SearchOptionsSchema = Schema.object({
+const SearchOptionsActualSchema = Schema.object({
     /**
      * How much should we boost matches on a search entity's title vs matches on
      * a search entity's body? We multiply the search's title match score with this
@@ -285,3 +286,29 @@ export const standardSearchOptions: SearchOptions = {
         },
     },
 };
+
+// Add all our standard search options as `default()`s so when loading search
+// options from local storage we automatically fill in new options with
+// standard values.
+export const SearchOptionsSchema = addDeepDefaultsToSchema(
+    SearchOptionsActualSchema,
+    standardSearchOptions,
+);
+
+function addDeepDefaultsToSchema<Value extends {[key: string]: unknown}>(
+    objectSchema: ObjectSchema<Value>,
+    object: Value,
+): ObjectSchema<Value> {
+    return Schema.object(
+        Object.fromEntries(
+            mapIterable(objectSchema.propertySchemaByKey, ([key, propertySchema]) => {
+                const propertyValueSchema =
+                    propertySchema.valueSchema instanceof ObjectSchema
+                        ? addDeepDefaultsToSchema(propertySchema.valueSchema, object[key] as any)
+                        : propertySchema.valueSchema;
+
+                return [key, propertyValueSchema.default(object[key])];
+            }),
+        ),
+    ) as ObjectSchema<any>;
+}
