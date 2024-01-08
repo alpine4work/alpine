@@ -1,9 +1,9 @@
-import {Link} from "@remix-run/react";
 import {useHover} from "react-aria";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {Box} from "~/client/design/box.js";
 import {PrettyAbsoluteDate} from "~/client/design/pretty_absolute_date.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {Spacing} from "~/shared/design/spacing.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
@@ -17,6 +17,7 @@ export function PostContentViewHeader({
     post: PostModel;
     shouldShowChannel: boolean;
 }) {
+    const rootNavigate = useRootNavigate();
     const {isHovered: isChannelHovered, hoverProps: channelHoverProps} = useHover({});
 
     return (
@@ -31,7 +32,7 @@ export function PostContentViewHeader({
                         <>
                             {" "}
                             in{" "}
-                            <Link
+                            <a
                                 {...channelHoverProps}
                                 className={sprinkles({
                                     color: "grey-text",
@@ -41,10 +42,19 @@ export function PostContentViewHeader({
                                     cursor: "pointer",
                                 })}
                                 style={{textDecoration: isChannelHovered ? "underline" : undefined}}
-                                to={`/s/${post.spaceId}/channels/${post.channel.id}`}
+                                href={`/s/${post.spaceId}/channels/${post.channel.id}`}
+                                onClick={event => {
+                                    // Custom link navigation handling...
+                                    event.preventDefault();
+
+                                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                                    void rootNavigate(
+                                        `/s/${post.spaceId}/channels/${post.channel.id}`,
+                                    );
+                                }}
                             >
                                 {post.channel.name}
-                            </Link>
+                            </a>
                         </>
                     )}
                 </Box>

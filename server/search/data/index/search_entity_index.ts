@@ -552,10 +552,18 @@ export async function processIndexSearchEntityJob(
             const newLastUpdatedTime = new Date(
                 Math.max(
                     ...[
-                        jobStartTime.getTime(),
                         entity.createdTime.getTime(),
                         ...(oldDocForKeywordIndex
                             ? [oldDocForKeywordIndex.lastUpdatedTime.getTime()]
+                            : []),
+                        // We don't update `lastUpdatedTime` to the latest time if there are no updated
+                        // traits. Which happens when creating entities, re-indexing an entity after a
+                        // dependency changed, and indexes triggered by a migration.
+                        //
+                        // If `updatedTraits` is `None` that means the underlying entity didn't
+                        // actually update and we're indexing for some other reason.
+                        ...(job.update.updatedTraits.type !== "None"
+                            ? [jobStartTime.getTime()]
                             : []),
                     ],
                 ),

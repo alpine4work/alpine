@@ -150,6 +150,7 @@ function PostListView(
         onLoadMorePosts,
         aside,
         withMobileLayout: _withMobileLayout = false,
+        shouldAlwaysHaveMargin = false,
     }: {
         /**
          * If this post list is rendering a channel, you may provide this prop and we
@@ -218,16 +219,17 @@ function PostListView(
          * not render on mobile.
          */
         withMobileLayout?: boolean;
+
+        /**
+         * Force the list view to have margins around posts. Defaults to false.
+         *
+         * The view will still have margins if we're NOT in mobile layout or there's
+         * an `aside`.
+         */
+        shouldAlwaysHaveMargin?: boolean;
     },
     ref: Ref<PostListViewRef>,
 ) {
-    if (_withMobileLayout) {
-        assert(
-            !aside,
-            "Can't set both `withMobileLayout` and `aside` props since `aside` can't be rendered in a mobile layout",
-        );
-    }
-
     const isMobile = useIsMobile();
     const withMobileLayout = isMobile || _withMobileLayout;
 
@@ -246,7 +248,7 @@ function PostListView(
     });
 
     const hasAside = !withMobileLayout && !!aside;
-    const hasMargin = !withMobileLayout || hasAside;
+    const hasMargin = shouldAlwaysHaveMargin || !withMobileLayout || hasAside;
 
     const paddingX: Spacing = isMobile ? "3" : "5";
 
@@ -279,6 +281,7 @@ function PostListView(
     // comments to determine if we're in a single post context.
     const isSingleMobileLayoutPostWithPinnedCommentInput =
         withMobileLayout &&
+        !hasMargin &&
         posts.getPostCount() === 1 &&
         posts.getLastPostContentItemIfExists()?.postCommentsState === "AlwaysOpen";
 
@@ -665,6 +668,7 @@ function PostListView(
                                             setPosts(posts => posts.insertPostAtStart(post))
                                         }
                                         parentHasMargin={hasMargin}
+                                        withMobileLayout={withMobileLayout}
                                     />
                                 </div>
                                 {hasAside && (
@@ -1458,6 +1462,7 @@ function PostListView(
         [
             posts,
             hasMargin,
+            withMobileLayout,
             hasAside,
             paddingX,
             channelHeader?.channel.id,

@@ -42,7 +42,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
-import {InternalError, UnimplementedError} from "~/shared/error/error.js";
+import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
@@ -636,8 +636,7 @@ function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityI
             return `/s/${spaceId}/documents/${entityId.documentId}?comments=${entityId.commentThreadId}&comment=${entityId.commentIndex}`;
         }
         case "Channel": {
-            // NOCOMMIT
-            throw new UnimplementedError("TODO");
+            return `/s/${spaceId}/channels/${entityId.channelId}`;
         }
         case "Post": {
             return `/s/${spaceId}/posts/${entityId.postId}`;

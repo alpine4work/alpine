@@ -1,5 +1,5 @@
 import escapeHtml from "escape-html";
-import {ChatCircle, EnvelopeSimple, File, IconContext, ListChecks, User} from "phosphor-react";
+import {ChatCircle, EnvelopeSimpleOpen, File, IconContext, ListChecks, User} from "phosphor-react";
 import {Fragment, ReactNode, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -282,21 +282,21 @@ function getSearchEntityTypeDisplay(type: SearchEntityIdObject["type"]): {
         case "Channel": {
             return {
                 name: "Channel",
-                icon: <EnvelopeSimple />,
+                icon: <EnvelopeSimpleOpen />,
                 isAccountMediaAuthor: false,
             };
         }
         case "Post": {
             return {
                 name: "Post",
-                icon: <EnvelopeSimple />,
+                icon: <EnvelopeSimpleOpen />,
                 isAccountMediaAuthor: false,
             };
         }
         case "PostComment": {
             return {
                 name: "Post comment",
-                icon: <EnvelopeSimple />,
+                icon: <EnvelopeSimpleOpen />,
                 isAccountMediaAuthor: true,
             };
         }

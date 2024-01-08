@@ -85,6 +85,10 @@ export default function ChannelPostsRoute({withMobileLayout}: {withMobileLayout?
     return (
         <PostListView
             withMobileLayout={withMobileLayout}
+            // If we're in a peek, we should have margins even when we have a mobile
+            // layout. Having no X margin but having Y margin looks a little weird in a
+            // peek rendered on top of other content.
+            shouldAlwaysHaveMargin={withMobileLayout}
             initialPostsResult={{type: "Many", ...postsResult}}
             onLoadMorePosts={({limit, afterCursor}) => {
                 return getInboxChannelPostsEntryPosts(context, {

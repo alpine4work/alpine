@@ -13,7 +13,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {useShowToast} from "~/client/design/toast.js";
 import {usePeekStackContext} from "~/client/peek/peek_stack.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {UnimplementedError} from "~/shared/error/error.js";
@@ -24,7 +24,7 @@ import {spinAnimationClassName} from "~/shared/styles/styles.js";
 export function SpaceLayoutTopBarCreateButton() {
     const {space} = useSpaceContext();
     const showToast = useShowToast();
-    const navigate = useNavigate();
+    const rootNavigate = useRootNavigate();
     const peekStackContext = usePeekStackContext();
 
     return (
@@ -52,7 +52,7 @@ export function SpaceLayoutTopBarCreateButton() {
                     pressErrorTitle: "Can not find a channel to post in",
                     onPress: async () => {
                         if (space.alphaAccessDefaultChannelId) {
-                            await navigate(
+                            await rootNavigate(
                                 `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
                             );
                         } else {

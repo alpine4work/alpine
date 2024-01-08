@@ -3,7 +3,6 @@ import {Box} from "~/client/design/box.js";
 import {PostEditorInline, postEditorInlineMinHeight} from "~/client/forum/post_editor_inline.js";
 import {PostListChannelHeader} from "~/client/forum/post_list.js";
 import {postListViewMarginX, postListViewMarginY} from "~/client/forum/post_list_view.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {PostModel} from "~/shared/forum/post_model.js";
 import {sprinkles} from "~/shared/styles/styles.js";
@@ -14,16 +13,16 @@ export function ChannelViewHeader({
     channelHeader,
     onCreatePost,
     parentHasMargin,
+    withMobileLayout,
 }: {
     channelHeader: PostListChannelHeader;
     onCreatePost: (post: PostModel) => void;
     parentHasMargin: boolean;
+    withMobileLayout: boolean;
 }) {
-    const isMobile = useIsMobile();
-
     return (
         <>
-            {isMobile && !isContentEmpty(channelHeader.channel.description.doc) && (
+            {withMobileLayout && !isContentEmpty(channelHeader.channel.description.doc) && (
                 <Box
                     paddingBottom={postListViewMarginY}
                     paddingX={!parentHasMargin ? postListViewMarginX : undefined}

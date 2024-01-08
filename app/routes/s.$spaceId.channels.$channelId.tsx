@@ -50,7 +50,7 @@ export const meta = createMetaFunction(LoaderSchema, ({data: {channel}}) => [
     {title: channel.name},
 ]);
 
-export default function ChannelRoute() {
+export default function ChannelRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const {channel, channelPostsResult} = useLoaderDataWithSchema(LoaderSchema);
 
     useSearchEntityAffinityViewInteraction(`Channel:${channel.id}`);
@@ -70,6 +70,7 @@ export default function ChannelRoute() {
             <ChannelView
                 // Remount when navigating to a different channel.
                 key={channel.id}
+                withMobileLayout={withMobileLayout}
                 initialChannel={channel}
                 initialChannelPostsResult={channelPostsResult}
             />

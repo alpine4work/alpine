@@ -10,9 +10,11 @@ import {PostModel} from "~/shared/forum/post_model.js";
 import {getChannelPosts} from "~/shared/rpc/forum_rpc_definitions.js";
 
 export function ChannelView({
+    withMobileLayout,
     initialChannel,
     initialChannelPostsResult,
 }: {
+    withMobileLayout: boolean;
     initialChannel: ChannelModel;
     initialChannelPostsResult: {posts: ReadonlyArray<PostModel>; hasMorePosts: boolean};
 }) {
@@ -31,6 +33,11 @@ export function ChannelView({
             <ChannelViewTopBar channel={channel} onUpdateChannel={setChannel} />
             <Box flexGrow="1" overflow="hidden" position="relative" zIndex="0">
                 <PostListView
+                    withMobileLayout={withMobileLayout}
+                    // If we're in a peek, we should have margins even when we have a mobile
+                    // layout. Having no X margin but having Y margin looks a little weird in a
+                    // peek rendered on top of other content.
+                    shouldAlwaysHaveMargin={withMobileLayout}
                     channelHeader={useMemo(() => ({channel}), [channel])}
                     initialPostsResult={{type: "Many", ...initialChannelPostsResult}}
                     onLoadMorePosts={({limit, afterCursor}) => {
