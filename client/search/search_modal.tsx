@@ -65,8 +65,6 @@ import {
 // depending on `//client/search`.
 export {usePreloadSearchByAffinity as usePreloadAffinitiveSearchEntities} from "~/client/search/internal/use_search_state.js";
 
-// NOCOMMIT: No results view
-
 export function SearchModal({
     initialQueryText,
     onClose,
@@ -353,6 +351,20 @@ export function SearchModal({
                                         color={colorSchemeVars["grey-70"]}
                                         size={spacing["6"]}
                                     />
+                                </Box>
+                            ) : output.results.length === 0 ? (
+                                <Box
+                                    color="grey-50"
+                                    padding="4"
+                                    style={contentSchemaStyles.paragraphFontSize}
+                                >
+                                    Couldn’t find anything matching “
+                                    <span
+                                        className={sprinkles({color: "grey-70", fontStyle: "bold"})}
+                                    >
+                                        {queryText}
+                                    </span>
+                                    .” Try a different search?
                                 </Box>
                             ) : (
                                 <SearchModalResultList
