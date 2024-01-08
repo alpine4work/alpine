@@ -299,7 +299,7 @@ export function useTaskGridViewVirtualizedList({
     insetScrollbarItemIndex: number | undefined;
 
     /**
-     * Modals opened during operation of the grid view (e.g. delete confirmation
+     * Modals opened during operation of the grid view (e.g. remainingWidth confirmation
      * modal). Should be rendered unconditionally alongside the grid view.
      */
     modals: ReactNode;

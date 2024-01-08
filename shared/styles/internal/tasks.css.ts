@@ -155,3 +155,17 @@ export const rowNumberClassName = style({
         },
     },
 });
+
+export const taskRowTitleInputMultilineAfterWidth = "32";
+
+export const taskRowTitleInputMultilineAfterClassName = style({
+    selectors: {
+        "&::after": {
+            content: '""',
+            display: "inline-block",
+            userSelect: "none",
+            pointerEvents: "none",
+            width: spacing[taskRowTitleInputMultilineAfterWidth],
+        },
+    },
+});

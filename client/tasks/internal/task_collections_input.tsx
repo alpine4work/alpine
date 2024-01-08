@@ -331,6 +331,7 @@ function TaskCollectionsInput(
                             collectionId,
                             collectionAction: {
                                 type: "Create",
+                                creatorId: currentAccount.id,
                                 name: inputState.value,
                                 accessPolicy: {
                                     accountGrantById: new Map([
@@ -661,6 +662,7 @@ function TaskCollectionsInput(
                                     collectionId,
                                     collectionAction: {
                                         type: "Create",
+                                        creatorId: currentAccount.id,
                                         name: inputValue,
                                         accessPolicy: {
                                             accountGrantById: new Map([

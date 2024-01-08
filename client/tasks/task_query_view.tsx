@@ -349,8 +349,6 @@ export function TaskQueryView({
                 node: (
                     <>
                         {readOnlyReason?.message && (
-                            // TODO(calebmer): This should really be a sticky header. We should probably
-                            // have a sticky header for the task title too.
                             <Box
                                 className={invertSelectionColorsClassName}
                                 height="8"

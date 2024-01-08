@@ -55,6 +55,7 @@ import {TaskQuerySort} from "~/shared/tasks/task_query_sort.js";
 export {newTaskCollectionNamePlaceholder} from "~/client/tasks/internal/task_collection_view_header.js";
 
 export function TaskCollectionView({
+    withMobileLayout,
     store,
     collectionId,
     collectionSubscription,
@@ -67,6 +68,7 @@ export function TaskCollectionView({
     onSortsChange,
     createCollection,
 }: {
+    withMobileLayout: boolean;
     store: TaskClientStore;
     collectionId: TaskCollectionId;
     // If `collectionSubscription` is null, that means we are creating a
@@ -264,16 +266,25 @@ export function TaskCollectionView({
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
     } = useTaskGridViewVirtualizedList({
-        capabilities: useMemo(
-            () => ({
-                isReadOnly,
-                hasParentTaskTitle: true,
-                hasMultilineTitle: false,
-                hasDenseFields: false,
-                hasColumns: true,
-            }),
-            [isReadOnly],
-        ),
+        capabilities: useMemo(() => {
+            if (!withMobileLayout) {
+                return {
+                    isReadOnly,
+                    hasParentTaskTitle: true,
+                    hasMultilineTitle: false,
+                    hasDenseFields: false,
+                    hasColumns: true,
+                };
+            } else {
+                return {
+                    isReadOnly,
+                    hasParentTaskTitle: true,
+                    hasMultilineTitle: true,
+                    hasDenseFields: true,
+                    hasColumns: false,
+                };
+            }
+        }, [isReadOnly, withMobileLayout]),
         viewRef,
         store,
         query: queryState.activeQuery.query,
@@ -347,15 +358,13 @@ export function TaskCollectionView({
                 },
             ];
         },
-        withColumnHeaderBorderTop: true,
+        withColumnHeaderBorderTop: !withMobileLayout,
         columnHeaderControls: useMemo(() => {
             return {
-                minHeight: "3rem",
+                minHeight: withMobileLayout ? "2.75rem" : "3rem",
                 node: (
                     <>
                         {readOnlyReason?.message && (
-                            // TODO(calebmer): This should really be a sticky header. We should probably
-                            // have a sticky header for the task title too.
                             <Box
                                 className={invertSelectionColorsClassName}
                                 height="8"
@@ -375,7 +384,13 @@ export function TaskCollectionView({
                             </Box>
                         )}
                         <Box display="flex" paddingX={taskRowViewPaddingX}>
-                            <Box paddingTop="2" paddingBottom="3" maxWidth="1/2">
+                            <Box
+                                paddingTop="2"
+                                // Make sure `paddingBottom` is the same as `paddingTop` when in a mobile
+                                // layout when we don't have column headers.
+                                paddingBottom={withMobileLayout ? "2" : "3"}
+                                maxWidth="1/2"
+                            >
                                 <TaskCollectionViewHeader
                                     isReadOnly={isReadOnly}
                                     store={store}
@@ -389,24 +404,35 @@ export function TaskCollectionView({
                                 flexGrow="1"
                                 paddingLeft="5"
                                 paddingTop="2.5"
-                                style={{paddingBottom: addRemLengths(spacing["3"], spacing["0.5"])}}
+                                style={{
+                                    // Make sure `paddingBottom` is the same as `paddingTop` when in a mobile
+                                    // layout when we don't have column headers.
+                                    paddingBottom: withMobileLayout
+                                        ? spacing["2.5"]
+                                        : addRemLengths(spacing["3"], spacing["0.5"]),
+                                }}
                             >
-                                <Box borderLeft="grey-5" paddingLeft="5">
-                                    <TaskQueryViewCustomizationBar
-                                        store={store}
-                                        shouldCollapseWhenFiltersAreEmpty={true}
-                                        defaultOrderSentence={
-                                            filters.length > 0
-                                                ? "When filtered, tasks are ordered by created date."
-                                                : "You can order tasks manually by dragging them."
-                                        }
-                                        filters={filters}
-                                        filterReferences={filterReferences}
-                                        onFiltersChange={updateFilters}
-                                        sorts={sorts}
-                                        onSortsChange={setSorts}
-                                    />
-                                </Box>
+                                {!withMobileLayout && (
+                                    // TODO(calebmer): Create an interface for adding filters/sorts in a mobile
+                                    // layout. We can't use our pill design since we don't have the
+                                    // horizontal space.
+                                    <Box borderLeft="grey-5" paddingLeft="5">
+                                        <TaskQueryViewCustomizationBar
+                                            store={store}
+                                            shouldCollapseWhenFiltersAreEmpty={true}
+                                            defaultOrderSentence={
+                                                filters.length > 0
+                                                    ? "When filtered, tasks are ordered by created date."
+                                                    : "You can order tasks manually by dragging them."
+                                            }
+                                            filters={filters}
+                                            filterReferences={filterReferences}
+                                            onFiltersChange={updateFilters}
+                                            sorts={sorts}
+                                            onSortsChange={setSorts}
+                                        />
+                                    </Box>
+                                )}
                             </Box>
                         </Box>
                     </>
@@ -425,6 +451,7 @@ export function TaskCollectionView({
             sorts,
             store,
             updateFilters,
+            withMobileLayout,
         ]),
     });
 

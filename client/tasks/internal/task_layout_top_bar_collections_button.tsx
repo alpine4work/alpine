@@ -7,7 +7,7 @@ import {Button} from "~/client/design/button.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {OverlayTriggerButton} from "~/client/design/overlay_trigger_button.js";
 import {useShowToast} from "~/client/design/toast.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {
     TaskCollectionComboBoxItem,
@@ -78,7 +78,7 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
     store: TaskClientStore;
     onCloseWithoutAnimation: () => void;
 }) {
-    const navigate = useNavigate();
+    const rootNavigate = useRootNavigate();
     const showToast = useShowToast();
     const {space} = useSpaceContext();
 
@@ -110,7 +110,8 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
 
                 setPendingKey(`Collection:${collectionId}`);
 
-                navigate(`/s/${space.id}/tasks/collections/${collectionId}`).then(
+                // Don't open in a peek.
+                rootNavigate(`/s/${space.id}/tasks/collections/${collectionId}`).then(
                     () => {
                         setPendingKey(pendingKey => {
                             if (pendingKey !== `Collection:${collectionId}`) return pendingKey;
@@ -137,7 +138,8 @@ function TaskLayoutTopBarCollectionsComboBoxOverlay({
 
                 setPendingKey("CreateCollection");
 
-                navigate(
+                // Don't open in a peek.
+                rootNavigate(
                     `/s/${space.id}/tasks/collections/${generateId()}?create${
                         inputValue.length > 0 ? `=${encodeURIComponent(inputValue)}` : ""
                     }`,

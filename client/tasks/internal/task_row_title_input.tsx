@@ -17,9 +17,11 @@ import {
 import {unstable_LowPriority, unstable_scheduleCallback} from "scheduler";
 import {ySyncPlugin, ySyncPluginKey, yUndoPlugin, yXmlFragmentToProsemirror} from "y-prosemirror";
 import * as Y from "yjs";
+import {useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {Store} from "~/client/helpers/store/store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
@@ -54,6 +56,9 @@ import {
 } from "~/shared/tasks/task_title.js";
 
 const taskRowTitleInputSingleLineHeight: Spacing = taskRowViewMinHeight;
+const taskRowTitleInputSingleLineHeightRem = parseRemLengthNumber(
+    spacing[taskRowTitleInputSingleLineHeight],
+);
 
 const taskRowTitleInputPaddingY: RemLength = `${
     (parseRemLengthNumber(spacing[taskRowViewMinHeight]) -
@@ -149,10 +154,26 @@ const placeholderClassName = sprinkles({
 });
 
 const marginRightContainerClassName = sprinkles({
+    position: "relative",
+    // Higher z-index than content so in a multiline title if we put margin right
+    // content on top of the title text it's clickable.
+    zIndex: "10",
     flexGrow: "1",
     alignSelf: "stretch",
     display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "flex-end",
+});
+
+const taskRowTitleInputMultilineAfterWidthRem = parseRemLengthNumber(
+    spacing[tasksStyles.taskRowTitleInputMultilineAfterWidth],
+);
+
+const marginRightContentContainerClassName = sprinkles({
+    flexGrow: "1",
+    display: "flex",
     alignItems: "center",
+    gap: "3",
     height: taskRowTitleInputSingleLineHeight,
 });
 
@@ -162,7 +183,12 @@ const parentTaskTitleClassName = sprinkles({
     display: "flex",
     alignItems: "center",
     gap: "0.5",
-    marginLeft: "1.5",
+    maxWidth: "full",
+    overflow: "hidden",
+});
+
+const parentTaskTitleIconClassName = sprinkles({
+    flexShrink: "0",
 });
 
 const parentTaskTitlePermissionDeniedClassName = sprinkles({
@@ -175,6 +201,11 @@ const parentTaskTitleTextClassName = sprinkles({
     fontStyle: "truncate",
     maxWidth: "48",
 });
+
+type TaskRowTitleInputMultilineState = {
+    readonly remainingWidth: number;
+    readonly withoutMarginLeft: boolean;
+};
 
 const TaskRowTitleInputForwardRef = forwardRef(TaskRowTitleInput);
 export {TaskRowTitleInputForwardRef as TaskRowTitleInput};
@@ -263,6 +294,7 @@ function TaskRowTitleInput(
     const sprinkles = null;
 
     const {isAppleDevice} = useClientInfo();
+    const remPx = useRemPx();
     const isInitialAppRender = useIsInitialAppRender();
 
     const viewRef = useRef<
@@ -427,10 +459,12 @@ function TaskRowTitleInput(
     const titleRef = useRef(title);
     const handleKeyDownRef = useRef(handleKeyDown);
     const isReadOnlyRef = useRef(capabilities.isReadOnly);
+    const remPxRef = useRef(remPx);
     useInsertionEffect(() => {
         titleRef.current = title;
         handleKeyDownRef.current = handleKeyDown;
         isReadOnlyRef.current = capabilities.isReadOnly;
+        remPxRef.current = remPx;
     });
 
     const onLayoutEffectCallbacksRef = useRef<Array<() => void>>([]);
@@ -448,6 +482,48 @@ function TaskRowTitleInput(
     // in when we can measure element widths.
     const [isFullyScrolledLeft, setIsFullyScrolledLeft] = useState(true);
     const [isFullyScrolledRight, setIsFullyScrolledRight] = useState(true);
+
+    const shouldShowChildTasksButton = childTaskCount > 0;
+
+    const shouldShowParentTaskTitle =
+        capabilities.hasParentTaskTitle && !!parentTaskEntryStore && indentation === 0;
+
+    // If the task has a multiline title and margin right content (show child task
+    // button or parent task title) then we want to render the margin right content
+    // in the negative space at the end of our wrapped text.
+    //
+    // For example, we want to put margin right content in the area occupied by
+    // dashes (`---`) in the text below.
+    //
+    // ```
+    // this is another subtask that's very long, i’m going to just keep typing
+    // in it until it wraps onto a new line ----------------------------------
+    // ```
+    //
+    // This is quite a challenge! There's no easy CSS rule to put content where we
+    // need. So when we have both margin content and a multiline title we do the
+    // following:
+    //
+    // 1. Add a CSS class with an `::after` pseudo element that adds some spacer
+    //    width to the end of the multiline title. Let's say 100px. This way if the
+    //    text is less than 100px from the container edge it will break and create
+    //    a new line.
+    //
+    // 2. In a layout effect, do some measurements. If the text occupies a single
+    //    line, set `multilineState` to null. Otherwise set `multilineState` so it
+    //    contains the width between the container right edge and the last
+    //    character in the title.
+    //
+    // So we need a two phase React render to position everything correctly.
+    const hasMultilineTitleAndShouldShowMarginRightContent =
+        capabilities.hasMultilineTitle && (shouldShowChildTasksButton || shouldShowParentTaskTitle);
+
+    const [multilineState, setMultilineState] = useState<TaskRowTitleInputMultilineState | null>(
+        null,
+    );
+    if (!hasMultilineTitleAndShouldShowMarginRightContent && multilineState !== null) {
+        setMultilineState(null);
+    }
 
     // Huh? `useInsertionEffect()`? That's a React hook? Ok, [it is][1] but the
     // docs say only CSS-in-JS libraries should use it.
@@ -542,7 +618,9 @@ function TaskRowTitleInput(
             // perform a browser layout which is expensive.
             viewElement.ariaLabel = taskRowTitleInputAriaLabel;
             viewElement.className = capabilities.hasMultilineTitle
-                ? taskRowTitleInputMultilineClassName
+                ? hasMultilineTitleAndShouldShowMarginRightContent
+                    ? `${taskRowTitleInputMultilineClassName} ${tasksStyles.taskRowTitleInputMultilineAfterClassName}`
+                    : taskRowTitleInputMultilineClassName
                 : taskRowTitleInputSingleLineClassName;
             Object.assign(
                 viewElement.style,
@@ -608,6 +686,13 @@ function TaskRowTitleInput(
                         updateEditorEmptyClass(newTitleState);
 
                         view.updateState(newTitleState);
+
+                        if (hasMultilineTitleAndShouldShowMarginRightContent) {
+                            // Make sure React state updates render in the same paint as transaction.
+                            runWithImmediatePriority(() => {
+                                updateMultilineState(newTitleState, false);
+                            });
+                        }
                     },
                 },
             );
@@ -620,10 +705,19 @@ function TaskRowTitleInput(
                     Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) + 1 >=
                     view.dom.scrollWidth;
 
-                // NOTE(calebmer): Unexpectedly, I've found avoiding setting state on the first
-                // render avoids unnecessary re-renders. I would have expected React to noop
-                // renders that don't change state. Maybe it behaves differently on the
-                // first render?
+                // NOTE(calebmer): For performance, it's important we call
+                // `setMultilineState()` instead of directly updating styles. This way React
+                // batches DOM writes. So we batch DOM reads in `useLayoutEffect()` then batch
+                // DOM writes with state updates. Otherwise we risk [layout thrashing][1].
+                //
+                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the
+                // first render if `state` is the same as the hook's initial state triggers a
+                // React re-render. I would have expected React to noop calls that don't change
+                // state. Maybe it behaves differently on the first render? Anyway, avoid
+                // calling `setState(state)` on initial update if we can.
+                //
+                // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
+
                 if (!isInitialUpdate || !isFullyScrolledLeft) {
                     setIsFullyScrolledLeft(isFullyScrolledLeft);
                 }
@@ -660,9 +754,68 @@ function TaskRowTitleInput(
                 }
             };
 
-            // This mutates the DOM but does not read from the DOM in the way that triggers
+            // This mutates the DOM but does not read from the DOM in a way that triggers
             // layout. It's ok to run during React's insertion phase.
             updateEditorEmptyClass(view.state);
+
+            const updateMultilineState = (state: EditorState, isInitialUpdate: boolean) => {
+                assert(hasMultilineTitleAndShouldShowMarginRightContent);
+
+                const rootRect = rootElement.getBoundingClientRect();
+                let newMultilineState: TaskRowTitleInputMultilineState | null = null;
+
+                if (
+                    state.doc.nodeSize > 2 &&
+                    // Make sure the input has more than one line...
+                    rootRect.height > taskRowTitleInputSingleLineHeightRem * remPxRef.current
+                ) {
+                    const endCoords = view.coordsAtPos(state.doc.nodeSize - 2, 1);
+                    const remainingWidth = rootRect.left + rootRect.width - endCoords.left;
+
+                    // If there's less width than our "after width" that means our after class will
+                    // have broken out a new line. So our margin right content should render at the
+                    // start of that new line.
+                    if (
+                        remainingWidth <
+                        taskRowTitleInputMultilineAfterWidthRem * remPxRef.current
+                    ) {
+                        newMultilineState = {
+                            remainingWidth: rootRect.width,
+                            withoutMarginLeft: true,
+                        };
+                    } else {
+                        newMultilineState = {
+                            remainingWidth,
+                            withoutMarginLeft: false,
+                        };
+                    }
+                }
+
+                // NOTE(calebmer): For performance, it's important we call
+                // `setMultilineState()` instead of directly updating styles. This way React
+                // batches DOM writes. So we batch DOM reads in `useLayoutEffect()` then batch
+                // DOM writes with state updates. Otherwise we risk [layout thrashing][1].
+                //
+                // NOTE(calebmer): Unexpectedly, I've found calling `setState(state)` on the
+                // first render if `state` is the same as the hook's initial state triggers a
+                // React re-render. I would have expected React to noop calls that don't change
+                // state. Maybe it behaves differently on the first render? Anyway, avoid
+                // calling `setState(state)` on initial update if we can.
+                //
+                // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
+                if (!isInitialUpdate || newMultilineState !== null) {
+                    setMultilineState(newMultilineState);
+                }
+            };
+
+            if (hasMultilineTitleAndShouldShowMarginRightContent) {
+                // This reads from the DOM (`getBoundingClientRect`). We can't run this during
+                // React's insertion phase. It has to run in a layout effect.
+                onLayoutEffectCallbacksRef.current.push(() => {
+                    if (view.isDestroyed) return;
+                    updateMultilineState(view.state, true);
+                });
+            }
 
             // Update `viewRef` and call any callbacks that were waiting for the view to
             // be ready.
@@ -709,7 +862,12 @@ function TaskRowTitleInput(
             // careful about what you put in here. Ideally we never destroy the
             // `EditorView` while this component is mounted.
         },
-        [capabilities.hasMultilineTitle, isInitialAppRender, titleYDoc],
+        [
+            capabilities.hasMultilineTitle,
+            isInitialAppRender,
+            titleYDoc,
+            hasMultilineTitleAndShouldShowMarginRightContent,
+        ],
     );
 
     const runWhenViewIsReady = useCallback((run: (view: EditorView) => void) => {
@@ -952,47 +1110,95 @@ function TaskRowTitleInput(
                         : undefined,
                     marginRightContainerClassName,
                 )}
-                style={{paddingRight}}
+                style={{
+                    paddingRight,
+                    // Margin right should collapse to 0 width when there's a long multiline title.
+                    width: capabilities.hasMultilineTitle ? 0 : undefined,
+                }}
                 {...useOutOfBoundsClickSelection({
                     isDisabled: capabilities.isReadOnly,
                     onSelect: focusEnd,
                     onSelectAll: focusAll,
                 })}
             >
-                {capabilities.hasParentTaskTitle && parentTaskEntryStore && indentation === 0 && (
-                    <TaskRowTitleParentTaskTitle
-                        query={query}
-                        parentTaskEntryStore={parentTaskEntryStore}
-                    />
-                )}
-                {childTaskCount > 0 && (
-                    <TaskRowTitleChildTasksButton
-                        ref={childTasksButtonRef}
-                        stateKey={stateKey}
-                        childTaskCount={childTaskCount}
-                        closedChildTaskCount={closedChildTaskCount}
-                        areChildTasksExpanded={areChildTasksExpanded}
-                        onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
-                        onKeyDown={event => {
-                            switch (event.key) {
-                                case "ArrowLeft": {
-                                    event.preventDefault();
-                                    event.stopPropagation();
+                <div
+                    className={classNames(
+                        tasksStyles.pointerEventsNoneNotInheritedClassName,
+                        marginRightContentContainerClassName,
+                    )}
+                    style={{
+                        paddingLeft:
+                            capabilities.hasMultilineTitle && multilineState?.withoutMarginLeft
+                                ? undefined
+                                : shouldShowParentTaskTitle
+                                ? spacing["1.5"]
+                                : shouldShowChildTasksButton
+                                ? spacing["3"]
+                                : undefined,
 
-                                    focusEnd();
-                                    break;
-                                }
-                                case "ArrowRight": {
-                                    event.preventDefault();
-                                    event.stopPropagation();
+                        // Two states to think about here:
+                        //
+                        // 1. `capabilities.hasMultilineTitle && !multilineState`: We share the same
+                        //    line as task title since the task title is a single line. However, the
+                        //    task title is taking more space than just it's text since it includes
+                        //    some "after width". Reposition ourselves to render over the
+                        //    after width.
+                        //
+                        // 2. `capabilities.hasMultilineTitle && multilineState`: We are in the
+                        //    remaining space of the last line of some multiline task title. The
+                        //    remaining space is saved in state. `flexShrink: "0"` so we don't shrink
+                        //    to the parent's width of 0.
+                        width: capabilities.hasMultilineTitle
+                            ? multilineState
+                                ? multilineState.remainingWidth
+                                : `calc(100% + ${
+                                      spacing[tasksStyles.taskRowTitleInputMultilineAfterWidth]
+                                  })`
+                            : undefined,
+                        marginLeft: capabilities.hasMultilineTitle
+                            ? multilineState
+                                ? undefined
+                                : `-${spacing[tasksStyles.taskRowTitleInputMultilineAfterWidth]}`
+                            : undefined,
+                        flexShrink:
+                            capabilities.hasMultilineTitle && multilineState ? "0" : undefined,
+                    }}
+                >
+                    {shouldShowParentTaskTitle && (
+                        <TaskRowTitleParentTaskTitle
+                            query={query}
+                            parentTaskEntryStore={parentTaskEntryStore}
+                        />
+                    )}
+                    {shouldShowChildTasksButton && (
+                        <TaskRowTitleChildTasksButton
+                            ref={childTasksButtonRef}
+                            stateKey={stateKey}
+                            childTaskCount={childTaskCount}
+                            closedChildTaskCount={closedChildTaskCount}
+                            areChildTasksExpanded={areChildTasksExpanded}
+                            onAreChildTasksExpandedToggle={onAreChildTasksExpandedToggle}
+                            onKeyDown={event => {
+                                switch (event.key) {
+                                    case "ArrowLeft": {
+                                        event.preventDefault();
+                                        event.stopPropagation();
 
-                                    focusNextCell();
-                                    break;
+                                        focusEnd();
+                                        break;
+                                    }
+                                    case "ArrowRight": {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+
+                                        focusNextCell();
+                                        break;
+                                    }
                                 }
-                            }
-                        }}
-                    />
-                )}
+                            }}
+                        />
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -1039,10 +1245,10 @@ function TaskRowTitleParentTaskTitle({
 
         return (
             <div className={parentTaskTitleClassName}>
-                <CaretLeft size={spacing["3"]} />
+                <CaretLeft size={spacing["3"]} className={parentTaskTitleIconClassName} />
                 {access.type !== "PermissionGranted" ? (
                     <div className={parentTaskTitlePermissionDeniedClassName}>
-                        <Lock size={spacing["3"]} />
+                        <Lock size={spacing["3"]} className={parentTaskTitleIconClassName} />
                         <div className={parentTaskTitleTextClassName}>Private</div>
                     </div>
                 ) : (

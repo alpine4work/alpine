@@ -29,15 +29,18 @@ export type TaskRowTitleChildTasksButtonRef = {
 const TaskRowTitleChildTasksButtonForwardRef = forwardRef(TaskRowTitleChildTasksButton);
 export {TaskRowTitleChildTasksButtonForwardRef as TaskRowTitleChildTasksButton};
 
+const buttonFontSize = "75";
+const buttonPaddingY = "0.5";
+
 const buttonClassName = sprinkles({
     display: "flex",
     alignItems: "center",
-    marginLeft: "3",
     paddingLeft: "1",
     paddingRight: "0.5",
-    paddingY: "0.5",
+    paddingY: buttonPaddingY,
     gap: "1",
     borderRadius: "base",
+    fontSize: buttonFontSize,
 });
 
 function TaskRowTitleChildTasksButton(

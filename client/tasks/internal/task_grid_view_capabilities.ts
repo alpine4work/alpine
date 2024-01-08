@@ -17,31 +17,19 @@
  */
 export type TaskGridViewCapabilities = {
     isReadOnly: boolean;
-} & ( // Can't set both `hasParentTaskTitle` and `hasMultilineTitle` to true.
+    hasParentTaskTitle: boolean;
+    hasMultilineTitle: boolean;
+} & ( // Can't set both `hasDenseFields` and `hasColumns` to true.
     | {
-          hasParentTaskTitle: false;
-          hasMultilineTitle: false;
+          hasDenseFields: false;
+          hasColumns: false;
       }
     | {
-          hasParentTaskTitle: true;
-          hasMultilineTitle: false;
+          hasDenseFields: true;
+          hasColumns: false;
       }
     | {
-          hasParentTaskTitle: false;
-          hasMultilineTitle: true;
+          hasDenseFields: false;
+          hasColumns: true;
       }
-) &
-    // Can't set both `hasDenseFields` and `hasColumns` to true.
-    (| {
-              hasDenseFields: false;
-              hasColumns: false;
-          }
-        | {
-              hasDenseFields: true;
-              hasColumns: false;
-          }
-        | {
-              hasDenseFields: false;
-              hasColumns: true;
-          }
-    );
+);

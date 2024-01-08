@@ -7,7 +7,7 @@ import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {createMetaFunction} from "~/client/remix/create_meta_function.js";
 import {getCurrentDate} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useLoaderDataWithSchema} from "~/client/remix/use_loader_data_with_schema.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useRootNavigate} from "~/client/remix/use_navigate.js";
 import {metaTitlePostfix, useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
@@ -126,6 +126,7 @@ export async function loader({request, params, context: _context}: LoaderArgs) {
                     collectionId,
                     collectionAction: {
                         type: "Create",
+                        creatorId: context.actor.getAccountId(),
                         name: createSearchParam,
                         accessPolicy: {
                             accountGrantById: new Map([
@@ -324,19 +325,24 @@ export const shouldRevalidate: ShouldRevalidateFunction = ({
     return defaultShouldRevalidate;
 };
 
-export default function TaskCollectionRoute() {
+export default function TaskCollectionRoute({
+    withMobileLayout = false,
+}: {
+    withMobileLayout?: boolean;
+}) {
     const {key} = useLoaderDataWithSchema(LoaderSchema);
 
     return (
         <TaskCollectionRouteInner
             // Completely re-mount the route when we get new data from the server.
             key={key}
+            withMobileLayout={withMobileLayout}
         />
     );
 }
 
-function TaskCollectionRouteInner() {
-    const navigate = useNavigate();
+function TaskCollectionRouteInner({withMobileLayout}: {withMobileLayout: boolean}) {
+    const rootNavigate = useRootNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const {collectionId} = useParams();
@@ -419,6 +425,7 @@ function TaskCollectionRouteInner() {
     return (
         <TaskGridViewDndContext store={store}>
             <TaskCollectionView
+                withMobileLayout={withMobileLayout}
                 store={store}
                 collectionId={collectionId}
                 collectionSubscription={collectionSubscription ?? null}
@@ -478,7 +485,8 @@ function TaskCollectionRouteInner() {
                     const newSearchParams = new URLSearchParams(searchParams);
                     newSearchParams.set("create", name);
 
-                    await navigate(
+                    // Don't open in a peek.
+                    await rootNavigate(
                         `/s/${
                             store.spaceId
                         }/tasks/collections/${collectionId}?${newSearchParams.toString()}`,

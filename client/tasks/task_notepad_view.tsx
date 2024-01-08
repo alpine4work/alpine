@@ -328,6 +328,8 @@ export function TaskNotepadView({
                     <Box
                         paddingTop="2.5"
                         style={{
+                            // Make sure `paddingBottom` is the same as `paddingTop` when in a mobile
+                            // layout when we don't have column headers.
                             paddingBottom: withMobileLayout
                                 ? spacing["2.5"]
                                 : addRemLengths(spacing["3"], spacing["0.5"]),

@@ -639,8 +639,7 @@ function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityI
             return `/s/${spaceId}/tasks/${entityId.taskId}`;
         }
         case "TaskCollection": {
-            // NOCOMMIT
-            throw new UnimplementedError("TODO");
+            return `/s/${spaceId}/tasks/collections/${entityId.collectionId}`;
         }
         default:
             throw exhaustive(entityId);
