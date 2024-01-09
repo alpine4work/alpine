@@ -38,3 +38,13 @@ js_binary(
     entry_point = "dev_main.js",
     env = {"NODE_ENV": "development"},
 )
+
+js_binary(
+    name = "migrate",
+    data = [
+        ":dev_lib",
+        "//server/migration",
+    ],
+    entry_point = "dev_migrate_main.js",
+    env = {"NODE_ENV": "development"},
+)

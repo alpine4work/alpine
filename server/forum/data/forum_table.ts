@@ -10,7 +10,7 @@ import {
     ServerSessionActionContextModules,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
-import {DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
+import {DynamoContext, DynamoContextModules} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
@@ -272,6 +272,66 @@ const ChannelPostsIndex = ForumTable.addIndex({
 type ChannelAttributesItem = DynamoTableItemType<typeof ForumTable, "Channel", "Attributes">;
 type PostAttributesItem = DynamoTableItemType<typeof ForumTable, "Post", "Attributes">;
 type PostCommentItem = DynamoTableItemType<typeof ForumTable, "Post", "Comments">;
+
+/**
+ * Scan every document and document comment in our database. Use when
+ * migrating data.
+ */
+export async function* expensiveScanEveryChannelAndPostAndPostCommentForMigration(
+    context: DynamoContext,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+): AsyncIterableIterator<
+    | {type: "Channel"; spaceId: SpaceId; channelId: ChannelId}
+    | {type: "Post"; spaceId: SpaceId; postId: PostId}
+    | {
+          type: "PostComment";
+          getSpaceId: () => Promise<SpaceId>;
+          postId: PostId;
+          commentIndex: number;
+      }
+> {
+    assert(context.tracer.getRoot().serviceName === "MigrationService");
+
+    const spaceIdByPostId = new Map<PostId, Promise<SpaceId>>();
+
+    for await (const item of ForumTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+        filter: [
+            {partitionType: "Channel", sortRangeType: "Attributes"},
+            {partitionType: "Post", sortRangeType: "Attributes"},
+            {partitionType: "Post", sortRangeType: "Comments"},
+        ],
+    })) {
+        if (item.partitionType === "Channel") {
+            if (item.sortRangeType !== "Attributes") continue;
+            yield {type: "Channel", spaceId: item.spaceId, channelId: item.channelId};
+        } else if (item.partitionType === "Post") {
+            if (item.sortRangeType === "Attributes") {
+                yield {type: "Post", spaceId: item.spaceId, postId: item.postId};
+            } else if (item.sortRangeType === "Comments") {
+                yield {
+                    type: "PostComment",
+                    getSpaceId: () =>
+                        getOrSetDefaultMapValue(spaceIdByPostId, item.postId, async () => {
+                            const postItem = await ForumTable.getPartialItem(
+                                context,
+                                {
+                                    partitionType: "Post",
+                                    sortRangeType: "Attributes",
+                                    postId: item.postId,
+                                },
+                                {attributes: ["spaceId"]},
+                            );
+                            return postItem.spaceId;
+                        }),
+                    postId: item.postId,
+                    commentIndex: item.commentIndex,
+                };
+            }
+        }
+    }
+}
 
 export async function seedTestChannels(
     context: Context<DynamoContextModules & {jobs: JobsContextModule}>,

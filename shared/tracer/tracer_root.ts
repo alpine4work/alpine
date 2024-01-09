@@ -53,6 +53,7 @@ import {
 export type TracerServiceName =
     | "Adhoc"
     | "Test"
+    | "MigrationService"
     | "AppClient"
     | "AppService"
     | "EdgeService"
@@ -177,6 +178,10 @@ export class TracerRoot extends TracerBase {
 
     public startSpan(name: string) {
         return TracerSpan._start(this, new MonotonicClock(this._clock), name, null);
+    }
+
+    public startSpanAsLinked(name: string) {
+        return this.startSpan(name);
     }
 
     /**

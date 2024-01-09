@@ -7,6 +7,7 @@ import {
     ServerSessionActionContext,
     ServerSessionActionContextModules,
 } from "~/server/context/server_action_context.js";
+import {DynamoContext} from "~/server/dynamo/core/dynamo_context.js";
 import {DynamoKeyAttributeSchema} from "~/server/dynamo/core/dynamo_key_attribute_schema.js";
 import {DynamoReadConsistency} from "~/server/dynamo/core/dynamo_read_consistency.js";
 import {DynamoTableItemType, DynamoTableSchema} from "~/server/dynamo/core/dynamo_table_schema.js";
@@ -231,6 +232,61 @@ type ChatMessageItem = DynamoTableItemType<typeof ChatTable, "Chat", "Messages">
 export function getChatTableForTest() {
     assert(process.env.NODE_ENV === "test");
     return ChatTable;
+}
+
+/**
+ * Scan every document and document comment in our database. Use when
+ * migrating data.
+ */
+export async function* expensiveScanEveryChatAndChatMessageForMigration(
+    context: DynamoContext,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+): AsyncIterableIterator<
+    | {type: "Chat"; spaceId: SpaceId; chatId: ChatId}
+    | {
+          type: "ChatMessage";
+          getSpaceId: () => Promise<SpaceId>;
+          chatId: ChatId;
+          messageIndex: number;
+      }
+> {
+    assert(context.tracer.getRoot().serviceName === "MigrationService");
+
+    const spaceIdByChatId = new Map<ChatId, Promise<SpaceId>>();
+
+    for await (const item of ChatTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+        filter: [
+            {partitionType: "Chat", sortRangeType: "Attributes"},
+            {partitionType: "Chat", sortRangeType: "Messages"},
+        ],
+    })) {
+        if (item.partitionType === "Chat") continue;
+
+        if (item.sortRangeType === "Attributes") {
+            yield {type: "Chat", spaceId: item.spaceId, chatId: item.chatId};
+        } else if (item.sortRangeType === "Messages") {
+            yield {
+                type: "ChatMessage",
+                getSpaceId: () =>
+                    getOrSetDefaultMapValue(spaceIdByChatId, item.chatId, async () => {
+                        const chatItem = await ChatTable.getPartialItem(
+                            context,
+                            {
+                                partitionType: "Chat",
+                                sortRangeType: "Attributes",
+                                chatId: item.chatId,
+                            },
+                            {attributes: ["spaceId"]},
+                        );
+                        return chatItem.spaceId;
+                    }),
+                chatId: item.chatId,
+                messageIndex: item.messageIndex,
+            };
+        }
+    }
 }
 
 export const sendChatMessageToAccountsBeforeCreateChatTestCheckpoint =

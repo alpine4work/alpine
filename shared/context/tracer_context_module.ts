@@ -98,6 +98,25 @@ export class TracerContextModule extends ContextModuleBase implements ForkableCo
     }
 
     /**
+     * Same as `withSpan()` but we call `startSpanAsLinked()` instead of
+     * `startSpan()`. See the documentation of those methods for more information.
+     */
+    public withSpanAsLinked<Modules extends {}, Value>(
+        this: ContextModuleBase<Modules> & TracerContextModule,
+        name: string,
+        action: (
+            context: Context<Replace<Modules, {tracer: TracerContextModule}>>,
+            span: TracerSpan,
+        ) => Promise<Value>,
+    ): Promise<Value> {
+        return this._tracer.withSpanAsLinked(name, span => {
+            return this._context.with({tracer: new TracerContextModule(span)}, context =>
+                action(context, span),
+            );
+        });
+    }
+
+    /**
      * Returns a context where all spans created by the tracer will include the
      * data passed into this function. The propagated data will also be sent over
      * network boundaries.

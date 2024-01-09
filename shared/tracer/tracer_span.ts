@@ -172,6 +172,29 @@ export class TracerSpan extends TracerBase {
     }
 
     /**
+     * See documentation for this method on `TracerBase.startSpanAsLinked()`.
+     */
+    public startSpanAsLinked(name: string) {
+        const {span, finishSpan} = TracerSpan._start(
+            this._tracer,
+            // Inherit the parent span's clock (not the tracer clock) for consistent times.
+            this.clock,
+            name,
+            {
+                propagatedEventData: this._propagatedEventData,
+                propagatedEventFlatData: this._propagatedEventFlatData,
+            },
+        );
+
+        span.link({
+            traceId: this.traceId,
+            spanId: this.spanId,
+        });
+
+        return {span, finishSpan};
+    }
+
+    /**
      * Has the span finished?
      */
     public isFinished() {

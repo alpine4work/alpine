@@ -13,6 +13,7 @@ ts_project(
     visibility = [
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",
+        "//server/migration:__pkg__",
         "//server/notifications/data:__pkg__",
         "//server/rpc:__pkg__",
         "//server/search/data/index:__pkg__",

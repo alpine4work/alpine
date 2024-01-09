@@ -424,6 +424,11 @@ export type TracerEventData = {
             /** Information about the chat the peek the event is coming from is above. */
             readonly aboveChatId?: ChatId;
         };
+
+        /**
+         * Is this span a part of a migration? If so this is the migration name.
+         */
+        readonly migration?: string;
     };
 
     /**
@@ -787,6 +792,18 @@ export type TracerEventData = {
 
         /** How many tokens were we billed for this Cohere embedding API request? */
         readonly tokenCount?: number;
+    };
+
+    /**
+     * When running a migration with our migration service we record useful
+     * information in this namespace.
+     */
+    readonly migration?: {
+        /** If this is a migration that runs in parallel, what segment are we in? */
+        readonly segmentIndex?: number;
+
+        /** How many total segments are running as a part of this migration? */
+        readonly totalSegmentCount?: number;
     };
 };
 

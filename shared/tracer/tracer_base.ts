@@ -21,6 +21,16 @@ export abstract class TracerBase {
     public abstract startSpan(name: string): {span: TracerSpan; finishSpan: () => void};
 
     /**
+     * Same as `startSpan()` but instead of being a child span in the current
+     * trace, we create a new trace that links back to the old one. We recommend
+     * using `withSpanAsLinked()` wherever possible which automatically finishes
+     * spans and handles exceptions.
+     *
+     * See `withSpan()` on guidance for naming spans.
+     */
+    public abstract startSpanAsLinked(name: string): {span: TracerSpan; finishSpan: () => void};
+
+    /**
      * Runs some code with a span around it. Tracks the time the span takes to
      * execute and exceptions that happen while executing. You can add more data to
      * the span (including child spans) through the provided `span` argument.
@@ -59,6 +69,26 @@ export abstract class TracerBase {
         const {span, finishSpan} = this.startSpan(name);
         try {
             const value = action(span);
+            finishSpan();
+            return value;
+        } catch (error) {
+            span.addException(error);
+            finishSpan();
+            throw error;
+        }
+    }
+
+    /**
+     * Same as `withSpan()` but we call `startSpanAsLinked()` instead of
+     * `startSpan()`. See the documentation of those methods for more information.
+     */
+    public async withSpanAsLinked<Value>(
+        name: string,
+        action: (span: TracerSpan) => Promise<Value>,
+    ): Promise<Value> {
+        const {span, finishSpan} = this.startSpanAsLinked(name);
+        try {
+            const value = await action(span);
             finishSpan();
             return value;
         } catch (error) {

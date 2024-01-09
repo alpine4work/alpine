@@ -139,6 +139,26 @@ const SpacesTable = DynamoTableSchema.new({
 });
 
 /**
+ * Scan every account by space pair in our database. Use when migrating data.
+ */
+export async function* expensiveScanEverySpaceAccountForMigration(
+    context: DynamoContext,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+): AsyncIterableIterator<{spaceId: SpaceId; accountId: AccountId}> {
+    assert(context.tracer.getRoot().serviceName === "MigrationService");
+
+    for await (const item of SpacesTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+        filter: {partitionType: "Space", sortRangeType: "Account"},
+    })) {
+        if (item.partitionType !== "Space" || item.sortRangeType !== "Account") continue;
+
+        yield {spaceId: item.spaceId, accountId: item.accountId};
+    }
+}
+
+/**
  * Create a space in a test environment.
  */
 export async function createSpaceForTest(

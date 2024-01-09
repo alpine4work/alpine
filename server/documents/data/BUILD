@@ -15,6 +15,7 @@ ts_project(
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",
         "//server/documents/test_helpers:__pkg__",
+        "//server/migration:__pkg__",
         "//server/notifications/data:__pkg__",
         "//server/rpc:__pkg__",
         "//server/search/data/index:__pkg__",

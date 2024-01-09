@@ -37,6 +37,7 @@ export function runService<Options extends ParseArgsConfig["options"]>({
     serviceName,
     options,
     run,
+    withoutCluster = false,
 }: {
     serviceName: TracerServiceName;
     options: Options;
@@ -45,16 +46,17 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         tracer: TracerRoot;
         workerIndex: number;
     }) => Promise<void>;
+    withoutCluster?: boolean;
 }) {
     // Make our service easy to find in process managers. We include
     // "cyberworlds" and "node" so you can grep by those strings.
-    process.title = `${serviceName} ${
-        cluster.isPrimary ? "primary" : "worker"
-    } (cyberworlds, node)`;
+    process.title = `${serviceName}${
+        withoutCluster ? " " : cluster.isPrimary ? " primary " : " worker "
+    }(cyberworlds, node)`;
 
     // In production, run our service across all available CPUs so we get full
     // CPU utilization.
-    if (cluster.isPrimary) {
+    if (!withoutCluster && cluster.isPrimary) {
         const workerCount = process.env.NODE_ENV !== "production" ? 1 : os.cpus().length;
 
         for (let workerIndex = 0; workerIndex < workerCount; workerIndex++) {
@@ -107,7 +109,9 @@ export function runService<Options extends ParseArgsConfig["options"]>({
         return;
     }
 
-    const workerIndex = parseInt(assertExists(process.env.SERVICE_WORKER_INDEX), 10);
+    const workerIndex = !withoutCluster
+        ? parseInt(assertExists(process.env.SERVICE_WORKER_INDEX), 10)
+        : 0;
 
     const parsedOptions = parseArgs({
         strict: true,

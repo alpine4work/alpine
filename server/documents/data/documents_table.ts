@@ -583,6 +583,64 @@ type DocumentCommentItem = DynamoTableItemType<
 >;
 
 /**
+ * Scan every document and document comment in our database. Use when
+ * migrating data.
+ */
+export async function* expensiveScanEveryDocumentAndDocumentCommentForMigration(
+    context: DynamoContext,
+    {segmentIndex, totalSegmentCount}: {segmentIndex: number; totalSegmentCount: number},
+): AsyncIterableIterator<
+    | {type: "Document"; spaceId: SpaceId; documentId: DocumentId}
+    | {
+          type: "DocumentComment";
+          getSpaceId: () => Promise<SpaceId>;
+          documentId: DocumentId;
+          commentThreadId: DocumentCommentThreadId;
+          commentIndex: number;
+      }
+> {
+    assert(context.tracer.getRoot().serviceName === "MigrationService");
+
+    const spaceIdByDocumentId = new Map<DocumentId, Promise<SpaceId>>();
+
+    for await (const item of DocumentsTable.expensiveScan(context, {
+        segmentIndex,
+        totalSegmentCount,
+        filter: [
+            {partitionType: "Document", sortRangeType: "Attributes"},
+            {partitionType: "DocumentCommentThread", sortRangeType: "Comments"},
+        ],
+    })) {
+        if (item.partitionType === "Document") {
+            if (item.sortRangeType !== "Attributes") continue;
+            yield {type: "Document", spaceId: item.spaceId, documentId: item.documentId};
+        } else if (item.partitionType === "DocumentCommentThread") {
+            if (item.sortRangeType !== "Comments") continue;
+
+            yield {
+                type: "DocumentComment",
+                getSpaceId: () =>
+                    getOrSetDefaultMapValue(spaceIdByDocumentId, item.documentId, async () => {
+                        const documentItem = await DocumentsTable.getPartialItem(
+                            context,
+                            {
+                                partitionType: "Document",
+                                sortRangeType: "Attributes",
+                                documentId: item.documentId,
+                            },
+                            {attributes: ["spaceId"]},
+                        );
+                        return documentItem.spaceId;
+                    }),
+                documentId: item.documentId,
+                commentThreadId: item.commentThreadId,
+                commentIndex: item.commentIndex,
+            };
+        }
+    }
+}
+
+/**
  * The throttle interval for document indexing jobs in seconds. Indexing a
  * document requires reading the entire thing and saving it to OpenSearch which
  * can be expensive. Given how frequently users updating documents, we throttle

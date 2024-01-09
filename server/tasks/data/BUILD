@@ -43,6 +43,7 @@ ts_project(
         "//admin/opensearch/deploy:__pkg__",
         "//server/accounts/update_name:__pkg__",
         "//server/jobs/queue:__pkg__",
+        "//server/migration:__pkg__",
         "//server/remix:__pkg__",
         "//server/rpc:__pkg__",
         "//server/search/data/index:__pkg__",

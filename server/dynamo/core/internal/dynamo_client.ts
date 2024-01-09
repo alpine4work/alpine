@@ -709,6 +709,8 @@ export class DynamoClient {
             tableName,
             consistency = "Eventual",
             limit,
+            segment,
+            totalSegments,
             filterExpression,
             expressionAttributeValues,
             expressionAttributeNames,
@@ -716,6 +718,8 @@ export class DynamoClient {
             tableName: string;
             consistency?: DynamoReadConsistency;
             limit?: number;
+            segment?: number;
+            totalSegments?: number;
             filterExpression?: string;
             expressionAttributeValues?: ReadonlyMap<string, SchemaSerializedValue>;
             expressionAttributeNames?: ReadonlyMap<string, string>;
@@ -732,6 +736,8 @@ export class DynamoClient {
                 // then our new limit is 60 since we don't want to exceed our initial limit.
                 Limit: limit !== undefined ? limit - totalScannedCount : undefined,
                 ExclusiveStartKey: lastEvaluatedKey,
+                Segment: segment,
+                TotalSegments: totalSegments,
                 FilterExpression: filterExpression,
                 ExpressionAttributeValues:
                     expressionAttributeValues && expressionAttributeValues.size > 0
