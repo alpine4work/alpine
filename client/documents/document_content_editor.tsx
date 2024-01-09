@@ -764,57 +764,6 @@ function DocumentContentEditorStateful({
                                 : "100%",
                     }}
                 >
-                    <Box
-                        position="absolute"
-                        top="3"
-                        zIndex="10"
-                        style={{
-                            right: subtractRemLengths(
-                                addRemLengths(
-                                    spacing[documentPaddingX],
-                                    contentSchemaStyles.blockPaddingX,
-                                ),
-                                spacing["2"],
-                            ),
-                        }}
-                    >
-                        <MenuButton
-                            // TODO(calebmer): This more button has some design issues:
-                            //
-                            // 1. It's not sticky, it doesn't stay around when you scroll
-                            // 2. It's misaligned with the document comment sidebar
-                            //
-                            // However, it is aligned with the post more button and task more button which
-                            // looks great in surfaces like search.
-                            //
-                            // I presume there will eventually need to be more stuff we add to document
-                            // headers. Reconsider the design of this button at that time.
-                            //
-                            // Also worth noting that I'd like to add the same design touch as Notion where
-                            // as you're typing all chrome UI fades away so you can focus on the content.
-                            // When you wiggle your mouse the chrome UI returns.
-                            actions={[
-                                [
-                                    {
-                                        label: "Copy link",
-                                        pressErrorTitle: "Couldn’t copy document link",
-                                        onPress: async () => {
-                                            const url = new URL(
-                                                `/s/${spaceId}/documents/${documentId}`,
-                                                window.location.href,
-                                            );
-                                            await writeTextToClipboard(url.toString());
-                                        },
-                                    },
-                                ],
-                                ...contextMenuActions,
-                            ]}
-                        >
-                            <IconButton size="md" description="More" withoutTooltip={true}>
-                                <DotsThree />
-                            </IconButton>
-                        </MenuButton>
-                    </Box>
                     <OverlayScopeContextProvider>
                         <ContentEditor
                             ref={editorRef}
@@ -880,6 +829,60 @@ function DocumentContentEditorStateful({
                             ],
                         )}
                     </OverlayScopeContextProvider>
+                    <Box
+                        // IMPORTANT: It's important that this element is below `<ContentEditor>` so
+                        // that `<ContentEditor>` is first in the tab order! This matters when
+                        // auto-focusing a document peek when we open it up.
+                        position="absolute"
+                        top="3"
+                        zIndex="10"
+                        style={{
+                            right: subtractRemLengths(
+                                addRemLengths(
+                                    spacing[documentPaddingX],
+                                    contentSchemaStyles.blockPaddingX,
+                                ),
+                                spacing["2"],
+                            ),
+                        }}
+                    >
+                        <MenuButton
+                            // TODO(calebmer): This more button has some design issues:
+                            //
+                            // 1. It's not sticky, it doesn't stay around when you scroll
+                            // 2. It's misaligned with the document comment sidebar
+                            //
+                            // However, it is aligned with the post more button and task more button which
+                            // looks great in surfaces like search.
+                            //
+                            // I presume there will eventually need to be more stuff we add to document
+                            // headers. Reconsider the design of this button at that time.
+                            //
+                            // Also worth noting that I'd like to add the same design touch as Notion where
+                            // as you're typing all chrome UI fades away so you can focus on the content.
+                            // When you wiggle your mouse the chrome UI returns.
+                            actions={[
+                                [
+                                    {
+                                        label: "Copy link",
+                                        pressErrorTitle: "Couldn’t copy document link",
+                                        onPress: async () => {
+                                            const url = new URL(
+                                                `/s/${spaceId}/documents/${documentId}`,
+                                                window.location.href,
+                                            );
+                                            await writeTextToClipboard(url.toString());
+                                        },
+                                    },
+                                ],
+                                ...contextMenuActions,
+                            ]}
+                        >
+                            <IconButton size="md" description="More" withoutTooltip={true}>
+                                <DotsThree />
+                            </IconButton>
+                        </MenuButton>
+                    </Box>
                 </Box>
                 {sidebarState.isOpen && (
                     <Box

@@ -1,7 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestTask} from "~/server/tasks/test_helpers/test_task.js";
 import {TestTaskCollection} from "~/server/tasks/test_helpers/test_task_collection.js";
@@ -13,8 +12,7 @@ import {serializeTaskQueryFilters} from "~/shared/tasks/task_query_filter.js";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
-const context = createTestContext({shouldStartOpensearch: true});
-const services = createTestServices(context);
+const {context, services} = createTestServices();
 
 test("can update title", async ({page, context: browserContext}) => {
     const space = await TestSpace.create(context);

@@ -1,6 +1,7 @@
 import {dangerouslyGetAccountIfExistsWithoutCaching} from "~/server/accounts/accounts_table.js";
 import {DynamoSystemActorContextModule} from "~/server/accounts/dynamo_actor_context_module.js";
 import {
+    ServerActionContext,
     ServerSessionActionContext,
     ServerSystemActionContext,
 } from "~/server/context/server_action_context.js";
@@ -163,6 +164,24 @@ const TaskCollectionIndex = new OpensearchIndex<
  * many updates as possible when we reindex.
  */
 const taskIndexSearchEntityJobDelaySeconds = 60;
+
+/**
+ * Ensure our task indexes exist in our local environment. This function is
+ * idempotent. You may call it multiple times and it will produce the same
+ * response. Only attempts to create the index once per process.
+ *
+ * If we're in a test that's disabled OpenSearch this is a noop.
+ *
+ * Throws an error in production.
+ */
+export async function ensureLocalTaskIndexesIfEnabled(context: ServerActionContext) {
+    assert(process.env.NODE_ENV !== "production");
+
+    await runAllPromises([
+        context.opensearch.ensureLocalIndexIfEnabled(TaskIndex),
+        context.opensearch.ensureLocalIndexIfEnabled(TaskCollectionIndex),
+    ]);
+}
 
 /**
  * Deploy our task indexes to production.

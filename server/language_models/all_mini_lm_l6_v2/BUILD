@@ -45,6 +45,7 @@ js_library(
     visibility = [
         "//admin/adhoc:__pkg__",
         "//admin/dev:__pkg__",
+        "//app/integration_tests:__pkg__",
     ],
 )
 

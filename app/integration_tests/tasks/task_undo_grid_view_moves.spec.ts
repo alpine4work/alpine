@@ -1,7 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {expectTaskRowViewPriority} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {testClock} from "~/server/spaces/test_helpers/test_clock.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {TestSpaceSession} from "~/server/spaces/test_helpers/test_space_session.js";
@@ -22,8 +21,7 @@ import {createTaskTitleFromText} from "~/shared/tasks/task_title.js";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
-const context = createTestContext({shouldStartOpensearch: true});
-const services = createTestServices(context);
+const {context, services} = createTestServices();
 
 let space: TestSpace;
 let session1: TestSpaceSession;
@@ -31,6 +29,9 @@ let session2: TestSpaceSession;
 let collection: TestTaskCollection;
 
 test.beforeAll(async () => {
+    // Give this hook a long timeout...
+    test.setTimeout(1000 * 60 * 3);
+
     space = await TestSpace.create(context);
     session1 = await space.createSession();
     session2 = await space.createSession();

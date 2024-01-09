@@ -1,14 +1,12 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {expectTaskGridView} from "~/app/integration_tests/tasks/helpers/expect_task_grid_view.js";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 const modifier = process.platform === "darwin" ? "Meta" : "Control";
 
-const context = createTestContext({shouldStartOpensearch: true});
-const services = createTestServices(context);
+const {context, services} = createTestServices();
 
 test("can create tasks in notepad", async ({page, context: browserContext, viewport}) => {
     assert(viewport);

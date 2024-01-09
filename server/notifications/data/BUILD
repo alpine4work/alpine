@@ -6,6 +6,9 @@ ts_project(
         "//server/dynamo/test_helpers",
         "//server/notifications/data/test_helpers",
     ],
+    tests = {
+        "notifications_table_forum_test": {"size": "medium"},
+    },
     visibility = [
         "//admin/dynamo:__pkg__",
         "//app:__pkg__",

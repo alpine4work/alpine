@@ -682,7 +682,14 @@ export class OpensearchClient implements OpensearchClientInterface {
         Promise<void>
     >();
 
-    private async _ensureLocalIndex<
+    /**
+     * Creates the OpenSearch index if it doesn't exist. This function is
+     * idempotent. You may call it multiple times and it will produce the same
+     * response. Only attempts to create the index once per process.
+     *
+     * Throws an error in production. Use `deployIndex()` in production.
+     */
+    public async ensureLocalIndex<
         Routing extends string,
         DocId extends string,
         Doc,
@@ -1082,7 +1089,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         OpensearchIndexDocType<Index>
     > | null> {
         if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
+            await this.ensureLocalIndex(tracer, index);
         }
 
         const url = new URL(`/${index.name}/_doc/${encodeURIComponent(id)}`, this._url);
@@ -1165,7 +1172,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         };
     } | null> {
         if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
+            await this.ensureLocalIndex(tracer, index);
         }
 
         const url = new URL(`/${index.name}/_doc/${encodeURIComponent(id)}`, this._url);
@@ -1251,7 +1258,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         if (process.env.NODE_ENV !== "production") {
             await runAllPromises(
-                mapIterable(indexes, index => this._ensureLocalIndex(tracer, index)),
+                mapIterable(indexes, index => this.ensureLocalIndex(tracer, index)),
             );
         }
 
@@ -1387,7 +1394,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         {retryVersionConflictError}: OpensearchClientIndexDocIfVersionOptions = {},
     ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
+            await this.ensureLocalIndex(tracer, index);
         }
 
         const url = !doc.version
@@ -1470,7 +1477,7 @@ export class OpensearchClient implements OpensearchClientInterface {
 
         if (process.env.NODE_ENV !== "production") {
             await runAllPromises(
-                mapIterable(indexes, index => this._ensureLocalIndex(tracer, index)),
+                mapIterable(indexes, index => this.ensureLocalIndex(tracer, index)),
             );
         }
 
@@ -1610,7 +1617,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         },
     ): Promise<{hits: Array<OpensearchSearchHit>}> {
         if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
+            await this.ensureLocalIndex(tracer, index);
         }
 
         const url = new URL(`/${index.name}/_search`, this._url);
@@ -1960,7 +1967,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         index: Index,
     ): Promise<void> {
         if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
+            await this.ensureLocalIndex(tracer, index);
         }
 
         await fetchWithTracer(
@@ -2011,7 +2018,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         },
     ): Promise<{versionConflictCount: number}> {
         if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
+            await this.ensureLocalIndex(tracer, index);
         }
 
         const url = new URL(`/${index.name}/_update_by_query`, this._url);
@@ -2108,7 +2115,7 @@ export class OpensearchClient implements OpensearchClientInterface {
         }>
     > {
         if (process.env.NODE_ENV !== "production") {
-            await this._ensureLocalIndex(tracer, index);
+            await this.ensureLocalIndex(tracer, index);
         }
 
         return fetchWithTracer(

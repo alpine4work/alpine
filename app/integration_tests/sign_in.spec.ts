@@ -5,7 +5,6 @@ import {
     seedTestAlphaConfiguration,
 } from "~/server/alpha/alpha_access_table.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
@@ -13,8 +12,7 @@ import {seedTestSpaces} from "~/server/spaces/spaces_table.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
-const services = createTestServices(context);
+const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const adminSession = createTestSession(context, space, {hasInternalAccess: true});
 

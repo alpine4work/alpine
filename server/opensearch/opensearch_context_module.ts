@@ -1,5 +1,6 @@
 import {
     OpensearchBulkCommandBase,
+    OpensearchClient,
     OpensearchClientBulkOptions,
     OpensearchClientDocVersion,
     OpensearchClientDocWithId,
@@ -117,6 +118,27 @@ export class OpensearchContextModule
 
     public fork() {
         return new OpensearchContextModule(this._client);
+    }
+
+    /**
+     * Creates the OpenSearch index if it doesn't exist. This function is
+     * idempotent. You may call it multiple times and it will produce the same
+     * response. Only attempts to create the index once per process.
+     *
+     * If we're in a test that's disabled OpenSearch this is a noop.
+     *
+     * Throws an error in production.
+     */
+    public async ensureLocalIndexIfEnabled<
+        Routing extends string,
+        DocId extends string,
+        Doc,
+        FlattenedKeys extends string,
+        StoredFields extends {[key: string]: unknown},
+    >(index: OpensearchIndex<Routing, DocId, Doc, FlattenedKeys, StoredFields>) {
+        if (this._client instanceof OpensearchClient) {
+            await this._client.ensureLocalIndex(this._context.tracer.getTracer(), index);
+        }
     }
 
     /**

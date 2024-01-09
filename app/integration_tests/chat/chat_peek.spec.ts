@@ -1,13 +1,11 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createDocument} from "~/server/documents/data/documents_table.js";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {createSimpleDocumentContent} from "~/shared/documents/document_content_schema.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
-const services = createTestServices(context);
+const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session1 = createTestSession(context, space, {name: "Logan Roy"});
 createTestSession(context, space, {name: "Siobahn Roy"});
@@ -40,12 +38,17 @@ test("will remember the account being messaged in a chat peek", async ({
     await expect(page.getByText("Kendall Roy")).toBeHidden();
     await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
 
-    await page.getByRole("button", {name: "Create"}).click();
-    await page.getByRole("menuitem", {name: "Send a chat message"}).click();
+    // After selecting a chat member, we have to wait for a network request until
+    // Remix considers the peek to have a new URL and so can open the chat message
+    // peek again.
+    await expect(async () => {
+        await page.getByRole("button", {name: "Create"}).click();
+        await page.getByRole("menuitem", {name: "Send a chat message"}).click();
 
-    await expect(page.getByText("Siobahn Roy")).toBeHidden();
-    await expect(page.getByText("Kendall Roy")).toBeHidden();
-    await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
+        await expect(page.getByText("Siobahn Roy")).toBeHidden();
+        await expect(page.getByText("Kendall Roy")).toBeHidden();
+        await expect(page.getByText("Kendall and Siobahn")).toBeHidden();
+    }).toPass();
 
     await expect(page.getByRole("combobox", {name: "To"})).toBeVisible();
     await page.getByRole("combobox", {name: "To"}).click();

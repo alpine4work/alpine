@@ -13,6 +13,7 @@ ts_project(
         "//:node_modules/react",
         "//:node_modules/scheduler",
         "//client/context",
+        "//client/helpers",
         "//shared/context",
         "//shared/error",
         "//shared/helpers",

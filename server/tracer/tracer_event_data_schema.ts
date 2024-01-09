@@ -153,6 +153,7 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
             abovePostId: Schema.id(),
             aboveChatId: Schema.id(),
         },
+        migration: Schema.string,
     },
     dynamodb: {
         action: IdentifierStringSchema,
@@ -256,6 +257,10 @@ export const TracerEventDataSchema: TracerEventDataSchemaType<TracerEventFullDat
         model: Schema.string,
         inputType: Schema.string,
         tokenCount: Schema.integer,
+    },
+    migration: {
+        segmentIndex: Schema.integer,
+        totalSegmentCount: Schema.integer,
     },
 };
 

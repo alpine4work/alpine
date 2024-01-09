@@ -5,6 +5,8 @@ ts_playwright_tests(
     data = [
         "//app",
         "//server/edge",
+        "//server/jobs/queue",
+        "//server/language_models/all_mini_lm_l6_v2:all_mini_lm_l6_v2_data",
         "//server/tasks/realtime",
     ],
     skip_projects_by_src = {

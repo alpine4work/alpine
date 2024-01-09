@@ -21,4 +21,7 @@ js_binary(
     name = "queue",
     data = [":queue_lib"],
     entry_point = "job_queue_service.js",
+    visibility = [
+        "//app/integration_tests:__pkg__",
+    ],
 )

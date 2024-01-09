@@ -10,11 +10,14 @@ import {
     devAppServicePublicKeyPath,
     devEdgeServiceFamilyPrivateKeyPath,
     devEdgeServiceFamilyPublicKeyPath,
+    devJobQueueServicePrivateKeyPath,
+    devJobQueueServicePublicKeyPath,
     devTaskRealtimeServicePrivateKeyPath,
     devTaskRealtimeServicePublicKeyPath,
     ensureDevServiceKeys,
 } from "~/admin/helpers/dev_service_keys.js";
-import {TestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
+import {parseDotenv} from "~/admin/helpers/parse_dotenv.js";
+import {TestContext, createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {waitForProcessExit} from "~/server/helpers/node/wait_for_process_exit.js";
@@ -29,7 +32,14 @@ import {AccountId, SessionId} from "~/shared/id/types/id_types.js";
 // This file can only run in tests.
 assert(process.env.NODE_ENV === "test");
 
-export type TestServer = {
+const env = parseDotenv();
+
+// Assign AWS env variables to `process.env` so
+// `@aws-sdk/credential-provider-node` picks them up.
+process.env.AWS_ACCESS_KEY_ID = env.AWS_ACCESS_KEY_ID;
+process.env.AWS_SECRET_ACCESS_KEY = env.AWS_SECRET_ACCESS_KEY;
+
+export type TestServices = {
     /**
      * The base URL for our server.
      */
@@ -56,7 +66,32 @@ export type TestServer = {
 /**
  * Runs a test server for Playwright tests using the test context's DynamoDB. Also sets that server as the base URL for future tests.
  */
-export function createTestServices(context: TestContext): TestServer {
+export function createTestServices(): {context: TestContext; services: TestServices} {
+    // Important that this comes before `createTestContext()`! We want all our
+    // services to finish shutting down before we kill the database services we start
+    // in `createTestContext()`.
+    //
+    // For instance, the job queue needs to finish processing its jobs before we
+    // can kill OpenSearch.
+    test.afterAll(async () => {
+        appServiceSubprocess?.kill("SIGINT");
+        edgeServiceSubprocess?.kill("SIGINT");
+        taskRealtimeServiceSubprocess?.kill("SIGINT");
+        jobQueueServiceSubprocess?.kill("SIGINT");
+
+        await runAllPromises([
+            appServiceSubprocess && waitForProcessExit(appServiceSubprocess),
+            edgeServiceSubprocess && waitForProcessExit(edgeServiceSubprocess),
+            taskRealtimeServiceSubprocess && waitForProcessExit(taskRealtimeServiceSubprocess),
+            jobQueueServiceSubprocess && waitForProcessExit(jobQueueServiceSubprocess),
+        ]);
+    });
+
+    const context = createTestContext({
+        shouldStartOpensearch: true,
+        shouldSendJobsToSqs: true,
+    });
+
     const edgeServicePortPromise = getPort();
     let edgeServicePort: number | null = null;
     void edgeServicePortPromise.then(port => (edgeServicePort = port));
@@ -71,6 +106,7 @@ export function createTestServices(context: TestContext): TestServer {
     let appServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
     let edgeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
     let taskRealtimeServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
+    let jobQueueServiceSubprocess: ChildProcessByStdio<null, Readable, Readable> | undefined;
 
     const appServiceTokenAgentPrivateSidePromise = (async () => {
         return AppServiceTokenAgentPrivateSide.new({
@@ -103,9 +139,12 @@ export function createTestServices(context: TestContext): TestServer {
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--appServicePrivateKey=${devAppServicePrivateKeyPath}`,
+                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${devAppServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
+                `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
             ],
             {
                 env: process.env,
@@ -141,6 +180,7 @@ export function createTestServices(context: TestContext): TestServer {
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
                 `--edgeServiceFamilyPrivateKey=${devEdgeServiceFamilyPrivateKeyPath}`,
             ],
             {
@@ -161,9 +201,11 @@ export function createTestServices(context: TestContext): TestServer {
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
-                `--taskRealtimeServicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
+                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${devTaskRealtimeServicePrivateKeyPath}`,
                 `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
                 `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
+                `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
             ],
             {
                 env: process.env,
@@ -176,10 +218,35 @@ export function createTestServices(context: TestContext): TestServer {
         taskRealtimeServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
         taskRealtimeServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
 
+        jobQueueServiceSubprocess = spawn(
+            joinPath(runfilesPath, "cyberworlds/server/jobs/queue/queue.sh"),
+            [
+                `--appServicePublicKey=${devAppServicePublicKeyPath}`,
+                `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
+                `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,
+                `--jobQueueServicePublicKey=${devJobQueueServicePublicKeyPath}`,
+                `--servicePrivateKey=${devJobQueueServicePrivateKeyPath}`,
+                `--dynamoLocalPort=${context.getDynamoLocalPort()}`,
+                `--opensearchLocalPort=${context.getOpensearchLocalPort()}`,
+                `--jobQueueUrl=${context.getSqsLocalJobQueueUrl()}`,
+                `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
+            ],
+            {
+                env: process.env,
+                stdio: ["ignore", "pipe", "pipe"],
+            },
+        );
+
+        // For whatever reason, `inherit` doesn't seem to work in Playwright? Manually
+        // write data to stdout/stderr.
+        jobQueueServiceSubprocess.stdout.on("data", chunk => process.stdout.write(chunk));
+        jobQueueServiceSubprocess.stderr.on("data", chunk => process.stderr.write(chunk));
+
         await runAllPromises([
             waitForProcessSpawn(appServiceSubprocess),
             waitForProcessSpawn(edgeServiceSubprocess),
             waitForProcessSpawn(taskRealtimeServiceSubprocess),
+            waitForProcessSpawn(jobQueueServiceSubprocess),
         ]);
 
         await runAllPromises([
@@ -191,18 +258,6 @@ export function createTestServices(context: TestContext): TestServer {
         // `edgePort` will forward the request to `appPort` since the edge service
         // proxies our app service.
         await waitForHttpServer(edgeServicePort);
-    });
-
-    test.afterAll(async () => {
-        appServiceSubprocess?.kill("SIGINT");
-        edgeServiceSubprocess?.kill("SIGINT");
-        taskRealtimeServiceSubprocess?.kill("SIGINT");
-
-        await runAllPromises([
-            appServiceSubprocess && waitForProcessExit(appServiceSubprocess),
-            edgeServiceSubprocess && waitForProcessExit(edgeServiceSubprocess),
-            taskRealtimeServiceSubprocess && waitForProcessExit(taskRealtimeServiceSubprocess),
-        ]);
     });
 
     const signIn = async (
@@ -244,12 +299,15 @@ export function createTestServices(context: TestContext): TestServer {
     };
 
     return {
-        getBaseUrl: () => {
-            if (edgeServicePort === null)
-                throw new InternalError("Test server has not yet initialized");
-            return `http://localhost:${edgeServicePort}`;
+        context,
+        services: {
+            getBaseUrl: () => {
+                if (edgeServicePort === null)
+                    throw new InternalError("Test server has not yet initialized");
+                return `http://localhost:${edgeServicePort}`;
+            },
+            signIn,
+            getOneTimePasswords: () => oneTimePasswords.slice(),
         },
-        signIn,
-        getOneTimePasswords: () => oneTimePasswords.slice(),
     };
 }

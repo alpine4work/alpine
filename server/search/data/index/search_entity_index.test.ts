@@ -1678,7 +1678,13 @@ test("search by semantics only sees entities the account has access to", async (
             otherSession
                 .action()
                 .clone({languageModel: new LanguageModelContextModule(languageModel)}),
-            {spaceId: space.id, queryText: "test", limit: 100},
+            {
+                spaceId: space.id,
+                queryText: "test",
+                limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
+            },
         ),
     ).rejects.toThrow(PermissionDeniedError);
 
@@ -1692,6 +1698,8 @@ test("search by semantics only sees entities the account has access to", async (
                     spaceId: otherSpace.id,
                     queryText: "test",
                     limit: 100,
+                    timeZone: defaultTimeZone,
+                    currentTime: new Date(),
                 },
             )
         ).results
@@ -1709,6 +1717,8 @@ test("search by semantics only sees entities the account has access to", async (
                     spaceId: space.id,
                     queryText: "test",
                     limit: 100,
+                    timeZone: defaultTimeZone,
+                    currentTime: new Date(),
                 },
             )
         ).results
@@ -1733,6 +1743,8 @@ test("search by semantics only sees entities the account has access to", async (
                     spaceId: space.id,
                     queryText: "test",
                     limit: 100,
+                    timeZone: defaultTimeZone,
+                    currentTime: new Date(),
                 },
             )
         ).results
@@ -1854,7 +1866,13 @@ test("search by semantics will highlight matching words", async () => {
     expect(
         await searchBySemantics(
             session.action().clone({languageModel: new LanguageModelContextModule(languageModel)}),
-            {spaceId: space.id, queryText: "test", limit: 100},
+            {
+                spaceId: space.id,
+                queryText: "test",
+                limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
+            },
         ),
     ).toEqual({
         results: [

@@ -7,6 +7,7 @@ import {
 } from "~/server/dynamo/core/dynamo_table_schema.js";
 import {classifyDynamoError} from "~/server/dynamo/core/internal/classify_dynamo_error.js";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
+import {UnavailableError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {generateId} from "~/shared/id/id.js";
 import {TraceId, TraceSpanId} from "~/shared/id/types/id_types.js";
@@ -76,7 +77,10 @@ export class DynamoClientInternal {
         // We create our own spans for DynamoDB actions so don't use
         // `fetchWithTracer()`.
         // eslint-disable-next-line no-global-fetch
-        const response = await fetch(request);
+        const response = await fetch(request).catch(error => {
+            // Classify network errors as the `Unavailable` status code.
+            throw UnavailableError.from(error, undefined);
+        });
 
         const output: any = await response.json();
 

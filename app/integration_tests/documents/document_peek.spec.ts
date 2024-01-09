@@ -1,7 +1,6 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
 import {createDocument} from "~/server/documents/data/documents_table.js";
-import {createTestContext} from "~/server/dynamo/test_helpers/create_test_context.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {
@@ -10,8 +9,7 @@ import {
     createSimpleDocumentContent,
 } from "~/shared/documents/document_content_schema.js";
 
-const context = createTestContext({shouldStartOpensearch: true});
-const services = createTestServices(context);
+const {context, services} = createTestServices();
 const space = createTestSpace(context);
 const session = createTestSession(context, space);
 

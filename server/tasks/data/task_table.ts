@@ -21,7 +21,10 @@ import {OpensearchContextModule} from "~/server/opensearch/opensearch_context_mo
 import {authorizeSpaceAccess, isAccountMemberOfSpace} from "~/server/spaces/spaces_table.js";
 import {TaskCollectionIndexDoc} from "~/server/tasks/data/task_collection_index_doc.js";
 import {TaskContextModuleBase} from "~/server/tasks/data/task_context_module.js";
-import {withSendTaskIndexSearchEntityJobIfNeeded} from "~/server/tasks/data/task_index.js";
+import {
+    ensureLocalTaskIndexesIfEnabled,
+    withSendTaskIndexSearchEntityJobIfNeeded,
+} from "~/server/tasks/data/task_index.js";
 import {TaskIndexDoc, isTaskIndexDocDeleted} from "~/server/tasks/data/task_index_doc.js";
 import {CacheContextModule, ContextCache} from "~/shared/context/cache_context_module.js";
 import {Context} from "~/shared/context/context.js";
@@ -868,6 +871,17 @@ export function commitTaskActionTransaction(
                 actionCount: actions.length,
             },
         });
+
+        // In our local environment, before committing make sure task indexes exist.
+        // That way:
+        //
+        // 1. If there's an error creating task indexes it prevents actions from being
+        //    committed
+        // 2. There are no timeout warnings when processing task actions after they're
+        //    committed (since ensuring task indexes may take a while)
+        if (process.env.NODE_ENV !== "production") {
+            await ensureLocalTaskIndexesIfEnabled(context);
+        }
 
         const {actionTransactionItem, extraActions} = await TaskActionTransactionCommitState.commit(
             context,

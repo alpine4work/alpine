@@ -17,7 +17,11 @@ const clientInfo = new Lazy(
         timeZone: getCurrentTimeZone(),
         locale: "en-US",
         isAppleDevice:
-            typeof navigator !== "undefined" ? isAppleDeviceUserAgent(navigator.userAgent) : false,
+            typeof navigator !== "undefined"
+                ? // On the client, use `navigator.platform` to test if this is an Apple device
+                  // in case the user agent header is spoofed.
+                  isAppleDeviceUserAgent(navigator.userAgent) || /Mac/.test(navigator.platform)
+                : false,
     }),
 );
 

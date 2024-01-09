@@ -222,9 +222,9 @@ def _playwright_project_test(
         tags = tags + [
                    "playwright",
                    # Playwright tests are chunky, increase CPU requirements to reduce parallelism
-                   # while one is running. We'd like at least one CPU for our browser and app
-                   # service at least.
-                   "cpu:3",
+                   # while one is running. We need CPU to run all our databases, services, and the
+                   # browser.
+                   "cpu:5",
                ] +
                # Firefox creates sandboxes for web content and you can't nest sandboxes. So
                # disable the Bazel sandbox. Ideally we would disable Firefox's sandboxing at

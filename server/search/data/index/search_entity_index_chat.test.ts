@@ -8,6 +8,7 @@ import {
 import {TestSpace} from "~/server/spaces/test_helpers/test_space.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {defaultTimeZone} from "~/shared/helpers/date/time_zone.js";
 import {createSimpleMessageContent} from "~/shared/messaging/message_content_schema.js";
 
 const {SearchEntityKeywordIndex} = getSearchEntityIndexesForTest();
@@ -70,6 +71,8 @@ test("will not index chat until first message is sent", async () => {
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
             })
         ).results.map(result => result.entityId),
     ).toEqual([]);
@@ -92,6 +95,8 @@ test("will not index chat until first message is sent", async () => {
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
             })
         ).results.map(result => result.entityId),
     ).toEqual([`Chat:${chatId}`]);
@@ -114,6 +119,8 @@ test("will not index chat until first message is sent", async () => {
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
             })
         ).results.map(result => result.entityId),
     ).toEqual([`Chat:${chatId}`]);
@@ -136,6 +143,8 @@ test("will not index chat until first message is sent", async () => {
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
             })
         ).results.map(result => result.entityId),
     ).toEqual([`Chat:${chatId}`]);
@@ -164,6 +173,8 @@ test("will not make chat searchable even if manually indexed until first message
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
             })
         ).results.map(result => result.entityId),
     ).toEqual([]);
@@ -194,6 +205,8 @@ test("will not make chat searchable even if manually indexed until first message
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
             })
         ).results.map(result => result.entityId),
     ).toEqual([]);
@@ -216,6 +229,8 @@ test("will not make chat searchable even if manually indexed until first message
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
             })
         ).results.map(result => result.entityId),
     ).toEqual([`Chat:${chatId}`]);
@@ -238,6 +253,8 @@ test("will not make chat searchable even if manually indexed until first message
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
             })
         ).results.map(result => result.entityId),
     ).toEqual([`Chat:${chatId}`]);
@@ -260,6 +277,8 @@ test("will not make chat searchable even if manually indexed until first message
                 spaceId: space.id,
                 queryText: "test",
                 limit: 100,
+                timeZone: defaultTimeZone,
+                currentTime: new Date(),
             })
         ).results.map(result => result.entityId),
     ).toEqual([`Chat:${chatId}`]);

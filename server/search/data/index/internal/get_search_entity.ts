@@ -870,7 +870,10 @@ async function getChatSearchEntity(
         createdTime,
         title,
         body: null,
-        media: {type: "AccountPile", accountIds},
+        media:
+            accountIds.length === 1
+                ? {type: "Account", accountId: accountIds[0]!}
+                : {type: "AccountPile", accountIds},
         embeddingChunks: [],
         creatorId: null,
         // We could keep track of relative proportions of who's sending messages to the
