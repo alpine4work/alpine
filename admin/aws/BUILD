@@ -13,6 +13,7 @@ ts_project(
         "//admin/opensearch/deploy",
         "//app:app_image_tarball_linux_x86_64_opt",
         "//server/jobs/queue:queue_image_tarball_linux_x86_64_opt",
+        "//server/migration:migration_image_tarball_linux_x86_64_opt",
         "//server/tasks/realtime:realtime_image_tarball_linux_x86_64_opt",
         "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",
     ],

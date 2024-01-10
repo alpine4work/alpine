@@ -85,7 +85,10 @@ export class AwsDynamo {
     /**
      * Grant read/write access to all of our DynamoDB tables.
      */
-    public grantReadWriteData(grantee: IGrantable) {
+    public grantReadWriteData(
+        grantee: IGrantable,
+        {allowExpensiveScan = false}: {allowExpensiveScan?: boolean} = {},
+    ) {
         const allowedDynamoClientActions = filterMapArray(
             Object.entries(
                 cast<{[K in DynamoClientAction]: boolean}>({
@@ -104,7 +107,7 @@ export class AwsDynamo {
                     // Think: If an attacker somehow got access to our container, how could we limit
                     // their damage? Not allowing them to `Scan` to see every item in the table is a
                     // big limitation. They must know item keys or queries to see the relevant data.
-                    Scan: false,
+                    Scan: allowExpensiveScan,
                     CreateTable: false,
                     DescribeTable: false,
                     DescribeTimeToLive: false,

@@ -10,7 +10,7 @@ import {
     Secret as EcsSecret,
     NetworkMode,
 } from "aws-cdk-lib/aws-ecs";
-import {ManagedPolicy, PolicyStatement} from "aws-cdk-lib/aws-iam";
+import {ManagedPolicy} from "aws-cdk-lib/aws-iam";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
