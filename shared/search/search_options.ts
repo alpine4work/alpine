@@ -237,7 +237,7 @@ export const standardSearchOptions: SearchOptions = {
     // In production, scores under this value are ridiculous. Like the query "dog"
     // matching "asdfasdfasdf". OpenSearch can stop searching if it doesn't find
     // semantic results with scores above this.
-    minSemanticScore: process.env.NODE_ENV === "production" ? 0.43 : 0,
+    minSemanticScore: process.env.NODE_ENV === "production" ? 0.45 : 0,
 
     naturalLanguage: {
         // Control matches are worth half as much as a regular text match.

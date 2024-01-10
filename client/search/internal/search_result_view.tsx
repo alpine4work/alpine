@@ -133,6 +133,7 @@ export function SearchResultView({
                         {result.media && <SearchResultMediaView media={result.media} />}
                         <Box
                             flexGrow="1"
+                            overflow="hidden"
                             style={{minHeight: minSearchResultViewHeightWithoutPaddingY}}
                         >
                             <Box
