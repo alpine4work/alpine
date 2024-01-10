@@ -163,6 +163,11 @@ export default function SpaceLayoutRoute() {
         getDebugOptions: () => debugOptions.options,
         setDebugOptions: (options: SearchOptions) =>
             setDebugOptions({isDebugModeEnabled: debugOptions.isDebugModeEnabled, options}),
+        resetDebugOptions: () =>
+            setDebugOptions({
+                isDebugModeEnabled: debugOptions.isDebugModeEnabled,
+                options: standardSearchOptions,
+            }),
     }));
 
     // On initial render, if there's a `search` query parameter then open our

@@ -15,7 +15,13 @@ def aws_lambda(
     esbuild(
         name = "{}_bundle".format(name),
         srcs = srcs,
-        define = {"process.env.NODE_ENV": "\"production\""},
+        define = {
+            "process.env.NODE_ENV": "\"production\"",
+            # `import.meta` doesn't work with a `cjs` output format. But we use
+            # `import.meta.jest` a lot to tell if we're in a unit test. Replace it with
+            # `undefined` to avoid esbuild warnings.
+            "import.meta.jest": "undefined",
+        },
         entry_point = entry_point,
         # AWS SDK modules are available in Node.js 18 Lambda runtime.
         external = ["@aws-sdk/*"],

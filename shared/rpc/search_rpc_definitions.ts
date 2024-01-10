@@ -30,6 +30,7 @@ export const searchBySemantics = defineRpc({
         limit: Schema.integer,
         timeZone: TimeZoneSchema,
         currentTime: Schema.date,
+        debugOptions: SearchOptionsSchema.optional(),
     },
     output: {
         results: Schema.array(SearchResultSchema),

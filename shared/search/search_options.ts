@@ -48,6 +48,26 @@ const SearchOptionsActualSchema = Schema.object({
     minKeywordScoreForSemanticResult: Schema.float,
 
     /**
+     * If present, we multiply semantic scores by this number after they're
+     * returned from OpenSearch.
+     *
+     * Cohere in production gives us scores like 0.00000051802067 which are hard
+     * to reason about. By setting this to 1000000 we end up with the score
+     * 0.51802067 which is easier for our developers to think about.
+     *
+     * This option has no effect on the user experience. It's only helpful for
+     * developers debugging search.
+     */
+    semanticScoreScaleFromOpensearch: Schema.float,
+
+    /**
+     * If present, the minimum semantic score we let OpenSearch return. If
+     * OpenSearch can't find a match with a better score than this, it can stop
+     * searching early.
+     */
+    minSemanticScore: Schema.float,
+
+    /**
      * Options related to our English natural language query parsing.
      */
     naturalLanguage: Schema.object({
@@ -209,6 +229,16 @@ export const standardSearchOptions: SearchOptions = {
     // score match.
     minKeywordScoreForSemanticResult: 11,
 
+    // In production, Cohere gives us scores like 5.5198393e-7. Multiply by 1e6 so
+    // we end up with scores that instead look like 0.55198393 which you can read
+    // in the debug mode search score explanation window.
+    semanticScoreScaleFromOpensearch: process.env.NODE_ENV === "production" ? 1e6 : 1,
+
+    // In production, scores under this value are ridiculous. Like the query "dog"
+    // matching "asdfasdfasdf". OpenSearch can stop searching if it doesn't find
+    // semantic results with scores above this.
+    minSemanticScore: process.env.NODE_ENV === "production" ? 0.43 : 0,
+
     naturalLanguage: {
         // Control matches are worth half as much as a regular text match.
         //
@@ -241,28 +271,46 @@ export const standardSearchOptions: SearchOptions = {
         point1: {
             keywordScore: greatBodyKeywordScore,
 
-            // This is the score from the `all-MiniLM-L6-v2` model for "british currency
-            // history" vs a passage from the first section of the "[Penny (British decimal
-            // coin)][1]" Wikipedia article which is an excellent match.
-            //
-            // [1]: https://en.wikipedia.org/wiki/Penny_(British_decimal_coin)
-            semanticScore: 0.84,
+            semanticScore:
+                // Cohere in production and `all-MiniLM-L6-v2` in development produce different
+                // scores.
+                process.env.NODE_ENV === "production"
+                    ? // We got this score when searching (with Cohere in production) "second quarter roadmap" and
+                      // getting a passage from my update email after the notification cycle talking about the plan for
+                      // next cycle (which started in ~June) and the plan for the next couple years. Great match.
+                      0.55
+                    : // This is the score from the `all-MiniLM-L6-v2` model for "british currency
+                      // history" vs a passage from the first section of the "[Penny (British decimal
+                      // coin)][1]" Wikipedia article which is an excellent match.
+                      //
+                      // [1]: https://en.wikipedia.org/wiki/Penny_(British_decimal_coin)
+                      0.84,
         },
 
         // Our second point is for a low confidence signal:
         point2: {
             keywordScore: fineBodyKeywordScore,
 
-            // This is the score from the `all-MiniLM-L6-v2` model for "marketing result"
-            // vs a passage from the "[Big King][1]" Wikipedia article's [double supreme
-            // advertising][2] section.
-            //
-            // The passage is indeed about ads and the results of those ads. So relevant
-            // but only somewhat so.
-            //
-            // [1]: https://en.wikipedia.org/wiki/Big_King
-            // [2]: https://en.wikipedia.org/wiki/Big_King#Double_Supreme
-            semanticScore: 0.67,
+            // Cohere in production and `all-MiniLM-L6-v2` in development produce different
+            // scores.
+            semanticScore:
+                process.env.NODE_ENV === "production"
+                    ? // We got a score of 0.46864082 when searching (with Cohere in production)
+                      // "business conference" and getting a passage from "product vision and strategy" with the word
+                      // "business". It does use business lingo you might see at a business conference?
+                      //
+                      // This passage kinda works but not super well. Maybe this value should be a bit higher even.
+                      0.47
+                    : // This is the score from the `all-MiniLM-L6-v2` model for "marketing result"
+                      // vs a passage from the "[Big King][1]" Wikipedia article's [double supreme
+                      // advertising][2] section.
+                      //
+                      // The passage is indeed about ads and the results of those ads. So relevant
+                      // but only somewhat so.
+                      //
+                      // [1]: https://en.wikipedia.org/wiki/Big_King
+                      // [2]: https://en.wikipedia.org/wiki/Big_King#Double_Supreme
+                      0.67,
         },
     },
 

@@ -146,6 +146,7 @@ export function executeSearch(
                 limit: semanticSearchResultLimit,
                 timeZone,
                 currentTime,
+                debugOptions: debugOptions ?? undefined,
             }),
         );
     };

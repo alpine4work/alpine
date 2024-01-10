@@ -1250,12 +1250,14 @@ export async function searchBySemantics(
         limit,
         timeZone,
         currentTime,
+        debugOptions,
     }: {
         spaceId: SpaceId;
         queryText: string;
         limit: number;
         timeZone: TimeZone;
         currentTime: Date;
+        debugOptions?: SearchOptions;
     },
 ): Promise<{
     results: Array<SearchResult>;
@@ -1263,6 +1265,13 @@ export async function searchBySemantics(
     await authorizeSpaceAccess(context, spaceId);
 
     assertSearchQueryTextLength(queryText);
+
+    // You must have internal access to try different `debugOptions`.
+    if (debugOptions) {
+        await authorizeInternalAccess(context);
+    }
+
+    const options = debugOptions ?? standardSearchOptions;
 
     const {filters, isLowConfidence} = parseSearchNaturalLanguageQuery(queryText, {
         timeZone,
@@ -1309,7 +1318,11 @@ export async function searchBySemantics(
                                         ? queryEmbeddingVector
                                         : Array.from(queryEmbeddingVector),
                                 ),
-                                k: limit,
+
+                                // A higher `k` value improves recall. Picking an arbitrary value for now.
+                                // Really, we should test what provides the best recall. See:
+                                // https://www.pinecone.io/learn/k-nearest-neighbor/#How-to-find-k
+                                k: Math.max(limit, 30),
 
                                 // We filter chunks here (instead of with a boolean filter) to perform
                                 // efficient KNN-filtering which is a hybrid of pre-filtering and
@@ -1371,7 +1384,15 @@ export async function searchBySemantics(
     );
 
     const results = await runAllPromises(
-        hits.map(async (hit): Promise<SearchResult> => {
+        hits.map(async (hit): Promise<SearchResult | null> => {
+            const score = hit.score * options.semanticScoreScaleFromOpensearch;
+
+            // TODO(calebmer): Instead of filtering out hits that don't meet the minimum
+            // score here, I wish I could have OpenSearch stop if it can't find hits better
+            // than this score. But I can't seem to find the OpenSearch parameter that will
+            // let me do this?
+            if (score < options.minSemanticScore) return null;
+
             // The highlighted body text we get from OpenSearch is markdown formatted with
             // `<em>` tags inserted where we need to highlight. To get this in a format we
             // can render:
@@ -1448,7 +1469,7 @@ export async function searchBySemantics(
 
             return {
                 entityId: hit.id,
-                score: hit.score,
+                score,
                 title: hit.fields.title?.[0] ?? null,
                 bodyTextSnippet,
                 media: resultMedia,
@@ -1456,7 +1477,7 @@ export async function searchBySemantics(
         }),
     );
 
-    return {results};
+    return {results: results.filter(isNonNullable)};
 }
 
 async function prepareSearchEntityMediaForResult(
