@@ -6,6 +6,7 @@ ts_project(
     deps = [
         "//:node_modules/@types/aws-lambda",
         "//server/opensearch",
+        "//server/search/data/index",
         "//server/tasks/data",
         "//server/tracer",
         "//shared/error",

@@ -19,8 +19,8 @@ def aws_lambda(
         entry_point = entry_point,
         # AWS SDK modules are available in Node.js 18 Lambda runtime.
         external = ["@aws-sdk/*"],
-        format = "esm",
-        output = "{}.mjs".format(name),
+        format = "cjs",
+        output = "{}.cjs".format(name),
         platform = "node",
         splitting = False,
         target = "node18",
@@ -59,16 +59,16 @@ def _aws_lambda_impl(ctx):
     bundle_map = None
 
     for file in bundle_files:
-        if file.basename == "{}.mjs".format(ctx.label.name):
+        if file.basename == "{}.cjs".format(ctx.label.name):
             bundle = file
-        if file.basename == "{}.mjs.map".format(ctx.label.name):
+        if file.basename == "{}.cjs.map".format(ctx.label.name):
             bundle_map = file
 
     if not bundle or not bundle_map or len(bundle_files) != 2:
-        fail("expected bundle target to only have a `.mjs` file and a `.mjs.map` file")
+        fail("expected bundle target to only have a `.cjs` file and a `.cjs.map` file")
 
-    executable = ctx.actions.declare_file("{}/index.mjs".format(ctx.label.name))
-    executable_map = ctx.actions.declare_file("{}/index.mjs.map".format(ctx.label.name))
+    executable = ctx.actions.declare_file("{}/index.cjs".format(ctx.label.name))
+    executable_map = ctx.actions.declare_file("{}/index.cjs.map".format(ctx.label.name))
 
     ctx.actions.symlink(output = executable, target_file = bundle)
     ctx.actions.symlink(output = executable_map, target_file = bundle_map)

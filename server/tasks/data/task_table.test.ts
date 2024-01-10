@@ -426,7 +426,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(FailedPreconditionError);
+        ).rejects.toThrow(PermissionDeniedError);
     });
 
     test("can't delete a task with the same time as task creation", async () => {
@@ -1319,7 +1319,7 @@ describe("old style", () => {
                     },
                 },
             ]),
-        ).rejects.toThrow(FailedPreconditionError);
+        ).rejects.toThrow(PermissionDeniedError);
     });
 
     test("can't update a task title that's not yours", async () => {
@@ -18301,7 +18301,7 @@ test("account can remove access from itself but can't grant it back if another u
             ],
             {leaseId},
         ),
-    ).rejects.toThrow(new PermissionDeniedError("Task was deleted"));
+    ).rejects.toThrow(new PermissionDeniedError('Actor does not have "Edit" access level to task'));
 
     await expect(authorizeTaskAccess(session1.action(), task1.id, "Edit", null)).rejects.toThrow(
         PermissionDeniedError,

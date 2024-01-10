@@ -575,6 +575,9 @@ dependencies:
   onnxruntime-common:
     specifier: 1.14.0
     version: 1.14.0(patch_hash=pe6xj53aa4w53t6a6st3utfq5a)
+  onnxruntime-node:
+    specifier: 1.14.0
+    version: 1.14.0
   outdent:
     specifier: 0.8.0
     version: 0.8.0(patch_hash=ybnbpvk42g5zpvi2kytcsdr4wu)
@@ -13165,7 +13168,6 @@ packages:
     dependencies:
       onnxruntime-common: 1.14.0(patch_hash=pe6xj53aa4w53t6a6st3utfq5a)
     dev: false
-    optional: true
 
   /onnxruntime-web@1.14.0:
     resolution: {integrity: sha512-Kcqf43UMfW8mCydVGcX9OMXI2VN17c0p6XvR7IPSZzBf/6lteBzXHvcEVWDPmCKuGombl997HgLqj91F11DzXw==}

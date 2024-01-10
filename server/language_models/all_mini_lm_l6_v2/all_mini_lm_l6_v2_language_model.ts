@@ -1,4 +1,6 @@
-import {FeatureExtractionPipeline} from "@xenova/transformers";
+// Only import types from `@xenova/transformers`. We dynamically import it at
+// runtime to avoid bundling the module in an `aws_lambda()`.
+import type {FeatureExtractionPipeline} from "@xenova/transformers";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
@@ -12,6 +14,7 @@ import {
 import {InternalError} from "~/shared/error/error.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertAssignableTypes} from "~/shared/helpers/control/assert_assignable_types.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 assertAssignableTypes<typeof AllMiniLmL6V2LanguageModel, LanguageModelBaseClass>();
@@ -85,6 +88,15 @@ export class AllMiniLmL6V2LanguageModel implements LanguageModelBase {
             createTransformersTokenizer(basePath),
             createTransformersModel(basePath),
         ]);
+
+        // We dynamically import this models at runtime to avoid bundling
+        // `@xenova/transformers`'s native libraries in an `aws_lambda()`.
+        //
+        // We do the funky `string + cast(string)` syntax so the import path can't
+        // be statically analyzed by esbuild.
+        const {FeatureExtractionPipeline}: typeof import("@xenova/transformers") = await import(
+            "@xenova/" + cast("transformers")
+        );
 
         const extractor = new FeatureExtractionPipeline({
             task: "feature-extraction",

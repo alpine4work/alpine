@@ -19,7 +19,7 @@ const opensearchDeployScriptLambdaDirectoryPath = joinPath(
 
 const opensearchDeployScriptLambdaIndexPath = joinPath(
     opensearchDeployScriptLambdaDirectoryPath,
-    "index.mjs",
+    "index.cjs",
 );
 
 const opensearchDeployScriptLambdaIndexContents = await fs.readFile(
@@ -119,9 +119,17 @@ export class AwsOpensearch extends Construct {
         return this._domain.domainEndpoint;
     }
 
-    public grantTaskIndexesReadWrite(grantee: IGrantable) {
+    public grantReadWriteData(grantee: IGrantable) {
         this._domain.grantIndexReadWrite("tasks", grantee);
         this._domain.grantIndexReadWrite("task_collections", grantee);
+        this._domain.grantIndexReadWrite("search_entity_keywords", grantee);
+        this._domain.grantIndexReadWrite("search_entity_semantics", grantee);
+
+        // Allow bulk writing documents or bulk reading documents. This could allow you
+        // to bulk read/write documents outside of the indexes specified above! Be
+        // careful when adding indexes to this domain.
+        this._domain.grantPathReadWrite("_bulk", grantee);
+        this._domain.grantPathReadWrite("_mget", grantee);
     }
 
     public allowConnectionsFrom(other: IConnectable) {

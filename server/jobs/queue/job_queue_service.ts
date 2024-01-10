@@ -1,3 +1,4 @@
+import fs from "fs-extra";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {waitForHttpServer} from "~/server/helpers/node/wait_for_http_server.js";
 import {JobQueueConsumer} from "~/server/jobs/queue/job_queue_consumer.js";
@@ -18,8 +19,7 @@ runService({
     serviceName: "JobQueueService",
     options: {
         allMiniLmL6V2LanguageModel: {type: "string"},
-        ecsCluster: {type: "string"},
-        taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
+        cohereApiKey: {type: "string"},
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
@@ -40,8 +40,10 @@ runService({
         const languageModel =
             process.env.NODE_ENV === "production"
                 ? new CohereEmbedEnglishV3LanguageModel({
-                      // NOCOMMIT: Cohere API key in production
-                      apiKey: assertExists(null as string | null),
+                      apiKey: assertExists(
+                          options.cohereApiKey,
+                          "`cohereApiKey` option is required in production",
+                      ),
                   })
                 : await AllMiniLmL6V2LanguageModel.new(
                       assertExists(
@@ -59,6 +61,7 @@ runService({
         });
 
         const consumer = JobQueueConsumer.start(processContext, {
+            region: "us-east-1",
             queueUrl: jobQueueUrl,
             processJob,
         });
@@ -66,5 +69,17 @@ runService({
         registerShutdownListenerForIngressTraffic(async () => {
             consumer.stop();
         });
+
+        // In production, we communicate that our process is healthy by writing to a
+        // healthcheck file.
+        if (process.env.NODE_ENV === "production") {
+            await fs.writeFile("/var/www-data/server_jobs_queue_healthcheck.txt", "Healthy\n");
+        }
+
+        // Log when ready in production to help when debugging container startup.
+        if (process.env.NODE_ENV === "production") {
+            // eslint-disable-next-line no-console
+            console.log(`Waiting for jobs from queue (pid ${process.pid})`);
+        }
     },
 });

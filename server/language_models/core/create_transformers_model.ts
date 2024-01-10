@@ -1,9 +1,8 @@
-import {BertModel, PretrainedConfig} from "@xenova/transformers";
-import {ONNX, executionProviders} from "@xenova/transformers/src/backends/onnx.js";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 
 /**
  * Creates a model automatically from the `@xenova/transformers` library.
@@ -11,6 +10,19 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * downloading files on-the-fly, we read files downloaded by Bazel from disk.
  */
 export async function createTransformersModel(basePath: string) {
+    const [{BertModel, PretrainedConfig}, {ONNX, executionProviders}]: [
+        typeof import("@xenova/transformers"),
+        typeof import("@xenova/transformers/src/backends/onnx.js"),
+    ] = await runAllPromises([
+        // We dynamically import these models at runtime to avoid bundling
+        // `@xenova/transformers`'s native libraries in an `aws_lambda()`.
+        //
+        // We do the funky `string + cast(string)` syntax so the import path can't
+        // be statically analyzed by esbuild.
+        import("@xenova/" + cast("transformers")),
+        import("@xenova/" + cast("transformers/src/backends/onnx.js")),
+    ]);
+
     const [configContents, onnxModelQuantizedContents] = await runAllPromises([
         fs.readFile(joinPath(`${basePath}_config`, "file/config.json"), "utf8"),
         fs.readFile(joinPath(`${basePath}_onnx_model_quantized`, "file/onnx/model_quantized.onnx")),

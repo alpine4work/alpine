@@ -24,6 +24,7 @@ ts_project(
         },
     },
     visibility = [
+        "//admin/opensearch/deploy:__pkg__",
         "//server/jobs/queue:__pkg__",
         "//server/rpc:__pkg__",
     ],
@@ -31,7 +32,6 @@ ts_project(
         "//:node_modules/@types/damerau-levenshtein",
         "//:node_modules/@types/fs-extra",
         "//:node_modules/@types/mdast",
-        "//:node_modules/@xenova/transformers",
         "//:node_modules/compromise",
         "//:node_modules/compromise-dates",
         "//:node_modules/damerau-levenshtein",

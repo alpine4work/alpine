@@ -11,6 +11,7 @@ import {CohereEmbedEnglishV3LanguageTokenizer} from "~/server/language_models/co
 import {LanguageModelContextModule} from "~/server/language_models/core/language_model_context_module.js";
 import {approximatelyAnalyzeLikeOpensearchIndexEnglishWithWordDelimeterGraphAnalyzer} from "~/server/opensearch/helpers/opensearch_index_english_with_word_delimiter_graph_analyzer.js";
 import {
+    OpensearchClient,
     OpensearchClientDocWithIdAndVersion,
     OpensearchGetDocWithoutSourceCommand,
     OpensearchIndexDocIfVersionCommand,
@@ -86,6 +87,7 @@ import {
 } from "~/shared/search/search_entity_id.js";
 import {SearchOptions, standardSearchOptions} from "~/shared/search/search_options.js";
 import {SearchResult, SearchResultMedia} from "~/shared/search/search_result.js";
+import {TracerBase} from "~/shared/tracer/tracer_base.js";
 
 /**
  * The search index should be near realtime to serve search requests. However,
@@ -252,6 +254,21 @@ assertEqualTypes<
 export function getSearchEntityIndexesForTest() {
     assert(import.meta.jest);
     return {SearchEntityKeywordIndex, SearchEntitySemanticIndex};
+}
+
+/**
+ * Deploy our search indexes to production.
+ *
+ * May only be called in a production environment. Should only be called by our
+ * deployment scripts.
+ */
+export async function deploySearchEntityIndexes(tracer: TracerBase, client: OpensearchClient) {
+    assert(process.env.NODE_ENV === "production");
+
+    await runAllPromises([
+        client.deployIndex(tracer, SearchEntityKeywordIndex),
+        client.deployIndex(tracer, SearchEntitySemanticIndex),
+    ]);
 }
 
 /**

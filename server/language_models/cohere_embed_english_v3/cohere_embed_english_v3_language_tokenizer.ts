@@ -1,4 +1,6 @@
-import {BertTokenizer} from "@xenova/transformers";
+// Only import types from `@xenova/transformers`. We dynamically import it at
+// runtime to avoid bundling the module in an `aws_lambda()`.
+import type {BertTokenizer} from "@xenova/transformers";
 import {join as joinPath} from "path";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {createTransformersTokenizer} from "~/server/language_models/core/create_transformers_tokenizer.js";

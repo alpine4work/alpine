@@ -104,10 +104,13 @@ export class JobSender extends JobSenderBase {
 
     private _messageBatch: JobSenderMessageBatch | null = null;
 
-    constructor({queueUrl}: {queueUrl: string}) {
+    constructor({region, queueUrl}: {region: string; queueUrl: string}) {
         super();
         this._queueUrl = queueUrl;
-        this._sqsClient = new SQSClient({endpoint: new URL("/", queueUrl).toString()});
+        this._sqsClient = new SQSClient({
+            region,
+            endpoint: new URL("/", queueUrl).toString(),
+        });
     }
 
     public override send(

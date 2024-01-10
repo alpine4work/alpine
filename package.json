@@ -160,6 +160,7 @@
         "motion": "^10.15.5",
         "murmurhash": "^2.0.1",
         "onnxruntime-common": "1.14.0",
+        "onnxruntime-node": "1.14.0",
         "outdent": "0.8.0",
         "phosphor-react": "^1.4.1",
         "pidtree": "^0.6.0",

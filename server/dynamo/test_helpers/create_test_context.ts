@@ -381,7 +381,10 @@ export function createTestContext({
             );
         } else {
             jobsContextModule.initialize(
-                new JobSender({queueUrl: `http://localhost:${sqsLocal.port}/local/JobQueue`}),
+                new JobSender({
+                    region: "us-east-1",
+                    queueUrl: `http://localhost:${sqsLocal.port}/local/JobQueue`,
+                }),
             );
         }
 

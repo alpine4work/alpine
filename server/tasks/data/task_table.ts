@@ -2051,10 +2051,11 @@ async function actuallyCommitTaskActionTransaction(
                         const initialTaskItem = await state.getTaskItemIfExists(taskId);
                         if (!initialTaskItem) throw new NotFoundError("Task not found");
                         let taskItem = initialTaskItem;
-                        if (taskItem.deletedTime)
-                            throw new FailedPreconditionError("Task was deleted");
 
                         await state.authorizeTaskItemAccess(taskItem, "Edit");
+
+                        if (taskItem.deletedTime)
+                            throw new FailedPreconditionError("Task was deleted");
 
                         if (taskItem.validLeaseId !== null) {
                             taskItem = {

@@ -3,7 +3,9 @@ import {fileURLToPath} from "url";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
+import {AwsJobQueueService} from "~/admin/aws/internal/aws_job_queue_service.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {AwsVpc} from "~/admin/aws/internal/aws_vpc.js";
 
@@ -21,6 +23,7 @@ async function addAwsResources(stack: Stack) {
 
     const ecsCluster = new AwsEcsCluster(stack, vpc);
     const opensearch = new AwsOpensearch(stack, vpc);
+    const sqs = new AwsSqs(stack);
 
     const dynamo = await AwsDynamo.new(stack);
 
@@ -29,6 +32,7 @@ async function addAwsResources(stack: Stack) {
         ecsCluster,
         dynamo,
         opensearch,
+        sqs,
     });
 
     new AwsAppService(stack, {
@@ -36,6 +40,15 @@ async function addAwsResources(stack: Stack) {
         ecsCluster,
         dynamo,
         opensearch,
+        sqs,
         taskRealtimeService,
+    });
+
+    new AwsJobQueueService(stack, {
+        vpc,
+        ecsCluster,
+        dynamo,
+        opensearch,
+        sqs,
     });
 }

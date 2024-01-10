@@ -18,7 +18,6 @@ ts_project(
         "//shared/error",
         "//shared/helpers",
         "//shared/id",
-        "//shared/rpc",
         "//shared/schema",
         "//shared/tracer",
         "//shared/web_socket",

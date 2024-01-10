@@ -36,6 +36,7 @@ beforeEach(async () => {
     changeMessageVisibilityBatchRecorder = changeMessageVisibilityBatchTestCounter.recordForTest();
 
     consumer = JobQueueConsumer.start(context, {
+        region: "us-east-1",
         queueUrl: `http://localhost:${context.getSqsLocalPort()}/local/JobQueue`,
         processJob: async (context, job) => {
             switch (job.type) {

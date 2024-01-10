@@ -105,9 +105,11 @@ export class JobQueueConsumer {
     private constructor(
         context: ServerProcessContext,
         {
+            region,
             queueUrl,
             processJob,
         }: {
+            region: string;
             queueUrl: string;
             processJob: (
                 context: ServerSystemActionContext,
@@ -118,13 +120,17 @@ export class JobQueueConsumer {
     ) {
         this._processContext = context;
         this._queueUrl = queueUrl;
-        this._sqsClient = new SQSClient({endpoint: new URL("/", queueUrl).toString()});
+        this._sqsClient = new SQSClient({
+            region,
+            endpoint: new URL("/", queueUrl).toString(),
+        });
         this._processJob = processJob;
     }
 
     public static start(
         context: ServerProcessContext,
         options: {
+            region: string;
             queueUrl: string;
             processJob: (
                 context: ServerSystemActionContext,

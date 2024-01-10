@@ -18,6 +18,7 @@ import {join as joinPath} from "path";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
+import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {cloudflareIpV4s, cloudflareIpV6s} from "~/server/helpers/node/cloudflare_ips.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 import {taskRealtimeServiceDiscoveryWaitMs} from "~/server/tasks/router/task_realtime_service_router_base.js";
@@ -34,11 +35,13 @@ export class AwsTaskRealtimeService extends Construct {
             ecsCluster,
             dynamo,
             opensearch,
+            sqs,
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
             dynamo: AwsDynamo;
             opensearch: AwsOpensearch;
+            sqs: AwsSqs;
         },
     ) {
         super(parentConstruct, "TaskRealtimeService");
@@ -88,7 +91,7 @@ export class AwsTaskRealtimeService extends Construct {
             // instances to maintain availability while a new fleet of instances start.
             maxCapacity: partitionCount * partitionInstanceCount * 2,
 
-            // See the long comment in `AwsAppServiceConstruct` for why we use a public
+            // See the long comment in `AwsAppService` for why we use a public
             // subnet for our services. The TL;DR is sending egress traffic like Honeycomb
             // API calls through a NAT gateway can get expensive.
             //
@@ -215,6 +218,10 @@ export class AwsTaskRealtimeService extends Construct {
                     secrets,
                     "taskRealtimeServicePrivateKey",
                 ),
+                JOB_QUEUE_SERVICE_PUBLIC_KEY: EcsSecret.fromSecretsManager(
+                    secrets,
+                    "jobQueueServicePublicKey",
+                ),
                 HONEYCOMB_API_KEY: EcsSecret.fromSecretsManager(secrets, "honeycombApiKey"),
             },
             environment: {
@@ -229,6 +236,7 @@ export class AwsTaskRealtimeService extends Construct {
                 `/var/www/server/tasks/realtime/realtime ${[
                     `--portBase=${portBase}`,
                     `--opensearchHost=${opensearch.opensearchHost}`,
+                    `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     // Intentionally escape `$` here! Our key args accept either a file path
                     // or the name of an environment variable. RSA keys are too long to be included
@@ -237,6 +245,7 @@ export class AwsTaskRealtimeService extends Construct {
                     "--appServicePublicKey=\\$APP_SERVICE_PUBLIC_KEY",
                     "--edgeServiceFamilyPublicKey=\\$EDGE_SERVICE_FAMILY_PUBLIC_KEY",
                     "--taskRealtimeServicePublicKey=\\$TASK_REALTIME_SERVICE_PUBLIC_KEY",
+                    "--jobQueueServicePublicKey=\\$JOB_QUEUE_SERVICE_PUBLIC_KEY",
                     "--servicePrivateKey=\\$TASK_REALTIME_SERVICE_PRIVATE_KEY",
                 ].join(" ")}`,
             ],
@@ -295,7 +304,8 @@ export class AwsTaskRealtimeService extends Construct {
         });
 
         dynamo.grantReadWriteData(this.taskDefinition.taskRole);
-        opensearch.grantTaskIndexesReadWrite(this.taskDefinition.taskRole);
+        opensearch.grantReadWriteData(this.taskDefinition.taskRole);
+        sqs.grantSendJobQueueMessages(this.taskDefinition.taskRole);
 
         for (let partitionIndex = 0; partitionIndex < partitionCount; partitionIndex++) {
             new AwsTaskRealtimeServicePartition(this, {
@@ -309,8 +319,6 @@ export class AwsTaskRealtimeService extends Construct {
             });
         }
     }
-
-    public allowConnectionsFrom() {}
 }
 
 class AwsTaskRealtimeServicePartition extends Construct {

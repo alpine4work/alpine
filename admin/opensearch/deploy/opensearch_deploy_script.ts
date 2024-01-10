@@ -2,6 +2,7 @@ import {CdkCustomResourceEvent, CdkCustomResourceResponse} from "aws-lambda";
 import {webcrypto} from "crypto";
 import {AwsRequestSigner} from "~/server/helpers/node/aws_request_signer.js";
 import {OpensearchClient} from "~/server/opensearch/opensearch_client.js";
+import {deploySearchEntityIndexes} from "~/server/search/data/index/search_entity_index.js";
 import {deployTaskIndexes} from "~/server/tasks/data/task_index.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {unsynchronizedSystemClock} from "~/shared/helpers/clock/unsynchronized_system_clock.js";
@@ -61,7 +62,10 @@ export async function handler(event: CdkCustomResourceEvent): Promise<CdkCustomR
     const signer = new AwsRequestSigner();
     const client = new OpensearchClient(opensearchUrl, signer);
 
-    await deployTaskIndexes(tracer, client);
+    await runAllPromises([
+        deployTaskIndexes(tracer, client),
+        deploySearchEntityIndexes(tracer, client),
+    ]);
 
     // Wait for any promises passed into `waitUntil()` to resolve before returning.
     while (waitUntilPromises.size > 0) {

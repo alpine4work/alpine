@@ -92,6 +92,7 @@ export function createServerProcessContext({
         ),
         jobs: JobsContextModule.new(
             new JobSender({
+                region: "us-east-1",
                 queueUrl: assertExists(options.jobQueueUrl, "Missing `jobQueueUrl` option"),
             }),
         ),

@@ -106,6 +106,7 @@ runService({
         ecsCluster: {type: "string"},
         taskRealtimeServiceEcsTaskDefinitionFamily: {type: "string"},
         allMiniLmL6V2LanguageModel: {type: "string"},
+        cohereApiKey: {type: "string"},
         ...serviceTokenAgentParseOptions,
         ...serverProcessContextParseOptions,
     },
@@ -127,8 +128,10 @@ runService({
         const languageModel =
             process.env.NODE_ENV === "production"
                 ? new CohereEmbedEnglishV3LanguageModel({
-                      // NOCOMMIT: Cohere API key in production
-                      apiKey: assertExists(null as string | null),
+                      apiKey: assertExists(
+                          options.cohereApiKey,
+                          "`cohereApiKey` option is required in production",
+                      ),
                   })
                 : await AllMiniLmL6V2LanguageModel.new(
                       assertExists(

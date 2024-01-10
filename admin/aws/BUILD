@@ -1,11 +1,18 @@
 load("@npm//:aws-cdk/package_json.bzl", cdk_bin = "bin")
 load("//admin/typescript:typescript.bzl", "ts_project")
 
+# A manually built OCI layer that creates a directory `/var/www-data` and
+# grants write access for that directory to the `www-data` user.
+exports_files([
+    "www_data_owned_directory_oci_layer.tar",
+])
+
 ts_project(
     name = "aws",
     data = [
         "//admin/opensearch/deploy",
         "//app:app_image_tarball_linux_x86_64_opt",
+        "//server/jobs/queue:queue_image_tarball_linux_x86_64_opt",
         "//server/tasks/realtime:realtime_image_tarball_linux_x86_64_opt",
         "//server/tasks/realtime/gateway:gateway_image_tarball_linux_x86_64_opt",
     ],

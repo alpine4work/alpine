@@ -1,8 +1,8 @@
-import {BertTokenizer} from "@xenova/transformers";
 import fs from "fs-extra";
 import {join as joinPath} from "path";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {cast} from "~/shared/helpers/control/cast.js";
 
 /**
  * Creates a tokenizer automatically from the `@xenova/transformers` library.
@@ -10,6 +10,15 @@ import {assert} from "~/shared/helpers/control/assert.js";
  * downloading files on-the-fly, we read files downloaded by Bazel from disk.
  */
 export async function createTransformersTokenizer(basePath: string) {
+    // We dynamically import this models at runtime to avoid bundling
+    // `@xenova/transformers`'s native libraries in an `aws_lambda()`.
+    //
+    // We do the funky `string + cast(string)` syntax so the import path can't
+    // be statically analyzed by esbuild.
+    const {BertTokenizer}: typeof import("@xenova/transformers") = await import(
+        "@xenova/" + cast("transformers")
+    );
+
     const [configContents, jsonContents] = await runAllPromises([
         fs.readFile(joinPath(`${basePath}_tokenizer_config`, "file/tokenizer_config.json"), "utf8"),
         fs.readFile(joinPath(`${basePath}_tokenizer`, "file/tokenizer.json"), "utf8"),
