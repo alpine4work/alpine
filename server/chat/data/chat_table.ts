@@ -262,8 +262,6 @@ export async function* expensiveScanEveryChatAndChatMessageForMigration(
             {partitionType: "Chat", sortRangeType: "Messages"},
         ],
     })) {
-        if (item.partitionType === "Chat") continue;
-
         if (item.sortRangeType === "Attributes") {
             yield {type: "Chat", spaceId: item.spaceId, chatId: item.chatId};
         } else if (item.sortRangeType === "Messages") {
