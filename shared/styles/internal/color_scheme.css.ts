@@ -273,7 +273,11 @@ globalStyle(`${darkColorSchemeSelector} ${greyElevated1ClassName}`, {
  * instead give surfaces that are "higher up" a lighter background. We use this
  * for hovering overlays.
  */
-export const greyElevated2ClassName = style({});
+export const greyElevated2ClassName = style({
+    vars: {
+        [specialGreyColorVars["grey-wash"]]: colors["grey-5-elevated-1-wash"],
+    },
+});
 
 globalStyle(`${darkColorSchemeSelector} ${greyElevated2ClassName}`, {
     vars: {
@@ -281,5 +285,6 @@ globalStyle(`${darkColorSchemeSelector} ${greyElevated2ClassName}`, {
         [colorSchemeVars["grey-5"]]: colors["grey-80-elevated-2"],
         [colorSchemeVars["grey-10"]]: colors["grey-70-elevated-2"],
         [colorSchemeVars["grey-20"]]: colors["grey-60-elevated-2"],
+        [specialGreyColorVars["grey-wash"]]: colors["grey-dark-elevated-1-wash"],
     },
 });
