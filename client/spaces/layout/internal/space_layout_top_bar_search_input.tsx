@@ -1,9 +1,11 @@
 import {MagnifyingGlass} from "phosphor-react";
 import {usePress} from "react-aria";
 import {Box} from "~/client/design/box.js";
+import {Spacer} from "~/client/design/spacer.js";
 import {usePreloadAffinitiveSearchEntities} from "~/client/search/search_modal.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 
 export function SpaceLayoutTopBarSearchInput({
     space,
@@ -23,6 +25,7 @@ export function SpaceLayoutTopBarSearchInput({
         <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
             <Box
                 {...pressProps}
+                position="relative"
                 minWidth="48"
                 maxWidth="96"
                 width="full"
@@ -36,9 +39,14 @@ export function SpaceLayoutTopBarSearchInput({
                 color="grey-50"
                 cursor="text"
             >
-                <MagnifyingGlass size={spacing["3"]} />
+                <Spacer
+                    // Add a bit of space to visually center the "Search Test" text even if it's
+                    // not true center.
+                    space="3"
+                />
+                <MagnifyingGlass size={spacing["3"]} className={sprinkles({flexShrink: "0"})} />
                 <Box fontStyle="truncate">Search {space.name}</Box>
-                <Box fontSize="50" color="grey-30">
+                <Box flexShrink="0" fontSize="50" color="grey-30">
                     shift+shift
                 </Box>
             </Box>
