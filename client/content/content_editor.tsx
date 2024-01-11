@@ -80,7 +80,6 @@ const {docClassName, emptyBodyClassName, emptyTitleClassName} = contentSchemaSty
 
 const {
     containerClassName,
-    hideSelectionWhileUnfocusedClassName,
     inlineElementPaddingToLineHeightClassName,
     shiftKeyOrAltKeyDownClassName,
     inlineMentionInputClassName,
@@ -1000,20 +999,37 @@ function ContentEditor<Content extends ContentWithReferences>(
         const viewElement = view.dom;
 
         const blurDecorationCallback = (decorationSet: DecorationSet, state: EditorState) => {
-            return decorationSet.add(
-                state.doc,
-                createSelectionDecorations(
-                    state.doc,
-                    state.selection,
-                    colorSchemeVars["grey-selection"],
-                ),
-            );
+            const floaterState = getContentEditorFloaterState(state);
+
+            switch (floaterState.type) {
+                // While the comment input is open, optimistically add the highlight style so
+                // the user doesn't lose track of the text they selected.
+                case "CommentInput": {
+                    return decorationSet.add(state.doc, [
+                        Decoration.inline(state.selection.from, state.selection.to, {
+                            class: contentSchemaStyles.commentClassName,
+                        }),
+                    ]);
+                }
+                // While the link input is open, optimistically add the link style so the user
+                // doesn't lose track of the text they selected.
+                case "KeyboardLink":
+                case "PointerLink": {
+                    return decorationSet.add(state.doc, [
+                        Decoration.inline(state.selection.from, state.selection.to, {
+                            class: contentSchemaStyles.linkClassName,
+                        }),
+                    ]);
+                }
+                default:
+                    return decorationSet;
+            }
+
+            return decorationSet;
         };
 
         const handleFocus = () => {
             setIsFocused(true);
-
-            viewElement.classList.remove(hideSelectionWhileUnfocusedClassName);
 
             setDecorationCallbacks(decorationCallbacks => {
                 const newDecorationCallbacks = new Set(decorationCallbacks);
@@ -1024,8 +1040,6 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const handleBlur = () => {
             setIsFocused(false);
-
-            viewElement.classList.add(hideSelectionWhileUnfocusedClassName);
 
             setDecorationCallbacks(decorationCallbacks => {
                 const newDecorationCallbacks = new Set(decorationCallbacks);
@@ -1186,18 +1200,20 @@ function ContentEditor<Content extends ContentWithReferences>(
             className={classNames(containerClassName, customContainerClassName)}
             onFocus={onFocus}
             onFocusCapture={event => {
-                if (event.target === viewRef.current?.dom) {
-                    // When the user hits cmd-k to open a link input in `<MessageView>`, types a
-                    // link, then hits enter, we should not render a `<FocusRing>` if the
-                    // `<ContentEditor>` didn't previously have a `<FocusRing>`. To do this we reset
-                    // the interaction modality when focusing the `<ContentEditor>` to the
-                    // interaction modality when it initially received focus as long as focus
-                    // doesn't leave the `<ContentEditor>`.
-                    if (maintainInteractionModalityRef.current !== null) {
-                        setInteractionModality(maintainInteractionModalityRef.current);
-                    } else {
-                        maintainInteractionModalityRef.current = getInteractionModality();
-                    }
+                // When the user hits cmd-k to open a link input in `<MessageView>`, types a
+                // link, then hits enter, we should not render a `<FocusRing>` if the
+                // `<ContentEditor>` didn't previously have a `<FocusRing>`. To do this we reset
+                // the interaction modality when focusing the `<ContentEditor>` to the
+                // interaction modality when it initially received focus as long as focus
+                // doesn't leave the `<ContentEditor>`.
+                //
+                // We intentionally don't check `event.target === viewRef.current.dom` because
+                // we also want to reset interaction modality when focusing children. Like the
+                // comment input in documents.
+                if (maintainInteractionModalityRef.current !== null) {
+                    setInteractionModality(maintainInteractionModalityRef.current);
+                } else {
+                    maintainInteractionModalityRef.current = getInteractionModality();
                 }
             }}
             onBlur={event => {

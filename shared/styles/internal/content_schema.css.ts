@@ -63,6 +63,7 @@ export const paragraphMargin = spacing["2"];
 export const docClassName = style({
     minHeight: "100%",
     color: colorSchemeVars["grey-text"],
+    caretColor: colorSchemeVars["grey-text"],
     // Create a new z-index stacking context.
     position: "relative",
     zIndex: 0,
@@ -225,6 +226,7 @@ export const quoteBlockClassName = style({
     position: "relative",
     paddingLeft: quoteBlockIndentation,
     color: colorSchemeVars["grey-60"],
+    caretColor: colorSchemeVars["grey-60"],
     selectors: {
         "&::before": {
             content: '""',
@@ -301,6 +303,7 @@ const checkListItemCheckboxMobileSize = "5";
 
 export const checkListItemCheckedClassName = style({
     color: colorSchemeVars["grey-60"],
+    caretColor: colorSchemeVars["grey-60"],
 });
 
 export const checkListItemContentClassName = style({});
@@ -677,6 +680,8 @@ function blendColors(color1: string, color2: string): string {
 
 export const linkClassName = style({
     color: colorSchemeVars["theme-60"],
+    // Don't change the caret color when your selector is in a link.
+    caretColor: colorSchemeVars["grey-text"],
     textDecorationLine: "underline",
     textDecorationThickness: 1,
     // Remove gaps in links underline in iOS 8+ and Safari 8+.
@@ -694,6 +699,9 @@ export const linkClassName = style({
             // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
             cursor: "pointer",
         },
+        // Use the caret color of the parent text node block.
+        [`${quoteBlockClassName} &`]: {caretColor: colorSchemeVars["grey-60"]},
+        [`${checkListItemCheckedClassName} &`]: {caretColor: colorSchemeVars["grey-60"]},
     },
 });
 

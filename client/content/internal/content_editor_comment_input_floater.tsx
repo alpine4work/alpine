@@ -17,12 +17,19 @@ import {ModalDialog} from "~/client/design/modal_dialog.js";
 import {OverlayRef} from "~/client/design/overlay.js";
 import {OverlayAnimated} from "~/client/design/overlay_animated.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
+import {useShowToast} from "~/client/design/toast.js";
 import {useConfirmSaveAfterLosingFocus} from "~/client/design/use_confirm_save_after_losing_focus.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
-import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    Spacing,
+    addRemLengths,
+    parseRemLengthNumber,
+    spacing,
+} from "~/shared/design/spacing.js";
+import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {generateId} from "~/shared/id/id.js";
 import {DocumentCommentThreadId} from "~/shared/id/types/id_types.js";
@@ -30,15 +37,24 @@ import {emptyMessageContentWithReferences} from "~/shared/messaging/message_cont
 import {
     messageInputMinHeight,
     messageViewBubbleBorderRadius,
+    messageViewBubbleMinHeight,
     messageViewBubblePaddingX,
     messageViewBubblePaddingY,
 } from "~/shared/messaging/messaging_shared_styles.js";
 import {trimSpacesFromProsemirrorRange} from "~/shared/prosemirror/trim_spaces_from_prosemirror_range.js";
 import {
+    colorSchemeVars,
     greyElevated1ClassName,
     overlayFadeOutAnimationDurationMs,
     sprinkles,
 } from "~/shared/styles/styles.js";
+
+const accountAvatarSize: Spacing = "7";
+const accountAvatarPaddingY: RemLength = `${
+    (parseRemLengthNumber(messageViewBubbleMinHeight) -
+        parseRemLengthNumber(spacing[accountAvatarSize])) /
+    2
+}rem`;
 
 export function ContentEditorCommentInputFloater({
     state,
@@ -61,7 +77,7 @@ export function ContentEditorCommentInputFloater({
 
     const onCloseWithoutAnimation = useEvent(() => {
         // Return focus to the editor.
-        viewRef.current?.focus();
+        assertExists(viewRef.current).focus();
 
         _onCloseWithoutAnimation();
     });
@@ -134,6 +150,7 @@ function ContentEditorCommentInput({
     onCloseWithoutAnimation: () => void;
     onCloseWithAnimation: () => void;
 }) {
+    const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
 
     const sendButtonRef = useRef<HTMLButtonElement>(null);
@@ -142,12 +159,13 @@ function ContentEditorCommentInput({
     );
     const [shouldShowConfirmCloseDialog, setShouldShowConfirmCloseDialog] = useState(false);
 
+    const [isSendButtonPending, setIsSendButtonPending] = useState(false);
     const isSendButtonDisabled = isContentEmpty(commentState.getDoc());
 
     const editorRef = useRef<ContentEditorRef>(null);
     const shouldFocusNextRenderRef = useRef(true);
 
-    useLayoutEffectWithoutServerSideWarning(() => {
+    useEffect(() => {
         // If the close confirmation dialog is open, we can't focus our editor.
         if (shouldShowConfirmCloseDialog) return;
 
@@ -158,7 +176,7 @@ function ContentEditorCommentInput({
         editor.focus({preventScroll: true});
     }, [shouldShowConfirmCloseDialog]);
 
-    const sendComment = async () => {
+    const sendCommentWithoutPromiseHandling = async () => {
         const content = commentState.getContent();
         if (isContentEmpty(content.doc)) return;
 
@@ -167,7 +185,9 @@ function ContentEditorCommentInput({
             documentState.doc,
             documentRange,
         );
-        const openCommentThreadPromiseRef: {current: Promise<void> | null} = {current: null};
+        const openCommentThreadPromiseRef: {current: Promise<void> | null} = {
+            current: null,
+        };
 
         assertExists(documentViewRef.current).dispatch(
             updateContentEditorReferences(
@@ -199,6 +219,27 @@ function ContentEditorCommentInput({
         onCloseWithoutAnimation();
     };
 
+    const sendComment = () => {
+        const content = commentState.getContent();
+        if (isContentEmpty(content.doc)) return;
+
+        setIsSendButtonPending(true);
+
+        runPromiseWithoutAwaiting(async () => {
+            try {
+                await sendCommentWithoutPromiseHandling();
+            } catch (error) {
+                showToast({
+                    type: "Error",
+                    title: "Can’t save comment",
+                    error,
+                });
+            } finally {
+                setIsSendButtonPending(false);
+            }
+        });
+    };
+
     return (
         <>
             <Box
@@ -208,14 +249,15 @@ function ContentEditorCommentInput({
                         parseRemLengthNumber(messageInputMinHeight) -
                         parseRemLengthNumber(spacing["1"])
                     }rem`,
+                    paddingLeft: addRemLengths(spacing["3"], spacing["0.5"]),
+                    paddingRight: addRemLengths(spacing["3"], spacing["0.5"]),
                 }}
-                paddingX="3"
-                paddingY="2"
+                paddingY="3"
                 display="flex"
                 overflow="hidden"
                 color="grey-text"
                 backgroundColor="grey-0"
-                borderRadius="xl"
+                borderRadius="2xl"
                 boxShadow="elevation-20"
                 className={greyElevated1ClassName}
                 onKeyDown={event => {
@@ -234,8 +276,13 @@ function ContentEditorCommentInput({
                 })}
             >
                 <Box display="flex" alignItems="flex-end">
-                    <Box paddingY="1">
-                        <AccountAvatar account={currentAccount} size="7" />
+                    <Box
+                        style={{
+                            paddingTop: accountAvatarPaddingY,
+                            paddingBottom: accountAvatarPaddingY,
+                        }}
+                    >
+                        <AccountAvatar account={currentAccount} size={accountAvatarSize} />
                     </Box>
                 </Box>
                 <FocusRing isVisibleWhenFocusWithin={true}>
@@ -243,9 +290,19 @@ function ContentEditorCommentInput({
                         flexGrow="1"
                         overflow="hidden"
                         marginX="2"
-                        marginY="0.5"
                         backgroundColor="grey-5"
                         borderRadius={messageViewBubbleBorderRadius}
+                        style={{
+                            minHeight: messageViewBubbleMinHeight,
+                            // Use `box-shadow` for border to not contribute to the element's size.
+                            //
+                            // NOTE(calebmer, 2023-11-27): Added this border to the message input since the
+                            // background alone made the input look too much like any other comment. The
+                            // border helps it stand out more, gives it visual importance. I want to keep
+                            // the background so the appearance of the message input accurately reflects a
+                            // message bubble. Let's make this change and see how I feel using it.
+                            boxShadow: `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`,
+                        }}
                     >
                         <Box
                             ref={useScrollbar({
@@ -271,22 +328,25 @@ function ContentEditorCommentInput({
                                     event.preventDefault();
                                     event.stopPropagation();
 
-                                    // Click the send button instead of directly calling `sendComment()` for
-                                    // correct loading and error states.
-                                    assertExists(sendButtonRef.current).click();
+                                    sendComment();
                                 }}
                             />
                         </Box>
                     </Box>
                 </FocusRing>
                 <Box display="flex" alignItems="flex-end">
-                    <Box paddingY="1">
+                    <Box
+                        style={{
+                            paddingTop: accountAvatarPaddingY,
+                            paddingBottom: accountAvatarPaddingY,
+                        }}
+                    >
                         <IconButton
                             ref={sendButtonRef}
                             variant="accent"
                             description="Save comment"
                             isDisabled={isSendButtonDisabled}
-                            pressErrorTitle="Can’t save comment"
+                            isPending={isSendButtonPending}
                             onPress={sendComment}
                         >
                             <ArrowRight
@@ -309,7 +369,7 @@ function ContentEditorCommentInput({
                     }}
                     primaryButtonLabel="Save"
                     primaryButtonPressErrorTitle="Can’t save comment"
-                    onPrimaryButtonPress={sendComment}
+                    onPrimaryButtonPress={sendCommentWithoutPromiseHandling}
                     cancelButtonLabel="Discard comment"
                     onCancelButtonPress={onCloseWithoutAnimation}
                 />

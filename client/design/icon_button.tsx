@@ -62,11 +62,6 @@ function IconButton(
         description: string;
 
         /**
-         * A keyboard shortcut that will display alongside the description in the tooltip.
-         */
-        keyboardShortcutHint?: ReactNode;
-
-        /**
          * When the user presses a button we fire this event. Use it to perform
          * an action in response to the button press.
          *
@@ -97,6 +92,20 @@ function IconButton(
          * The size of the icon button.
          */
         size?: IconButtonSize;
+
+        /**
+         * A keyboard shortcut that will display alongside the description in the tooltip.
+         */
+        keyboardShortcutHint?: ReactNode;
+
+        /**
+         * Are we waiting for some asynchronous action that was initiated by our button
+         * to complete?
+         *
+         * If your `onPress` event returns a promise then the button is automatically
+         * put into a pending state and you don't need to pass in this prop.
+         */
+        isPending?: boolean;
 
         /**
          * The border radius of the icon button. Defaults to `full`.
@@ -181,11 +190,12 @@ function IconButton(
 ) {
     const {
         description,
-        keyboardShortcutHint,
         onPress,
         pressErrorTitle,
         variant = "quiet",
         size = "base",
+        keyboardShortcutHint,
+        isPending: isPendingFromProps,
         borderRadius = "full",
         children,
         isDisabled = false,
@@ -204,7 +214,8 @@ function IconButton(
     const localRef = useRef<HTMLButtonElement>(null);
     const showToast = useShowToast();
 
-    const [isPending, setIsPending] = useState(false);
+    const [isPendingFromPress, setIsPendingFromPress] = useState(false);
+    const isPending = isPendingFromProps || isPendingFromPress;
 
     const {buttonProps, isPressed} = useButton(
         {
@@ -231,7 +242,7 @@ function IconButton(
                 // - Show a loading spinner after a short delay
                 // - Show a toast if there was an error
                 if (promise instanceof Promise) {
-                    setIsPending(true);
+                    setIsPendingFromPress(true);
 
                     assert(
                         pressErrorTitle,
@@ -240,10 +251,10 @@ function IconButton(
 
                     promise.then(
                         () => {
-                            setIsPending(false);
+                            setIsPendingFromPress(false);
                         },
                         error => {
-                            setIsPending(false);
+                            setIsPendingFromPress(false);
                             showToast({
                                 type: "Error",
                                 title: pressErrorTitle,

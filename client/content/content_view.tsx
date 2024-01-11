@@ -11,7 +11,6 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {ContentWithReferences} from "~/shared/content/content_references.js";
 import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_content_empty.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {HtmlElementGenerator, HtmlTextGenerator} from "~/shared/helpers/html/html_generator.js";
 import {iterateEmojis} from "~/shared/helpers/string/iterate_emojis.js";
@@ -202,7 +201,7 @@ export function ContentView({
         const cleanupFunctions: Array<() => void> = [];
 
         for (const linkElement of element.getElementsByClassName(linkClassName)) {
-            assert(linkElement instanceof HTMLAnchorElement);
+            if (!(linkElement instanceof HTMLAnchorElement)) continue;
 
             const handleClick = (event: MouseEvent) => {
                 handleContentLinkClick(event, navigate);

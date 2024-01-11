@@ -6,15 +6,6 @@ export const containerClassName = style({
     minHeight: "100%",
 });
 
-export const hideSelectionWhileUnfocusedClassName = style({
-    caretColor: "transparent",
-});
-
-globalStyle(`${hideSelectionWhileUnfocusedClassName} *::selection`, {background: "transparent"});
-globalStyle(`${hideSelectionWhileUnfocusedClassName} *::-moz-selection`, {
-    background: "transparent",
-});
-
 /**
  * When applying a background color to some selected text, we want the
  * background to cover the entire line height, not just the size of the inline
@@ -38,7 +29,7 @@ export const shiftKeyOrAltKeyDownClassName = style({});
 // When the shift or alt key is down then clicking on a link will select the
 // underlying text instead of opening it as a link. So show a regular text
 // cursor instead of a pointer cursor.
-globalStyle(`${shiftKeyOrAltKeyDownClassName} ${linkClassName}`, {
+globalStyle(`${shiftKeyOrAltKeyDownClassName} a${linkClassName}`, {
     cursor: "inherit",
 });
 

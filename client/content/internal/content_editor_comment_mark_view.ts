@@ -33,7 +33,8 @@ export function createContentEditorCommentMarkViewConstructor({
 
                 if (
                     node instanceof HTMLElement &&
-                    node.classList.contains(contentSchemaStyles.commentClassName)
+                    node.classList.contains(contentSchemaStyles.commentClassName) &&
+                    node.dataset.comment
                 ) {
                     return false;
                 }
