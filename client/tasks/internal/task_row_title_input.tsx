@@ -690,16 +690,14 @@ function TaskRowTitleInput(
                         if (hasMultilineTitleAndShouldShowMarginRightContent) {
                             // Make sure React state updates render in the same paint as transaction.
                             runWithImmediatePriority(() => {
-                                updateMultilineState(newTitleState, false);
+                                updateMultilineState(false);
                             });
                         }
                     },
                 },
             );
 
-            const updateFullyScrolledState = (event: Event | null) => {
-                const isInitialUpdate = event === null;
-
+            const updateFullyScrolledState = (isInitialUpdate: boolean) => {
                 const isFullyScrolledLeft = view.dom.scrollLeft === 0;
                 const isFullyScrolledRight =
                     Math.ceil(view.dom.scrollLeft + view.dom.clientWidth) + 1 >=
@@ -731,10 +729,10 @@ function TaskRowTitleInput(
             // insertion phase. It has to run in a layout effect.
             onLayoutEffectCallbacksRef.current.push(() => {
                 if (view.isDestroyed) return;
-                updateFullyScrolledState(null);
+                updateFullyScrolledState(true);
             });
 
-            view.dom.addEventListener("scroll", updateFullyScrolledState);
+            view.dom.addEventListener("scroll", () => updateFullyScrolledState(false));
 
             const updateEditorEmptyClass = (state: EditorState) => {
                 const addEmptyClassName = state.doc.childCount === 0;
@@ -758,8 +756,9 @@ function TaskRowTitleInput(
             // layout. It's ok to run during React's insertion phase.
             updateEditorEmptyClass(view.state);
 
-            const updateMultilineState = (state: EditorState, isInitialUpdate: boolean) => {
+            const updateMultilineState = (isInitialUpdate: boolean) => {
                 assert(hasMultilineTitleAndShouldShowMarginRightContent);
+                const {state} = view;
 
                 const rootRect = rootElement.getBoundingClientRect();
                 let newMultilineState: TaskRowTitleInputMultilineState | null = null;
@@ -804,7 +803,19 @@ function TaskRowTitleInput(
                 //
                 // [1]: https://gist.github.com/paulirish/5d52fb081b3570c81e3a
                 if (!isInitialUpdate || newMultilineState !== null) {
-                    setMultilineState(newMultilineState);
+                    setMultilineState(multilineState => {
+                        if (newMultilineState === null) return newMultilineState;
+                        if (multilineState === null) return newMultilineState;
+
+                        if (
+                            multilineState.remainingWidth === newMultilineState.remainingWidth &&
+                            multilineState.withoutMarginLeft === newMultilineState.withoutMarginLeft
+                        ) {
+                            return multilineState;
+                        }
+
+                        return newMultilineState;
+                    });
                 }
             };
 
@@ -813,9 +824,21 @@ function TaskRowTitleInput(
                 // React's insertion phase. It has to run in a layout effect.
                 onLayoutEffectCallbacksRef.current.push(() => {
                     if (view.isDestroyed) return;
-                    updateMultilineState(view.state, true);
+                    updateMultilineState(true);
                 });
             }
+
+            // When the window resizes, re-evaluate state that depends on task
+            // container size.
+            const handleWindowResize = () => {
+                updateFullyScrolledState(false);
+
+                if (hasMultilineTitleAndShouldShowMarginRightContent) {
+                    updateMultilineState(false);
+                }
+            };
+
+            window.addEventListener("resize", handleWindowResize);
 
             // Update `viewRef` and call any callbacks that were waiting for the view to
             // be ready.
@@ -830,6 +853,8 @@ function TaskRowTitleInput(
             }
 
             return () => {
+                window.removeEventListener("resize", handleWindowResize);
+
                 viewRef.current = {isReady: false, callbacks: new Set()};
                 containerElement.removeChild(view.dom);
 
@@ -853,7 +878,6 @@ function TaskRowTitleInput(
                 }
 
                 scheduledDestroyTaskRowTitleInputEditorViewCallbacks.push(() => {
-                    view.dom.removeEventListener("scroll", updateFullyScrolledState);
                     view.destroy();
                 });
             };
