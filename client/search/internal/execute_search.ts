@@ -232,10 +232,13 @@ export function executeSearch(
                 );
                 const actualScore = actualKeywordScore + additionalScore;
 
-                // If we have both a keyword result and a semantic result, then we want to use
-                // the title and body snippet from the keyword result.
                 newResults.push({
-                    ...keywordResult,
+                    // If we have both a keyword result and a semantic result, then prefer the
+                    // keyword result if there was a good keyword match. Otherwise prefer the
+                    // semantic result.
+                    ...(keywordResult.score < options.minKeywordScoreForSemanticResult
+                        ? semanticResult
+                        : keywordResult),
                     score: actualScore,
                     explanation: keywordResult.explanation
                         ? {
