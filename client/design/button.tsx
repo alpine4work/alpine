@@ -406,6 +406,11 @@ function Button(
                         ? `inset 0 0 0 1px ${colorSchemeVars["grey-10"]}`
                         : undefined,
                 }}
+                // Allow the button to maintain focus when pending. This way if a button is
+                // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
+                // `<DocumentContentEditor>`) and it enters a pending state we don't think the
+                // parent element has lost focus.
+                disabled={isPending && !isDisabled ? undefined : buttonProps.disabled}
             >
                 {isPressed && willDarkenWithOverlayOnPress && (
                     // For accent buttons, instead of choosing a darker background color shade when
