@@ -165,21 +165,19 @@ export function reduceDocumentContentEditorState(
             // We can have multiple steps from the same origin transaction. So uniquify our
             // new comment thread objects.
             const createCommentThreads = Array.from(
-                new Set(
-                    filterMapIterable(state.pendingSendableSteps.origins, transaction => {
-                        const createCommentThread: {
-                            commentThreadId: DocumentCommentThreadId;
-                            initialCommentContent: MessageContentWithReferences;
-                        } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
+                filterMapIterable(new Set(state.pendingSendableSteps.origins), transaction => {
+                    const createCommentThread: {
+                        commentThreadId: DocumentCommentThreadId;
+                        initialCommentContent: MessageContentWithReferences;
+                    } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
 
-                        if (!createCommentThread) return null;
+                    if (!createCommentThread) return null;
 
-                        return {
-                            commentThreadId: createCommentThread.commentThreadId,
-                            initialCommentContent: createCommentThread.initialCommentContent.doc,
-                        };
-                    }),
-                ),
+                    return {
+                        commentThreadId: createCommentThread.commentThreadId,
+                        initialCommentContent: createCommentThread.initialCommentContent.doc,
+                    };
+                }),
             );
 
             state = {

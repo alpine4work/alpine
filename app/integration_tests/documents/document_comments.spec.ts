@@ -407,3 +407,43 @@ test("can leave multiple comments on a document and navigate between them", asyn
     await expect(page.getByText("Test comment content 2")).toBeVisible();
     await expect(page.getByText("Test comment content 1")).toBeHidden();
 });
+
+test("can leave a document comment across multiple paragraphs", async ({
+    page,
+    context: browserContext,
+    viewport,
+}) => {
+    assert(viewport);
+
+    const document = await createDocument(context.action(session1), {
+        spaceId: space.id,
+        content: assertDocumentContent(
+            DocumentContentProsemirrorSchema.node("doc", {}, [
+                DocumentContentProsemirrorSchema.node("title", {}, []),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, [
+                    DocumentContentProsemirrorSchema.text("test foo test"),
+                ]),
+                DocumentContentProsemirrorSchema.node("paragraph", {}, [
+                    DocumentContentProsemirrorSchema.text("test bar test"),
+                ]),
+            ]),
+        ),
+    });
+
+    await services.signIn(browserContext, session1);
+    await page.goto(`/s/${space.id}/documents/${document.id}`);
+
+    await page.getByRole("textbox", {name: "Document"}).focus();
+
+    // Moving the mouse should open the styling toolbar.
+    await page.evaluate("dev.contentEditor.setTextSelection(8, 26)");
+    await page.mouse.move(0, 0);
+
+    await page.getByRole("button", {name: "Comment"}).click();
+    await page.getByRole("textbox", {name: "New comment"}).type("Test comment content 3");
+    await page.getByRole("textbox", {name: "New comment"}).press("Enter");
+
+    await expect(page.getByText("Test comment content 3")).toBeHidden();
+    await page.getByTestId(/DocumentContentEditorCommentThreadSideDecoration/).click();
+    await expect(page.getByText("Test comment content 3")).toBeVisible();
+});
