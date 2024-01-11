@@ -192,6 +192,32 @@ export default function SpaceLayoutRoute() {
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
+                // Double shift opens the search modal.
+                if (event.key === "Shift" && !event.altKey && !event.metaKey && !event.ctrlKey) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const currentTime = Date.now();
+                    const lastShiftKeyDownTime = lastShiftKeyDownTimeRef.current;
+                    lastShiftKeyDownTimeRef.current = currentTime;
+
+                    if (
+                        lastShiftKeyDownTime !== null &&
+                        currentTime - lastShiftKeyDownTime < doubleClickDelayMs
+                    ) {
+                        setSearchState(searchState => {
+                            if (searchState) return searchState;
+                            return {initialQueryText: ""};
+                        });
+                    }
+                    return;
+                }
+
+                // If the user presses a key other than `Shift` then reset the double shift
+                // timer. This happens often when typing text like “I <3 NY” fast. Since you
+                // type `Shift`, `I`, `Shift`, `,` (since `Shift+,` is `<`).
+                lastShiftKeyDownTimeRef.current = null;
+
                 switch (event.key) {
                     // Disable Home/End browser behavior. Don't let them scroll our page. Scrolling
                     // to the extremity of a lazy loaded virtualized scroll view with Home/End
@@ -221,29 +247,6 @@ export default function SpaceLayoutRoute() {
                         ) {
                             event.preventDefault();
                             event.stopPropagation();
-                        }
-                        break;
-                    }
-
-                    // Double shift opens the search modal.
-                    case "Shift": {
-                        if (!event.altKey && !event.metaKey && !event.ctrlKey) {
-                            event.preventDefault();
-                            event.stopPropagation();
-
-                            const currentTime = Date.now();
-                            const lastShiftKeyDownTime = lastShiftKeyDownTimeRef.current;
-                            lastShiftKeyDownTimeRef.current = currentTime;
-
-                            if (
-                                lastShiftKeyDownTime !== null &&
-                                currentTime - lastShiftKeyDownTime < doubleClickDelayMs
-                            ) {
-                                setSearchState(searchState => {
-                                    if (searchState) return searchState;
-                                    return {initialQueryText: ""};
-                                });
-                            }
                         }
                         break;
                     }
