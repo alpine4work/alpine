@@ -246,3 +246,40 @@ For example, the <em>underlined</em> entry 2340 in the product is calculated as 
         ],
     });
 });
+
+test("works when certain nodes have empty text", () => {
+    expect(parseSearchContent("This has some empty `` code").toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "This has some empty `` code"}],
+            },
+        ],
+    });
+
+    expect(parseSearchContent("This has some empty\n```\n```\nmultiline code").toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "This has some empty"}],
+            },
+            {type: "codeBlock"},
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "multiline code"}],
+            },
+        ],
+    });
+
+    expect(parseSearchContent("This has an empty [](https://google.com) link").toJSON()).toEqual({
+        type: "doc",
+        content: [
+            {
+                type: "paragraph",
+                content: [{type: "text", text: "This has an empty  link"}],
+            },
+        ],
+    });
+});

@@ -190,7 +190,12 @@ export function parseSearchContent(
             }
 
             case "code": {
-                return [schema.nodes.codeBlock.create({}, [schema.text(inputNode.value)])];
+                return [
+                    schema.nodes.codeBlock.create(
+                        {},
+                        inputNode.value.length > 0 ? [schema.text(inputNode.value)] : [],
+                    ),
+                ];
             }
 
             // `chunkSearchContent()` should not output definitions. In case user
@@ -203,7 +208,12 @@ export function parseSearchContent(
             // `chunkSearchContent()` should not output HTML. In case user
             // content is not properly escaped, include the raw HTML.
             case "html": {
-                return [schema.nodes.paragraph.create({}, [schema.text(inputNode.value)])];
+                return [
+                    schema.nodes.paragraph.create(
+                        {},
+                        inputNode.value.length > 0 ? [schema.text(inputNode.value)] : [],
+                    ),
+                ];
             }
 
             // `chunkSearchContent()` should not output these node types. In case user
@@ -221,9 +231,9 @@ export function parseSearchContent(
                                     assertExists(inputNode.position.end.offset),
                                 )
                                 .split(newLineRegExp)
-                                .map(text => schema.text(text)),
-                            () => schema.nodes.break.create(),
-                        ),
+                                .map(text => (text.length > 0 ? [schema.text(text)] : [])),
+                            () => [schema.nodes.break.create()],
+                        ).flat(),
                     ),
                 ];
             }
@@ -266,7 +276,9 @@ export function parseSearchContent(
     function* actuallyParsePhrasingNode(inputNode: PhrasingContent): Iterable<Node> {
         switch (inputNode.type) {
             case "text": {
-                yield schema.text(inputNode.value);
+                if (inputNode.value.length > 0) {
+                    yield schema.text(inputNode.value);
+                }
                 break;
             }
 
@@ -298,7 +310,9 @@ export function parseSearchContent(
             }
 
             case "inlineCode": {
-                yield schema.text(inputNode.value, [schema.marks.code.create()]);
+                if (inputNode.value.length > 0) {
+                    yield schema.text(inputNode.value, [schema.marks.code.create()]);
+                }
                 break;
             }
 
@@ -324,7 +338,9 @@ export function parseSearchContent(
                     break;
                 }
 
-                yield schema.text(inputNode.value);
+                if (inputNode.value.length > 0) {
+                    yield schema.text(inputNode.value);
+                }
                 break;
             }
 
@@ -335,12 +351,14 @@ export function parseSearchContent(
             case "imageReference": {
                 if (!inputNode.position) break;
 
-                yield schema.text(
-                    inputText.slice(
-                        assertExists(inputNode.position.start.offset),
-                        assertExists(inputNode.position.end.offset),
-                    ),
+                const text = inputText.slice(
+                    assertExists(inputNode.position.start.offset),
+                    assertExists(inputNode.position.end.offset),
                 );
+
+                if (text.length > 0) {
+                    yield schema.text(text);
+                }
                 break;
             }
 
