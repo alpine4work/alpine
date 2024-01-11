@@ -2410,3 +2410,109 @@ test("searches with natural language parsing works", async () => {
         ],
     });
 });
+
+test("highlighting bullet points with bold formatting works well", async () => {
+    const space = await TestSpace.create(context);
+    const session = await space.createSession();
+
+    const document = await TestDocument.create(session, {
+        content: assertDocumentContent(
+            schema.node("doc", null, [
+                schema.node("title", null, [
+                    schema.text("Document with bullet points that have strong titles"),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", null, [
+                        schema.text("Culinary Delights:", [schema.mark("bold")]),
+                        schema.text(" Exploring diverse cuisines to satisfy your taste buds"),
+                    ]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", null, [
+                        schema.text("Healthy Habits:", [schema.mark("bold")]),
+                        schema.text(" Incorporating nutrient-rich foods for a balanced diet"),
+                    ]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", null, [
+                        schema.text("Kitchen Adventures:", [schema.mark("bold")]),
+                        schema.text(" Trying out new recipes and cooking techniques"),
+                    ]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", null, [
+                        schema.text("Global Gastronomy:", [schema.mark("bold")]),
+                        schema.text(" Sampling iconic dishes from around the world"),
+                    ]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", null, [
+                        schema.text("Foodie Travel:", [schema.mark("bold")]),
+                        schema.text(" Discovering the best eats while traveling"),
+                    ]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", null, [
+                        schema.text("Farm-to-Table Experience:", [schema.mark("bold")]),
+                        schema.text(" Enjoying the freshness of locally sourced ingredients"),
+                    ]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", null, [
+                        schema.text("Sweet Indulgences:", [schema.mark("bold")]),
+                        schema.text(" Exploring the world of decadent desserts and sweets"),
+                    ]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", null, [
+                        schema.text("Spice Chronicles:", [schema.mark("bold")]),
+                        schema.text(" Delving into the diverse world of spices and their uses"),
+                    ]),
+                ]),
+                schema.node("unorderedListItem", {indent: 0}, [
+                    schema.node("paragraph", null, [
+                        schema.text("Homemade Happiness:", [schema.mark("bold")]),
+                        schema.text(" Finding joy in preparing and sharing home-cooked meals"),
+                    ]),
+                ]),
+            ]),
+        ),
+    });
+
+    import.meta.jest.runOnlyPendingTimers();
+    await ProcessContextModule.waitForTestTasks();
+
+    await context.opensearch.refresh(SearchEntityKeywordIndex);
+
+    expect(
+        await searchByKeywords(session.action(), {
+            spaceId: space.id,
+            queryText: "locally sourced",
+            limit: 100,
+            timeZone: defaultTimeZone,
+            currentTime: new Date(),
+        }),
+    ).toEqual({
+        results: [
+            {
+                entityId: `Document:${document.id}`,
+                score: expect.any(Number),
+                title: "Document with bullet points that have strong titles",
+                bodyTextSnippet: [
+                    {
+                        isHighlighted: false,
+                        text: "Culinary Delights: Exploring diverse cuisines to satisfy your taste buds. Healthy Habits: Incorporating nutrient-rich foods for a balanced diet. Kitchen Adventures: Trying out new recipes and cooking techniques. Global Gastronomy: Sampling iconic dishes from around the world. Foodie Travel: Discovering the best eats while traveling. Farm-to-Table Experience: Enjoying the freshness of ",
+                    },
+                    {isHighlighted: true, text: "locally"},
+                    {isHighlighted: false, text: " "},
+                    {isHighlighted: true, text: "sourced"},
+                    {
+                        isHighlighted: false,
+                        text: " ingredients. Sweet Indulgences: Exploring the world of decadent desserts and sweets",
+                    },
+                ],
+                media: null,
+            },
+        ],
+    });
+});
