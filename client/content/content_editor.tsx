@@ -1,3 +1,4 @@
+import {Modality, getInteractionModality, setInteractionModality} from "@react-aria/interactions";
 import classNames from "classnames";
 import {history, redoDepth, undoDepth} from "prosemirror-history";
 import {Node, Slice} from "prosemirror-model";
@@ -45,6 +46,7 @@ import {ContentEditorPhantomSelectionCursor} from "~/client/content/internal/con
 import {contentEditorTextClipboardSerializer} from "~/client/content/internal/content_editor_text_clipboard_serializer.js";
 import {useContentEditorDebugTools} from "~/client/content/internal/use_content_editor_debug_tools.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {isElementOwnedBy} from "~/client/helpers/elements/is_element_owned_by.js";
 import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboard_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
@@ -1177,11 +1179,37 @@ function ContentEditor<Content extends ContentWithReferences>(
 
     useContentEditorDebugTools(viewRef);
 
+    const maintainInteractionModalityRef = useRef<Modality | null>(null);
+
     return (
         <div
             className={classNames(containerClassName, customContainerClassName)}
             onFocus={onFocus}
-            onBlur={onBlur}
+            onFocusCapture={event => {
+                if (event.target === viewRef.current?.dom) {
+                    // When the user hits cmd-k to open a link input in `<MessageView>`, types a
+                    // link, then hits enter, we should not render a `<FocusRing>` if the
+                    // `<ContentEditor>` didn't previously have a `<FocusRing>`. To do this we reset
+                    // the interaction modality when focusing the `<ContentEditor>` to the
+                    // interaction modality when it initially received focus as long as focus
+                    // doesn't leave the `<ContentEditor>`.
+                    if (maintainInteractionModalityRef.current !== null) {
+                        setInteractionModality(maintainInteractionModalityRef.current);
+                    } else {
+                        maintainInteractionModalityRef.current = getInteractionModality();
+                    }
+                }
+            }}
+            onBlur={event => {
+                if (
+                    !(event.relatedTarget instanceof Element) ||
+                    !isElementOwnedBy(event.currentTarget, event.relatedTarget)
+                ) {
+                    maintainInteractionModalityRef.current = null;
+                }
+
+                onBlur?.(event);
+            }}
         >
             <ContentEditorFloater
                 state={unwrap(state)}
