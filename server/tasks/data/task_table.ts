@@ -118,6 +118,7 @@ import {
 import {TaskQueryNormalizedFilters} from "~/shared/tasks/task_query_normalized_filters.js";
 import {TaskQueryNormalizedSort} from "~/shared/tasks/task_query_normalized_sort.js";
 import {TaskStatus} from "~/shared/tasks/task_status.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 /**
  * The task actions table is the canonical representation of the data in our
@@ -199,7 +200,6 @@ const TaskActionTable = DynamoTableSchema.new({
 });
 
 // Allow querying unprocessed action transactions across all spaces.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const UnprocessedActionTransactionsIndex = TaskActionTable.addIndex({
     name: "UnprocessedActionTransactions",
     itemTypes: [{partitionType: "TaskActions", sortRangeType: "ActionTransaction"}],
@@ -972,35 +972,7 @@ function afterCommitTaskActionTransaction(
     context: Context<ServerSessionActionContextModules & {tasks: TaskContextModuleBase}>,
     actionTransactionItem: TaskActionTransactionItem,
 ) {
-    const processPromise = context.tracer.withSpan(
-        "Process task action transaction",
-        async (context, span) => {
-            span.addData({
-                tasks: {
-                    actions: actionTransactionItem.actions.map(getTaskActionLabel).join(","),
-                    actionCount: actionTransactionItem.actions.length,
-                    actionTransactionId: actionTransactionItem.actionTransactionId,
-                },
-            });
-
-            // Process the action transaction in the background.
-            //
-            // TODO(calebmer): We need some way to recover if processing fails! Right now
-            // maybe we can rely on a manual process where we look at the database for
-            // unprocessed transactions and manually retry them. However, it's important
-            // actions are processed in a timely manner so we should have some service
-            // that's constantly querying the `TaskActions` table and retrying transactions
-            // that are taking a while to process.
-            await context.tasks.processActionTransactionAfterCommit(actionTransactionItem);
-
-            // Once we've finished processing, flip the `wasProcessed` flag to true which
-            // will also remove this transaction from our unprocessed transactions index.
-            await TaskActionTable.createOrReplaceItem(context, {
-                ...actionTransactionItem,
-                wasProcessed: true,
-            });
-        },
-    );
+    const processPromise = processTaskActionTransaction(context, actionTransactionItem);
 
     context.process.waitUntil(processPromise);
 
@@ -1013,6 +985,75 @@ function afterCommitTaskActionTransaction(
     });
 
     return {processPromise};
+}
+
+/**
+ * Query our unprocessed action transaction index and process any transactions
+ * that have been in there for too long. It's important that we finish
+ * processing action transactions within `TaskRealtimeActionHistory`'s 10
+ * minute window.
+ *
+ * We have a cron job that runs this function once every 3 minutes so we get 3
+ * chances in that 10 minute window to process action transactions that failed
+ * to process the first time.
+ *
+ * We add the number of action transactions this function needs to process to
+ * the provided `span`.
+ */
+export async function retryUnprocessedTaskActionTransactions(
+    context: Context<
+        Omit<ServerSessionActionContextModules, "actor"> & {tasks: TaskContextModuleBase}
+    >,
+    span: TracerSpan,
+) {
+    const indexItems = await arrayFromAsyncIterable(
+        UnprocessedActionTransactionsIndex.query(context, {
+            partitionKey: {wasProcessed: false},
+            // Unprocessed action transactions that are less than 12 seconds old are
+            // probably being actively processed. Only retry processing after a task has
+            // been unprocessed for more than 12 seconds.
+            //
+            // p99 action transaction processing currently peeks at ~6s.
+            endSortKey: {committedTime: new Date(Date.now() - 1000 * 12)},
+            limit: "All",
+        }),
+    );
+
+    span.addData({common: {count: indexItems.length}});
+
+    await runAllPromises(
+        indexItems.map(async indexItem => {
+            const item = await TaskActionTable.getItem(context, indexItem);
+            await processTaskActionTransaction(context, item);
+        }),
+    );
+}
+
+function processTaskActionTransaction(
+    context: Context<
+        Omit<ServerSessionActionContextModules, "actor"> & {tasks: TaskContextModuleBase}
+    >,
+    actionTransactionItem: TaskActionTransactionItem,
+) {
+    return context.tracer.withSpan("Process task action transaction", async (context, span) => {
+        span.addData({
+            tasks: {
+                actions: actionTransactionItem.actions.map(getTaskActionLabel).join(","),
+                actionCount: actionTransactionItem.actions.length,
+                actionTransactionId: actionTransactionItem.actionTransactionId,
+            },
+        });
+
+        // Process the action transaction in the background.
+        await context.tasks.processActionTransactionAfterCommit(actionTransactionItem);
+
+        // Once we've finished processing, flip the `wasProcessed` flag to true which
+        // will also remove this transaction from our unprocessed transactions index.
+        await TaskActionTable.createOrReplaceItem(context, {
+            ...actionTransactionItem,
+            wasProcessed: true,
+        });
+    });
 }
 
 const taskCollectionAtomicallyUpdateItemTaskCountAttributesExpression =

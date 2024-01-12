@@ -1,10 +1,4 @@
-import {SubnetType} from "aws-cdk-lib/aws-ec2";
-import {
-    ContainerImage,
-    Secret as EcsSecret,
-    FargateService,
-    FargateTaskDefinition,
-} from "aws-cdk-lib/aws-ecs";
+import {ContainerImage, Secret as EcsSecret, FargateTaskDefinition} from "aws-cdk-lib/aws-ecs";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";

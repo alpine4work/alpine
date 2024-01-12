@@ -48,6 +48,9 @@ beforeEach(async () => {
                     throw new UnimplementedError("Unimplemented job");
             }
         },
+        processMaintenanceJob: async (context, job) => {
+            throw new UnimplementedError("Unimplemented maintenance job");
+        },
     });
 });
 

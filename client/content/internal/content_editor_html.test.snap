@@ -4,7 +4,7 @@ exports[`bold 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -136,7 +136,7 @@ exports[`bullet list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -188,7 +188,7 @@ exports[`bullet list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -256,7 +256,7 @@ exports[`bullet list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -313,7 +313,7 @@ exports[`bullet list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -431,7 +431,7 @@ exports[`can put hard breaks inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -471,7 +471,7 @@ exports[`can put hard breaks inside paragraphs 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -501,7 +501,7 @@ exports[`can put multiple paragraphs inside list items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -671,7 +671,7 @@ exports[`check list (checked) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -884,7 +884,7 @@ exports[`check list (unchecked) plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -975,7 +975,7 @@ exports[`check list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -1150,7 +1150,7 @@ exports[`check list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -1331,7 +1331,7 @@ exports[`check list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -1504,7 +1504,7 @@ exports[`code 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -1536,7 +1536,7 @@ exports[`code plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -1576,15 +1576,14 @@ exports[`divider empty 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
   translate="no"
 >
   <hr
-    class="content_schema__14lcw3gi ProseMirror-selectednode"
-    draggable="true"
+    class="content_schema__14lcw3gi"
   />
 </div>
 `;
@@ -1671,7 +1670,7 @@ exports[`heading 1 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -1781,7 +1780,7 @@ exports[`heading 2 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -1891,7 +1890,7 @@ exports[`heading 3 plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -1929,7 +1928,7 @@ exports[`highlight 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -1968,7 +1967,7 @@ exports[`italic 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -2004,7 +2003,7 @@ exports[`link (XSS vulnerability) 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -2031,7 +2030,7 @@ exports[`link 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -2170,7 +2169,7 @@ exports[`ordered list plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -2223,7 +2222,7 @@ exports[`ordered list with multiple items 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -2294,7 +2293,7 @@ exports[`ordered list with sub-list 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -2355,7 +2354,7 @@ exports[`ordered list with sub-list of another type 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -2650,7 +2649,7 @@ exports[`paragraph plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -2772,7 +2771,7 @@ exports[`quote plain 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"
@@ -2818,7 +2817,7 @@ exports[`strike 1`] = `
 <div
   aria-label="Test"
   aria-multiline="true"
-  class="ProseMirror content_schema__14lcw3g0 content_editor__1s12vog1"
+  class="ProseMirror content_schema__14lcw3g0"
   contenteditable="true"
   role="textbox"
   spellcheck="false"

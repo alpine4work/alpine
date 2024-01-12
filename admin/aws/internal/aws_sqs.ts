@@ -1,3 +1,4 @@
+import {SqsQueue, SqsQueueProps} from "aws-cdk-lib/aws-events-targets";
 import {IGrantable, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Queue} from "aws-cdk-lib/aws-sqs";
 import {Construct} from "constructs";
@@ -20,6 +21,10 @@ export class AwsSqs extends Construct {
 
     public getJobQueueUrl() {
         return this._jobQueue.queueUrl;
+    }
+
+    public createJobQueueEventTarget(props?: SqsQueueProps) {
+        return new SqsQueue(this._jobQueue, props);
     }
 
     public grantSendAndReceiveJobQueueMessages(grantee: IGrantable) {

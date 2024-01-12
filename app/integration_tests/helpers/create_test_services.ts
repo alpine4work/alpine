@@ -221,6 +221,7 @@ export function createTestServices(): {context: TestContext; services: TestServi
         jobQueueServiceSubprocess = spawn(
             joinPath(runfilesPath, "cyberworlds/server/jobs/queue/queue.sh"),
             [
+                `--taskRealtimeServiceLocalPort=${taskRealtimeServicePort}`,
                 `--appServicePublicKey=${devAppServicePublicKeyPath}`,
                 `--edgeServiceFamilyPublicKey=${devEdgeServiceFamilyPublicKeyPath}`,
                 `--taskRealtimeServicePublicKey=${devTaskRealtimeServicePublicKeyPath}`,

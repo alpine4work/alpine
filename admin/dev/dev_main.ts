@@ -6,6 +6,7 @@ import getPort from "get-port";
 import {networkInterfaces} from "os";
 import {basename, dirname, join as joinPath} from "path";
 import {inspect} from "util";
+import {scheduleDevCronJobs} from "~/admin/cron/schedule_dev_cron_jobs.js";
 import {
     bazelBuildCompilationMode,
     bazelBuildTargetCpu,
@@ -236,6 +237,7 @@ async function createArtifacts() {
                 `--dynamoLocalPort=${dynamoLocalPort}`,
                 `--opensearchLocalPort=${opensearchLocalPort}`,
                 `--jobQueueUrl=http://localhost:${sqsLocalPort}/local/JobQueue`,
+                `--taskRealtimeServiceLocalPort=${taskRealtimeDevPort}`,
                 `--allMiniLmL6V2LanguageModel=${joinPath(runfilesPath, "all_mini_lm_l6_v2")}`,
                 `--inspectorPort=${jobQueueDevInspectorPort}`,
                 ...(honeycombApiKey ? [`--honeycombApiKey=${honeycombApiKey}`] : []),
@@ -281,6 +283,12 @@ const fastSetupPromise = runAllPromises([
         logsPath: sqsLocalLogsPath,
         port: sqsLocalPort,
         statsPort: sqsLocalStatsPort,
+    }).then(() => {
+        // Start running our cron jobs after SQS has started.
+        scheduleDevCronJobs({
+            jobQueueUrl: `http://localhost:${sqsLocalPort}/local/JobQueue`,
+            logError,
+        });
     }),
     remixDevServerPromise,
 ]);

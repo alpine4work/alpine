@@ -1,6 +1,6 @@
 import {Duration} from "aws-cdk-lib";
 import {AutoScalingGroup} from "aws-cdk-lib/aws-autoscaling";
-import {InstanceType, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
+import {InstanceType, Port, SubnetType, Vpc} from "aws-cdk-lib/aws-ec2";
 import {
     AsgCapacityProvider,
     ContainerImage,
@@ -18,6 +18,7 @@ import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsOpensearch} from "~/admin/aws/internal/aws_opensearch.js";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
+import {AwsTaskRealtimeService} from "~/admin/aws/internal/aws_task_realtime_service.js";
 import {runfilesPath} from "~/server/helpers/node/runfiles_path.js";
 
 export class AwsJobQueueService extends Construct {
@@ -29,12 +30,14 @@ export class AwsJobQueueService extends Construct {
             dynamo,
             opensearch,
             sqs,
+            taskRealtimeService,
         }: {
             vpc: Vpc;
             ecsCluster: AwsEcsCluster;
             dynamo: AwsDynamo;
             opensearch: AwsOpensearch;
             sqs: AwsSqs;
+            taskRealtimeService: AwsTaskRealtimeService;
         },
     ) {
         super(parentConstruct, "JobQueueService");
@@ -66,6 +69,9 @@ export class AwsJobQueueService extends Construct {
         // OpenSearch is in our private VPC subnet. Allow connections from our
         // EC2 instances.
         opensearch.allowConnectionsFrom(autoScalingGroup);
+
+        // Allow `JobQueueService` to connect to any `TaskRealtimeService` port.
+        taskRealtimeService.autoScalingGroup.connections.allowFrom(autoScalingGroup, Port.allTcp());
 
         const autoScalingGroupCapacityProvider = new AsgCapacityProvider(
             this,
@@ -152,6 +158,8 @@ export class AwsJobQueueService extends Construct {
                 `/var/www/server/jobs/queue/queue ${[
                     `--opensearchHost=${opensearch.opensearchHost}`,
                     `--jobQueueUrl=${sqs.getJobQueueUrl()}`,
+                    `--ecsCluster=${ecsCluster.cluster.clusterName}`,
+                    `--taskRealtimeServiceEcsTaskDefinitionFamily=${taskRealtimeService.taskDefinition.family}`,
                     "--honeycombApiKey=$HONEYCOMB_API_KEY",
                     "--cohereApiKey=$COHERE_API_KEY",
                     // Intentionally escape `$` here! Our key args accept either a file path

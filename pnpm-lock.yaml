@@ -308,6 +308,9 @@ dependencies:
   '@types/node':
     specifier: 20.3.2
     version: 20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy)
+  '@types/node-cron':
+    specifier: ^3.0.11
+    version: 3.0.11
   '@types/proper-lockfile':
     specifier: ^4.1.2
     version: 4.1.2
@@ -572,6 +575,9 @@ dependencies:
   murmurhash:
     specifier: ^2.0.1
     version: 2.0.1
+  node-cron:
+    specifier: ^3.0.3
+    version: 3.0.3
   onnxruntime-common:
     specifier: 1.14.0
     version: 1.14.0(patch_hash=pe6xj53aa4w53t6a6st3utfq5a)
@@ -6498,6 +6504,10 @@ packages:
 
   /@types/ms@0.7.31:
     resolution: {integrity: sha512-iiUgKzV9AuaEkZqkOLDIvlQiL6ltuZd9tGcW3gwpnX8JbuiuhFlEGmmFXEXkN50Cvq7Os88IY2v0dkDqXYWVgA==}
+    dev: false
+
+  /@types/node-cron@3.0.11:
+    resolution: {integrity: sha512-0ikrnug3/IyneSHqCBeslAhlK2aBfYek1fGo4bP4QnZPmiqSGRK+Oy7ZMisLWkesffJvQ1cqAcBnJC+8+nxIAg==}
     dev: false
 
   /@types/node@20.3.2(patch_hash=4zjoxiw4th676hgmdgid4hevxy):
@@ -12926,6 +12936,13 @@ packages:
 
   /node-addon-api@6.1.0:
     resolution: {integrity: sha512-+eawOlIgy680F0kBzPUNFhMZGtJ1YmqM6l4+Crf4IkImjYrO/mqPwRMh352g23uIaQKFItcQ64I7KMaJxHgAVA==}
+    dev: false
+
+  /node-cron@3.0.3:
+    resolution: {integrity: sha512-dOal67//nohNgYWb+nWmg5dkFdIwDm8EpeGYMekPMrngV3637lqnX0lbUcCtgibHTz6SEz7DAIjKvKDFYCnO1A==}
+    engines: {node: '>=6.0.0'}
+    dependencies:
+      uuid: 8.3.2
     dev: false
 
   /node-fetch@2.6.11:

@@ -1,6 +1,7 @@
 import {App, Stack} from "aws-cdk-lib";
 import {fileURLToPath} from "url";
 import {AwsAppService} from "~/admin/aws/internal/aws_app_service.js";
+import {AwsCronJobs} from "~/admin/aws/internal/aws_cron_jobs.js";
 import {AwsDynamo} from "~/admin/aws/internal/aws_dynamo.js";
 import {AwsEcsCluster} from "~/admin/aws/internal/aws_ecs_cluster.js";
 import {AwsJobQueueService} from "~/admin/aws/internal/aws_job_queue_service.js";
@@ -25,6 +26,8 @@ async function addAwsResources(stack: Stack) {
     const ecsCluster = new AwsEcsCluster(stack, vpc);
     const opensearch = new AwsOpensearch(stack, vpc);
     const sqs = new AwsSqs(stack);
+
+    new AwsCronJobs(stack, sqs);
 
     const dynamo = await AwsDynamo.new(stack);
 
@@ -51,6 +54,7 @@ async function addAwsResources(stack: Stack) {
         dynamo,
         opensearch,
         sqs,
+        taskRealtimeService,
     });
 
     new AwsMigrationService(stack, {

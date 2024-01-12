@@ -23,6 +23,7 @@ ts_project(
         "//:node_modules/constructs",
         "//:node_modules/fs-extra",
         "//:node_modules/pretty-ms",
+        "//admin/cron",
         "//admin/dynamo",
         "//admin/helpers",
         "//server/helpers/node",

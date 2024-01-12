@@ -273,8 +273,15 @@ runService({
                         );
                     }
 
-                    if (actorContextModule.serviceName !== "AppService") {
-                        throw new PermissionDeniedError("Only `AppService` can apply transactions");
+                    if (
+                        actorContextModule.serviceName !== "AppService" &&
+                        // `JobQueueService` can apply transactions by processing the
+                        // `RetryUnprocessedTaskActionTransactions` maintenance job.
+                        actorContextModule.serviceName !== "JobQueueService"
+                    ) {
+                        throw new PermissionDeniedError(
+                            "Only `AppService` or `JobQueueService` can apply transactions",
+                        );
                     }
 
                     if (!(actorContextModule instanceof DynamoSystemActorContextModule)) {

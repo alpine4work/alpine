@@ -18,13 +18,16 @@ import {DynamoBatchContextModule} from "~/server/dynamo/core/dynamo_context_modu
 import {TestCounter} from "~/server/helpers/test/test_counter.js";
 import {JobDescription} from "~/server/jobs/core/job_description.js";
 import {JobQueueMessageBodySchema} from "~/server/jobs/core/job_sender.js";
+import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
 import {CacheContextModule} from "~/shared/context/cache_context_module.js";
+import {Context} from "~/shared/context/context.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
 import {CancelledError, UnknownError} from "~/shared/error/error.js";
 import {createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {TracerSpan} from "~/shared/tracer/tracer_span.js";
 
 export const receiveMessageTestCounter = new TestCounter<void>();
 export const deleteMessageBatchTestCounter = new TestCounter<void>();
@@ -95,6 +98,13 @@ export class JobQueueConsumer {
         context: ServerSystemActionContext,
         job: JobDescription,
         jobStartTime: Date,
+        span: TracerSpan,
+    ) => Promise<void>;
+    private readonly _processMaintenanceJob: (
+        context: Context<Omit<ServerSystemActionContextModules, "actor">>,
+        job: MaintenanceJobDescription,
+        jobStartTime: Date,
+        span: TracerSpan,
     ) => Promise<void>;
 
     private _isStopped = false;
@@ -108,6 +118,7 @@ export class JobQueueConsumer {
             region,
             queueUrl,
             processJob,
+            processMaintenanceJob,
         }: {
             region: string;
             queueUrl: string;
@@ -115,6 +126,13 @@ export class JobQueueConsumer {
                 context: ServerSystemActionContext,
                 job: JobDescription,
                 jobStartTime: Date,
+                span: TracerSpan,
+            ) => Promise<void>;
+            processMaintenanceJob: (
+                context: Context<Omit<ServerSystemActionContextModules, "actor">>,
+                job: MaintenanceJobDescription,
+                jobStartTime: Date,
+                span: TracerSpan,
             ) => Promise<void>;
         },
     ) {
@@ -125,6 +143,7 @@ export class JobQueueConsumer {
             endpoint: new URL("/", queueUrl).toString(),
         });
         this._processJob = processJob;
+        this._processMaintenanceJob = processMaintenanceJob;
     }
 
     public static start(
@@ -136,6 +155,13 @@ export class JobQueueConsumer {
                 context: ServerSystemActionContext,
                 job: JobDescription,
                 jobStartTime: Date,
+                span: TracerSpan,
+            ) => Promise<void>;
+            processMaintenanceJob: (
+                context: Context<Omit<ServerSystemActionContextModules, "actor">>,
+                job: MaintenanceJobDescription,
+                jobStartTime: Date,
+                span: TracerSpan,
             ) => Promise<void>;
         },
     ) {
@@ -365,16 +391,26 @@ export class JobQueueConsumer {
         currentTime: number;
         messageBatchSize: number;
     }) {
-        const messageBody = JobQueueMessageBodySchema.deserialize(
-            JSON.parse(assertExists(message.Body)),
-        );
+        const serializedMessageBody = JSON.parse(assertExists(message.Body));
 
-        const {span, finishSpan} = this._processContext.tracer
-            .getRoot()
-            .startSpanFromPropagationContextAsLinked(
-                `Process job ${messageBody.job.type}`,
-                messageBody.tracerContext,
-            );
+        // NOTE(calebmer): Job queue messages created before 2024-01-12 don't have a
+        // type. Default their type to `Regular`. Once we are a couple months past
+        // 2024-01-12, all jobs in our system should have a type and we can
+        // remove this.
+        serializedMessageBody.type ??= "Regular";
+
+        const messageBody = JobQueueMessageBodySchema.deserialize(serializedMessageBody);
+
+        const spanName = `Process${messageBody.type === "Maintenance" ? " maintenance " : " "}job ${
+            messageBody.job.type
+        }`;
+
+        const {span, finishSpan} =
+            messageBody.tracerContext !== null
+                ? this._processContext.tracer
+                      .getRoot()
+                      .startSpanFromPropagationContextAsLinked(spanName, messageBody.tracerContext)
+                : this._processContext.tracer.getRoot().startSpan(spanName);
 
         // The time at which the job starts to be available for processing. The send
         // time plus delay seconds. This will be a little earlier than when the job is
@@ -401,30 +437,56 @@ export class JobQueueConsumer {
         });
 
         try {
-            await this._processContext.with<
-                Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules> & {
-                    tracer: TracerContextModule;
-                },
-                void
-            >(
-                {
-                    tracer: new TracerContextModule(span),
-                    cache: new CacheContextModule(),
-                    dynamoBatchContext: new DynamoBatchContextModule(),
-                    // We're ok dangerously creating a space system actor here since we use AWS IAM
-                    // policies to only allow our services to send messages to our SQS queue. So we
-                    // can trust job objects to not be malicious.
-                    //
-                    // It's different for HTTP servers with routes to the public internet! For
-                    // those we need to be more careful and make sure we include a signed token to
-                    // correctly identify our services.
-                    actor: DynamoSystemActorContextModule.dangerouslyNew(
-                        "JobQueueService",
-                        messageBody.job.spaceId,
-                    ),
-                },
-                actionContext => this._processJob(actionContext, messageBody.job, jobStartTime),
-            );
+            if (messageBody.type === "Regular") {
+                await this._processContext.with<
+                    Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules> & {
+                        tracer: TracerContextModule;
+                    },
+                    void
+                >(
+                    {
+                        tracer: new TracerContextModule(span),
+                        cache: new CacheContextModule(),
+                        dynamoBatchContext: new DynamoBatchContextModule(),
+                        // We're ok dangerously creating a space system actor here since we use AWS IAM
+                        // policies to only allow our services to send messages to our SQS queue. So we
+                        // can trust job objects to not be malicious.
+                        //
+                        // It's different for HTTP servers with routes to the public internet! For
+                        // those we need to be more careful and make sure we include a signed token to
+                        // correctly identify our services.
+                        actor: DynamoSystemActorContextModule.dangerouslyNew(
+                            "JobQueueService",
+                            messageBody.job.spaceId,
+                        ),
+                    },
+                    actionContext =>
+                        this._processJob(actionContext, messageBody.job, jobStartTime, span),
+                );
+            } else {
+                await this._processContext.with<
+                    Omit<
+                        ServerSystemActionContextModules,
+                        keyof ServerProcessContextModules | "actor"
+                    > & {
+                        tracer: TracerContextModule;
+                    },
+                    void
+                >(
+                    {
+                        tracer: new TracerContextModule(span),
+                        cache: new CacheContextModule(),
+                        dynamoBatchContext: new DynamoBatchContextModule(),
+                    },
+                    actionContext =>
+                        this._processMaintenanceJob(
+                            actionContext,
+                            messageBody.job,
+                            jobStartTime,
+                            span,
+                        ),
+                );
+            }
 
             finishSpan();
         } catch (error) {

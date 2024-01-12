@@ -1,5 +1,6 @@
 import {SQSClient, SendMessageBatchCommand} from "@aws-sdk/client-sqs";
 import {JobDescription, JobDescriptionSchema} from "~/server/jobs/core/job_description.js";
+import {MaintenanceJobDescriptionSchema} from "~/server/jobs/core/maintenance_job_description.js";
 import {Context} from "~/shared/context/context.js";
 import {ProcessContextModule} from "~/shared/context/process_context_module.js";
 import {TracerContextModule} from "~/shared/context/tracer_context_module.js";
@@ -7,7 +8,7 @@ import {UnknownError} from "~/shared/error/error.js";
 import {PromiseResolver, createPromiseResolver} from "~/shared/helpers/async/promise_resolver.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {Schema} from "~/shared/schema/schema.js";
+import {Schema, SchemaType} from "~/shared/schema/schema.js";
 import {TracerBase} from "~/shared/tracer/tracer_base.js";
 import {TracerPropagationContextSchema} from "~/shared/tracer/tracer_propagation_context_schema.js";
 
@@ -20,11 +21,31 @@ const maxSendMessageBatchCount = 10;
 // https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-client-side-buffering-request-batching.html
 const sendMessageBatchTimeoutMs = 200;
 
-export const JobQueueMessageBodySchema = Schema.object({
-    sendTime: Schema.date,
-    delaySeconds: Schema.integer,
-    job: JobDescriptionSchema,
-    tracerContext: TracerPropagationContextSchema,
+export type JobQueueMessageBody = SchemaType<typeof JobQueueMessageBodySchema>;
+
+export const JobQueueMessageBodySchema = Schema.union({
+    Regular: Schema.object({
+        type: Schema.value("Regular"),
+        sendTime: Schema.date,
+        delaySeconds: Schema.integer,
+        job: JobDescriptionSchema,
+        tracerContext: TracerPropagationContextSchema.nullable(),
+    }),
+
+    // Maintenance jobs in production are sent to our job queue by AWS EventBridge
+    // which is configured in `aws_cron_jobs.ts`. In development maintenance jobs
+    // are sent to our job queue by `scheduleDevCronJobs()`.
+    //
+    // If you are updating the schema for maintenance jobs then make sure to update
+    // both of these code paths. `aws_cron_jobs.ts` is not type checked against
+    // this schema.
+    Maintenance: Schema.object({
+        type: Schema.value("Maintenance"),
+        sendTime: Schema.date,
+        delaySeconds: Schema.integer,
+        job: MaintenanceJobDescriptionSchema,
+        tracerContext: TracerPropagationContextSchema.nullable(),
+    }),
 });
 
 type JobSenderMessageBatch = {
@@ -240,6 +261,7 @@ export class JobSender extends JobSenderBase {
                         Id: String(messageIndex),
                         MessageBody: JSON.stringify(
                             JobQueueMessageBodySchema.serialize({
+                                type: "Regular",
                                 sendTime: currentTime,
                                 delaySeconds: message.delaySeconds,
                                 job: message.job,

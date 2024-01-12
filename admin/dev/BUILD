@@ -21,6 +21,7 @@ ts_project(
         "//:node_modules/pretty-ms",
         "//:node_modules/strip-ansi",
         "//:node_modules/ws",
+        "//admin/cron",
         "//admin/dynamo/local",
         "//admin/helpers",
         "//admin/opensearch/local",
