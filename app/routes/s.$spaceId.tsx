@@ -18,7 +18,7 @@ import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {useLocalStorage} from "~/client/helpers/use_local_storage.js";
-import {PeekStackContextProvider} from "~/client/peek/peek_stack.js";
+import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
 import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
@@ -118,6 +118,8 @@ export default function SpaceLayoutRoute() {
     const rawLoaderData = dataRouterStateContext.loaderData["routes/s.$spaceId"];
     const isInitialAppRender = useIsInitialAppRender();
     const clientInfo = useClientInfo();
+
+    const peekStackRef = useRef<PeekStackContextProviderRef>(null);
 
     // `useLoaderData()` doesn't work in an error boundary. We use this exact
     // component for error and catch boundaries to avoid remounting when navigating
@@ -270,7 +272,7 @@ export default function SpaceLayoutRoute() {
                             position="relative"
                             zIndex="0"
                         >
-                            <PeekStackContextProvider>
+                            <PeekStackContextProvider ref={peekStackRef}>
                                 <SpaceLayoutTopBar
                                     space={space}
                                     initialInbox={inbox}
@@ -293,6 +295,9 @@ export default function SpaceLayoutRoute() {
                                 <SearchModal
                                     initialQueryText={searchState.initialQueryText}
                                     onClose={() => setSearchState(null)}
+                                    pushPeekStack={async (to, options) => {
+                                        await assertExists(peekStackRef.current).push(to, options);
+                                    }}
                                     debugOptions={
                                         debugOptions.isDebugModeEnabled
                                             ? debugOptions.options

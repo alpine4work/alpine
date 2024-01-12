@@ -1,21 +1,15 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
-import {
-    ArrowLeft,
-    ArrowRight,
-    KeyReturn,
-    Lightbulb,
-    MagnifyingGlass,
-    SpinnerGap,
-} from "phosphor-react";
+import {ArrowLeft, ArrowRight, Lightbulb, MagnifyingGlass, SpinnerGap} from "phosphor-react";
 import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useRef, useState} from "react";
 import {PressEvent} from "react-aria";
-import {createPath} from "react-router";
+import {To, createPath} from "react-router";
 import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
+import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -67,10 +61,12 @@ export {usePreloadSearchByAffinity as usePreloadAffinitiveSearchEntities} from "
 export function SearchModal({
     initialQueryText,
     onClose,
+    pushPeekStack,
     debugOptions,
 }: {
     initialQueryText: string;
     onClose: () => void;
+    pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
     debugOptions: SearchOptions | null;
 }) {
     const {space} = useSpaceContext();
@@ -367,6 +363,7 @@ export function SearchModal({
                                     key={activePeek.id}
                                     peek={activePeek}
                                     onClose={onClose}
+                                    pushPeekStack={pushPeekStack}
                                 />
                             ) : (
                                 <Box
@@ -655,9 +652,11 @@ function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityI
 function SearchModalPeekContent({
     peek,
     onClose,
+    pushPeekStack,
 }: {
     peek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}>;
     onClose: () => void;
+    pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
 }) {
     const navigate = useNavigate();
     const routerResult = usePromise(peek.routerPromise);
@@ -741,6 +740,8 @@ function SearchModalPeekContent({
                             // https://mathiasbynens.github.io/rel-noopener
                             "noopener noreferrer",
                         );
+                    } else if (event.shiftKey) {
+                        await pushPeekStack(spacePath).finally(onClose);
                     } else {
                         await navigate(spacePath);
                     }
@@ -801,21 +802,23 @@ function SearchModalPeekContentBottomBar({
             </Box>
             <Box flexGrow="1" />
             <Box paddingRight="1">
-                <Button
-                    height="5"
-                    paddingX="2"
-                    keyboardShortcutHint={
-                        <Box display="flex" alignItems="center" gap="1">
-                            <KeyReturn />
-                            <Box>enter</Box>
-                        </Box>
-                    }
-                    isDisabled={isOpenDisabled}
-                    pressErrorTitle="Couldn’t open"
-                    onPress={onOpenPress}
+                <Tooltip
+                    // TODO(calebmer): I think this is the only place in the product we name the
+                    // peek concept. For now, I'm calling it "preview". We should make sure
+                    // documentation, marketing, and other copy in the product align with this name.
+                    // If we decide to call it something else publicly, this needs to be renamed.
+                    content="Shift-click to open preview"
                 >
-                    Open
-                </Button>
+                    <Button
+                        height="5"
+                        paddingX="2"
+                        isDisabled={isOpenDisabled}
+                        pressErrorTitle="Couldn’t open"
+                        onPress={onOpenPress}
+                    >
+                        Open
+                    </Button>
+                </Tooltip>
             </Box>
         </Box>
     );

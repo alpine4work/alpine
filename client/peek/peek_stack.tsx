@@ -277,12 +277,6 @@ function reducePeekStackState(state: PeekStackState, action: PeekStackAction): P
     }
 }
 
-type PeekStackContext = {
-    readonly push: (to: To, options?: {focus?: boolean}) => Promise<void>;
-};
-
-const PeekStackContext = createContext<PeekStackContext | null>(null);
-
 const initialPeekStackState: PeekStackState = {
     stack: [],
     unmountedStartStackIndex: 0,
@@ -292,7 +286,23 @@ const initialPeekStackState: PeekStackState = {
     wasLastInteractionOutside: true,
 };
 
-export function PeekStackContextProvider({children}: {children?: ReactNode}) {
+type PeekStackContext = {
+    readonly push: (to: To, options?: {focus?: boolean}) => Promise<void>;
+};
+
+const PeekStackContext = createContext<PeekStackContext | null>(null);
+
+export type PeekStackContextProviderRef = {
+    readonly push: (to: To, options?: {focus?: boolean}) => Promise<void>;
+};
+
+const PeekStackContextProviderForwardRef = forwardRef(PeekStackContextProvider);
+export {PeekStackContextProviderForwardRef as PeekStackContextProvider};
+
+function PeekStackContextProvider(
+    {children}: {children?: ReactNode},
+    ref: Ref<PeekStackContextProviderRef>,
+) {
     const dataRouterContext = useContext(DataRouterContext);
     assert(dataRouterContext, "Expected data router context");
 
@@ -488,6 +498,8 @@ export function PeekStackContextProvider({children}: {children?: ReactNode}) {
         if (state.disableEntranceAnimationsDuringNextRender)
             dispatch({type: "ReenableEntranceAnimations"});
     }, [state.disableEntranceAnimationsDuringNextRender]);
+
+    useImperativeHandle(ref, () => ({push}), [push]);
 
     return (
         <PeekStackContext.Provider value={useMemo(() => ({push}), [push])}>
