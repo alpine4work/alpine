@@ -68,6 +68,8 @@ export function links(): Array<LinkDescriptor> {
         // ProseMirror includes some lightweight styling that's required for it to
         // work correctly.
         {rel: "stylesheet", href: prosemirrorStylesHref},
+        // Recommend the SVG favicon so it can render in light and dark mode.
+        {rel: "icon", href: "/favicon.svg"},
     ];
 }
 
