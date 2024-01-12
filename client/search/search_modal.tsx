@@ -21,7 +21,6 @@ import {isTextInputElement} from "~/client/helpers/elements/is_text_input_elemen
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {isOpenLinkInSeparateTabPointerEvent} from "~/client/helpers/events/is_open_link_in_separate_tab_pointer_event.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
-import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
 import {PeekRemixEmbed} from "~/client/peek/peek_remix_embed.js";
@@ -137,32 +136,6 @@ export function SearchModal({
         // we'll display a large loading indicator in the result list while we wait for
         // results to load.
         !!output.results;
-
-    const openActivePeek = useEvent(
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async ({
-            shouldOpenLinkInSeparateTab,
-        }: {
-            shouldOpenLinkInSeparateTab: boolean;
-        }): Promise<void> => {
-            if (!activePeek) return;
-
-            const spacePath = convertPeekPathToSpacePath(activePeek.history.location);
-            if (!spacePath) throw new InternalError("Can only expand peek routes");
-
-            if (shouldOpenLinkInSeparateTab) {
-                window.open(
-                    createPath(spacePath),
-                    "_blank",
-                    // Important security measure. See:
-                    // https://mathiasbynens.github.io/rel-noopener
-                    "noopener noreferrer",
-                );
-            } else {
-                await navigate(spacePath);
-            }
-        },
-    );
 
     return (
         <Modal
@@ -288,9 +261,16 @@ export function SearchModal({
                             // If nothing is selected, there's nothing to open.
                             if (!selectedPeek) break;
 
+                            // Open the selected peek when `Enter` is pressed. You've probably just
+                            // selected a peek with the keyboard.
+                            const spacePath = convertPeekPathToSpacePath(
+                                selectedPeek.history.location,
+                            );
+                            if (!spacePath) throw new InternalError("Can only expand peek routes");
+
                             // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
                             // Eventually switch to new page with a loading spinner?
-                            void openActivePeek({shouldOpenLinkInSeparateTab: false});
+                            void navigate(spacePath);
                             break;
                         }
                     }
@@ -371,7 +351,6 @@ export function SearchModal({
                                     results={output.results}
                                     selectedPeek={selectedPeek}
                                     switchPeek={switchPeek}
-                                    openActivePeek={openActivePeek}
                                 />
                             )}
                         </Box>
@@ -387,7 +366,6 @@ export function SearchModal({
                                     // Fully remount whenever the peek changes...
                                     key={activePeek.id}
                                     peek={activePeek}
-                                    openActivePeek={openActivePeek}
                                     onClose={onClose}
                                 />
                             ) : (
@@ -538,7 +516,6 @@ function SearchModalResultList({
     results,
     selectedPeek,
     switchPeek,
-    openActivePeek,
 }: {
     results: ReadonlyArray<SearchResult>;
     selectedPeek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}> | null;
@@ -550,8 +527,8 @@ function SearchModalResultList({
             } | null,
         ) => Promise<void>
     >;
-    openActivePeek: (options: {shouldOpenLinkInSeparateTab: boolean}) => Promise<void>;
 }) {
+    const navigate = useNavigate();
     const {space} = useSpaceContext();
 
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
@@ -607,13 +584,15 @@ function SearchModalResultList({
                                     }
                                 }}
                                 onDoubleClick={() => {
-                                    void openActivePeek({shouldOpenLinkInSeparateTab: false});
+                                    // TODO(calebmer, #global-loading-indicator): Some global loading indicator?
+                                    // Eventually switch to new page with a loading spinner?
+                                    void navigate(getSearchEntityIdPath(space.id, result.entityId));
                                 }}
                             />
                         ),
                     };
                 },
-                [openActivePeek, results, selectedPeek?.extra.entityId, space.id, switchPeek],
+                [navigate, results, selectedPeek?.extra.entityId, space.id, switchPeek],
             )}
         />
     );
@@ -675,13 +654,12 @@ function actuallyGetSearchEntityIdPath(spaceId: SpaceId, entityId: SearchEntityI
 
 function SearchModalPeekContent({
     peek,
-    openActivePeek,
     onClose,
 }: {
     peek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}>;
-    openActivePeek: (options: {shouldOpenLinkInSeparateTab: boolean}) => Promise<void>;
     onClose: () => void;
 }) {
+    const navigate = useNavigate();
     const routerResult = usePromise(peek.routerPromise);
 
     const [historyPosition, setHistoryPosition] = useState(() => ({
@@ -749,14 +727,24 @@ function SearchModalPeekContent({
                 isForwardsDisabled={!(historyPosition.index < historyPosition.entriesLength - 1)}
                 onForwardsPress={() => peek.history.go(1)}
                 isOpenDisabled={false}
-                onOpenPress={event =>
-                    openActivePeek({
-                        shouldOpenLinkInSeparateTab: isOpenLinkInSeparateTabPointerEvent(
-                            event,
-                            getClientInfoWithoutListening(),
-                        ),
-                    })
-                }
+                onOpenPress={async event => {
+                    const spacePath = convertPeekPathToSpacePath(peek.history.location);
+                    if (!spacePath) throw new InternalError("Can only expand peek routes");
+
+                    if (
+                        isOpenLinkInSeparateTabPointerEvent(event, getClientInfoWithoutListening())
+                    ) {
+                        window.open(
+                            createPath(spacePath),
+                            "_blank",
+                            // Important security measure. See:
+                            // https://mathiasbynens.github.io/rel-noopener
+                            "noopener noreferrer",
+                        );
+                    } else {
+                        await navigate(spacePath);
+                    }
+                }}
             />
         </Box>
     );
