@@ -1209,7 +1209,7 @@ function VirtualizedScrollView(
                 if (newScrollAnchorAdjustmentDuringMobileWebKitScroll === null) {
                     scrollTop = scrollTop + scrollAdjustment;
                     if (scrollTop !== originalScrollTop) {
-                        scrollElement.scrollTop = scrollTop;
+                        lastScrollTopRef.current = scrollElement.scrollTop = scrollTop;
                     }
                 } else {
                     newScrollAnchorAdjustmentDuringMobileWebKitScroll += scrollAdjustment;
