@@ -391,52 +391,57 @@ export class JobQueueConsumer {
         currentTime: number;
         messageBatchSize: number;
     }) {
-        const serializedMessageBody = JSON.parse(assertExists(message.Body));
-
-        // NOTE(calebmer): Job queue messages created before 2024-01-12 don't have a
-        // type. Default their type to `Regular`. Once we are a couple months past
-        // 2024-01-12, all jobs in our system should have a type and we can
-        // remove this.
-        serializedMessageBody.type ??= "Regular";
-
-        const messageBody = JobQueueMessageBodySchema.deserialize(serializedMessageBody);
-
-        const spanName = `Process${messageBody.type === "Maintenance" ? " maintenance " : " "}job ${
-            messageBody.job.type
-        }`;
-
-        const {span, finishSpan} =
-            messageBody.tracerContext !== null
-                ? this._processContext.tracer
-                      .getRoot()
-                      .startSpanFromPropagationContextAsLinked(spanName, messageBody.tracerContext)
-                : this._processContext.tracer.getRoot().startSpan(spanName);
-
-        // The time at which the job starts to be available for processing. The send
-        // time plus delay seconds. This will be a little earlier than when the job is
-        // truly available for processing since we don't include the latency of adding
-        // a job to SQS.
-        const jobStartTime =
-            messageBody.delaySeconds === 0
-                ? messageBody.sendTime
-                : new Date(messageBody.sendTime.getTime() + messageBody.delaySeconds * 1000);
-
-        span.addData({
-            aws: {sqs: {messageId: message.MessageId}},
-            jobs: {
-                type: messageBody.job.type,
-                batchSize: messageBatchSize,
-                delaySeconds: messageBody.delaySeconds,
-                queueDurationMs:
-                    currentTime -
-                    // Don't include the delay in queue duration (use start time instead of send
-                    // time). The delay is intentional. We want to measure overall queue health.
-                    // Ideally the queue duration should be as close to zero as possible.
-                    jobStartTime.getTime(),
-            },
-        });
-
+        let span: TracerSpan | undefined;
+        let finishSpan: (() => void) | undefined;
         try {
+            const serializedMessageBody = JSON.parse(assertExists(message.Body));
+
+            // NOTE(calebmer): Job queue messages created before 2024-01-12 don't have a
+            // type. Default their type to `Regular`. Once we are a couple months past
+            // 2024-01-12, all jobs in our system should have a type and we can
+            // remove this.
+            serializedMessageBody.type ??= "Regular";
+
+            const messageBody = JobQueueMessageBodySchema.deserialize(serializedMessageBody);
+
+            const spanName = `Process${
+                messageBody.type === "Maintenance" ? " maintenance " : " "
+            }job ${messageBody.job.type}`;
+
+            ({span, finishSpan} =
+                messageBody.tracerContext !== null
+                    ? this._processContext.tracer
+                          .getRoot()
+                          .startSpanFromPropagationContextAsLinked(
+                              spanName,
+                              messageBody.tracerContext,
+                          )
+                    : this._processContext.tracer.getRoot().startSpan(spanName));
+
+            // The time at which the job starts to be available for processing. The send
+            // time plus delay seconds. This will be a little earlier than when the job is
+            // truly available for processing since we don't include the latency of adding
+            // a job to SQS.
+            const jobStartTime =
+                messageBody.delaySeconds === 0
+                    ? messageBody.sendTime
+                    : new Date(messageBody.sendTime.getTime() + messageBody.delaySeconds * 1000);
+
+            span.addData({
+                aws: {sqs: {messageId: message.MessageId}},
+                jobs: {
+                    type: messageBody.job.type,
+                    batchSize: messageBatchSize,
+                    delaySeconds: messageBody.delaySeconds,
+                    queueDurationMs:
+                        currentTime -
+                        // Don't include the delay in queue duration (use start time instead of send
+                        // time). The delay is intentional. We want to measure overall queue health.
+                        // Ideally the queue duration should be as close to zero as possible.
+                        jobStartTime.getTime(),
+                },
+            });
+
             if (messageBody.type === "Regular") {
                 await this._processContext.with<
                     Omit<ServerSystemActionContextModules, keyof ServerProcessContextModules> & {
@@ -461,7 +466,7 @@ export class JobQueueConsumer {
                         ),
                     },
                     actionContext =>
-                        this._processJob(actionContext, messageBody.job, jobStartTime, span),
+                        this._processJob(actionContext, messageBody.job, jobStartTime, span!),
                 );
             } else {
                 await this._processContext.with<
@@ -483,7 +488,7 @@ export class JobQueueConsumer {
                             actionContext,
                             messageBody.job,
                             jobStartTime,
-                            span,
+                            span!,
                         ),
                 );
             }
@@ -497,8 +502,17 @@ export class JobQueueConsumer {
                 console.error("Job processing failed:", error);
             }
 
-            span.addException(error);
-            finishSpan();
+            if (span) {
+                assert(finishSpan);
+                span.addException(error);
+                finishSpan();
+            } else {
+                this._processContext.tracer
+                    .getTracer()
+                    .getRoot()
+                    .logUncaughtException("Job parsing failed", error);
+            }
+
             throw error;
         }
     }

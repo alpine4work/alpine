@@ -10,7 +10,7 @@ import {
     Secret as EcsSecret,
     NetworkMode,
 } from "aws-cdk-lib/aws-ecs";
-import {ManagedPolicy} from "aws-cdk-lib/aws-iam";
+import {ManagedPolicy, PolicyStatement} from "aws-cdk-lib/aws-iam";
 import {Secret} from "aws-cdk-lib/aws-secretsmanager";
 import {Construct} from "constructs";
 import {join as joinPath} from "path";
@@ -186,6 +186,20 @@ export class AwsJobQueueService extends Construct {
         dynamo.grantReadWriteData(taskDefinition.taskRole);
         opensearch.grantReadWriteData(taskDefinition.taskRole);
         sqs.grantSendAndReceiveJobQueueMessages(taskDefinition.taskRole);
+
+        // `JobQueueService` needs to check what tasks ECS is running to appropriately
+        // route task requests to the right `TaskRealtimeService`.
+        taskDefinition.addToTaskRolePolicy(
+            new PolicyStatement({
+                actions: [
+                    "ecs:ListTasks",
+                    "ecs:DescribeTasks",
+                    "ecs:DescribeContainerInstances",
+                    "ec2:DescribeNetworkInterfaces",
+                ],
+                resources: ["*"],
+            }),
+        );
 
         const service = new Ec2Service(this, "Service", {
             cluster: ecsCluster.cluster,

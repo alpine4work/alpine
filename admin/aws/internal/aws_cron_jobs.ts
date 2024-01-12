@@ -1,8 +1,10 @@
 import {Duration} from "aws-cdk-lib";
-import {EventField, Rule, RuleTargetInput, Schedule} from "aws-cdk-lib/aws-events";
+import {Rule, RuleTargetInput, RuleTargetInputProperties, Schedule} from "aws-cdk-lib/aws-events";
 import {Construct} from "constructs";
 import {AwsSqs} from "~/admin/aws/internal/aws_sqs.js";
 import {cronJobs} from "~/admin/cron/cron_jobs.js";
+import {MaintenanceJobDescription} from "~/server/jobs/core/maintenance_job_description.js";
+import {assert} from "~/shared/helpers/control/assert.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 
 export class AwsCronJobs extends Construct {
@@ -26,17 +28,33 @@ export class AwsCronJobs extends Construct {
                 schedule,
                 targets: [
                     sqs.createJobQueueEventTarget({
-                        message: RuleTargetInput.fromObject({
-                            type: "Maintenance",
-                            // See: https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-transform-target-input.html
-                            sendTime: EventField.fromPath("$.aws.events.event.ingestion-time"),
-                            delaySeconds: 0,
-                            job: cronJob.job,
-                            tracerContext: null,
-                        }),
+                        message: new MaintenanceJobRuleTargetInput(cronJob.job),
                     }),
                 ],
             });
         }
+    }
+}
+
+class MaintenanceJobRuleTargetInput extends RuleTargetInput {
+    private readonly _job: MaintenanceJobDescription;
+
+    constructor(job: MaintenanceJobDescription) {
+        super();
+        this._job = job;
+    }
+
+    public override bind(): RuleTargetInputProperties {
+        const jobString = JSON.stringify(this._job);
+
+        // There may be a way to escape the characters used by AWS for variable
+        // interpolation but avoid the problem for now by disallowing these characters
+        // in `jobString`.
+        assert(!/[<>]/.test(jobString), 'Maintenance job description must not contain "<" or ">"');
+
+        return {
+            inputTemplate: `{"type":"Maintenance","sendTime":"<aws.events.event.ingestion-time>","delaySeconds":0,"job":${jobString},"tracerContext":null}`,
+            inputPathsMap: {},
+        };
     }
 }

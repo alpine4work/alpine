@@ -439,6 +439,11 @@ export type SearchEntitySemanticIndexDoc = OpensearchIndexTypeType<
 export const SearchEntitySemanticIndexDocType = OpensearchIndexObjectType.new({
     fields: {
         /**
+         * The last time where we started the read that produced this search entity.
+         */
+        lastReadStartTime: new OpensearchIndexDateType().nullable().store(),
+
+        /**
          * The title of the chunked entity. Copied here in addition to the keyword
          * index so we can load the title when searching.
          */

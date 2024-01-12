@@ -236,6 +236,7 @@ assertEqualTypes<
 assertEqualTypes<
     OpensearchIndexTypeStoredFieldsType<typeof SearchEntitySemanticIndexDocType>,
     {
+        lastReadStartTime: Date;
         title: string;
         media: SearchEntityMedia;
         "embeddingChunks.text": string;
@@ -369,6 +370,7 @@ export async function processIndexSearchEntityJob(
                         entityId,
                         {
                             storedFields: [
+                                "lastReadStartTime",
                                 ...(context.languageModel
                                     ? [
                                           `embeddingChunksVectorCache.${context.languageModel.model.statics.key}` as const,
@@ -399,6 +401,9 @@ export async function processIndexSearchEntityJob(
                                 `embeddingChunksVectorCache.${context.languageModel.model.statics.key}`
                             ]?.[0] ?? null
                           : null,
+                      lastReadStartTime: assertExists(
+                          actualOldDocForSemanticIndex.fields.lastReadStartTime?.[0],
+                      ),
                   }
                 : null;
 
@@ -416,19 +421,25 @@ export async function processIndexSearchEntityJob(
             // did not index an embedding doc, either an embedding doc doesn't exist or
             // there was an error and the job will be retried.
             const isOldDocSufficient =
-                !!oldDocForKeywordIndex &&
-                isDateDefinitelyLessThanWithUncertaintyWindow(
-                    // Optimization: If one of our dependencies updated (and we ourselves were not
-                    // updated) then a job will be queued with `parentJobStartTime`.
-                    // For these jobs, as long as we've indexed data that was read after our parent
-                    // job's start we're happy (since our parent job represents the entity with
-                    // updates).
-                    //
-                    // It should be logically ok to use `jobStartTime` here but we can skip more
-                    // reads by using `parentJobStartTime`.
-                    job.parentJobStartTime ?? jobStartTime,
-                    oldDocForKeywordIndex.lastReadStartTime,
-                );
+                (!!oldDocForKeywordIndex &&
+                    isDateDefinitelyLessThanWithUncertaintyWindow(
+                        // Optimization: If one of our dependencies updated (and we ourselves were not
+                        // updated) then a job will be queued with `parentJobStartTime`.
+                        // For these jobs, as long as we've indexed data that was read after our parent
+                        // job's start we're happy (since our parent job represents the entity with
+                        // updates).
+                        //
+                        // It should be logically ok to use `jobStartTime` here but we can skip more
+                        // reads by using `parentJobStartTime`.
+                        job.parentJobStartTime ?? jobStartTime,
+                        oldDocForKeywordIndex.lastReadStartTime,
+                    )) ||
+                (!!oldDocForSemanticIndex &&
+                    isDateDefinitelyLessThanWithUncertaintyWindow(
+                        // See above comment for why we use `job.parentJobStartTime`.
+                        job.parentJobStartTime ?? jobStartTime,
+                        oldDocForSemanticIndex.lastReadStartTime,
+                    ));
 
             if (isOldDocSufficient) return;
 
@@ -631,6 +642,7 @@ export async function processIndexSearchEntityJob(
             > = {
                 id: entityId,
                 version: oldDocForSemanticIndex?.version ?? null,
+                lastReadStartTime: readStartTime,
                 title: entity.title,
                 media: entity.media,
                 embeddingChunks,
