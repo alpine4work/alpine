@@ -19,7 +19,7 @@ patchedDependencies:
     hash: hd2oz2xlphxbe5w65c4x3qmfrm
     path: admin/patches/@cloudflare__workers-types@3.18.0.patch
   '@dnd-kit/core@6.0.8':
-    hash: aq43jon62mjk6q3sndzce5wqni
+    hash: gbxnwhqtfh4i26xaiayk53jqeu
     path: admin/patches/@dnd-kit__core@6.0.8.patch
   '@dnd-kit/utilities@3.2.1':
     hash: di55vvis5paiupfudkzzxlvcfm
@@ -97,7 +97,7 @@ patchedDependencies:
     hash: ybnbpvk42g5zpvi2kytcsdr4wu
     path: admin/patches/outdent@0.8.0.patch
   phosphor-react@1.4.1:
-    hash: rehavg4vjut6avpq34cx6ugszq
+    hash: c7bo2dmwfrgjatdibl2vbyvtca
     path: admin/patches/phosphor-react@1.4.1.patch
   playwright@1.39.0:
     hash: 2cilo76hjm2rkc2l4kmysee6ya
@@ -157,7 +157,7 @@ dependencies:
     version: 3.18.0(patch_hash=hd2oz2xlphxbe5w65c4x3qmfrm)
   '@dnd-kit/core':
     specifier: 6.0.8
-    version: 6.0.8(patch_hash=aq43jon62mjk6q3sndzce5wqni)(react-dom@18.2.0)(react@18.2.0)
+    version: 6.0.8(patch_hash=gbxnwhqtfh4i26xaiayk53jqeu)(react-dom@18.2.0)(react@18.2.0)
   '@dnd-kit/modifiers':
     specifier: ^6.0.1
     version: 6.0.1(@dnd-kit/core@6.0.8)(react@18.2.0)
@@ -589,7 +589,7 @@ dependencies:
     version: 0.8.0(patch_hash=ybnbpvk42g5zpvi2kytcsdr4wu)
   phosphor-react:
     specifier: ^1.4.1
-    version: 1.4.1(patch_hash=rehavg4vjut6avpq34cx6ugszq)(react@18.2.0)
+    version: 1.4.1(patch_hash=c7bo2dmwfrgjatdibl2vbyvtca)(react@18.2.0)
   pidtree:
     specifier: ^0.6.0
     version: 0.6.0
@@ -2993,7 +2993,7 @@ packages:
       tslib: 2.5.0
     dev: false
 
-  /@dnd-kit/core@6.0.8(patch_hash=aq43jon62mjk6q3sndzce5wqni)(react-dom@18.2.0)(react@18.2.0):
+  /@dnd-kit/core@6.0.8(patch_hash=gbxnwhqtfh4i26xaiayk53jqeu)(react-dom@18.2.0)(react@18.2.0):
     resolution: {integrity: sha512-lYaoP8yHTQSLlZe6Rr9qogouGUz9oRUj4AHhDQGQzq/hqaJRpFo65X+JKsdHf8oUFBzx5A+SJPUvxAwTF2OabA==}
     peerDependencies:
       react: '>=16.8.0 || 18'
@@ -3013,7 +3013,7 @@ packages:
       '@dnd-kit/core': ^6.0.6
       react: '>=16.8.0 || 18'
     dependencies:
-      '@dnd-kit/core': 6.0.8(patch_hash=aq43jon62mjk6q3sndzce5wqni)(react-dom@18.2.0)(react@18.2.0)
+      '@dnd-kit/core': 6.0.8(patch_hash=gbxnwhqtfh4i26xaiayk53jqeu)(react-dom@18.2.0)(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.4.0
@@ -3025,7 +3025,7 @@ packages:
       '@dnd-kit/core': ^6.0.7
       react: '>=16.8.0 || 18'
     dependencies:
-      '@dnd-kit/core': 6.0.8(patch_hash=aq43jon62mjk6q3sndzce5wqni)(react-dom@18.2.0)(react@18.2.0)
+      '@dnd-kit/core': 6.0.8(patch_hash=gbxnwhqtfh4i26xaiayk53jqeu)(react-dom@18.2.0)(react@18.2.0)
       '@dnd-kit/utilities': 3.2.1(patch_hash=di55vvis5paiupfudkzzxlvcfm)(react@18.2.0)
       react: 18.2.0
       tslib: 2.5.0
@@ -13477,7 +13477,7 @@ packages:
       is-reference: 3.0.0
     dev: false
 
-  /phosphor-react@1.4.1(patch_hash=rehavg4vjut6avpq34cx6ugszq)(react@18.2.0):
+  /phosphor-react@1.4.1(patch_hash=c7bo2dmwfrgjatdibl2vbyvtca)(react@18.2.0):
     resolution: {integrity: sha512-gO5j7U0xZrdglTAYDYPACU4xDOFBTJmptrrB/GeR+tHhCZF3nUMyGmV/0hnloKjuTrOmpSFlbfOY78H39rgjUQ==}
     engines: {node: '>=10'}
     peerDependencies:
