@@ -401,9 +401,8 @@ export async function processIndexSearchEntityJob(
                                 `embeddingChunksVectorCache.${context.languageModel.model.statics.key}`
                             ]?.[0] ?? null
                           : null,
-                      lastReadStartTime: assertExists(
-                          actualOldDocForSemanticIndex.fields.lastReadStartTime?.[0],
-                      ),
+                      lastReadStartTime:
+                          actualOldDocForSemanticIndex.fields.lastReadStartTime?.[0] ?? null,
                   }
                 : null;
 
@@ -435,6 +434,7 @@ export async function processIndexSearchEntityJob(
                         oldDocForKeywordIndex.lastReadStartTime,
                     )) ||
                 (!!oldDocForSemanticIndex &&
+                    oldDocForSemanticIndex.lastReadStartTime !== null &&
                     isDateDefinitelyLessThanWithUncertaintyWindow(
                         // See above comment for why we use `job.parentJobStartTime`.
                         job.parentJobStartTime ?? jobStartTime,
