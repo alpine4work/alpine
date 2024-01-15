@@ -49,7 +49,7 @@ index 1cb87a42825c6e8c917ee62292e266459957676e..4a4ba1ec783c392c0d6e311debdd50a9
      height: "256",
      fill: "none"
 diff --git a/dist/phosphor-react.cjs.production.min.js b/dist/phosphor-react.cjs.production.min.js
-index f834577a5ad96a0a7734860990cb471c6d3075c9..0549f2c195a7b703a345f3bbc1d9d72ddff34ce4 100644
+index f834577a5ad96a0a7734860990cb471c6d3075c9..2739e378c820464dd1e2cb2ab9127580e0f15c21 100644
 --- a/dist/phosphor-react.cjs.production.min.js
 +++ b/dist/phosphor-react.cjs.production.min.js
 @@ -1,2 +1,2 @@

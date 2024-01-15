@@ -1,0 +1,65 @@
+diff --git a/lib/private/patch.bzl b/lib/private/patch.bzl
+index 75cd340..66f6fe9 100644
+--- a/lib/private/patch.bzl
++++ b/lib/private/patch.bzl
+@@ -118,12 +118,58 @@ def patch(ctx, patches = None, patch_cmds = None, patch_cmds_win = None, patch_t
+     ctx.delete(ctx.path(_REMOTE_PATCH_DIR))
+ 
+     # Apply local patches
+-    if native_patch and _use_native_patch(patch_args) and not patch_directory:
++    if native_patch and _use_native_patch(patch_args):
+         if patch_args:
+             strip = int(patch_args[-1][2:])
+         else:
+             strip = 0
+-        for patchfile in patches:
++
++        # NOTE(calebmer): If `ctx.patch()` isn't used, we end up using the system
++        # installed patch command. Some systems may not have this patch command or may
++        # update it over time. When upgrading from MacOS 14 to 16, the builtin patch
++        # command changed from [GNU patch][1] to some custom Apple implementation. This
++        # broke some of the patches we wrote.
++        #
++        # The Aspect fork of this `patch()` function will use `ctx.patch()` if
++        # `patch_tool` is not set, `patch_args` is empty (or has only a `-pN` argument),
++        # and `patch_directory` is not set. For patching `node_modules`, the first two
++        # conditions are true but `patch_directory` is set. Instead of falling back to
++        # the system `patch` command (which is non-hermetic and can change across
++        # operating systems), rewrite patch files to reference the provided
++        # `patch_directory`.
++        #
++        # The following is a very basic [unified patch format][2] parser which can add
++        # to the targeted path.
++        #
++        # [1]: https://savannah.gnu.org/projects/patch/
++        # [2]: https://www.gnu.org/software/diffutils/manual/html_node/Detailed-Unified.html
++        new_patches = patches
++        if patch_directory:
++            new_patches = []
++            
++            i = 0
++            for patchfile in patches:
++                patch_content = ctx.read(patchfile)
++
++                if patch_args:
++                    strip = int(patch_args[-1][2:])
++                else:
++                    strip = 0
++                
++                new_patch_content_lines = []
++                for patch_content_line in patch_content.splitlines(True):
++                    if patch_content_line.startswith("+++ ") or patch_content_line.startswith("--- "):
++                        new_patch_content_lines.append("{}/{}{}".format(patch_content_line[:4 + strip], patch_directory, patch_content_line[4 + strip:]))
++                    else:
++                        new_patch_content_lines.append(patch_content_line)
++
++                new_patchfile = "patch{}.patch".format(i + 1)
++                ctx.file(new_patchfile, "".join(new_patch_content_lines))
++                new_patches.append(new_patchfile)
++
++                i += 1
++
++        for patchfile in new_patches:
+             ctx.patch(patchfile, strip)
+     else:
+         for patchfile in patches:

@@ -20,6 +20,19 @@ load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
 bazel_skylib_workspace()
 
 # =========================================================================== #
+#                            Aspect Bazel Helpers                             #
+# =========================================================================== #
+
+http_archive(
+    name = "aspect_bazel_lib",
+    patch_args = ["-p1"],
+    patches = ["//admin/patches:bazel/aspect_bazel_lib.patch"],
+    sha256 = "44f4f6d1ea1fc5a79ed6ca83f875038fee0a0c47db4f9c9beed097e56f8fad03",
+    strip_prefix = "bazel-lib-1.34.0",
+    url = "https://github.com/aspect-build/bazel-lib/releases/download/v1.34.0/bazel-lib-v1.34.0.tar.gz",
+)
+
+# =========================================================================== #
 #                                 JavaScript                                  #
 # =========================================================================== #
 
@@ -273,12 +286,14 @@ http_file(
 http_file(
     name = "cohere_embed_english_v3_tokenizer_config",
     downloaded_file_path = "tokenizer_config.json",
+    sha256 = "8e58e2b9f143d556245dbbf37215aae8ffefcbcf592e3758951d95508844e54e",
     url = "https://huggingface.co/Cohere/Cohere-embed-english-v3.0/resolve/a73b09960122f77a78083ff79084162793ed9c39/tokenizer_config.json",
 )
 
 http_file(
     name = "cohere_embed_english_v3_tokenizer",
     downloaded_file_path = "tokenizer.json",
+    sha256 = "7f542e02e847b77b493a81f54a69cf824e236c43bc63e3838065ba604f78f5f4",
     url = "https://huggingface.co/Cohere/Cohere-embed-english-v3.0/resolve/a73b09960122f77a78083ff79084162793ed9c39/tokenizer.json",
 )
 

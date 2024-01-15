@@ -97,7 +97,7 @@ patchedDependencies:
     hash: ybnbpvk42g5zpvi2kytcsdr4wu
     path: admin/patches/outdent@0.8.0.patch
   phosphor-react@1.4.1:
-    hash: c7bo2dmwfrgjatdibl2vbyvtca
+    hash: 3pobfw7ffmyaylen7ch3f6ioba
     path: admin/patches/phosphor-react@1.4.1.patch
   playwright@1.39.0:
     hash: 2cilo76hjm2rkc2l4kmysee6ya
@@ -589,7 +589,7 @@ dependencies:
     version: 0.8.0(patch_hash=ybnbpvk42g5zpvi2kytcsdr4wu)
   phosphor-react:
     specifier: ^1.4.1
-    version: 1.4.1(patch_hash=c7bo2dmwfrgjatdibl2vbyvtca)(react@18.2.0)
+    version: 1.4.1(patch_hash=3pobfw7ffmyaylen7ch3f6ioba)(react@18.2.0)
   pidtree:
     specifier: ^0.6.0
     version: 0.6.0
@@ -13477,7 +13477,7 @@ packages:
       is-reference: 3.0.0
     dev: false
 
-  /phosphor-react@1.4.1(patch_hash=c7bo2dmwfrgjatdibl2vbyvtca)(react@18.2.0):
+  /phosphor-react@1.4.1(patch_hash=3pobfw7ffmyaylen7ch3f6ioba)(react@18.2.0):
     resolution: {integrity: sha512-gO5j7U0xZrdglTAYDYPACU4xDOFBTJmptrrB/GeR+tHhCZF3nUMyGmV/0hnloKjuTrOmpSFlbfOY78H39rgjUQ==}
     engines: {node: '>=10'}
     peerDependencies:
