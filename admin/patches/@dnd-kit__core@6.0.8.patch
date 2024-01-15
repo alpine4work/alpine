@@ -1,8 +1,10 @@
 diff --git a/dist/components/DndContext/DndContext.d.ts b/dist/components/DndContext/DndContext.d.ts
-index 68f1a95179a27aaed272ef98c02c2aae12c98e24..5810aa1e3199fbad2d2307620350a734c78fd2fa 100644
+index 68f1a95179a27aaed272ef98c02c2aae12c98e24..937988bfee890bb0c87af731f7164cf5eb7dfb5e 100644
 --- a/dist/components/DndContext/DndContext.d.ts
 +++ b/dist/components/DndContext/DndContext.d.ts
-@@ -29,2 +29,7 @@ export interface Props {
+@@ -27,6 +27,11 @@ export interface Props {
+     onDragOver?(event: DragOverEvent): void;
+     onDragEnd?(event: DragEndEvent): void;
      onDragCancel?(event: DragCancelEvent): void;
 +    // NOTE(calebmer): In a virtualized list, if we drag an item so far that
 +    // it's unmounted, we need to preserve the data so when the user drops we
@@ -10,8 +12,10 @@ index 68f1a95179a27aaed272ef98c02c2aae12c98e24..5810aa1e3199fbad2d2307620350a734
 +    // this unstable property is true.
 +    unstableShouldPreserveDataAfterDraggableUnmounts?: boolean;
  }
+ export interface CancelDropArguments extends DragEndEvent {
+ }
 diff --git a/dist/core.cjs.development.js b/dist/core.cjs.development.js
-index a9282a8733e10c1c8acfeda1597b2ef54194456f..2e4237eb2abd7e24a7fa0e5ffeab287cd38b25c6 100644
+index a9282a8733e10c1c8acfeda1597b2ef54194456f..93ae1d6eb5f353ea2ac8669cf8fd6a19639a8130 100644
 --- a/dist/core.cjs.development.js
 +++ b/dist/core.cjs.development.js
 @@ -2340,12 +2340,15 @@ function useRects(elements, measure) {
@@ -121,7 +125,7 @@ index a9282a8733e10c1c8acfeda1597b2ef54194456f..2e4237eb2abd7e24a7fa0e5ffeab287c
      delta: translate,
      draggingRect: collisionRect,
 diff --git a/dist/core.esm.js b/dist/core.esm.js
-index 91671e94105af35a13703236af1ab507319bfeef..cf5872eac154b2dbae2e1f87915bba1b11dda1fc 100644
+index 91671e94105af35a13703236af1ab507319bfeef..b1241c21ecbead2ee3b77bc020644aa95d76b941 100644
 --- a/dist/core.esm.js
 +++ b/dist/core.esm.js
 @@ -2343,12 +2343,15 @@ function useRects(elements, measure) {
