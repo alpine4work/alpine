@@ -1,8 +1,0 @@
-#!/bin/bash
-
-arch_name="$(uname -m)"
-if [ "$arch_name" = "x86_64" ]; then
-    arch_name="amd64"
-fi
-
-echo $arch_name

@@ -344,3 +344,41 @@ http_file(
     sha256 = "afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1",
     url = "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/3f2acba6462e3d3b009664b530c4de07dd85b448/onnx/model_quantized.onnx",
 )
+
+# =========================================================================== #
+#                                  Apple iOS                                  #
+# =========================================================================== #
+
+http_archive(
+    name = "build_bazel_rules_apple",
+    sha256 = "34c41bfb59cdaea29ac2df5a2fa79e5add609c71bb303b2ebb10985f93fa20e7",
+    url = "https://github.com/bazelbuild/rules_apple/releases/download/3.1.1/rules_apple.3.1.1.tar.gz",
+)
+
+load(
+    "@build_bazel_rules_apple//apple:repositories.bzl",
+    "apple_rules_dependencies",
+)
+
+apple_rules_dependencies()
+
+load(
+    "@build_bazel_rules_swift//swift:repositories.bzl",
+    "swift_rules_dependencies",
+)
+
+swift_rules_dependencies()
+
+load(
+    "@build_bazel_rules_swift//swift:extras.bzl",
+    "swift_rules_extra_dependencies",
+)
+
+swift_rules_extra_dependencies()
+
+load(
+    "@build_bazel_apple_support//lib:repositories.bzl",
+    "apple_support_dependencies",
+)
+
+apple_support_dependencies()

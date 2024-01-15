@@ -6,7 +6,12 @@ workspace_path=$(cd $(dirname $0)/../.. && pwd)
 # version. Otherwise, remove our workspace bin from `PATH` to run the system
 # installed `node`.
 if [[ $PWD/ = $workspace_path/* ]]; then
-    node_workspace="node_$(uname -s | tr '[:upper:]' '[:lower:]')_$("$workspace_path/admin/vendor/bazelisk/get_bazelisk_arch_suffix.sh")"
+    arch_name="$(uname -m)"
+    if [ "$arch_name" = "x86_64" ]; then
+        arch_name="amd64"
+    fi
+
+    node_workspace="node_$(uname -s | tr '[:upper:]' '[:lower:]')_$arch_name"
     bazel build --ui_event_filters=-info "@$node_workspace//:bin/node"
     $workspace_path/bazel-cyberworlds/external/$node_workspace/bin/node $@
 else

@@ -38,5 +38,19 @@
     "[markdown]": {
         "editor.wordWrap": "wordWrapColumn",
         "editor.wordWrapColumn": 100
-    }
+    },
+
+    /* ========================================================================== *\
+     *                                   Swift                                    *
+    \* ========================================================================== */
+
+    // Unfortunately the plugin requires this property to be configured at a user
+    // level. So add an absolute path to the vendored `swift-format` binary to your
+    // personal `settings.json` file. e.g.
+    // `/Users/calebmer/Projects/cyberworlds/admin/vendor/swift-format/swift-format`.
+    // The setting must be an array.
+    //
+    // "apple-swift-format.path": ["./admin/vendor/swift-format/swift-format"]
+
+    "apple-swift-format.configSearchPaths": ["native/mobile/ios/swift_format_config.json"]
 }
