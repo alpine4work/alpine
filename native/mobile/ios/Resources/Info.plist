@@ -47,5 +47,9 @@
             </array>
         </dict>
     </dict>
+    <key>UIAppFonts</key>
+    <array>
+        <string>Inter-Regular.ttf</string>
+    </array>
 </dict>
 </plist>

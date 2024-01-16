@@ -2,19 +2,32 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 
-srcs = glob(["Sources/**/*.swift"])
+sources = glob(["Sources/**/*.swift"])
 
 filegroup(
-    name = "srcs",
-    srcs = srcs,
+    name = "sources",
+    srcs = sources,
+)
+
+filegroup(
+    name = "resources_fonts",
+    srcs = glob(["Resources/Fonts/**/*"]),
+)
+
+filegroup(
+    name = "resources",
+    srcs = [
+        ":resources_fonts",
+        "//native/mobile/ios/Resources/Assets.xcassets",
+    ],
 )
 
 swift_library(
     name = "lib",
-    srcs = [":srcs"],
+    srcs = [":sources"],
     # Fail to build if there are warnings.
     copts = ["-warnings-as-errors"],
-    data = ["//native/mobile/ios/Resources/Assets.xcassets"],
+    data = [":resources"],
     module_name = "Cyberworlds",
 )
 
@@ -37,11 +50,11 @@ sh_test(
     srcs = ["swift_format_test.sh"],
     args = ["{}/{}".format(
         package_name(),
-        src,
-    ) for src in srcs] + ["Package.swift"],
+        source,
+    ) for source in sources] + ["Package.swift"],
     data = [
         "swift_format_config.json",
-        ":srcs",
+        ":sources",
         "//:Package.swift",
         "//admin/vendor:swift-format",
     ],
