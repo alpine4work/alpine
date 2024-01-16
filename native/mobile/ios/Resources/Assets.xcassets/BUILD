@@ -8,9 +8,15 @@ filegroup(
     name = "Assets.xcassets",
     srcs = [
         "Contents.json",
+        "RootTabBarShadow.imageset",
         ":icon_assets",
     ],
     visibility = ["//native/mobile/ios:__subpackages__"],
+)
+
+filegroup(
+    name = "RootTabBarShadow.imageset",
+    srcs = glob(["RootTabBarShadow.imageset/**/*"]),
 )
 
 ts_project(

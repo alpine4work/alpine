@@ -73,8 +73,8 @@ async function main() {
                             },
                         ],
                         info: {
-                            version: 1,
                             author: "xcode",
+                            version: 1,
                         },
                     },
                     null,

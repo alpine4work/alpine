@@ -4,49 +4,71 @@ class RootTabBarController: UITabBarController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        let appearance = UITabBarAppearance()
+        let itemAppearance = UITabBarItemAppearance()
+
+        itemAppearance.normal.iconColor = UIColor.green
+        itemAppearance.normal.titleTextAttributes = [
+            .foregroundColor: UIColor.green, .font: UIFont(name: "Inter-Regular", size: 13)!,
+        ]
+
+        itemAppearance.selected.iconColor = UIColor.red
+        itemAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.red]
+
+        appearance.backgroundColor = .orange
+
+        appearance.shadowImage = UIImage(named: "RootTabBarShadow")!
+            // Must use template rendering mode for `shadowColor` to have any effect.
+            .withRenderingMode(.alwaysTemplate)
+        appearance.shadowColor = .purple
+
+        appearance.stackedLayoutAppearance = itemAppearance
+        appearance.compactInlineLayoutAppearance = itemAppearance
+        appearance.inlineLayoutAppearance = itemAppearance
+
+        tabBar.isTranslucent = false
+        tabBar.standardAppearance = appearance
+        tabBar.scrollEdgeAppearance = appearance
+
         let homeTabController = RootTabController()
         homeTabController.title = "Home"
-        homeTabController.image = UIImage(named: "HouseIcon")
-        homeTabController.initTabBarItem()
+        homeTabController.image = UIImage(named: "HouseIcon")!
 
         let searchTabController = RootTabController()
         searchTabController.title = "Search"
-        searchTabController.image = UIImage(named: "MagnifyingGlassIcon")
-        searchTabController.initTabBarItem()
+        searchTabController.image = UIImage(named: "MagnifyingGlassIcon")!
 
         let createTabController = RootTabController()
         createTabController.title = "Create"
-        createTabController.image = UIImage(named: "PlusIcon")
-        createTabController.initTabBarItem()
+        createTabController.image = UIImage(named: "PlusIcon")!
 
         let inboxTabController = RootTabController()
         inboxTabController.title = "Inbox"
-        inboxTabController.image = UIImage(named: "BellIcon")
-        inboxTabController.initTabBarItem()
+        inboxTabController.image = UIImage(named: "BellIcon")!
 
         let moreTabController = RootTabController()
         moreTabController.title = "More"
-        moreTabController.image = UIImage(named: "ListIcon")
-        moreTabController.initTabBarItem()
+        moreTabController.image = UIImage(named: "ListIcon")!
 
-        viewControllers = [
+        let tabControllers = [
             homeTabController, searchTabController, createTabController, inboxTabController,
             moreTabController,
         ]
+
+        for tabController in tabControllers {
+            tabController.tabBarItem = UITabBarItem(
+                title: tabController.title,
+                image: tabController.image,
+                selectedImage: tabController.image
+            )
+        }
+
+        viewControllers = tabControllers
     }
 }
 
 class RootTabController: UIViewController {
     var image: UIImage?
-
-    func initTabBarItem() {
-        tabBarItem = UITabBarItem(title: title, image: image, selectedImage: image)
-
-        tabBarItem.setTitleTextAttributes(
-            [.font: UIFont(name: "Inter-Regular", size: 13)!],
-            for: .normal
-        )
-    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
