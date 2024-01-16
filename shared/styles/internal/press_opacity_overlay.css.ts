@@ -1,9 +1,7 @@
 import {style} from "@vanilla-extract/css";
 import {colors} from "~/shared/design/colors.js";
-import {
-    darkColorSchemeSelector,
-    invertedColors,
-} from "~/shared/styles/internal/color_scheme.css.js";
+import {invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
+import {darkColorSchemeSelector} from "~/shared/styles/internal/color_scheme.css.js";
 import {extrapolateHighlightColor} from "~/shared/styles/internal/helpers/extrapolate_highlight_color.js";
 
 const opacity = 0.1;
@@ -21,8 +19,8 @@ export const pressOpacityOverlayClassName = style({
     selectors: {
         [`${darkColorSchemeSelector} &`]: {
             backgroundColor: extrapolateHighlightColor(
-                invertedColors["grey-0"],
-                invertedColors["grey-5"],
+                invertedColorsWithShade["grey-0"],
+                invertedColorsWithShade["grey-5"],
                 opacity,
             ),
         },

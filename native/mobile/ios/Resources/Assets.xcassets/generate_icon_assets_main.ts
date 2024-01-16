@@ -39,20 +39,23 @@ async function main() {
                 return iconPngBuffer;
             }
 
-            await fs.writeFile(`${icon}Icon.imageset/${icon}Icon.png`, renderIconPng(baseSize));
+            await fs.writeFile(
+                `Icons/${icon}Icon.imageset/${icon}Icon.png`,
+                renderIconPng(baseSize),
+            );
 
             await fs.writeFile(
-                `${icon}Icon.imageset/${icon}Icon_2x.png`,
+                `Icons/${icon}Icon.imageset/${icon}Icon_2x.png`,
                 renderIconPng(baseSize * 2),
             );
 
             await fs.writeFile(
-                `${icon}Icon.imageset/${icon}Icon_3x.png`,
+                `Icons/${icon}Icon.imageset/${icon}Icon_3x.png`,
                 renderIconPng(baseSize * 3),
             );
 
             await fs.writeFile(
-                `${icon}Icon.imageset/Contents.json`,
+                `Icons/${icon}Icon.imageset/Contents.json`,
                 JSON.stringify(
                     {
                         images: [

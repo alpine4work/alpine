@@ -1,9 +1,7 @@
 import {createVar, globalStyle, keyframes, style} from "@vanilla-extract/css";
 import {colors} from "~/shared/design/colors.js";
-import {
-    darkColorSchemeSelector,
-    invertedColors,
-} from "~/shared/styles/internal/color_scheme.css.js";
+import {invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
+import {darkColorSchemeSelector} from "~/shared/styles/internal/color_scheme.css.js";
 import {extrapolateHighlightColor} from "~/shared/styles/internal/helpers/extrapolate_highlight_color.js";
 import {
     overlayFadeInOutTimingFunction,
@@ -69,18 +67,18 @@ globalStyle(":root", {
 globalStyle(darkColorSchemeSelector, {
     vars: {
         [scrollbarColorVar]: extrapolateHighlightColor(
-            invertedColors["grey-0"],
-            invertedColors["grey-20"],
+            invertedColorsWithShade["grey-0"],
+            invertedColorsWithShade["grey-20"],
             scrollbarOpacity,
         ),
         [scrollbarHoverColorVar]: extrapolateHighlightColor(
-            invertedColors["grey-0"],
-            invertedColors["grey-30"],
+            invertedColorsWithShade["grey-0"],
+            invertedColorsWithShade["grey-30"],
             scrollbarOpacity,
         ),
         [scrollbarActiveColorVar]: extrapolateHighlightColor(
-            invertedColors["grey-0"],
-            invertedColors["grey-40"],
+            invertedColorsWithShade["grey-0"],
+            invertedColorsWithShade["grey-40"],
             scrollbarOpacity,
         ),
     },

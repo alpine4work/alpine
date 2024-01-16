@@ -7,20 +7,23 @@ class RootTabBarController: UITabBarController {
         let appearance = UITabBarAppearance()
         let itemAppearance = UITabBarItemAppearance()
 
-        itemAppearance.normal.iconColor = UIColor.green
+        itemAppearance.normal.iconColor = UIColor(named: "grey-30")!
         itemAppearance.normal.titleTextAttributes = [
-            .foregroundColor: UIColor.green, .font: UIFont(name: "Inter-Regular", size: 13)!,
+            .foregroundColor: UIColor(named: "grey-30")!,
+            .font: UIFont(name: "Inter-Regular", size: 11)!,
         ]
 
-        itemAppearance.selected.iconColor = UIColor.red
-        itemAppearance.selected.titleTextAttributes = [.foregroundColor: UIColor.red]
+        itemAppearance.selected.iconColor = UIColor(named: "grey-text")!
+        itemAppearance.selected.titleTextAttributes = [
+            .foregroundColor: UIColor(named: "grey-text")!
+        ]
 
-        appearance.backgroundColor = .orange
+        appearance.backgroundColor = UIColor(named: "grey-0")!
 
         appearance.shadowImage = UIImage(named: "RootTabBarShadow")!
             // Must use template rendering mode for `shadowColor` to have any effect.
             .withRenderingMode(.alwaysTemplate)
-        appearance.shadowColor = .purple
+        appearance.shadowColor = UIColor(named: "grey-10")!
 
         appearance.stackedLayoutAppearance = itemAppearance
         appearance.compactInlineLayoutAppearance = itemAppearance

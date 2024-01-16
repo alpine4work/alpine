@@ -2,6 +2,7 @@ import {createVar, globalStyle, style} from "@vanilla-extract/css";
 import Color from "color";
 import {colors} from "~/shared/design/colors.js";
 import {colorByHighlightColor} from "~/shared/design/highlight_color.js";
+import {invertedColorsWithShade} from "~/shared/design/inverted_colors.js";
 import {
     RemLength,
     addRemLengths,
@@ -19,7 +20,6 @@ import {
     CssVarFunction,
     colorSchemeVars,
     darkColorSchemeSelector,
-    invertedColors,
 } from "~/shared/styles/internal/color_scheme.css.js";
 import {
     backgroundFontSizePercentage,
@@ -508,8 +508,11 @@ const nestedCommentBackgroundColors = {
             : "transparent";
     }),
     dark: mapObjectValues(commentBackgroundColors.dark, backgroundColor => {
-        const color1 = blendColors(invertedColors["grey-0"], commentBackgroundColors.dark.default);
-        const color2 = blendColors(invertedColors["grey-0"], backgroundColor);
+        const color1 = blendColors(
+            invertedColorsWithShade["grey-0"],
+            commentBackgroundColors.dark.default,
+        );
+        const color2 = blendColors(invertedColorsWithShade["grey-0"], backgroundColor);
         return color1 !== color2
             ? extrapolateHighlightColor(color1, color2, Color(backgroundColor).alpha())
             : "transparent";
@@ -554,8 +557,8 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
         selectors: {
             [`${darkColorSchemeSelector} &`]: {
                 backgroundColor: extrapolateHighlightColor(
-                    invertedColors["grey-0"],
-                    invertedColors[color],
+                    invertedColorsWithShade["grey-0"],
+                    invertedColorsWithShade[color],
                     highlightOpacity,
                 ),
             },
@@ -571,9 +574,9 @@ export const highlightClassNameByColor = mapObjectValues(colorByHighlightColor, 
             [`${darkColorSchemeSelector} ${commentClassName} &`]: {
                 backgroundColor:
                     extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
-                        invertedColors["grey-0"],
+                        invertedColorsWithShade["grey-0"],
                         commentBackgroundColors.dark.default,
-                        invertedColors[color],
+                        invertedColorsWithShade[color],
                         highlightOpacity,
                     ),
             },
@@ -608,9 +611,9 @@ ${(Object.keys(colorByHighlightColor) as Array<keyof typeof highlightClassNameBy
 ${darkColorSchemeSelector} #$containerId .${commentClassName}[data-comment="$commentThreadId"] .${
             highlightClassNameByColor[highlightColor]
         } {background-color: ${extrapolateHighlightColorFlippingCommentHighlightColorStackingOrder(
-            invertedColors["grey-0"],
+            invertedColorsWithShade["grey-0"],
             commentBackgroundColors.dark.active,
-            invertedColors[colorByHighlightColor[highlightColor]],
+            invertedColorsWithShade[colorByHighlightColor[highlightColor]],
             highlightOpacity,
         )}}`,
     )
