@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 
@@ -11,6 +12,8 @@ filegroup(
 swift_library(
     name = "lib",
     srcs = [":srcs"],
+    # Fail to build if there are warnings.
+    copts = ["-warnings-as-errors"],
 )
 
 ios_application(
@@ -33,10 +36,16 @@ sh_test(
     args = ["{}/{}".format(
         package_name(),
         src,
-    ) for src in srcs],
+    ) for src in srcs] + ["Package.swift"],
     data = [
         "swift_format_config.json",
         ":srcs",
+        "//:Package.swift",
         "//admin/vendor:swift-format",
     ],
+)
+
+build_test(
+    name = "build_test",
+    targets = [":app"],
 )

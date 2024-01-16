@@ -44,6 +44,26 @@
      *                                   Swift                                    *
     \* ========================================================================== */
 
+    "swift.sourcekit-lsp.serverArguments": [
+        // Override Swift SDK:
+        "-Xswiftc",
+        "-sdk",
+        "-Xswiftc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator17.2.sdk",
+
+        // Override C sysroot to match SDK:
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator17.2.sdk",
+
+        // Override Swift target triple:
+        "-Xswiftc",
+        "-target",
+        "-Xswiftc",
+        "x86_64-apple-ios17.2-simulator"
+    ],
+
     // Unfortunately the plugin requires this property to be configured at a user
     // level. So add an absolute path to the vendored `swift-format` binary to your
     // personal `settings.json` file. e.g.

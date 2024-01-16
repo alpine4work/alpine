@@ -15,6 +15,7 @@ exports_files([
     "tsconfig.json",
     "tsconfig.bazel.json",
     "remix.config.cjs",
+    "Package.swift",
 ])
 
 ts_config(
