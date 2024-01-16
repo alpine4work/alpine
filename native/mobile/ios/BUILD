@@ -37,11 +37,11 @@ sh_test(
     args = ["{}/{}".format(
         package_name(),
         src,
-    ) for src in srcs] + ["native/mobile/ios/Package.swift"],
+    ) for src in srcs] + ["Package.swift"],
     data = [
-        "Package.swift",
         "swift_format_config.json",
         ":srcs",
+        "//:Package.swift",
         "//admin/vendor:swift-format",
     ],
 )

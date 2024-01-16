@@ -29,3 +29,6 @@ yarn-error.log*
 
 # dotenv
 .env*.local
+
+# Swift
+/.build

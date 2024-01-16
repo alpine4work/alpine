@@ -9,5 +9,5 @@ let package = Package(
     name: "Cyberworlds",
     platforms: [.iOS(.v14)],
     products: [.library(name: "Cyberworlds", targets: ["Cyberworlds"])],
-    targets: [.target(name: "Cyberworlds", path: "Sources")]
+    targets: [.target(name: "Cyberworlds", path: "native/mobile/ios/Sources")]
 )

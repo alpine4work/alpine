@@ -44,9 +44,6 @@
      *                                   Swift                                    *
     \* ========================================================================== */
 
-    // Our Swift package lives in `native/mobile/ios`.
-    "swift.searchSubfoldersForPackages": true,
-
     "swift.sourcekit-lsp.serverArguments": [
         // Override Swift SDK:
         "-Xswiftc",
