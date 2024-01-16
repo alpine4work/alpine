@@ -40,7 +40,7 @@ oci_image(
     name = "queue_image",
     base = "@debian",
     tars = [
-        "//admin/aws:www_data_owned_directory_oci_layer.tar",
+        "//admin/aws:helpers/www_data_owned_directory_oci_layer.tar",
         ":queue_image_layer",
     ],
     # For security, use the `www-data` user which exists on our Linux image. It

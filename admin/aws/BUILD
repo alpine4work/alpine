@@ -4,7 +4,7 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 # A manually built OCI layer that creates a directory `/var/www-data` and
 # grants write access for that directory to the `www-data` user.
 exports_files([
-    "www_data_owned_directory_oci_layer.tar",
+    "helpers/www_data_owned_directory_oci_layer.tar",
 ])
 
 ts_project(

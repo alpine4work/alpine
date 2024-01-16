@@ -12,23 +12,43 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         let homeController = TabController()
         homeController.title = "Home"
-        homeController.tabBarItem = UITabBarItem(tabBarSystemItem: .favorites, tag: 1)
+        homeController.tabBarItem = UITabBarItem(
+            title: "Home",
+            image: UIImage(named: "HouseIcon"),
+            tag: 1
+        )
 
         let searchController = TabController()
         searchController.title = "Search"
-        searchController.tabBarItem = UITabBarItem(tabBarSystemItem: .favorites, tag: 2)
+        searchController.tabBarItem = UITabBarItem(
+            title: "Search",
+            image: UIImage(named: "MagnifyingGlassIcon"),
+            tag: 2
+        )
 
         let createController = TabController()
         createController.title = "Create"
-        createController.tabBarItem = UITabBarItem(tabBarSystemItem: .favorites, tag: 3)
+        createController.tabBarItem = UITabBarItem(
+            title: "Create",
+            image: UIImage(named: "PlusIcon"),
+            tag: 3
+        )
 
         let inboxController = TabController()
         inboxController.title = "Inbox"
-        inboxController.tabBarItem = UITabBarItem(tabBarSystemItem: .favorites, tag: 4)
+        inboxController.tabBarItem = UITabBarItem(
+            title: "Inbox",
+            image: UIImage(named: "BellIcon"),
+            tag: 4
+        )
 
         let moreController = TabController()
         moreController.title = "More"
-        moreController.tabBarItem = UITabBarItem(tabBarSystemItem: .favorites, tag: 5)
+        moreController.tabBarItem = UITabBarItem(
+            title: "More",
+            image: UIImage(named: "ListIcon"),
+            tag: 5
+        )
 
         let tabBarController = UITabBarController()
         tabBarController.viewControllers = [

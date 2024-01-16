@@ -14,6 +14,7 @@ swift_library(
     srcs = [":srcs"],
     # Fail to build if there are warnings.
     copts = ["-warnings-as-errors"],
+    data = ["//native/mobile/ios/Resources/Assets.xcassets"],
     module_name = "Cyberworlds",
 )
 
