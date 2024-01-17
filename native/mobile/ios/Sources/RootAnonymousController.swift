@@ -1,17 +1,10 @@
 import UIKit
 import WebKit
 
-protocol RootAnonymousControllerDelegate: AnyObject {
-    func rootAnonymousController(
-        _ rootAnonymousController: RootAnonymousController,
-        didWebViewCommit navigation: WKNavigation!
-    )
-}
-
 class RootAnonymousController: UIViewController, WKNavigationDelegate, WKUIDelegate {
-    weak var delegate: RootAnonymousControllerDelegate?
-
     private var webView: WKWebView!
+    private var hasInitialWebViewNavigationCommit = false
+    private var windowSafeAreaInsets: UIEdgeInsets = .zero
 
     override func loadView() {
         let webConfiguration = WKWebViewConfiguration()
@@ -36,6 +29,8 @@ class RootAnonymousController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
         // NOCOMMIT: Show busy indicator while reloading. Especially useful in
         // development!
+
+        // NOCOMMIT: No scrolling when keyboard is up.
 
         webView = WKWebView(frame: .zero, configuration: webConfiguration)
         webView.navigationDelegate = self
@@ -68,7 +63,11 @@ class RootAnonymousController: UIViewController, WKNavigationDelegate, WKUIDeleg
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-        self.delegate?.rootAnonymousController(self, didWebViewCommit: navigation)
+        hasInitialWebViewNavigationCommit = true
+
+        // We need to update safe area insets after the document `<head>` has been
+        // downloaded to the client.
+        setWindowSafeAreaInsets(windowSafeAreaInsets)
     }
 
     // We set safe area insets as CSS variables. Then we use these CSS
@@ -80,6 +79,9 @@ class RootAnonymousController: UIViewController, WKNavigationDelegate, WKUIDeleg
     //
     // [1]: https://bugs.webkit.org/show_bug.cgi?id=191872
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
+        self.windowSafeAreaInsets = windowSafeAreaInsets
+        if !hasInitialWebViewNavigationCommit { return }
+
         let styleString =
             ":root { --native-mobile-ios-safe-area-inset-top: \(windowSafeAreaInsets.top)px; --native-mobile-ios-safe-area-inset-bottom: \(windowSafeAreaInsets.bottom)px; --native-mobile-ios-safe-area-inset-left: \(windowSafeAreaInsets.left)px; --native-mobile-ios-safe-area-inset-right: \(windowSafeAreaInsets.right)px }"
 

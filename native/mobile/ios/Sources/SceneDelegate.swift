@@ -1,7 +1,7 @@
 import UIKit
 import WebKit
 
-class SceneDelegate: UIResponder, UIWindowSceneDelegate, RootAnonymousControllerDelegate {
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     private struct State {
         let window: UIWindow
         let rootAnonymousController: RootAnonymousController
@@ -28,7 +28,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, RootAnonymousController
         window.makeKeyAndVisible()
 
         rootAnonymousController.setWindowSafeAreaInsets(window.safeAreaInsets)
-        rootAnonymousController.delegate = self
 
         self.state = State(window: window, rootAnonymousController: rootAnonymousController)
     }
@@ -46,17 +45,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, RootAnonymousController
     ) {
         guard let state = state else { return }
 
-        state.rootAnonymousController.setWindowSafeAreaInsets(state.window.safeAreaInsets)
-    }
-
-    func rootAnonymousController(
-        _ rootAnonymousController: RootAnonymousController,
-        didWebViewCommit navigation: WKNavigation!
-    ) {
-        guard let state = state else { return }
-
-        // We need to update safe area insets after the document `<head>` has been
-        // downloaded to the client.
         state.rootAnonymousController.setWindowSafeAreaInsets(state.window.safeAreaInsets)
     }
 }
