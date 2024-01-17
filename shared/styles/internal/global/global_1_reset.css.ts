@@ -24,11 +24,17 @@ globalStyle("*, ::before, ::after", {
 });
 
 globalStyle("html", {
-    // Prevent adjustments of font size after orientation changes in iOS.
+    // Prevent adjustments of font size since our app is built with responsive
+    // design in mind.
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/text-size-adjust
     WebkitTextSizeAdjust: "100%",
+    textSizeAdjust: "100%",
     // Use a more readable tab size.
     MozTabSize: 4,
     tabSize: 4,
+    // Try to reduce browser incompatibilities.
+    textRendering: "optimizeLegibility",
+    WebkitFontSmoothing: "subpixel-antialiased", // https://usabilitypost.com/2010/08/26/font-smoothing
 });
 
 globalStyle("body", {

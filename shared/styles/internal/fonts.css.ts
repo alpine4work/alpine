@@ -27,12 +27,11 @@ const formatPercentage = (percentage: number) => `${Math.round(percentage * 100 
 export const backgroundFontSizePercentage =
     interFontAscenderPercentage + interFontDescenderPercentage + interFontDescenderPercentage;
 
-// TODO(calebmer): Now that I've bought Untitled UI, give their premium font
-// recommendations a look to see if we can do better than Inter.
 const interFontFace = fontFace({
+    // See how to use variable fonts:
+    // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
     src: "url(/fonts/inter.woff2) format('woff2')",
-    fontStyle: "normal",
-    fontWeight: "100 340 400 500 600 700 800 900",
+    fontWeight: "100 900",
     // It appears browsers add an extra descent to the font's ascent metric.
     // Presumably so that `background-color` appears centered around the text.
     ascentOverride: formatPercentage(interFontAscenderPercentage + interFontDescenderPercentage),
@@ -40,9 +39,10 @@ const interFontFace = fontFace({
 });
 
 const firaCodeFontFace = fontFace({
-    src: "url(/fonts/fira-code.woff2) format('woff2')",
-    fontStyle: "normal",
-    fontWeight: "300 500 700",
+    // See how to use variable fonts:
+    // https://css-tricks.com/newsletter/259-how-to-use-variable-fonts/
+    src: "url(/fonts/fira-code.woff2) format('woff2 supports variations'), url(/fonts/fira-code.woff2) format('woff2-variations'), url(/fonts/fira-code.woff2) format('woff2')",
+    fontWeight: "100 900",
     // Give Fira Code the same ascent/descent metrics as Inter. This means
     // `background-color`s, font sizes, line heights, everything set on the two
     // fonts line up when next to each other.
