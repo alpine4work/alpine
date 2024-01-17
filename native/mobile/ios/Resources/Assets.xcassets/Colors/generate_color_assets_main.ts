@@ -6,6 +6,8 @@ import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 
+const colorArgs = process.argv.slice(2);
+
 async function writeColor(name: string, lightColorString: string, darkColorString: string) {
     const lightColor = Color(lightColorString);
     const darkColor = Color(darkColorString);
@@ -60,16 +62,23 @@ async function writeColor(name: string, lightColorString: string, darkColorStrin
 }
 
 async function main() {
-    await runAllPromises([
-        ...Object.entries(colorsWithShade).map(async ([name, lightColor]) => {
-            const darkColor = assertExists(
-                cast<{[key: string]: string}>(invertedColorsWithShade)[name],
-            );
-            await writeColor(name, lightColor, darkColor);
+    await runAllPromises(
+        colorArgs.map(async color => {
+            if (color === "grey-text") {
+                await writeColor("grey-text", colors["grey-dark"], colors["grey-0"]);
+            } else if (color === "grey-wash") {
+                await writeColor("grey-wash", colors["grey-5"], colors["grey-dark"]);
+            } else {
+                const lightColor = assertExists(
+                    cast<{[key: string]: string}>(colorsWithShade)[color],
+                );
+                const darkColor = assertExists(
+                    cast<{[key: string]: string}>(invertedColorsWithShade)[color],
+                );
+                await writeColor(color, lightColor, darkColor);
+            }
         }),
-        writeColor("grey-text", colors["grey-dark"], colors["grey-0"]),
-        writeColor("grey-wash", colors["grey-5"], colors["grey-dark"]),
-    ]);
+    );
 }
 
 main().catch(error => {

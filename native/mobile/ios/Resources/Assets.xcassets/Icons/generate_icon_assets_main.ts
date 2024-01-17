@@ -9,11 +9,11 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 const iconComponents = _iconComponents as any as {[key: string]: ComponentType<IconProps>};
 
-const icons = process.argv.slice(2);
+const iconArgs = process.argv.slice(2);
 
 async function main() {
     await runAllPromises(
-        icons.map(async icon => {
+        iconArgs.map(async icon => {
             const iconComponent = assertExists(iconComponents[icon], "Icon not found");
 
             const baseSize = 25;

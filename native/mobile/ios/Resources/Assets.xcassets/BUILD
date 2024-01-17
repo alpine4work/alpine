@@ -7,7 +7,9 @@ load("//admin/typescript:typescript.bzl", "ts_project")
 filegroup(
     name = "Assets.xcassets",
     srcs = [
+        "Colors/Contents.json",
         "Contents.json",
+        "Icons/Contents.json",
         "RootTabBarShadow.imageset",
         ":color_assets",
         ":icon_assets",
@@ -49,7 +51,7 @@ ICONS = [
 js_binary(
     name = "generate_icon_assets",
     data = [":assets_lib"],
-    entry_point = "generate_icon_assets_main.js",
+    entry_point = "Icons/generate_icon_assets_main.js",
     env = {"NODE_ENV": "development"},
 )
 
@@ -67,13 +69,30 @@ js_run_binary(
 js_binary(
     name = "generate_color_assets",
     data = [":assets_lib"],
-    entry_point = "generate_color_assets_main.js",
+    entry_point = "Colors/generate_color_assets_main.js",
     env = {"NODE_ENV": "development"},
 )
 
+COLORS = [
+    "grey-0",
+    "grey-5",
+    "grey-10",
+    "grey-20",
+    "grey-30",
+    "grey-40",
+    "grey-50",
+    "grey-60",
+    "grey-70",
+    "grey-80",
+    "grey-90",
+    "grey-text",
+    "grey-wash",
+]
+
 js_run_binary(
     name = "color_assets",
+    outs = ["Colors/{}.colorset/Contents.json".format(color) for color in COLORS],
+    args = COLORS,
     chdir = package_name(),
-    out_dirs = ["Colors"],
     tool = ":generate_color_assets",
 )
