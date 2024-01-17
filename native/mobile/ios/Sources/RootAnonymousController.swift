@@ -41,6 +41,10 @@ class RootAnonymousController: UIViewController, WKNavigationDelegate, WKUIDeleg
         webView.navigationDelegate = self
         webView.uiDelegate = self
 
+        // Remove the accessory view with arrow up/down and "done" buttons. While
+        // useful for web forms, users don't expect this in a native mobile app.
+        swizzleWebViewInputAccessoryView(webView)
+
         // Enable developer tool usage in development environments.
         #if DBG_COMPILATION_MODE || DEVELOPMENT_RUN_ENVIRONMENT
             if #available(iOS 16.4, *) { webView.isInspectable = true }
