@@ -1,5 +1,6 @@
 import {Form, useNavigation, useParams, useSubmit} from "@remix-run/react";
 import {json, redirect} from "@remix-run/router";
+import {LinkDescriptor} from "@remix-run/server-runtime";
 import {useEffect, useRef, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
 import {Box} from "~/client/design/box.js";
@@ -23,6 +24,14 @@ export function meta() {
         {title: "Sign in to Cyberworlds"},
         // Ask Google to not index this page.
         {name: "robots", content: "noindex"},
+    ];
+}
+
+export function links(): Array<LinkDescriptor> {
+    return [
+        // Turn off scrolling on `body`. The sign in screen should fill the page.
+        // This prevents over-scrolling on iOS Safari.
+        {rel: "stylesheet", href: `data:text/css,${encodeURIComponent("body {overflow: hidden}")}`},
     ];
 }
 
