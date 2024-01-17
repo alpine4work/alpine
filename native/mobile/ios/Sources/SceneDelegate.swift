@@ -1,21 +1,62 @@
 import UIKit
+import WebKit
 
-class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-    var window: UIWindow?
+class SceneDelegate: UIResponder, UIWindowSceneDelegate, RootAnonymousControllerDelegate {
+    private struct State {
+        let window: UIWindow
+        let rootAnonymousController: RootAnonymousController
+    }
+
+    private var state: State?
 
     func scene(
         _ scene: UIScene,
         willConnectTo session: UISceneSession,
         options connectionOptions: UIScene.ConnectionOptions
     ) {
+        assert(self.state == nil)
+
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
-        let tabBarController = RootTabBarController()
+        // NOCOMMIT: Logged in experience
+        // RootTabBarController()
+        let rootAnonymousController = RootAnonymousController()
 
         let window = UIWindow(frame: windowScene.coordinateSpace.bounds)
-        self.window = window
         window.windowScene = windowScene
-        window.rootViewController = tabBarController
+        window.rootViewController = rootAnonymousController
         window.makeKeyAndVisible()
+
+        rootAnonymousController.setWindowSafeAreaInsets(window.safeAreaInsets)
+        rootAnonymousController.delegate = self
+
+        self.state = State(window: window, rootAnonymousController: rootAnonymousController)
+    }
+
+    func sceneDidDisconnect(_ scene: UIScene) {
+        assert(self.state != nil)
+        self.state = nil
+    }
+
+    func windowScene(
+        _ windowScene: UIWindowScene,
+        didUpdate previousCoordinateSpace: UICoordinateSpace,
+        interfaceOrientation previousInterfaceOrientation: UIInterfaceOrientation,
+        traitCollection previousTraitCollection: UITraitCollection
+    ) {
+        guard let state = state else { return }
+
+        state.rootAnonymousController.setWindowSafeAreaInsets(state.window.safeAreaInsets)
+    }
+
+    func rootAnonymousController(
+        _ rootAnonymousController: RootAnonymousController,
+        didWebViewCommit navigation: WKNavigation!
+    ) {
+        guard let state = state else { return }
+
+        // We need to update safe area insets after the document `<head>` has been
+        // downloaded to the client.
+        state.rootAnonymousController.setWindowSafeAreaInsets(state.window.safeAreaInsets)
     }
 }

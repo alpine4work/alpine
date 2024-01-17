@@ -265,7 +265,19 @@ export default function Root() {
                 <meta charSet="utf-8" />
                 <meta
                     name="viewport"
-                    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+                    // - `user-scalable=no`: Don't allow pinch to zoom. This is against
+                    //    industry accessibility guidelines. We want our site to feel like an app
+                    //    and apps don't allow zooming. Zooming is a very web feeling behavior. To
+                    //    help users with accessibility needs we should add support for font
+                    //    scaling.
+                    //
+                    // - `viewport-fit=cover`: Render content under [safe area insets][2]. We use
+                    //   `env(safe-area-inset-*)` to make sure we add the appropriate amount of
+                    //   padding.
+                    //
+                    // [1]: https://developer.mozilla.org/en-US/docs/Web/HTML/Viewport_meta_tag
+                    // [2]: https://webkit.org/blog/7929/designing-websites-for-iphone-x/
+                    content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
                 />
                 <meta
                     // Ask Google to not index any of our routes.

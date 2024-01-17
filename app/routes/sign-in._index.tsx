@@ -92,7 +92,20 @@ export default function SignInPage() {
     > | null>(null);
 
     return (
-        <Box display="flex" justifyContent="center" backgroundColor="grey-0" minHeight="full">
+        <Box
+            display="flex"
+            justifyContent="center"
+            backgroundColor="grey-0"
+            style={{
+                paddingTop: "var(--native-mobile-ios-safe-area-inset-top, 0px)",
+                paddingBottom: "var(--native-mobile-ios-safe-area-inset-bottom, 0px)",
+                paddingLeft: "var(--native-mobile-ios-safe-area-inset-left, 0px)",
+                paddingRight: "var(--native-mobile-ios-safe-area-inset-right, 0px)",
+                // Fill the entire viewport height. `minHeight: 100%` only fills the area that
+                // doesn't conflict with the safe area inset.
+                minHeight: "100vh",
+            }}
+        >
             <main
                 className={sprinkles({
                     width: "full",

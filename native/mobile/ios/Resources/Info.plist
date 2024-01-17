@@ -27,8 +27,6 @@
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>UIApplicationSceneManifest</key>
     <dict>
@@ -50,6 +48,11 @@
     <key>UIAppFonts</key>
     <array>
         <string>Inter-Regular.ttf</string>
+    </array>
+    <key>WKAppBoundDomains</key>
+    <array>
+        <string>cyberworlds.dev</string>
+        <string>alpine.inc</string>
     </array>
 </dict>
 </plist>

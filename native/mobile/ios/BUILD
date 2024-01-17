@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
@@ -22,12 +23,98 @@ filegroup(
     ],
 )
 
+# NOTE(calebmer, 2023-01-17): Currently, JavaScript code has one flag,
+# `process.env.NODE_ENV`, that controls:
+#
+# - Debug assertions
+# - Optimized builds
+# - Run environment (e.g. use localhost or cyberworlds.dev domain)
+#
+# This is too much. It provides us no flexibility to, for instance, run on
+# localhost with an optimized build. So over time we should tease apart this
+# flag into, at minimum, `compilation_mode` (provided by Bazel) and
+# `run_environment`. We're starting this pattern here in iOS. Eventually,
+# instead of just having a `run_environment` setting for iOS, we'd like to
+# put this in our root `BUILD` file and use it for JavaScript too.
+#
+# Some notes on how I'd like the run environment to work:
+#
+# - `development`: We have a full suite of services running on a local machine.
+#   This is used by developers while they build out the product. All services
+#   are running on some `localhost` port.
+#
+# - `production`: We are running in our AWS account serving live user traffic.
+#   We may have multiple instances of each service to support user traffic
+#   scale.
+#
+# - `test`: We aren't running in a full environment and instead are running a
+#   unit test which only has some small set of necessary services or databases
+#   running. Unclear whether integration tests should be a `development` or
+#   `test` run environment.
+#
+# Adhoc scripts are either `development` or `production`. You choose which one
+# to target from the command line.
+#
+# When we move the `run_environment` flag to the root `BUILD` file, add a
+# [build setting alias][1] so developers can write the very natural looking
+# `bazel build //native/mobile/ios --run_environment=production --compilation_mode=opt`.
+#
+# [1]: https://bazel.build/extending/config#using-build-setting-aliases
+string_flag(
+    name = "run_environment",
+    build_setting_default = "development",
+    values = [
+        "development",
+        "production",
+        "test",
+    ],
+)
+
+config_setting(
+    name = "development_run_environment",
+    flag_values = {":run_environment": "development"},
+)
+
+config_setting(
+    name = "production_run_environment",
+    flag_values = {":run_environment": "production"},
+)
+
+config_setting(
+    name = "test_run_environment",
+    flag_values = {":run_environment": "test"},
+)
+
+config_setting(
+    name = "fastbuild_compilation_mode",
+    values = {"compilation_mode": "fastbuild"},
+)
+
+config_setting(
+    name = "dbg_compilation_mode",
+    values = {"compilation_mode": "dbg"},
+)
+
+config_setting(
+    name = "opt_compilation_mode",
+    values = {"compilation_mode": "opt"},
+)
+
 swift_library(
     name = "lib",
     srcs = [":sources"],
     # Fail to build if there are warnings.
     copts = ["-warnings-as-errors"],
     data = [":resources"],
+    defines = select({
+        ":development_run_environment": ["DEVELOPMENT_RUN_ENVIRONMENT"],
+        ":production_run_environment": ["PRODUCTION_RUN_ENVIRONMENT"],
+        ":test_run_environment": ["TEST_RUN_ENVIRONMENT"],
+    }) + select({
+        ":fastbuild_compilation_mode": ["FASTBUILD_COMPILATION_MODE"],
+        ":dbg_compilation_mode": ["DBG_COMPILATION_MODE"],
+        ":opt_compilation_mode": ["OPT_COMPILATION_MODE"],
+    }),
     module_name = "Cyberworlds",
 )
 
