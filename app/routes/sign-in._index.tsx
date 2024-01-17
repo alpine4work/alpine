@@ -18,7 +18,7 @@ import {InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
-import {contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, contentSchemaStyles, sprinkles} from "~/shared/styles/styles.js";
 
 export function meta() {
     return [{title: "Sign in to Cyberworlds"}];
@@ -26,9 +26,18 @@ export function meta() {
 
 export function links(): Array<LinkDescriptor> {
     return [
-        // Turn off scrolling on `body`. The sign in screen should fill the page.
-        // This prevents over-scrolling on iOS Safari.
-        {rel: "stylesheet", href: `data:text/css,${encodeURIComponent("body {overflow: hidden}")}`},
+        // 1. Turn off scrolling on `body`. The sign in screen should fill the page.
+        //    This prevents over-scrolling on iOS Safari.
+        //
+        // 2. When the virtual keyboard in our iOS native app opens, the user can
+        //    scroll the page. Make sure the overscroll color matches the main
+        //    background color.
+        {
+            rel: "stylesheet",
+            href: `data:text/css,${encodeURIComponent(
+                `body {overflow: hidden; background-color: ${colorSchemeVars["grey-0"]}}`,
+            )}`,
+        },
     ];
 }
 
