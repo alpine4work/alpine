@@ -127,7 +127,7 @@ index f4dd34fae394d3bfb43f4ad2c03f431c4fb4e680..f3c344a8d46c8de44385d2e00bdf69f5
        serialized[key] = val;
      }
 diff --git a/dist/esm/components.js b/dist/esm/components.js
-index f2a540d17fafb27efc0145f1a1f8458bd316d31b..a28bf70660dd01ffcd2d271b143477d3c17b69f3 100644
+index f2a540d17fafb27efc0145f1a1f8458bd316d31b..205dd372a245898eae2516e193ce4d1209c0a36a 100644
 --- a/dist/esm/components.js
 +++ b/dist/esm/components.js
 @@ -43,6 +43,9 @@ function useRemixContext() {
@@ -233,10 +233,10 @@ index b27cbfd5626a825c27e5fcf83a54b9e509d08acf..ebf58e10815bbbe326a40dadc781cc1a
        serialized[key] = val;
      }
 diff --git a/dist/esm/index.js b/dist/esm/index.js
-index 08846c4605214228051c9ba21216a70dc8d015c3..08900bfc3a4045ea63b75385f7baec61ae270946 100644
+index 08846c4605214228051c9ba21216a70dc8d015c3..b44a116652bf563e167b0b52f433d4b05a51baa5 100644
 --- a/dist/esm/index.js
 +++ b/dist/esm/index.js
-@@ -14,3 +14,8 @@ export { Await, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, Scrip
+@@ -14,3 +14,9 @@ export { Await, Link, Links, LiveReload, Meta, NavLink, PrefetchPageLinks, Scrip
  export { useCatch } from './errorBoundaries.js';
  export { ScrollRestoration } from './scroll-restoration.js';
  export { RemixServer } from './server.js';
@@ -244,7 +244,8 @@ index 08846c4605214228051c9ba21216a70dc8d015c3..08900bfc3a4045ea63b75385f7baec61
 +// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
 +// these internals we make it harder to upgrade Remix and take responsibility
 +// for correct usage of this dependency's internals.
-+export { loadRouteModuleWithBlockingLinks } from './routes.js';
++export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes } from './routes.js';
++export { deserializeErrors } from './errors.js';
 diff --git a/dist/esm/routes.js b/dist/esm/routes.js
 index 76d512bf71729951e5c45dce97c9423f7308d250..0a5c5f2ea064e93ba8cc0eb1ddb6e0f8c640af32 100644
 --- a/dist/esm/routes.js
@@ -316,10 +317,10 @@ index 76d512bf71729951e5c45dce97c9423f7308d250..0a5c5f2ea064e93ba8cc0eb1ddb6e0f8
    };
  }
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index e16d76beb57831a7a4f2032e44bb2c82a383f434..23acf202e7fdd60888dec842b734029ef293e784 100644
+index e16d76beb57831a7a4f2032e44bb2c82a383f434..36eef28587466e09692e1235dc79e34148a8ceb7 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -14,3 +14,8 @@ export { RemixServer } from "./server";
+@@ -14,3 +14,9 @@ export { RemixServer } from "./server";
  export type { Fetcher } from "./transition";
  export type { FutureConfig as UNSAFE_FutureConfig, AssetsManifest as UNSAFE_AssetsManifest, RemixContextObject as UNSAFE_RemixContextObject, } from "./entry";
  export type { EntryRoute as UNSAFE_EntryRoute, RouteManifest as UNSAFE_RouteManifest, } from "./routes";
@@ -327,20 +328,22 @@ index e16d76beb57831a7a4f2032e44bb2c82a383f434..23acf202e7fdd60888dec842b734029e
 +// NOTE(calebmer): Export some extra Remix internals that we use. By exporting
 +// these internals we make it harder to upgrade Remix and take responsibility
 +// for correct usage of this dependency's internals.
-+export { loadRouteModuleWithBlockingLinks } from "./routes";
++export { loadRouteModuleWithBlockingLinks, createClientRoutes, createServerRoutes } from "./routes";
++export { deserializeErrors } from "./errors";
 diff --git a/dist/index.js b/dist/index.js
-index 0218e81d4f2e1a86771874e261489b96ee986556..44d9db8d5dbac824e5c6b5e9340e57737c5f909c 100644
+index 0218e81d4f2e1a86771874e261489b96ee986556..e60cea5f1a30f4fc3a707894eaf6df99ac42c1c0 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -18,6 +18,7 @@ var components = require('./components.js');
+@@ -18,6 +18,8 @@ var components = require('./components.js');
  var errorBoundaries = require('./errorBoundaries.js');
  var scrollRestoration = require('./scroll-restoration.js');
  var server = require('./server.js');
 +var routes = require('./routes.js');
++var errors = require('./errors.js');
  
  
  
-@@ -136,3 +137,8 @@ exports.useTransition = components.useTransition;
+@@ -136,3 +138,11 @@ exports.useTransition = components.useTransition;
  exports.useCatch = errorBoundaries.useCatch;
  exports.ScrollRestoration = scrollRestoration.ScrollRestoration;
  exports.RemixServer = server.RemixServer;
@@ -349,6 +352,9 @@ index 0218e81d4f2e1a86771874e261489b96ee986556..44d9db8d5dbac824e5c6b5e9340e5773
 +// these internals we make it harder to upgrade Remix and take responsibility
 +// for correct usage of this dependency's internals.
 +exports.loadRouteModuleWithBlockingLinks = routes.loadRouteModuleWithBlockingLinks;
++exports.createClientRoutes = routes.createClientRoutes;
++exports.createServerRoutes = routes.createServerRoutes;
++exports.deserializeErrors = errors.deserializeErrors;
 diff --git a/dist/routes.d.ts b/dist/routes.d.ts
 index f9e34d7b58f4c3abbdf5382fcb95f71d6322ac9f..7fa23c7a1381f4b232f52def1c201e2acf002cd5 100644
 --- a/dist/routes.d.ts

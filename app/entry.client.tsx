@@ -1,6 +1,6 @@
-import {RemixBrowser} from "@remix-run/react";
 import {startTransition} from "react";
 import {hydrateRoot} from "react-dom/client";
+import {AppRemixBrowser} from "~/app/router/app_remix_browser.js";
 import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {installScrollbarAuditorInDev} from "~/client/design/scrollbar.js";
@@ -91,7 +91,7 @@ async function main() {
         hydrateRoot(
             document,
             <AppContextProvider value={context}>
-                <RemixBrowser />
+                <AppRemixBrowser />
             </AppContextProvider>,
             {
                 onRecoverableError: error => {

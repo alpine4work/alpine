@@ -10,7 +10,7 @@ import {
     matchRoutes,
     resolvePath,
 } from "@remix-run/router";
-import {createContext, useCallback, useContext, useMemo, useRef, useState} from "react";
+import {createContext, useCallback, useContext, useMemo, useRef} from "react";
 import {
     DataRouteObject,
     UNSAFE_DataRouterContext as DataRouterContext,
@@ -281,14 +281,6 @@ export function PeekRemixEmbed({
         };
     }, [originalRouter]);
 
-    // We don't currently use `location` but seems useful to have around and
-    // `<RemixBrowser>` has it. So useful to maintain parity.
-    const [, setLocation] = useState(router.state.location);
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        return router.subscribe(newState => setLocation(newState.location));
-    }, [router]);
-
     return (
         <PeekContext.Provider
             value={useMemo(
@@ -324,7 +316,7 @@ export function PeekRemixEmbed({
                     )}
                 >
                     {typeof window === "undefined" ? (
-                        // When server-rendering use `<StaticRouterProvider>` like `<RemixServer>`.
+                        // When server-rendering use `<StaticRouterProvider>` like `<AppRemixServer>`.
                         // `<StaticRouterProvider>` is carefully written to have the same DOM structure
                         // as `<RouterProvider>` for hydration.
                         // https://github.com/remix-run/remix/blob/1c416b0b9baadbd75974ee72efb651b8186670cb/packages/remix-react/server.tsx#L27

@@ -1,6 +1,6 @@
-import {RemixServer} from "@remix-run/react";
 import {EntryContext} from "@remix-run/server-runtime";
 import {renderToString} from "react-dom/server";
+import {AppRemixServer} from "~/app/router/app_remix_server.js";
 import {AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {LoaderContext} from "~/server/remix/loader_context.js";
@@ -34,7 +34,7 @@ export default async function handleRequest(
     try {
         const markup = renderToString(
             <AppContextProvider value={appContext}>
-                <RemixServer context={remixContext} url={request.url} />
+                <AppRemixServer context={remixContext} url={request.url} />
             </AppContextProvider>,
         );
 
