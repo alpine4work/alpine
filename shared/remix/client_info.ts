@@ -152,9 +152,12 @@ export const defaultMobileClientInfo: ClientInfo = {
  * This function should return true for Mac laptops, iPhones, iPads and other
  * Apple hardware but nothing else (assuming a well-formed user agent string).
  *
+ * This should also pass if the string `CyberworldsNativeMobileIos` is
+ * included. Which represents a request from our native iOS app.
+ *
  * [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
  * [2]: https://deviceatlas.com/blog/list-of-user-agent-strings
  */
 export function isAppleDeviceUserAgent(userAgent: string): boolean {
-    return /Mac|iPhone|iPad/.test(userAgent);
+    return /Mac|iPhone|iPad|CyberworldsNativeMobileIos/.test(userAgent);
 }

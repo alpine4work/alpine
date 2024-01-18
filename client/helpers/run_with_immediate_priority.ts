@@ -8,6 +8,12 @@ import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
  * Use this instead of manually calling `unstable_runWithPriority()` from
  * `scheduler` since it handles some React quirks.
  */
+// TODO(calebmer, 2023-01-18): Wow, I just noticed React has a [`flushSync()`
+// API][1]. This is probably an exact replacement for this function. Explore
+// the implementation of `flushSync()` to make sure it does the same thing as
+// `runWithImmediatePriority()` and replace `runWithImmediatePriority()`.
+//
+// [1]: https://react.dev/reference/react-dom/flushSync
 export function runWithImmediatePriority<Value>(action: () => Value): Value {
     return unstable_runWithPriority(unstable_ImmediatePriority, () => {
         // HACK(calebmer): In order for React to respect the scheduler priority level

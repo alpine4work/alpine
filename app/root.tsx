@@ -10,7 +10,7 @@ import {
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
-import {useCallback, useContext, useEffect, useMemo} from "react";
+import {useCallback, useContext, useEffect, useInsertionEffect, useMemo, useRef} from "react";
 import {
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
@@ -30,9 +30,11 @@ import {
 } from "~/client/helpers/color_scheme.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {ClientInfoContextProvider} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {CurrentTimeContextProvider} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {IsMobileContextProvider} from "~/client/remix/use_is_mobile.js";
 import {WaitForNavigationContextProvider} from "~/client/remix/use_navigate.js";
@@ -165,6 +167,35 @@ export default function Root() {
             window.removeEventListener("error", handleError);
         };
     }, [context.tracer]);
+
+    const lastLocationKeyForInsertionEffectRef = useRef(dataRouterStateContext.location.key);
+    const lastLocationKeyForLayoutEffectRef = useRef(dataRouterStateContext.location.key);
+
+    // 1. Prepare navigation animation before we paint our new screen
+    useInsertionEffect(() => {
+        if (lastLocationKeyForInsertionEffectRef.current === dataRouterStateContext.location.key)
+            return;
+        lastLocationKeyForInsertionEffectRef.current = dataRouterStateContext.location.key;
+
+        if (dataRouterStateContext.historyAction === "PUSH") {
+            // TODO(calebmer): I'd like to add some performance instrumentation to find out
+            // how much time we spend synchronously blocked. Ideally add it as a property
+            // to a navigation span since the duration may be too small to justify its
+            // own span.
+            NativeMobileBridge?.preparePushNavigationAnimation();
+        }
+    }, [dataRouterStateContext.historyAction, dataRouterStateContext.location.key]);
+
+    // 2. Run navigation animation after we paint our new screen
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (lastLocationKeyForLayoutEffectRef.current === dataRouterStateContext.location.key)
+            return;
+        lastLocationKeyForLayoutEffectRef.current = dataRouterStateContext.location.key;
+
+        if (dataRouterStateContext.historyAction === "PUSH") {
+            NativeMobileBridge?.runPushNavigationAnimation();
+        }
+    }, [dataRouterStateContext.historyAction, dataRouterStateContext.location.key]);
 
     // `useLoaderData()` doesn't work in an error boundary or catch boundary.
     // We use this exact component for error and catch boundaries to avoid

@@ -21,6 +21,12 @@ async function main() {
     // We add a `clientLoader` feature to Remix routes. `clientLoader` functions
     // are called on the client with server loader data. We call `clientLoader` for
     // initial loads here in our code vs in a patch so we can make it async.
+    //
+    // NOTE(calebmer, 2024-01-17): Looks like since I added a custom
+    // `clientLoader`, the Remix team [added their own `clientLoader`][1]! The
+    // semantics are a bit different. Ideally we'd use the Remix `clientLoader`.
+    //
+    // [1]: https://remix.run/docs/en/main/route/client-loader
     const clientLoaderResults = await Promise.allSettled(
         window.__remixContext.matches.map(async (match, i) => {
             const routeModule = window.__remixRouteModules[match.routeId]!;

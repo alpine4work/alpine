@@ -245,6 +245,10 @@ export class LoaderContextModule extends ContextModuleBase {
                 // [MDN recommends testing for the string "Mobi" to tell if we are on a
                 // mobile device][1].
                 //
+                // This should also pass if the string `CyberworldsNativeMobileIos` or
+                // `CyberworldsNativeMobileAndroid` is included. Which represents a request
+                // from our native iOS app. (Both strings contain "Mobi".)
+                //
                 // [1]: https://developer.mozilla.org/en-US/docs/Web/HTTP/Browser_detection_using_the_user_agent#mobile_tablet_or_desktop
                 if (/Mobi/i.test(userAgentHeader)) {
                     clientInfo = defaultMobileClientInfo;
