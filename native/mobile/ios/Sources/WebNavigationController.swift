@@ -2,43 +2,14 @@ import UIKit
 import WebKit
 
 private let bridgeSource = """
-    {
-        const popNavigationListeners = new Set();
-
-        const NativeMobileBridge = {
-            preparePushNavigationAnimation: () => {
-                prompt("%%%preparePushNavigationAnimation");
-            },
-            runPushNavigationAnimation: () => {
-                window.webkit.messageHandlers.NativeMobileBridge.postMessage("runPushNavigationAnimation");
-            },
-            preparePopNavigationAnimation: () => {
-                prompt("%%%preparePopNavigationAnimation");
-            },
-            runPopNavigationAnimation: () => {
-                window.webkit.messageHandlers.NativeMobileBridge.postMessage("runPopNavigationAnimation");
-            },
-            subscribeToPopNavigation: listener => {
-                popNavigationListeners.add(listener);
-                return () => {
-                    popNavigationListeners.delete(listener);
-                };
-            },
-            _callPopNavigationListeners: delta => {
-                for (const listener of popNavigationListeners) {
-                    try {
-                        listener(delta);
-                    } catch (error) {
-                        setTimeout(() => {
-                            throw error;
-                        }, 0);
-                    }
-                }
-            },
-        };
-
-        window.__NativeMobileBridge = NativeMobileBridge;
-    }
+    window.__NativeMobileBridge = {
+        preparePushNavigationAnimation: () => {
+            prompt("%%%preparePushNavigationAnimation");
+        },
+        runPushNavigationAnimation: () => {
+            window.webkit.messageHandlers.NativeMobileBridge.postMessage("runPushNavigationAnimation");
+        },
+    };
     """
 
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
@@ -59,8 +30,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        let rootViewController = UIViewController()
-        viewControllers = [rootViewController]
+        let rootStackEntryController = WebNavigationStackEntryController()
+        viewControllers = [rootStackEntryController]
 
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.processPool = sharedWebProcessPool
@@ -106,7 +77,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             if #available(iOS 16.4, *) { webView.isInspectable = true }
         #endif
 
-        rootViewController.view.addSubview(webView)
+        rootStackEntryController.view.addSubview(webView)
 
         #if PRODUCTION_RUN_ENVIRONMENT
             let baseUrl = URL(string: "https://cyberworlds.dev")!
@@ -157,18 +128,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             topViewController!.view.addSubview(snapshotView)
 
             return nil
-        } else if prompt == "%%%preparePopNavigationAnimation" {
-            print("POP VIEW CONTROLLER 2")
-
-            // Noop if we can't pop.
-            if viewControllers.count <= 1 { return nil }
-
-            let snapshotView = webView.snapshotView(afterScreenUpdates: false)!
-
-            webView.removeFromSuperview()
-            topViewController!.view.addSubview(snapshotView)
-
-            return nil
         } else {
             // Unrecognized prompt. Do nothing.
             return nil
@@ -181,7 +140,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     ) {
         if message.name == "NativeMobileBridge", let messageBody = message.body as? NSString {
             if messageBody == "runPushNavigationAnimation" {
-                let viewController = UIViewController()
+                let stackEntryController = WebNavigationStackEntryController()
 
                 // The web view should already have been removed from its superview in
                 // `preparePushNavigationAnimation()` but for safety, make sure the web view is
@@ -202,48 +161,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // [1]: https://www.linkedin.com/in/sean9keenan
                 webView.frame = CGRect(origin: .zero, size: view.frame.size)
 
-                viewController.view.addSubview(webView)
+                stackEntryController.view.addSubview(webView)
 
-                pushViewController(viewController, animated: true)
-                return
-            } else if messageBody == "runPopNavigationAnimation" {
-                print("POP VIEW CONTROLLER 3")
-
-                // NOCOMMIT: If pop gesture cancelled the screen is frozen. Fix this
-
-                // Noop if we can't pop.
-                if viewControllers.count <= 1 { return }
-
-                // The web view should already have been removed from its superview in
-                // `preparePopNavigationAnimation()` but for safety, make sure the web view is
-                // actually removed.
-                webView.removeFromSuperview()
-
-                // NOTE(calebmer, 2023-01-18): My old coworker [Sean Keenan][1] invented the
-                // technique of snapshotting a web view to get iOS native animations with web
-                // views. In the code where he first implemented this technique (which he
-                // shared with me) he wrote a comment above this same code:
-                //
-                // > Set Webview size to fill the view
-                // > If you don't do this after moving the webview - it slowly degrades in perf
-                //
-                // I have no idea why perf would degrade if you didn't do this but I don't want
-                // to degrade perf so I'll include this line as well!
-                //
-                // [1]: https://www.linkedin.com/in/sean9keenan
-                webView.frame = CGRect(origin: .zero, size: view.frame.size)
-
-                let viewController = viewControllers[viewControllers.count - 2]
-
-                // Remove the snapshot view from the existing view controller.
-                for subview in viewController.view.subviews { subview.removeFromSuperview() }
-
-                // Add the view view back to the existing view controller.
-                viewController.view.addSubview(webView)
-
-                // NOCOMMIT: This doesn't work in general! How do we make sure calls like
-                // `popToRootViewController()` work?
-                super.popViewController(animated: true)
+                pushViewController(stackEntryController, animated: true)
                 return
             }
         }
@@ -284,41 +204,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webView.evaluateJavaScript(source)
     }
-
-    // Override pop navigation functions. We need to let JavaScript control when
-    // the pop happens since it may need to load data.
-    override func popViewController(animated: Bool) -> UIViewController? {
-        print("POP VIEW CONTROLLER 1")
-
-        webView.evaluateJavaScript("window.__NativeMobileBridge._callPopNavigationListeners(1)")
-        return nil
-    }
-
-    // Override pop navigation functions. We need to let JavaScript control when
-    // the pop happens since it may need to load data.
-    override func popToRootViewController(animated: Bool) -> [UIViewController]? {
-        // If we're already at the root view controller, don't pop more.
-        if viewControllers.count <= 1 { return nil }
-
-        webView.evaluateJavaScript(
-            "window.__NativeMobileBridge._callPopNavigationListeners(\(viewControllers.count - 1))"
-        )
-        return nil
-    }
-
-    // Override pop navigation functions. We need to let JavaScript control when
-    // the pop happens since it may need to load data.
-    override func popToViewController(_ viewController: UIViewController, animated: Bool)
-        -> [UIViewController]?
-    {
-        guard let index = (viewControllers.lastIndex { $0 == viewController }) else { return nil }
-
-        // We're trying to pop to the top view controller.
-        if viewControllers.count == index + 1 { return nil }
-
-        webView.evaluateJavaScript(
-            "window.__NativeMobileBridge._callPopNavigationListeners(\(viewControllers.count - (index + 1)))"
-        )
-        return nil
-    }
 }
+
+private class WebNavigationStackEntryController: UIViewController {}
