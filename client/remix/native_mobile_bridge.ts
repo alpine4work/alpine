@@ -29,4 +29,24 @@ export const NativeMobileBridge: {
      * from the right on top of the old screen.
      */
     runPushNavigationAnimation(): void;
+
+    /**
+     * Prepare the native pop animation. Same as `preparePushNavigationAnimation()`
+     * except instead of pushing we're popping.
+     */
+    preparePopNavigationAnimation(): void;
+
+    /**
+     * Run the native pop animation. Same as `runPushNavigationAnimation()` except
+     * instead of pushing we're popping.
+     */
+    runPopNavigationAnimation(): void;
+
+    /**
+     * If a pop navigation was initiated by our native shell (e.g. the user pressed
+     * the back button in a navbar) then our web process needs to kick off data
+     * loading. We can't actually perform the animation until data loading has
+     * finished.
+     */
+    subscribeToPopNavigation(listener: (delta: number) => void): () => void;
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

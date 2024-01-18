@@ -183,6 +183,8 @@ export default function Root() {
             // to a navigation span since the duration may be too small to justify its
             // own span.
             NativeMobileBridge?.preparePushNavigationAnimation();
+        } else if (dataRouterStateContext.historyAction === "POP") {
+            NativeMobileBridge?.preparePopNavigationAnimation();
         }
     }, [dataRouterStateContext.historyAction, dataRouterStateContext.location.key]);
 
@@ -194,8 +196,18 @@ export default function Root() {
 
         if (dataRouterStateContext.historyAction === "PUSH") {
             NativeMobileBridge?.runPushNavigationAnimation();
+        } else if (dataRouterStateContext.historyAction === "POP") {
+            NativeMobileBridge?.runPopNavigationAnimation();
         }
     }, [dataRouterStateContext.historyAction, dataRouterStateContext.location.key]);
+
+    useEffect(() => {
+        return NativeMobileBridge?.subscribeToPopNavigation(delta => {
+            // TODO(calebmer, #global-loading-indicator): Show some loading indicator if
+            // we're waiting a while for the back navigation to happen.
+            void dataRouterContext.router.navigate(-delta);
+        });
+    }, [dataRouterContext.router]);
 
     // `useLoaderData()` doesn't work in an error boundary or catch boundary.
     // We use this exact component for error and catch boundaries to avoid
