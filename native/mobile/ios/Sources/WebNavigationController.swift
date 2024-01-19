@@ -3,12 +3,34 @@ import WebKit
 
 private let bridgeSource = """
     {
+        const popNavigationListeners = new Set();
+
         const NativeMobileBridge = {
             preparePushNavigationAnimation: () => {
                 prompt("%%%preparePushNavigationAnimation");
             },
             runPushNavigationAnimation: () => {
                 window.webkit.messageHandlers.NativeMobileBridge.postMessage("runPushNavigationAnimation");
+            },
+            subscribeToPopNavigation: listener => {
+                popNavigationListeners.add(listener);
+                return () => {
+                    popNavigationListeners.delete(listener);
+                };
+            },
+            _callPopNavigationListeners: delta => {
+                for (const listener of popNavigationListeners) {
+                    try {
+                        listener(delta);
+                    } catch (error) {
+                        setTimeout(() => {
+                            throw error;
+                        }, 0);
+                    }
+                }
+            },
+            finishPopNavigationAnimation: () => {
+                window.webkit.messageHandlers.NativeMobileBridge.postMessage("finishPopNavigationAnimation");
             },
         };
 
@@ -177,6 +199,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
                 pushViewController(viewController, animated: true)
                 return
+            } else if messageBody == "finishPopNavigationAnimation" {
+                // The web view should already have been removed from its superview in
+                // `propagatePopNavigationAnimation()` but for safety, make sure the web view
+                // is actually removed.
+                webView.removeFromSuperview()
+
+                // See comment above about why we reset `frame`.
+                webView.frame = CGRect(origin: .zero, size: view.frame.size)
+
+                // Remove any snapshot views and add the web view to the new frame.
+                for subview in topViewController!.view.subviews { subview.removeFromSuperview() }
+                topViewController!.view.addSubview(webView)
+                return
             }
         }
 
@@ -216,4 +251,54 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webView.evaluateJavaScript(source)
     }
+
+    // Override pop navigation functions. We need to let JavaScript control when
+    // the pop happens since it may need to load data.
+    override func popViewController(animated: Bool) -> UIViewController? {
+        propagatePopNavigationAnimation(delta: 1)
+
+        return super.popViewController(animated: animated)
+    }
+
+    // Override pop navigation functions. We need to let JavaScript control when
+    // the pop happens since it may need to load data.
+    override func popToRootViewController(animated: Bool) -> [UIViewController]? {
+        // If we're already at the root view controller, don't pop more.
+        if viewControllers.count <= 1 { return super.popToRootViewController(animated: animated) }
+
+        propagatePopNavigationAnimation(delta: viewControllers.count - 1)
+
+        return super.popToRootViewController(animated: animated)
+    }
+
+    // Override pop navigation functions. We need to let JavaScript control when
+    // the pop happens since it may need to load data.
+    override func popToViewController(_ viewController: UIViewController, animated: Bool)
+        -> [UIViewController]?
+    {
+        guard let index = (viewControllers.lastIndex { $0 == viewController }) else {
+            return super.popToViewController(viewController, animated: animated)
+        }
+
+        // We're trying to pop to the view controller that's already visible.
+        if viewControllers.count == index + 1 {
+            return super.popToViewController(viewController, animated: animated)
+        }
+
+        propagatePopNavigationAnimation(delta: viewControllers.count - (index + 1))
+
+        return super.popToViewController(viewController, animated: animated)
+    }
+
+    private func propagatePopNavigationAnimation(delta: Int) {
+        let snapshotView = webView.snapshotView(afterScreenUpdates: false)!
+
+        webView.removeFromSuperview()
+        topViewController!.view.addSubview(snapshotView)
+
+        webView.evaluateJavaScript(
+            "window.__NativeMobileBridge._callPopNavigationListeners(\(delta))"
+        )
+    }
+
 }

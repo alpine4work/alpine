@@ -14,7 +14,7 @@ index 7b1f3993bdb062c299f985dd356a54613af0762d..9cdf2c6d8fda748d6fff37d28f33c4ff
  /**
   * Memory history stores the current location in memory. It is designed for use
 diff --git a/dist/router.cjs.js b/dist/router.cjs.js
-index 9630bd035315468d4b232f05842383fe1047b8f4..18633113e8039483bff203dd43c43c65894edfd7 100644
+index 9630bd035315468d4b232f05842383fe1047b8f4..9e99a3f5bfcd7393d3e00f651caf9e9f75d0527a 100644
 --- a/dist/router.cjs.js
 +++ b/dist/router.cjs.js
 @@ -122,6 +122,9 @@ function createMemoryHistory(options) {
@@ -73,7 +73,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..18633113e8039483bff203dd43c43c65
 +    });
 +
 +    // Reset stateful navigation vars
-+    pendingAction = HistoryAction.Pop;
++    pendingAction = exports.Action.Pop;
 +    pendingPreventScrollReset = false;
 +    isUninterruptedRevalidation = false;
 +    isRevalidationRequired = false;
@@ -169,7 +169,7 @@ index 05966cddc95fd6d6563b1cc80a28f37e48869649..3e10de08bf95e58010184b0325bacb2b
  type BaseSubmissionOptions = {
      formMethod?: HTMLFormMethod;
 diff --git a/dist/router.js b/dist/router.js
-index 476e375a5387243e5e206d0b62ba9c3670a69664..551bdb8bbe6f7a907bbb2b26baa83738e25a3a6f 100644
+index 476e375a5387243e5e206d0b62ba9c3670a69664..388fb262d1022fbb0a5a123e752e2e73a983ddac 100644
 --- a/dist/router.js
 +++ b/dist/router.js
 @@ -91,6 +91,9 @@ function createMemoryHistory(options) {
@@ -228,7 +228,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..551bdb8bbe6f7a907bbb2b26baa83738
 +    });
 +
 +    // Reset stateful navigation vars
-+    pendingAction = HistoryAction.Pop;
++    pendingAction = Action.Pop;
 +    pendingPreventScrollReset = false;
 +    isUninterruptedRevalidation = false;
 +    isRevalidationRequired = false;
@@ -289,7 +289,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..551bdb8bbe6f7a907bbb2b26baa83738
 -//# sourceMappingURL=router.js.map
 +// NOTE(calebmer): Don't use source map since our patches break the source map.
 diff --git a/dist/router.umd.js b/dist/router.umd.js
-index f866ddc5eafb8f8c5427cc394aab333f4d31e048..73bb78c6a2f4b3f805f3add1abf1dc547ad4ee73 100644
+index f866ddc5eafb8f8c5427cc394aab333f4d31e048..804f63c622efe02c699b0fde19cdc8c09eed5843 100644
 --- a/dist/router.umd.js
 +++ b/dist/router.umd.js
 @@ -1,3 +1,8 @@
@@ -302,7 +302,7 @@ index f866ddc5eafb8f8c5427cc394aab333f4d31e048..73bb78c6a2f4b3f805f3add1abf1dc54
   * @remix-run/router v1.7.0
   *
 diff --git a/dist/router.umd.min.js b/dist/router.umd.min.js
-index b26cf0e57776b32310a88ae2385ff08b7c98c07b..320813c5a9ced3be0b31b9596086581019c06c7d 100644
+index b26cf0e57776b32310a88ae2385ff08b7c98c07b..a5c968200eebf9fb6a597c4c68b0a0c220518682 100644
 --- a/dist/router.umd.min.js
 +++ b/dist/router.umd.min.js
 @@ -1,3 +1,8 @@

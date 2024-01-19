@@ -29,4 +29,13 @@ export const NativeMobileBridge: {
      * from the right on top of the old screen.
      */
     runPushNavigationAnimation(): void;
+
+    /**
+     * If a pop navigation was initiated by our native shell (e.g. the user swiped
+     * from the left) then our web process needs to navigate to the previous page.
+     */
+    subscribeToPopNavigation(listener: (delta: number) => void): () => void;
+
+    // NOCOMMIT: Document
+    finishPopNavigationAnimation(): void;
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

@@ -1,5 +1,13 @@
 import {RouterState} from "@remix-run/router";
-import {startTransition, useCallback, useLayoutEffect, useMemo, useState} from "react";
+import {
+    startTransition,
+    useCallback,
+    useInsertionEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import {
     DataRouteObject,
     UNSAFE_DataRouterContext as DataRouterContext,
@@ -9,6 +17,8 @@ import {
     RouterProviderProps,
     UNSAFE_useRoutesImpl as useRoutesImpl,
 } from "react-router";
+import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 
 // NOCOMMIT: Document that this is a fork of:
 // https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/react-router/lib/components.tsx#L89-L166
@@ -83,6 +93,38 @@ export function AppRouterProvider({
         }),
         [router, navigator, basename],
     );
+
+    const lastLocationKeyForInsertionEffectRef = useRef(state.location.key);
+    const lastLocationKeyForLayoutEffectRef = useRef(state.location.key);
+
+    // 1. Prepare navigation animation before we paint our new screen
+    //
+    // Insertion effects run while React is constructing DOM nodes and before the
+    // DOM nodes are added to our view. So the old content is painted on screen.
+    useInsertionEffect(() => {
+        if (lastLocationKeyForInsertionEffectRef.current === state.location.key) return;
+        lastLocationKeyForInsertionEffectRef.current = state.location.key;
+
+        if (state.historyAction === "PUSH") {
+            // TODO(calebmer): I'd like to add some performance instrumentation to find out
+            // how much time we spend synchronously blocked. Ideally add it as a property
+            // to a navigation span since the duration may be too small to justify its
+            // own span.
+            NativeMobileBridge?.preparePushNavigationAnimation();
+        }
+    }, [state.historyAction, state.location.key]);
+
+    // 2. Run navigation animation after we paint our new screen
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (lastLocationKeyForLayoutEffectRef.current === state.location.key) return;
+        lastLocationKeyForLayoutEffectRef.current = state.location.key;
+
+        if (state.historyAction === "PUSH") {
+            NativeMobileBridge?.runPushNavigationAnimation();
+        } else if (state.historyAction === "POP") {
+            NativeMobileBridge?.finishPopNavigationAnimation();
+        }
+    }, [state.historyAction, state.location.key]);
 
     return (
         <DataRouterContext.Provider value={dataRouterContext}>

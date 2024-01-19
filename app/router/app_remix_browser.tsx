@@ -18,6 +18,7 @@ import {FutureConfig, UNSAFE_mapRouteProperties as mapRouteProperties} from "rea
 import {RouteObject, createBrowserRouter} from "react-router-dom";
 import {AppRouterProvider} from "~/app/router/app_router_provider.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
 // `isNativeMobile` is a constant throughout our application's lifetime.
@@ -133,6 +134,7 @@ function createNativeMobileRouter(
     },
 ): NativeMobileRouter {
     assert(isNativeMobile);
+    assert(NativeMobileBridge);
 
     const historyBase = createBrowserHistory({window: opts?.window});
 
@@ -169,9 +171,12 @@ function createNativeMobileRouter(
             //
             // In native iOS navigation there is no "forward" action. You can only push/pop
             // onto the navigation stack.
+            //
+            // NOCOMMIT: Early return should still do something or native will be frozen
+            // forever?
             if (delta >= 0) return;
 
-            for (let i = 0; i < delta; i++) routerStateStack.pop();
+            for (let i = 0; i < delta * -1; i++) routerStateStack.pop();
 
             const routerState = routerStateStack[routerStateStack.length - 1]!;
 
@@ -219,6 +224,7 @@ function createNativeMobileRouter(
     const routerStateStack = [routerBase.state];
 
     let unsubscribeFromRouter: (() => void) | undefined;
+    let unsubscribeFromBridge: (() => void) | undefined;
 
     const router: NativeMobileRouter = {
         get basename() {
@@ -282,12 +288,19 @@ function createNativeMobileRouter(
                 routerStateStack[routerStateStack.length - 1] = routerState;
             });
 
+            // When native initiates a pop navigation, we need to execute the pop
+            // navigation on the web side.
+            unsubscribeFromBridge = NativeMobileBridge!.subscribeToPopNavigation(delta => {
+                history.go(-delta);
+            });
+
             return routerBase.initialize();
         },
 
         dispose: () => {
             routerBase.dispose();
             unsubscribeFromRouter?.();
+            unsubscribeFromBridge?.();
         },
     };
 
