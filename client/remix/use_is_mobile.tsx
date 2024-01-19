@@ -28,15 +28,15 @@ export function useIsMobile(): boolean {
 }
 
 export function IsMobileContextProvider({children}: {children?: ReactNode}) {
-    const {screenWidth} = useClientInfo();
-    const [isMobile, setIsMobile] = useState(screenWidth <= mobileMaxScreenWidth);
+    const {screenWidth, isNativeMobile} = useClientInfo();
+    const [isMobile, setIsMobile] = useState(isNativeMobile || screenWidth <= mobileMaxScreenWidth);
 
     useEffect(() => {
         const mediaQueryList = window.matchMedia(mobilePlatformMediaQuery);
 
         const update = () => {
             runWithImmediatePriority(() => {
-                setIsMobile(mediaQueryList.matches);
+                setIsMobile(isNativeMobile || mediaQueryList.matches);
             });
         };
 
@@ -47,7 +47,7 @@ export function IsMobileContextProvider({children}: {children?: ReactNode}) {
         return () => {
             mediaQueryList.removeEventListener("change", update);
         };
-    }, []);
+    }, [isNativeMobile]);
 
     return <IsMobileContext.Provider value={isMobile}>{children}</IsMobileContext.Provider>;
 }

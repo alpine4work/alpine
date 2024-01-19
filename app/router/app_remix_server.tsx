@@ -28,11 +28,7 @@ export function AppRemixServer({context, url, abortDelay}: RemixServerProps): Re
                 abortDelay,
             }}
         >
-            <AppStaticRouterProvider
-                router={router}
-                context={context.staticHandlerContext}
-                hydrate={false}
-            />
+            <AppStaticRouterProvider router={router} context={context.staticHandlerContext} />
         </RemixContext.Provider>
     );
 }

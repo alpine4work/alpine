@@ -22,6 +22,9 @@ const clientInfo = new Lazy(
                   // in case the user agent header is spoofed.
                   isAppleDeviceUserAgent(navigator.userAgent) || /Mac/.test(navigator.platform)
                 : false,
+        // We can safely look for `CyberworldsNativeMobile` in the user agent since
+        // it's a unique string that should only be used by our native app shells.
+        isNativeMobile: /CyberworldsNativeMobile/.test(navigator.userAgent),
     }),
 );
 

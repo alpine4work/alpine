@@ -7,16 +7,33 @@ import {
     Scripts,
     ScrollRestoration,
 } from "@remix-run/react";
+import {IDLE_BLOCKER, IDLE_FETCHER, Router, RouterState, stripBasename} from "@remix-run/router";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
 import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
-import {useCallback, useContext, useEffect, useInsertionEffect, useMemo, useRef} from "react";
+import {
+    ContextType,
+    Memo,
+    ReactNode,
+    useCallback,
+    useContext,
+    useEffect,
+    useInsertionEffect,
+    useMemo,
+    useRef,
+} from "react";
 import {
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
+    UNSAFE_LocationContext as LocationContext,
+    UNSAFE_NavigationContext as NavigationContext,
+    Navigator,
+    UNSAFE_RouteContext as RouteContext,
     isRouteErrorResponse,
+    renderMatches,
     useRouteError,
 } from "react-router";
+import {isNativeMobileRouterState} from "~/app/router/app_remix_browser.js";
 import {AccountClientStoreContextProvider} from "~/client/accounts/account_client_store_context_provider.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -28,7 +45,10 @@ import {
     InitializeColorSchemeScript,
     getColorSchemeWithoutListeningIfBrowser,
 } from "~/client/helpers/color_scheme.js";
-import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
+import {
+    GlobalKeyDownEvent,
+    GlobalKeyDownRootContextProvider,
+} from "~/client/helpers/global_key_down_event.js";
 import {AppInitialRenderContextProvider} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useStableValue} from "~/client/helpers/use_stable_value.js";
@@ -43,11 +63,13 @@ import {SwrCacheContextProvider} from "~/client/rpc/use_swr.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
 import {spacing} from "~/shared/design/spacing.js";
-import {NotFoundError, UnknownError} from "~/shared/error/error.js";
+import {InternalError, NotFoundError, UnknownError} from "~/shared/error/error.js";
 import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {noop} from "~/shared/helpers/control/noop.js";
 import {hasOwnProperty} from "~/shared/helpers/object/has_own_property.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {getRealmId} from "~/shared/id/realm_id.js";
@@ -58,6 +80,7 @@ import {Schema} from "~/shared/schema/schema.js";
 import sharedStylesHref from "~/shared/styles/styles.css";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {mergeTracerEventData} from "~/shared/tracer/helpers/merge_tracer_event_data.js";
+import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 import {TracerEventFullData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export function meta() {
@@ -228,20 +251,6 @@ export default function Root() {
         return routeError;
     }, [routeError]);
 
-    const children =
-        error !== undefined ? (
-            <RootErrorRenderer
-                error={error}
-                title={
-                    isRouteErrorResponse(routeError) && routeError.status === 404
-                        ? "Could not find content"
-                        : undefined
-                }
-            />
-        ) : (
-            <Outlet />
-        );
-
     // In case we don't have loader data (an error was thrown) fallback to trying
     // to read the current date.
     const initialTime = useMemo(
@@ -249,45 +258,135 @@ export default function Root() {
         [loaderData?.initialTime],
     );
 
+    const nativeMobileRouterState = isNativeMobileRouterState(dataRouterStateContext)
+        ? dataRouterStateContext
+        : null;
+
+    const nodes: Array<ReactNode> = [];
+
+    const onUpdateMetaTitle = useCallback((title: string) => {
+        document.title = title;
+    }, []);
+
+    if (!nativeMobileRouterState) {
+        nodes.push(
+            // Render a `<div>` around children even when we're not rendering in the
+            // context of our native mobile app so that layout is consistent across native
+            // mobile and everything else.
+            <div key={dataRouterStateContext.location.key} style={{width: "100%", height: "100%"}}>
+                <UpdateMetaTitleContextProvider onUpdateMetaTitle={onUpdateMetaTitle}>
+                    {error !== undefined ? (
+                        <RootErrorRenderer
+                            error={error}
+                            title={
+                                isRouteErrorResponse(routeError) && routeError.status === 404
+                                    ? "Could not find content"
+                                    : undefined
+                            }
+                        />
+                    ) : (
+                        <Outlet />
+                    )}
+                </UpdateMetaTitleContextProvider>
+            </div>,
+        );
+    } else {
+        if (error !== undefined) {
+            // NOTE(calebmer): There's probably a cleaner way to handle errors. I believe
+            // what will happen is that if an error is pushed to `inertRouteStates` then
+            // `<NativeMobileRootOutlet>` will render nothing (since the error handler is
+            // here at the root level). If the route becomes active again then we
+            // completely re-render an entirely new `<RootErrorRenderer>` component.
+            nodes.push(
+                <RootErrorRenderer
+                    key={dataRouterStateContext.location.key}
+                    error={error}
+                    title={
+                        isRouteErrorResponse(routeError) && routeError.status === 404
+                            ? "Could not find content"
+                            : undefined
+                    }
+                />,
+            );
+        } else {
+            nodes.push(
+                <NativeMobileRootOutlet
+                    key={dataRouterStateContext.location.key}
+                    tracer={context.tracer.getRoot()}
+                    inertRouterState={null}
+                    onUpdateMetaTitle={onUpdateMetaTitle}
+                />,
+            );
+        }
+
+        // When in our native mobile app, we render multiple routes to the DOM at once!
+        // We render the active route and we render previous routes in an inert state.
+        // Inert routes are invisible and the user can't interact with them through
+        // keyboard, mouse, anything. The reason we do this is two-fold:
+        //
+        // 1. Because we end up navigating more frequently on mobile, users expect when
+        //    they return to a route for it to be in the exact same state as when they
+        //    left it. Same scroll position, same text left in inputs, same everything.
+        //
+        // 2. If the user is swiping to go back, we render an old snapshot of the view
+        //    we took while waiting for the web view to update. If our new web view is
+        //    in a different state there will be a flash as we transition from the
+        //    snapshot to the actual view.
+        //
+        // By keeping routes in the navigation stack rendered in the DOM (with their
+        // React states and effects all still active) when the user returns to that
+        // screen their state is entirely preserved.
+        //
+        // Keep in mind, it's not enough to unmount a route but preserve its loader
+        // data, then render a route again with the old loader data. This resets UI
+        // state like scroll position.
+        //
+        // NOCOMMIT: Limit number of inert router states to 7 or so
+        for (const inertRouterState of nativeMobileRouterState.inertRouterStates) {
+            nodes.push(
+                <NativeMobileRootOutlet
+                    key={inertRouterState.location.key}
+                    tracer={context.tracer.getRoot()}
+                    inertRouterState={inertRouterState}
+                    onUpdateMetaTitle={onUpdateMetaTitle}
+                />,
+            );
+        }
+    }
+
     const wrappedChildren = (
-        <UpdateMetaTitleContextProvider
-            onUpdateMetaTitle={useCallback(title => {
-                document.title = title;
-            }, [])}
-        >
-            <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
-                <AppContextProvider value={context}>
-                    <AppInitialRenderContextProvider>
-                        <ClientInfoContextProvider
-                            // If there was an error at our root loader and we couldn't load `BrowserId`
-                            // then use the `RealmId` as the `BrowserId`.
-                            browserId={loaderData?.browserId ?? (getRealmId() as any as BrowserId)}
-                            initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
-                        >
-                            <CurrentTimeContextProvider initialTime={initialTime}>
-                                <IsMobileContextProvider>
-                                    <SwrCacheContextProvider>
-                                        <WaitForNavigationContextProvider>
-                                            <GlobalKeyDownRootContextProvider>
-                                                <AccountClientStoreContextProvider>
-                                                    <OverlayScopeContextProvider>
-                                                        <TooltipCoordinationContextProvider>
-                                                            <ToastContextProvider>
-                                                                {children}
-                                                            </ToastContextProvider>
-                                                        </TooltipCoordinationContextProvider>
-                                                    </OverlayScopeContextProvider>
-                                                </AccountClientStoreContextProvider>
-                                            </GlobalKeyDownRootContextProvider>
-                                        </WaitForNavigationContextProvider>
-                                    </SwrCacheContextProvider>
-                                </IsMobileContextProvider>
-                            </CurrentTimeContextProvider>
-                        </ClientInfoContextProvider>
-                    </AppInitialRenderContextProvider>
-                </AppContextProvider>
-            </IconContext.Provider>
-        </UpdateMetaTitleContextProvider>
+        <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
+            <AppContextProvider value={context}>
+                <AppInitialRenderContextProvider>
+                    <ClientInfoContextProvider
+                        // If there was an error at our root loader and we couldn't load `BrowserId`
+                        // then use the `RealmId` as the `BrowserId`.
+                        browserId={loaderData?.browserId ?? (getRealmId() as any as BrowserId)}
+                        initialClientInfo={loaderData?.clientInfo ?? defaultClientInfo}
+                    >
+                        <CurrentTimeContextProvider initialTime={initialTime}>
+                            <IsMobileContextProvider>
+                                <SwrCacheContextProvider>
+                                    <WaitForNavigationContextProvider>
+                                        <GlobalKeyDownRootContextProvider>
+                                            <AccountClientStoreContextProvider>
+                                                <OverlayScopeContextProvider>
+                                                    <TooltipCoordinationContextProvider>
+                                                        <ToastContextProvider>
+                                                            {nodes}
+                                                        </ToastContextProvider>
+                                                    </TooltipCoordinationContextProvider>
+                                                </OverlayScopeContextProvider>
+                                            </AccountClientStoreContextProvider>
+                                        </GlobalKeyDownRootContextProvider>
+                                    </WaitForNavigationContextProvider>
+                                </SwrCacheContextProvider>
+                            </IsMobileContextProvider>
+                        </CurrentTimeContextProvider>
+                    </ClientInfoContextProvider>
+                </AppInitialRenderContextProvider>
+            </AppContextProvider>
+        </IconContext.Provider>
     );
 
     return (
@@ -359,3 +458,250 @@ function RootErrorRenderer({error: _error, title}: {error: unknown; title?: stri
 // if Remix navigates between root and error boundary we don't remount the
 // HTML. (Which appears to cause CSS to flash off.)
 export const ErrorBoundary = Root;
+
+// NOCOMMIT: Integration test this router??
+function NativeMobileRootOutlet({
+    tracer,
+    inertRouterState,
+    onUpdateMetaTitle,
+}: {
+    tracer: TracerRoot;
+    inertRouterState: RouterState | null;
+    onUpdateMetaTitle: Memo<(title: string) => void>;
+}) {
+    const isInert = inertRouterState !== null;
+
+    const currentDataRouterContext = assertExists(useContext(DataRouterContext));
+    const currentDataRouterStateContext = useContext(DataRouterStateContext);
+    const currentNavigationContext = useContext(NavigationContext);
+    const currentLocationContext = useContext(LocationContext);
+    const currentRouteContext = useContext(RouteContext);
+
+    const {dataRouterContext, dataRouterStateContext, navigationContext, locationContext, outlet} =
+        useMemo(() => {
+            if (!inertRouterState) {
+                return {
+                    dataRouterContext: currentDataRouterContext,
+                    dataRouterStateContext: currentDataRouterStateContext,
+                    navigationContext: currentNavigationContext,
+                    locationContext: currentLocationContext,
+                    outlet: currentRouteContext.outlet,
+                };
+            }
+
+            const currentRouter = currentDataRouterContext.router;
+
+            const router: Router = {
+                initialize: () => router,
+                dispose: () => {},
+
+                get basename() {
+                    return currentRouter.basename;
+                },
+                get state() {
+                    return inertRouterState;
+                },
+                get routes() {
+                    return currentRouter.routes;
+                },
+                subscribe: () => {
+                    // Inert router state never changes.
+                    return () => {};
+                },
+                enableScrollRestoration: () => {
+                    return () => {};
+                },
+                navigate: async () => {
+                    tracer.logUncaughtException(
+                        "Inert route activity",
+                        new InternalError("Can't navigate in an inert route"),
+                    );
+                },
+                fetch: () => {
+                    tracer.logUncaughtException(
+                        "Inert route activity",
+                        new InternalError("Can't fetch in an inert route"),
+                    );
+                },
+                revalidate: () => {
+                    // TODO(calebmer): Maybe there's a use-case for revalidating an inert route?
+                    // e.g. Polling? Maybe if revalidate is called we should hold it until the user
+                    // pops back.
+                    tracer.logUncaughtException(
+                        "Inert route activity",
+                        new InternalError("Can't revalidate in an inert route"),
+                    );
+                },
+                createHref: currentRouter.createHref.bind(currentRouter),
+                encodeLocation: currentRouter.encodeLocation.bind(currentRouter),
+                getFetcher: key => {
+                    return inertRouterState.fetchers.get(key as any) ?? IDLE_FETCHER;
+                },
+                deleteFetcher: () => {
+                    tracer.logUncaughtException(
+                        "Inert route activity",
+                        new InternalError("Can't delete fetcher in an inert route"),
+                    );
+                },
+                getBlocker: () => {
+                    tracer.logUncaughtException(
+                        "Inert route activity",
+                        new InternalError("Can't get blocker in an inert route"),
+                    );
+                    return IDLE_BLOCKER;
+                },
+                deleteBlocker: () => {
+                    tracer.logUncaughtException(
+                        "Inert route activity",
+                        new InternalError("Can't delete blocker in an inert route"),
+                    );
+                },
+                _internalSetRoutes: () => {
+                    tracer.logUncaughtException(
+                        "Inert route activity",
+                        new InternalError("Can't call `_internalSetRoutes` in an inert route"),
+                    );
+                },
+                _internalFetchControllers: new Map(),
+                _internalActiveDeferreds: new Map(),
+                _internalUnsafelyRestoreNavigation: () => {
+                    tracer.logUncaughtException(
+                        "Inert route activity",
+                        new InternalError(
+                            "Can't call `_internalUnsafelyRestoreNavigation` in an inert route",
+                        ),
+                    );
+                },
+            };
+
+            const navigator: Navigator = {
+                createHref: router.createHref.bind(router),
+                encodeLocation: router.encodeLocation.bind(router),
+                go: n => void router.navigate(n),
+                push: (to, state, opts) => {
+                    void router.navigate(to, {
+                        state,
+                        preventScrollReset: opts?.preventScrollReset,
+                    });
+                },
+                replace: (to, state, opts) => {
+                    void router.navigate(to, {
+                        replace: true,
+                        state,
+                        preventScrollReset: opts?.preventScrollReset,
+                    });
+                },
+            };
+
+            const basename = router.basename || "/";
+
+            const dataRouterContext: ContextType<typeof DataRouterContext> = {
+                router,
+                navigator,
+                static: false,
+                basename,
+            };
+
+            // Wow, this is basically the same as `dataRouterContext`. Feels like
+            // Remix/`react-router` could consolidate.
+            const navigationContext: ContextType<typeof NavigationContext> = {
+                basename,
+                navigator,
+                static: false,
+            };
+
+            const {
+                pathname = "/",
+                search = "",
+                hash = "",
+                state = null,
+                key = "default",
+            } = inertRouterState.location;
+
+            const trailingPathname = stripBasename(pathname, basename);
+
+            const locationContext: ContextType<typeof LocationContext> = {
+                location: {
+                    pathname: assertExists(trailingPathname),
+                    search,
+                    hash,
+                    state,
+                    key,
+                },
+                navigationType: inertRouterState.historyAction,
+            };
+
+            assert(inertRouterState.matches[0]?.route.id === "root", "First match must be `root`");
+            const matches = inertRouterState.matches.slice(1);
+            const parentMatches = inertRouterState.matches.slice(0, 1);
+
+            return {
+                dataRouterContext,
+                dataRouterStateContext: inertRouterState,
+                navigationContext,
+                locationContext,
+                outlet: renderMatches(matches, parentMatches, inertRouterState),
+            };
+        }, [
+            currentDataRouterContext,
+            currentDataRouterStateContext,
+            currentLocationContext,
+            currentNavigationContext,
+            currentRouteContext.outlet,
+            inertRouterState,
+            tracer,
+        ]);
+
+    return (
+        <div
+            style={{
+                width: "100%",
+                height: "100%",
+                // While inert, remove the document from the content flow and make
+                // it invisible. `bottom: 0` is so that a tall inert route doesn't grow
+                // our `<body>`'s height.
+                position: isInert ? "absolute" : undefined,
+                bottom: isInert ? "0" : undefined,
+                visibility: isInert ? "hidden" : undefined,
+            }}
+            // The [`<Offscreen>` component][1] React claims is coming may be a better
+            // fit here so we don't actually render content in the DOM. `inert` has good
+            // browser support though!
+            //
+            // [1]: https://react.dev/blog/2022/03/29/react-v18
+            // [2]: https://caniuse.com/?search=inert
+            //
+            // TypeScript doesn't know about this property yet. True is the [empty string
+            // and false is null][3].
+            //
+            // [3]: https://github.com/WICG/inert/issues/58#issuecomment-618016847
+            //
+            // @ts-expect-error
+            inert={isInert ? "" : null}
+            // Make sure inert content is not in the accessibility tree.
+            aria-hidden={isInert ? "true" : undefined}
+        >
+            <DataRouterContext.Provider value={dataRouterContext}>
+                <DataRouterStateContext.Provider value={dataRouterStateContext}>
+                    <NavigationContext.Provider value={navigationContext}>
+                        <LocationContext.Provider value={locationContext}>
+                            <GlobalKeyDownEvent
+                                // Don't process global `keydown` events when our peek content is hidden. Very
+                                // weird if you hit cmd-z and an inert route is updated.
+                                isDisabled={isInert}
+                            >
+                                <UpdateMetaTitleContextProvider
+                                    onUpdateMetaTitle={
+                                        isInert ? (noop as Memo<() => void>) : onUpdateMetaTitle
+                                    }
+                                >
+                                    {outlet}
+                                </UpdateMetaTitleContextProvider>
+                            </GlobalKeyDownEvent>
+                        </LocationContext.Provider>
+                    </NavigationContext.Provider>
+                </DataRouterStateContext.Provider>
+            </DataRouterContext.Provider>
+        </div>
+    );
+}

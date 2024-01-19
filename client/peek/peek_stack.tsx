@@ -1288,7 +1288,7 @@ function PeekOverlay({
                     {isContentRendered && (
                         <GlobalKeyDownEvent
                             // Don't process global `keydown` events when our peek content is hidden. Very
-                            // weird if you hit cmd-z and data in a peek you can't see is updating.
+                            // weird if you hit cmd-z and data in a peek you can't see is updated.
                             isDisabled={isContentHidden}
                         >
                             <Box
@@ -1310,6 +1310,8 @@ function PeekOverlay({
                                 //
                                 // @ts-expect-error
                                 inert={isContentHidden ? "" : null}
+                                // Make sure inert content is not in the accessibility tree.
+                                aria-hidden={isContentHidden ? "true" : undefined}
                                 style={{
                                     // Because of our animation code, our element should already be at opacity 0
                                     // but we also apply `visibility: hidden` so Playwright considers the element

@@ -84,32 +84,23 @@ export function AppRouterProvider({
         [router, navigator, basename],
     );
 
-    // The fragment and {null} here are important!  We need them to keep React 18's
-    // useId happy when we are server-rendering since we may have a <script> here
-    // containing the hydrated server-side staticContext (from StaticRouterProvider).
-    // useId relies on the component tree structure to generate deterministic id's
-    // so we need to ensure it remains the same on the client even though
-    // we don't need the <script> tag
     return (
-        <>
-            <DataRouterContext.Provider value={dataRouterContext}>
-                <DataRouterStateContext.Provider value={state}>
-                    <Router
-                        basename={basename}
-                        location={state.location}
-                        navigationType={state.historyAction}
-                        navigator={navigator}
-                    >
-                        {state.initialized ? (
-                            <DataRoutes routes={router.routes} state={state} />
-                        ) : (
-                            fallbackElement
-                        )}
-                    </Router>
-                </DataRouterStateContext.Provider>
-            </DataRouterContext.Provider>
-            {null}
-        </>
+        <DataRouterContext.Provider value={dataRouterContext}>
+            <DataRouterStateContext.Provider value={state}>
+                <Router
+                    basename={basename}
+                    location={state.location}
+                    navigationType={state.historyAction}
+                    navigator={navigator}
+                >
+                    {state.initialized ? (
+                        <DataRoutes routes={router.routes} state={state} />
+                    ) : (
+                        fallbackElement
+                    )}
+                </Router>
+            </DataRouterStateContext.Provider>
+        </DataRouterContext.Provider>
     );
 }
 

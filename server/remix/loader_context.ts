@@ -264,6 +264,15 @@ export class LoaderContextModule extends ContextModuleBase {
                 };
             }
 
+            // We can safely look for `CyberworldsNativeMobile` in the user agent since
+            // it's a unique string that should only be used by our native app shells.
+            if (/CyberworldsNativeMobile/.test(userAgentHeader) && !clientInfo.isNativeMobile) {
+                clientInfo = {
+                    ...clientInfo,
+                    isNativeMobile: true,
+                };
+            }
+
             this._state.clientInfo = clientInfo;
         }
 

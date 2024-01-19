@@ -54,6 +54,11 @@ export const defaultClientInfo = {
      * machines.
      */
     isAppleDevice: true,
+
+    /**
+     * Default to assuming we're running on the open web.
+     */
+    isNativeMobile: false,
 };
 
 assertAssignableTypes<typeof defaultClientInfo, ClientInfo>();
@@ -109,6 +114,17 @@ export const ClientInfoSchema = Schema.object({
      * If false the device could be Windows or Linux.
      */
     isAppleDevice: Schema.boolean.default(defaultClientInfo.isAppleDevice),
+
+    /**
+     * Is this client our native mobile app? If true we're running in a native iOS
+     * or Android shell app that provides a `NativeMobileBridge` global.
+     *
+     * If this property is true then we'll always use our mobile layout regardless
+     * of the screen size. We haven't decided if `isNativeMobile` should apply to
+     * an iPad app or not yet. My (@calebmer's) initial reaction is iPad should use
+     * our desktop layout and desktop navigation patterns (peek and all).
+     */
+    isNativeMobile: Schema.boolean.default(false),
 });
 
 /**
