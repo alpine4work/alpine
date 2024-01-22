@@ -111,6 +111,10 @@ export function AppRouterProvider({
             // to a navigation span since the duration may be too small to justify its
             // own span.
             NativeMobileBridge?.navigation.preparePush();
+        } else if (state.historyAction === "POP") {
+            if (state.location.state?.isNotFromExternal) {
+                NativeMobileBridge?.navigation.preparePop();
+            }
         }
     }, [state.historyAction, state.location.key]);
 
@@ -124,7 +128,11 @@ export function AppRouterProvider({
         if (state.historyAction === "PUSH") {
             NativeMobileBridge?.navigation.push(url);
         } else if (state.historyAction === "POP") {
-            NativeMobileBridge?.navigation.finishExternalPop();
+            if (state.location.state?.isNotFromExternal) {
+                NativeMobileBridge?.navigation.pop(url);
+            } else {
+                NativeMobileBridge?.navigation.finishExternalPop();
+            }
         } else if (state.historyAction === "REPLACE") {
             // NOCOMMIT: Test that this works!
             NativeMobileBridge?.navigation.replace(url);

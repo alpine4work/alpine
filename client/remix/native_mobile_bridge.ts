@@ -178,7 +178,38 @@ export const NativeMobileBridge: {
          */
         finishExternalPop(): void;
 
-        // NOCOMMIT: Document
+        /**
+         * A pop navigation initiated from web code (vs a pop navigation initiated by
+         * native code, see `subscribeToExternalPop()`) follows basically the same code
+         * path as a push navigation initiated from web code.
+         *
+         * See the documentation on `preparePush()` for an overview of how this
+         * works.
+         *
+         * If you call this function you must make sure to call `pop()` afterwards!
+         * Otherwise the app will appear frozen as we only show a snapshot view and not
+         * the underlying web view.
+         */
+        preparePop(): void;
+
+        /**
+         * Actually performs the pop navigation animation. Follows basically the same
+         * code path as a push navigation initiated from web code.
+         *
+         * See the documentation on `push()` for an overview of how this works.
+         *
+         * Needs the URL for native to find precisely where to return in the navigation
+         * stack. If native can't find a view with the same URL in its navigation stack
+         * that's most likely a bug! For now native chooses to update the route
+         * in-place instead of animating anywhere.
+         */
+        pop(url: URL): void;
+
+        /**
+         * When web code performs a replace navigation, we need to update native code's
+         * navigation state to match the new URL. Otherwise native code's navigation
+         * state and web code's navigation state will be incompatible.
+         */
         replace(url: URL): void;
     };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

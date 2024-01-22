@@ -15,6 +15,7 @@ import {FutureConfig, UNSAFE_mapRouteProperties as mapRouteProperties} from "rea
 import {RouteObject} from "react-router-dom";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {assert} from "~/shared/helpers/control/assert.js";
+import {omitObject} from "~/shared/helpers/object/omit_object.js";
 
 /**
  * The native mobile router keeps track of inert routes so we can keep those
@@ -340,6 +341,27 @@ class NativeMobileMemoryHistory implements History {
             routerState = pastEntry.routerState;
         }
 
+        // If our location is NOT from an external pop, `isNotFromExternal` should be
+        // set to true. Otherwise it should be unset.
+        if (urlFromExternal === null) {
+            if (this._currentEntryLocation.state?.isNotFromExternal !== true) {
+                this._currentEntryLocation = {
+                    ...this._currentEntryLocation,
+                    state: {
+                        ...this._currentEntryLocation.state,
+                        isNotFromExternal: true,
+                    },
+                };
+            }
+        } else {
+            if (this._currentEntryLocation.state?.isNotFromExternal === true) {
+                this._currentEntryLocation = {
+                    ...this._currentEntryLocation,
+                    state: omitObject(this._currentEntryLocation.state, ["isNotFromExternal"]),
+                };
+            }
+        }
+
         // If native expects going back `delta` entries to be a different URL than what
         // we actually have in memory, then web code and native code are out of sync!
         // Prefer the URL from native code (since it initiated this navigation) and
@@ -389,7 +411,10 @@ class NativeMobileMemoryHistory implements History {
         // [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L319-L321
         this._router!._internalUnsafelyRestoreNavigation({
             historyAction: Action.Pop,
-            location: routerState!.location,
+            // Use `this._currentEntryLocation` instead of `routerState.location` since we
+            // may modify the state of `this._currentEntryLocation`. They should be the
+            // same.
+            location: this._currentEntryLocation,
             matches: routerState!.matches,
             // Leave scroll position alone. We'll have kept the route mounted so it should
             // have the right scroll position still stored in its DOM.

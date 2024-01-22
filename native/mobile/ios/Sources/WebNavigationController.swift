@@ -35,6 +35,12 @@ private let bridgeSource = """
                 finishExternalPop: () => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.finishExternalPop");
                 },
+                preparePop: () => {
+                    prompt("%%%navigation.preparePop");
+                },
+                pop: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
+                },
                 replace: url => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
                 },
@@ -155,12 +161,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `prompt()` API][1] which will block until we finish our screenshot.
         //
         // [1]: https://stackoverflow.com/questions/29249132/wkwebview-complex-communication-between-javascript-native-code/49474323#49474323
-        //
-        // TODO(calebmer): If `runPushNavigationAnimation()` is not called after this
-        // the app will appear frozen. We expect JavaScript code to promptly call
-        // `runPushNavigationAnimation()`. But what if JavaScript code crashes? We need
-        // some recovery mechanisms to unfreeze the app.
         if prompt == "%%%navigation.preparePush" {
+            // TODO(calebmer): If `NativeMobileBridge.navigation.push()` is not called
+            // after this the app will appear to be frozen. We expect JavaScript code to
+            // promptly call `NativeMobileBridge.navigation.push()`. But what if JavaScript
+            // code crashes? We need some recovery mechanisms to unfreeze the app.
+            (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
+            return nil
+        } else if prompt == "%%%navigation.preparePop" {
+            // TODO(calebmer): If `NativeMobileBridge.navigation.pop()` is not called
+            // after this the app will appear to be frozen. We expect JavaScript code to
+            // promptly call `NativeMobileBridge.navigation.pop()`. But what if JavaScript
+            // code crashes? We need some recovery mechanisms to unfreeze the app.
             (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
             return nil
         } else {
@@ -177,29 +189,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             let messageBody: String = messageBody as String
 
             if messageBody.starts(with: "navigation.push:") {
-                // NOTE(calebmer, 2023-01-18): My old coworker [Sean Keenan][1] invented the
-                // technique of snapshotting a web view to get iOS native animations with web
-                // views. In the code where he first implemented this technique (which he
-                // shared with me) he wrote a comment above this same code:
-                //
-                // > Set Webview size to fill the view
-                // > If you don't do this after moving the webview - it slowly degrades in perf
-                //
-                // I have no idea why perf would degrade if you didn't do this but I don't want
-                // to degrade perf so I'll include this line as well!
-                //
-                // When I asked Sean if he could recall why this was necessary he said:
-                //
-                // > What I remember: definitely not documented anywhere, [that line] was added
-                // > after some good ol'fashion "playing around with it and then noticing
-                // > things got laggy". I believe I saw this sort of issue when I put my finger
-                // > on the far left of the screen and would swipe right, but bring it back and
-                // > forth a whole bunch of times so that it constantly was retriggering the
-                // > associated logic
-                //
-                // [1]: https://www.linkedin.com/in/sean9keenan
-                webView.frame = CGRect(origin: .zero, size: view.frame.size)
-
                 let urlString = messageBody.suffix(
                     from: messageBody.index(messageBody.startIndex, offsetBy: 16)
                 )
@@ -207,15 +196,38 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
                 let viewController = WebNavigationEntryController(url: url, webView: webView)
                 pushViewController(viewController, animated: true)
-                return
             } else if messageBody == "navigation.finishExternalPop" {
-                // See comment above about why we reset `frame`.
-                webView.frame = CGRect(origin: .zero, size: view.frame.size)
-
-                // NOCOMMIT: Can we confirm this is the right URL?
                 (topViewController! as! WebNavigationEntryController)
                     .replaceSubviewsWithWebView(webView: webView)
-                return
+            } else if messageBody.starts(with: "navigation.pop:") {
+                let urlString = messageBody.suffix(
+                    from: messageBody.index(messageBody.startIndex, offsetBy: 15)
+                )
+                let url = URL(string: String(urlString))!
+
+                let viewController = viewControllers.last(where: { (viewController) in
+                    (viewController as! WebNavigationEntryController).url.absoluteString
+                        == url.absoluteString
+                })
+
+                if let viewController = viewController {
+                    (viewController as! WebNavigationEntryController)
+                        .replaceSubviewsWithWebView(webView: webView)
+
+                    // Important to call `super.popToViewController()` since we don't want our
+                    // class's override to start an external pop.
+                    super.popToViewController(viewController, animated: true)
+                } else {
+                    // If we couldn't find the view controller to pop to, then set the top view
+                    // controller's view controller as the popped route.
+                    //
+                    // NOTE(calebmer): This branch really shouldn't happen. I'm not sure if this is
+                    // the best default if it does, though. If we find a valid use case where this
+                    // branch is executed then reconsider this behavior.
+                    (topViewController! as! WebNavigationEntryController).url = url
+                    (topViewController! as! WebNavigationEntryController)
+                        .replaceSubviewsWithWebView(webView: webView)
+                }
             } else if messageBody.starts(with: "navigation.replace:") {
                 let urlString = messageBody.suffix(
                     from: messageBody.index(messageBody.startIndex, offsetBy: 19)
@@ -225,8 +237,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 (topViewController! as! WebNavigationEntryController).url = url
             }
         }
-
-        // If we reach here, we have an unrecognized message. Do nothing.
     }
 
     // We set safe area insets as CSS variables. Then we use these CSS
@@ -318,11 +328,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         lastTopViewController: WebNavigationEntryController,
         delta: Int
     ) {
-        // TODO(calebmer): If `finishPopNavigationAnimation()` is not called after this
-        // the app will appear frozen (or the current transition is marked as
-        // cancelled). We expect JavaScript code to promptly call
-        // `finishPopNavigationAnimation()`. But what if JavaScript code crashes? We
-        // need some recovery mechanisms to unfreeze the app.
+        // TODO(calebmer): If `NativeMobileBridge.navigation.finishExternalPop()` is
+        // not called after this the app will appear to be frozen. We expect JavaScript
+        // code to promptly call `NativeMobileBridge.navigation.finishExternalPop()`.
+        // But what if JavaScript code crashes? We need some recovery mechanisms to
+        // unfreeze the app.
         lastTopViewController.replaceSubviewsWithSnapshotView()
 
         let url = (topViewController! as! WebNavigationEntryController).url
@@ -373,11 +383,7 @@ private class WebNavigationEntryController: UIViewController {
 
         super.init(nibName: nil, bundle: nil)
 
-        // If we are initializing with a web view, the web view should have already
-        // been removed from its super view, but just in case perform the remove again.
-        webView.removeFromSuperview()
-
-        view.addSubview(webView)
+        replaceSubviewsWithWebView(webView: webView)
     }
 
     required init(coder: NSCoder) { fatalError("Unimplemented") }
@@ -395,6 +401,30 @@ private class WebNavigationEntryController: UIViewController {
         webView.removeFromSuperview()
 
         for subview in view.subviews { subview.removeFromSuperview() }
+
+        // NOTE(calebmer, 2023-01-18): My old coworker [Sean Keenan][1] invented the
+        // technique of snapshotting a web view to get iOS native animations with web
+        // views. In the code where he first implemented this technique (which he
+        // shared with me) he wrote a comment above this same code:
+        //
+        // > Set Webview size to fill the view
+        // > If you don't do this after moving the webview - it slowly degrades in perf
+        //
+        // I have no idea why perf would degrade if you didn't do this but I don't want
+        // to degrade perf so I'll include this line as well!
+        //
+        // When I asked Sean if he could recall why this was necessary he said:
+        //
+        // > What I remember: definitely not documented anywhere, [that line] was added
+        // > after some good ol'fashion "playing around with it and then noticing
+        // > things got laggy". I believe I saw this sort of issue when I put my finger
+        // > on the far left of the screen and would swipe right, but bring it back and
+        // > forth a whole bunch of times so that it constantly was retriggering the
+        // > associated logic
+        //
+        // [1]: https://www.linkedin.com/in/sean9keenan
+        webView.frame = CGRect(origin: .zero, size: view.frame.size)
+
         view.addSubview(webView)
     }
 }

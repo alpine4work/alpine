@@ -14,7 +14,9 @@ import {InlineAlert} from "~/client/design/inline_alert.js";
 import {MultilineTextInput} from "~/client/design/multiline_text_input.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {requestAlphaAccess} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -114,6 +116,9 @@ export async function action({request, context}: LoaderArgs) {
 }
 
 export default function HomePage() {
+    const {isNativeMobile} = useClientInfo();
+    const navigate = useNavigate();
+
     const id = useId().replace(/:/g, "_");
     const [name, setName] = useState("");
     const [emailAddress, setEmailAddress] = useState("");
@@ -272,7 +277,19 @@ export default function HomePage() {
                 <Box paddingTop="2" borderTop="grey-10">
                     Already have an account?{" "}
                     <FocusRing>
-                        <Link to="/sign-in" className={contentSchemaStyles.linkClassName}>
+                        <Link
+                            to="/sign-in"
+                            className={contentSchemaStyles.linkClassName}
+                            onClick={event => {
+                                // If we're in the native mobile app, this page is accessed from the root sign
+                                // in page. Instead of pushing a new sign in page onto the navigation stack,
+                                // pop back one page.
+                                if (isNativeMobile) {
+                                    event.preventDefault();
+                                    void navigate(-1);
+                                }
+                            }}
+                        >
                             Sign in
                         </Link>
                     </FocusRing>
