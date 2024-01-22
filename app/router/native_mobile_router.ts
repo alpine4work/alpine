@@ -254,7 +254,6 @@ class NativeMobileMemoryHistory implements History {
         );
     }
 
-    // NOCOMMIT: We should update native's URL on replace
     public replace(to: To, state?: any) {
         this._action = Action.Replace;
 

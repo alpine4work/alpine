@@ -76,15 +76,21 @@ export function NativeMobileRootOutlet({
                     );
                 },
                 fetch: () => {
+                    // NOTE(calebmer): Maybe there's a use-case for fetching in an inert route? For
+                    // example if we implement something like combobox data loading with fetchers
+                    // instead of `useLazyLoadRpc()`. Maybe if revalidate is called we should hold
+                    // it until the user pops back. I have no intention of supporting this use case
+                    // but we could add in the future.
                     tracer.logUncaughtException(
                         "Inert route activity",
                         new InternalError("Can't fetch in an inert route"),
                     );
                 },
                 revalidate: () => {
-                    // TODO(calebmer): Maybe there's a use-case for revalidating an inert route?
+                    // NOTE(calebmer): Maybe there's a use-case for revalidating an inert route?
                     // e.g. Polling? Maybe if revalidate is called we should hold it until the user
-                    // pops back.
+                    // pops back. I have no intention of supporting this use case but we could add
+                    // in the future.
                     tracer.logUncaughtException(
                         "Inert route activity",
                         new InternalError("Can't revalidate in an inert route"),

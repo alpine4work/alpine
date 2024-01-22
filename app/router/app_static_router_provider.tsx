@@ -14,8 +14,15 @@ import {StaticHandlerContext} from "react-router-dom/server.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
-// NOCOMMIT: Document that we forked this from:
-// https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/react-router-dom/server.tsx#L93-L154
+/**
+ * This is a fork of the [`<StaticRouterProvider>` component in
+ * `react-router`][1].
+ *
+ * We forked this component to add support for our native mobile router. We've
+ * also simplified some some bits we don't need.
+ *
+ * [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/react-router-dom/server.tsx#L93-L154
+ */
 export function AppStaticRouterProvider({
     context,
     router,

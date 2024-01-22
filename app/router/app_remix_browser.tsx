@@ -17,8 +17,14 @@ const isNativeMobile =
 
 let router: Router | undefined;
 
-// NOCOMMIT: Document that this is a fork of:
-// https://github.com/remix-run/remix/blob/d8f403490baef9b2814f7c2b984294bf08fc09df/packages/remix-react/browser.tsx#L150-L234
+/**
+ * This is a fork of the [`<RemixBrowser>` component in `@remix-run/react`][1].
+ *
+ * We forked this component to add support for our native mobile router. We've
+ * also simplified some some bits we don't need.
+ *
+ * [1]: https://github.com/remix-run/remix/blob/d8f403490baef9b2814f7c2b984294bf08fc09df/packages/remix-react/browser.tsx#L150-L234
+ */
 export function AppRemixBrowser(_props: RemixBrowserProps): ReactElement {
     if (!router) {
         const routes = createClientRoutes(

@@ -20,8 +20,14 @@ import {
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 
-// NOCOMMIT: Document that this is a fork of:
-// https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/react-router/lib/components.tsx#L89-L166
+/**
+ * This is a fork of the [`<RouterProvider>` component in `react-router`][1].
+ *
+ * We forked this component to add support for our native mobile router. We've
+ * also simplified some some bits we don't need.
+ *
+ * [1]: https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/react-router/lib/components.tsx#L89-L166
+ */
 export function AppRouterProvider({
     fallbackElement,
     router,
