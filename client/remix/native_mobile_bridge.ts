@@ -100,7 +100,8 @@ export const NativeMobileBridge: {
      * If a pop navigation was initiated by our native shell (e.g. the user swiped
      * from the left) then our web process needs to navigate to the previous page.
      */
-    subscribeToPopNavigation(listener: (delta: number) => void): () => void;
+    // NOCOMMIT: Document why `URL` is there
+    subscribeToPopNavigation(listener: (delta: number, url: URL) => void): () => void;
 
     // NOCOMMIT: Document
     finishPopNavigationAnimation(): void;

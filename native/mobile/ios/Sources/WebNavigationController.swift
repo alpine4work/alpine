@@ -18,10 +18,12 @@ private let bridgeSource = """
                     popNavigationListeners.delete(listener);
                 };
             },
-            _callPopNavigationListeners: delta => {
+            _callPopNavigationListeners: (delta, urlString) => {
+                const url = new URL(urlString);
+
                 for (const listener of popNavigationListeners) {
                     try {
-                        listener(delta);
+                        listener(delta, url);
                     } catch (error) {
                         setTimeout(() => {
                             throw error;
@@ -41,22 +43,17 @@ private let bridgeSource = """
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
     WKScriptMessageHandler
 {
+    let initialPath: String
+    let webConfiguration: WKWebViewConfiguration
+
     var webView: WKWebView!
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
 
-    func getInitialPath() -> String {
-        fatalError("Sub-class of `WebNavigationController` must implement `getInitialPath()`")
-    }
+    init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
+        self.initialPath = initialPath
 
-    // Default to not persisting website data. Must manually specify whether
-    // website data should be persisted.
-    func getWebsiteDataStore() -> WKWebsiteDataStore { return WKWebsiteDataStore.nonPersistent() }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-
-        let webConfiguration = WKWebViewConfiguration()
+        webConfiguration = WKWebViewConfiguration()
         webConfiguration.processPool = sharedWebProcessPool
         webConfiguration.applicationNameForUserAgent = "CyberworldsNativeMobileIos"
         webConfiguration.upgradeKnownHostsToHTTPS = true
@@ -68,9 +65,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // https://webkit.org/blog/10882/app-bound-domains
         webConfiguration.limitsNavigationsToAppBoundDomains = true
 
-        webConfiguration.websiteDataStore = getWebsiteDataStore()
-
-        webConfiguration.userContentController.add(self, name: "NativeMobileBridge")
+        webConfiguration.websiteDataStore = websiteDataStore
 
         webConfiguration.userContentController.addUserScript(
             WKUserScript(
@@ -81,6 +76,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
 
         // NOCOMMIT: Initial cookies. Should set `clientInfo` with good values.
+
+        super.init(nibName: nil, bundle: nil)
+
+        webConfiguration.userContentController.add(self, name: "NativeMobileBridge")
+    }
+
+    required init(coder: NSCoder) { fatalError("Unimplemented") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
 
         // NOCOMMIT: Stop navigation out of `/sign-in` routes.
 
@@ -106,7 +111,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             let baseUrl = URL(string: "http://localhost:3000")!
         #endif
 
-        let url = URL(string: getInitialPath(), relativeTo: baseUrl)!
+        let url = URL(string: initialPath, relativeTo: baseUrl)!
         let request = URLRequest(url: url)
         webView.load(request)
 
@@ -249,20 +254,32 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     // Override pop navigation functions. We need to let JavaScript control when
     // the pop happens since it may need to load data.
     override func popViewController(animated: Bool) -> UIViewController? {
-        propagatePopNavigationAnimation(delta: 1)
+        if viewControllers.count <= 1 { return nil }
 
-        return super.popViewController(animated: animated)
+        let viewController = super.popViewController(animated: animated)!
+
+        propagatePopNavigationAnimation(
+            lastTopViewController: viewController as! WebNavigationEntryController,
+            delta: 1
+        )
+
+        return viewController
     }
 
     // Override pop navigation functions. We need to let JavaScript control when
     // the pop happens since it may need to load data.
     override func popToRootViewController(animated: Bool) -> [UIViewController]? {
         // If we're already at the root view controller, don't pop more.
-        if viewControllers.count <= 1 { return super.popToRootViewController(animated: animated) }
+        if viewControllers.count <= 1 { return nil }
 
-        propagatePopNavigationAnimation(delta: viewControllers.count - 1)
+        let viewControllers = super.popToRootViewController(animated: animated)!
 
-        return super.popToRootViewController(animated: animated)
+        propagatePopNavigationAnimation(
+            lastTopViewController: viewControllers.last! as! WebNavigationEntryController,
+            delta: viewControllers.count - 1
+        )
+
+        return viewControllers
     }
 
     // Override pop navigation functions. We need to let JavaScript control when
@@ -270,31 +287,78 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     override func popToViewController(_ viewController: UIViewController, animated: Bool)
         -> [UIViewController]?
     {
-        guard let index = (viewControllers.lastIndex { $0 == viewController }) else {
-            return super.popToViewController(viewController, animated: animated)
-        }
+        guard let index = (viewControllers.lastIndex { $0 == viewController }) else { return nil }
 
         // We're trying to pop to the view controller that's already visible.
-        if viewControllers.count == index + 1 {
-            return super.popToViewController(viewController, animated: animated)
-        }
+        if viewControllers.count == index + 1 { return nil }
 
-        propagatePopNavigationAnimation(delta: viewControllers.count - (index + 1))
+        let viewControllers = super.popToViewController(viewController, animated: animated)!
 
-        return super.popToViewController(viewController, animated: animated)
+        propagatePopNavigationAnimation(
+            lastTopViewController: viewControllers.last! as! WebNavigationEntryController,
+            delta: viewControllers.count - (index + 1)
+        )
+
+        return viewControllers
     }
 
-    private func propagatePopNavigationAnimation(delta: Int) {
-        (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
+    private func propagatePopNavigationAnimation(
+        lastTopViewController: WebNavigationEntryController,
+        delta: Int
+    ) {
+        // TODO(calebmer): If `finishPopNavigationAnimation()` is not called after this
+        // the app will appear frozen (or the current transition is marked as
+        // cancelled). We expect JavaScript code to promptly call
+        // `finishPopNavigationAnimation()`. But what if JavaScript code crashes? We
+        // need some recovery mechanisms to unfreeze the app.
+        lastTopViewController.replaceSubviewsWithSnapshotView()
+
+        let url = (topViewController! as! WebNavigationEntryController).url
+
+        if let transitionCoordinator = topViewController!.transitionCoordinator {
+            if !transitionCoordinator.isInteractive {
+                callWebViewPopNavigationListeners(delta: delta, url: url)
+            } else {
+                transitionCoordinator.notifyWhenInteractionChanges { [self] (context) in
+                    // Wait until the transition has finished.
+                    if context.isInteractive { return }
+
+                    // If the transition was cancelled, remove the snapshot view and place the web
+                    // view back. (Unless the web view has found a new home. e.g. Because a push
+                    // navigation happened.)
+                    if context.isCancelled {
+                        if webView.superview == nil {
+                            lastTopViewController.replaceSubviewsWithWebView(webView: webView)
+                        }
+                    } else {
+                        callWebViewPopNavigationListeners(delta: delta, url: url)
+                    }
+                }
+            }
+        } else {
+            callWebViewPopNavigationListeners(delta: delta, url: url)
+        }
+    }
+
+    private func callWebViewPopNavigationListeners(delta: Int, url: URL) {
+        let jsonEncoder = JSONEncoder()
+        var jsonString: String
+        do {
+            jsonString = String(data: try jsonEncoder.encode(url.absoluteString), encoding: .utf8)!
+        } catch { jsonString = "" }
 
         webView.evaluateJavaScript(
-            "window.__NativeMobileBridge._callPopNavigationListeners(\(delta))"
+            #"window.__NativeMobileBridge._callPopNavigationListeners(\#(delta), \#(jsonString))"#
         )
     }
 }
 
 private class WebNavigationEntryController: UIViewController {
+    let url: URL
+
     init(url: URL, webView: WKWebView) {
+        self.url = url
+
         super.init(nibName: nil, bundle: nil)
 
         // If we are initializing with a web view, the web view should have already

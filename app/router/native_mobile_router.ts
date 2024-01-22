@@ -61,7 +61,7 @@ export function createNativeMobileRouter(
 ): NativeMobileRouter {
     assert(NativeMobileBridge);
 
-    const history = new NativeMobileMemoryHistory(window.location);
+    const history = new NativeMobileMemoryHistory();
 
     const routerBase = createRouter({
         basename: opts?.basename,
@@ -135,8 +135,8 @@ export function createNativeMobileRouter(
         initialize: () => {
             // When native initiates a pop navigation, we need to execute the pop
             // navigation on the web side.
-            unsubscribeFromBridge = NativeMobileBridge!.subscribeToPopNavigation(delta => {
-                history.go(-delta);
+            unsubscribeFromBridge = NativeMobileBridge!.subscribeToPopNavigation((delta, url) => {
+                history.goFromNative(-delta, url);
             });
 
             return routerBase.initialize();
@@ -171,12 +171,24 @@ class NativeMobileMemoryHistory implements History {
         | ((update: {action: Action; location: Location; delta: number | null}) => void)
         | null = null;
 
-    constructor(initialTo: To, initialState?: any) {
+    constructor() {
+        // Use initial browser history:
+        // https://github.com/remix-run/react-router/blob/09b6cbeabb02ffaccc3d5a6ca751b9f5221b0d5b/packages/router/history.ts#L365-L371
         this._currentEntryLocation = createLocation(
             window.location.pathname,
-            initialTo,
-            initialState,
+            createLocation(
+                "",
+                {
+                    pathname: window.location.pathname,
+                    search: window.location.search,
+                    hash: window.location.hash,
+                },
+                (history.state && history.state.usr) || null,
+                (history.state && history.state.key) || "default",
+            ),
+            history.state?.usr,
         );
+
         this._pastEntries = [];
     }
 
@@ -229,34 +241,94 @@ class NativeMobileMemoryHistory implements History {
         });
 
         this._currentEntryLocation = nextEntryLocation;
+
+        // Make sure browser URL reflects history object. We don't respect changes to
+        // browser history.
+        window.history.replaceState(
+            {key: this._currentEntryLocation.key, usr: this._currentEntryLocation.state},
+            "",
+            this.createHref(this._currentEntryLocation),
+        );
     }
 
+    // NOCOMMIT: We should update native's URL on replace
     public replace(to: To, state?: any) {
         this._action = Action.Replace;
 
         const nextEntryLocation = createLocation(this._currentEntryLocation.pathname, to, state);
 
         this._currentEntryLocation = nextEntryLocation;
+
+        // Make sure browser URL reflects history object. We don't respect changes to
+        // browser history.
+        window.history.replaceState(
+            {key: this._currentEntryLocation.key, usr: this._currentEntryLocation.state},
+            "",
+            this.createHref(this._currentEntryLocation),
+        );
     }
 
     public go(delta: number) {
-        // In our native app, you can only go back as far as our app has seen. Unlike a
-        // web browser where you may have been linked from some other page on the
-        // internet.
-        //
-        // NOCOMMIT: Page reload should be able to re-initialize our stack? We should
-        // be able to go back but all state is reset.
-        delta = Math.max(delta, -this._pastEntries.length);
+        this._go(delta, null);
+    }
 
+    /**
+     * A native interaction is causing us to go backwards in history. (e.g. User
+     * swiped back from the left edge of their screen.) Since what native code
+     * believes the history stack to be may differ from what web code thinks,
+     * native provides a `url` to reconcile the difference.
+     */
+    public goFromNative(delta: number, url: URL) {
+        this._go(delta, url);
+    }
+
+    private _go(delta: number, urlFromNative: URL | null) {
         // We don't support "forward" navigations in our native mobile app. If you go
         // back, it destroys the state for the route you were looking at.
         //
         // In native iOS navigation there is no "forward" action. You can only push/pop
         // onto the navigation stack.
-        //
-        // NOCOMMIT: Early return should still do something or native will be frozen
-        // forever?
         if (delta >= 0) return;
+
+        if (-delta > this._pastEntries.length) {
+            // If this is not a navigation from native, clamp `delta`.
+            if (urlFromNative === null) {
+                delta = -this._pastEntries.length;
+            }
+            // If native is asking us to go back further than the entries we have in
+            // memory, reset our history. We'll need to reload the URL from scratch.
+            //
+            // This can happen when the web view reloads while the app is open. Native code
+            // will remember the navigation stack but web code won't. So navigating back
+            // will take longer.
+            else {
+                this._action = Action.Pop;
+                this._pastEntries = [];
+                this._currentEntryLocation = createLocation(this._currentEntryLocation.pathname, {
+                    pathname: urlFromNative.pathname,
+                    search: urlFromNative.search,
+                    hash: urlFromNative.hash,
+                });
+
+                // Make sure browser URL reflects history object. We don't respect changes to
+                // browser history.
+                window.history.replaceState(
+                    {key: this._currentEntryLocation.key, usr: this._currentEntryLocation.state},
+                    "",
+                    this.createHref(this._currentEntryLocation),
+                );
+
+                // Make sure `@remix-run/router` kicks off a new navigation.
+                this._listener?.({
+                    action: this._action,
+                    location: this._currentEntryLocation,
+                    delta: null,
+                });
+                return;
+            }
+        }
+
+        this._action = Action.Pop;
 
         let routerState: RouterState | undefined;
         for (let i = 0; i < delta * -1; i++) {
@@ -265,6 +337,47 @@ class NativeMobileMemoryHistory implements History {
             this._currentEntryLocation = pastEntry.location;
             routerState = pastEntry.routerState;
         }
+
+        // If native expects going back `delta` entries to be a different URL than what
+        // we actually have in memory, then web code and native code are out of sync!
+        // Prefer the URL from native code (since it initiated this navigation) and
+        // reset our history state.
+        if (
+            urlFromNative !== null &&
+            this.createHref(this._currentEntryLocation) !== this.createHref(urlFromNative)
+        ) {
+            this._action = Action.Pop;
+            this._pastEntries = [];
+            this._currentEntryLocation = createLocation(this._currentEntryLocation.pathname, {
+                pathname: urlFromNative.pathname,
+                search: urlFromNative.search,
+                hash: urlFromNative.hash,
+            });
+
+            // Make sure browser URL reflects history object. We don't respect changes to
+            // browser history.
+            window.history.replaceState(
+                {key: this._currentEntryLocation.key, usr: this._currentEntryLocation.state},
+                "",
+                this.createHref(this._currentEntryLocation),
+            );
+
+            // Make sure `@remix-run/router` kicks off a new navigation.
+            this._listener?.({
+                action: this._action,
+                location: this._currentEntryLocation,
+                delta: null,
+            });
+            return;
+        }
+
+        // Make sure browser URL reflects history object. We don't respect changes to
+        // browser history.
+        window.history.replaceState(
+            {key: this._currentEntryLocation.key, usr: this._currentEntryLocation.state},
+            "",
+            this.createHref(this._currentEntryLocation),
+        );
 
         // Instead of calling `_listener` which [`createMemoryHistory()` does][1],
         // directly initiate a navigation in our router. This is a special kind of
