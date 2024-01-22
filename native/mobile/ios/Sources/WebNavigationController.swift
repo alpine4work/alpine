@@ -162,17 +162,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         //
         // [1]: https://stackoverflow.com/questions/29249132/wkwebview-complex-communication-between-javascript-native-code/49474323#49474323
         if prompt == "%%%navigation.preparePush" {
-            // TODO(calebmer): If `NativeMobileBridge.navigation.push()` is not called
-            // after this the app will appear to be frozen. We expect JavaScript code to
-            // promptly call `NativeMobileBridge.navigation.push()`. But what if JavaScript
-            // code crashes? We need some recovery mechanisms to unfreeze the app.
+            // TODO(calebmer): If `NativeMobileBridge.navigation.push()` is never called
+            // after this then we show a loading spinner forever. We expect JavaScript code
+            // to promptly call `NativeMobileBridge.navigation.push()`. But what if
+            // JavaScript code crashes? We need some recovery mechanisms to unfreeze
+            // the app.
             (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
             return nil
         } else if prompt == "%%%navigation.preparePop" {
-            // TODO(calebmer): If `NativeMobileBridge.navigation.pop()` is not called
-            // after this the app will appear to be frozen. We expect JavaScript code to
-            // promptly call `NativeMobileBridge.navigation.pop()`. But what if JavaScript
-            // code crashes? We need some recovery mechanisms to unfreeze the app.
+            // TODO(calebmer): If `NativeMobileBridge.navigation.pop()` is never called
+            // after this then we show a loading spinner forever. We expect JavaScript code
+            // to promptly call `NativeMobileBridge.navigation.push()`. But what if
+            // JavaScript code crashes? We need some recovery mechanisms to unfreeze
+            // the app.
             (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
             return nil
         } else {
@@ -329,10 +331,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         delta: Int
     ) {
         // TODO(calebmer): If `NativeMobileBridge.navigation.finishExternalPop()` is
-        // not called after this the app will appear to be frozen. We expect JavaScript
-        // code to promptly call `NativeMobileBridge.navigation.finishExternalPop()`.
-        // But what if JavaScript code crashes? We need some recovery mechanisms to
-        // unfreeze the app.
+        // never called after this then we show a loading spinner forever. It's
+        // certainly possible for an external pop to take a while (e.g. we need to load
+        // new data from the network). But if JavaScript code crashes the app will be
+        // frozen forever. We need some recovery mechanisms to unfreeze the app.
         lastTopViewController.replaceSubviewsWithSnapshotView()
 
         let url = (topViewController! as! WebNavigationEntryController).url
