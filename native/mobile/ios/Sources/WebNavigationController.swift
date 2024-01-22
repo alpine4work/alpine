@@ -9,8 +9,8 @@ private let bridgeSource = """
             preparePushNavigationAnimation: () => {
                 prompt("%%%preparePushNavigationAnimation");
             },
-            runPushNavigationAnimation: () => {
-                window.webkit.messageHandlers.NativeMobileBridge.postMessage("runPushNavigationAnimation");
+            runPushNavigationAnimation: url => {
+                window.webkit.messageHandlers.NativeMobileBridge.postMessage(`runPushNavigationAnimation:${url}`);
             },
             subscribeToPopNavigation: listener => {
                 popNavigationListeners.add(listener);
@@ -56,9 +56,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        let rootViewController = UIViewController()
-        viewControllers = [rootViewController]
-
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.processPool = sharedWebProcessPool
         webConfiguration.applicationNameForUserAgent = "CyberworldsNativeMobileIos"
@@ -103,8 +100,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             if #available(iOS 16.4, *) { webView.isInspectable = true }
         #endif
 
-        rootViewController.view.addSubview(webView)
-
         #if PRODUCTION_RUN_ENVIRONMENT
             let baseUrl = URL(string: "https://cyberworlds.dev")!
         #else
@@ -114,6 +109,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let url = URL(string: getInitialPath(), relativeTo: baseUrl)!
         let request = URLRequest(url: url)
         webView.load(request)
+
+        let rootViewController = WebNavigationEntryController(url: url, webView: webView)
+        viewControllers = [rootViewController]
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
@@ -147,15 +145,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `prompt()` API][1] which will block until we finish our screenshot.
         //
         // [1]: https://stackoverflow.com/questions/29249132/wkwebview-complex-communication-between-javascript-native-code/49474323#49474323
+        //
+        // TODO(calebmer): If `runPushNavigationAnimation()` is not called after this
+        // the app will appear frozen. We expect JavaScript code to promptly call
+        // `runPushNavigationAnimation()`. But what if JavaScript code crashes? We need
+        // some recovery mechanisms to unfreeze the app.
         if prompt == "%%%preparePushNavigationAnimation" {
-            let snapshotView = webView.snapshotView(afterScreenUpdates: false)!
-
-            webView.removeFromSuperview()
-            topViewController!.view.addSubview(snapshotView)
-
+            (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
             return nil
         } else {
-            // Unrecognized prompt. Do nothing.
+            // Unrecognized prompt command. Do nothing.
             return nil
         }
     }
@@ -165,12 +164,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         didReceive message: WKScriptMessage
     ) {
         if message.name == "NativeMobileBridge", let messageBody = message.body as? NSString {
-            if messageBody == "runPushNavigationAnimation" {
-                // The web view should already have been removed from its superview in
-                // `preparePushNavigationAnimation()` but for safety, make sure the web view is
-                // actually removed.
-                webView.removeFromSuperview()
+            let messageBody: String = messageBody as String
 
+            if messageBody.starts(with: "runPushNavigationAnimation:") {
                 // NOTE(calebmer, 2023-01-18): My old coworker [Sean Keenan][1] invented the
                 // technique of snapshotting a web view to get iOS native animations with web
                 // views. In the code where he first implemented this technique (which he
@@ -194,23 +190,21 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 // [1]: https://www.linkedin.com/in/sean9keenan
                 webView.frame = CGRect(origin: .zero, size: view.frame.size)
 
-                let viewController = UIViewController()
-                viewController.view.addSubview(webView)
+                let urlString = messageBody.suffix(
+                    from: messageBody.index(messageBody.startIndex, offsetBy: 27)
+                )
+                let url = URL(string: String(urlString))!
 
+                let viewController = WebNavigationEntryController(url: url, webView: webView)
                 pushViewController(viewController, animated: true)
                 return
             } else if messageBody == "finishPopNavigationAnimation" {
-                // The web view should already have been removed from its superview in
-                // `propagatePopNavigationAnimation()` but for safety, make sure the web view
-                // is actually removed.
-                webView.removeFromSuperview()
-
                 // See comment above about why we reset `frame`.
                 webView.frame = CGRect(origin: .zero, size: view.frame.size)
 
-                // Remove any snapshot views and add the web view to the new frame.
-                for subview in topViewController!.view.subviews { subview.removeFromSuperview() }
-                topViewController!.view.addSubview(webView)
+                // NOCOMMIT: Can we confirm this is the right URL?
+                (topViewController! as! WebNavigationEntryController)
+                    .replaceSubviewsWithWebView(webView: webView)
                 return
             }
         }
@@ -291,14 +285,40 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func propagatePopNavigationAnimation(delta: Int) {
-        let snapshotView = webView.snapshotView(afterScreenUpdates: false)!
-
-        webView.removeFromSuperview()
-        topViewController!.view.addSubview(snapshotView)
+        (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
 
         webView.evaluateJavaScript(
             "window.__NativeMobileBridge._callPopNavigationListeners(\(delta))"
         )
     }
+}
 
+private class WebNavigationEntryController: UIViewController {
+    init(url: URL, webView: WKWebView) {
+        super.init(nibName: nil, bundle: nil)
+
+        // If we are initializing with a web view, the web view should have already
+        // been removed from its super view, but just in case perform the remove again.
+        webView.removeFromSuperview()
+
+        view.addSubview(webView)
+    }
+
+    required init(coder: NSCoder) { fatalError("Unimplemented") }
+
+    func replaceSubviewsWithSnapshotView() {
+        let snapshotView = view.snapshotView(afterScreenUpdates: false)!
+
+        for subview in view.subviews { subview.removeFromSuperview() }
+        view.addSubview(snapshotView)
+    }
+
+    func replaceSubviewsWithWebView(webView: WKWebView) {
+        // If we are initializing with a web view, the web view should have already
+        // been removed from its super view, but just in case perform the remove again.
+        webView.removeFromSuperview()
+
+        for subview in view.subviews { subview.removeFromSuperview() }
+        view.addSubview(webView)
+    }
 }

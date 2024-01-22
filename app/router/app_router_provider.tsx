@@ -120,11 +120,13 @@ export function AppRouterProvider({
         lastLocationKeyForLayoutEffectRef.current = state.location.key;
 
         if (state.historyAction === "PUSH") {
-            NativeMobileBridge?.runPushNavigationAnimation();
+            NativeMobileBridge?.runPushNavigationAnimation(
+                new URL(router.createHref(state.location), window.location.href),
+            );
         } else if (state.historyAction === "POP") {
             NativeMobileBridge?.finishPopNavigationAnimation();
         }
-    }, [state.historyAction, state.location.key]);
+    }, [router, state.historyAction, state.location, state.location.key]);
 
     return (
         <DataRouterContext.Provider value={dataRouterContext}>
