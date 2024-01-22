@@ -201,9 +201,6 @@ function createNativeMobileRouter(
                 loaderData: routerState.loaderData,
                 actionData: routerState.actionData,
                 errors: routerState.errors,
-                // NOTE(calebmer): Our fetchers support probably isn't complete. Fetchers may
-                // need to be restarted after restoring navigation. We don't use fetchers so for
-                // now this should always be an empty map.
                 fetchers: routerState.fetchers,
             });
         },

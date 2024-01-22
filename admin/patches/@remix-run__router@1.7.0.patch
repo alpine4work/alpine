@@ -14,7 +14,7 @@ index 7b1f3993bdb062c299f985dd356a54613af0762d..9cdf2c6d8fda748d6fff37d28f33c4ff
  /**
   * Memory history stores the current location in memory. It is designed for use
 diff --git a/dist/router.cjs.js b/dist/router.cjs.js
-index 9630bd035315468d4b232f05842383fe1047b8f4..9e99a3f5bfcd7393d3e00f651caf9e9f75d0527a 100644
+index 9630bd035315468d4b232f05842383fe1047b8f4..312596114d01575763fb6cf14eb2e03b330f7298 100644
 --- a/dist/router.cjs.js
 +++ b/dist/router.cjs.js
 @@ -122,6 +122,9 @@ function createMemoryHistory(options) {
@@ -44,7 +44,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..9e99a3f5bfcd7393d3e00f651caf9e9f
  };
  class AbortedDeferredError extends Error {}
  class DeferredData {
-@@ -1865,6 +1874,39 @@ function createRouter(init) {
+@@ -1865,6 +1874,50 @@ function createRouter(init) {
      cancelledFetcherLoads = [];
    }
  
@@ -64,12 +64,23 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..9e99a3f5bfcd7393d3e00f651caf9e9f
 +    let blockers = new Map();
 +    blockerFunctions.clear();
 +
++    // Restore any fetchers with an idle state. Fetchers that were
++    // loading/submitting should have been cancelled when the router state was
++    // deactivated.
++    let fetchers = new Map();
++    for (const [key, fetcher] of newState.fetchers) {
++      if (fetcher.state === "idle") {
++        fetchers.set(key, fetcher);
++      }
++    }
++
 +    updateState({
 +      ...newState,
 +      initialized: true,
 +      navigation: IDLE_NAVIGATION,
 +      revalidation: "idle",
 +      blockers,
++      fetchers,
 +    });
 +
 +    // Reset stateful navigation vars
@@ -84,7 +95,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..9e99a3f5bfcd7393d3e00f651caf9e9f
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -1935,7 +1977,8 @@ function createRouter(init) {
+@@ -1935,7 +1988,8 @@ function createRouter(init) {
        // render at the right error boundary after we match routes
        pendingError: error,
        preventScrollReset,
@@ -94,7 +105,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..9e99a3f5bfcd7393d3e00f651caf9e9f
      });
    }
  
-@@ -2019,7 +2062,10 @@ function createRouter(init) {
+@@ -2019,7 +2073,10 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -106,7 +117,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..9e99a3f5bfcd7393d3e00f651caf9e9f
        completeNavigation(location, {
          matches
        });
-@@ -2911,7 +2957,8 @@ function createRouter(init) {
+@@ -2911,7 +2968,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
@@ -116,7 +127,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..9e99a3f5bfcd7393d3e00f651caf9e9f
    };
    return router;
  }
-@@ -3829,7 +3876,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
+@@ -3829,7 +3887,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
      // Check between word boundaries instead of startsWith() due to the last
      // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
      if (contentType && /\bapplication\/json\b/.test(contentType)) {
@@ -128,7 +139,7 @@ index 9630bd035315468d4b232f05842383fe1047b8f4..9e99a3f5bfcd7393d3e00f651caf9e9f
      } else {
        data = await result.text();
      }
-@@ -4442,4 +4492,4 @@ exports.redirect = redirect;
+@@ -4442,4 +4503,4 @@ exports.redirect = redirect;
  exports.resolvePath = resolvePath;
  exports.resolveTo = resolveTo;
  exports.stripBasename = stripBasename;
@@ -169,7 +180,7 @@ index 05966cddc95fd6d6563b1cc80a28f37e48869649..3e10de08bf95e58010184b0325bacb2b
  type BaseSubmissionOptions = {
      formMethod?: HTMLFormMethod;
 diff --git a/dist/router.js b/dist/router.js
-index 476e375a5387243e5e206d0b62ba9c3670a69664..388fb262d1022fbb0a5a123e752e2e73a983ddac 100644
+index 476e375a5387243e5e206d0b62ba9c3670a69664..77998ccaff0623b2f6838d509f825a37162da229 100644
 --- a/dist/router.js
 +++ b/dist/router.js
 @@ -91,6 +91,9 @@ function createMemoryHistory(options) {
@@ -199,7 +210,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..388fb262d1022fbb0a5a123e752e2e73
  };
  class AbortedDeferredError extends Error {}
  class DeferredData {
-@@ -1510,6 +1519,38 @@ function createRouter(init) {
+@@ -1510,6 +1519,49 @@ function createRouter(init) {
      cancelledDeferredRoutes = [];
      cancelledFetcherLoads = [];
    }
@@ -219,12 +230,23 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..388fb262d1022fbb0a5a123e752e2e73
 +    let blockers = new Map();
 +    blockerFunctions.clear();
 +
++    // Restore any fetchers with an idle state. Fetchers that were
++    // loading/submitting should have been cancelled when the router state was
++    // deactivated.
++    let fetchers = new Map();
++    for (const [key, fetcher] of newState.fetchers) {
++      if (fetcher.state === "idle") {
++        fetchers.set(key, fetcher);
++      }
++    }
++
 +    updateState({
 +      ...newState,
 +      initialized: true,
 +      navigation: IDLE_NAVIGATION,
 +      revalidation: "idle",
 +      blockers,
++      fetchers,
 +    });
 +
 +    // Reset stateful navigation vars
@@ -238,7 +260,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..388fb262d1022fbb0a5a123e752e2e73
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(to, opts) {
-@@ -1579,7 +1620,8 @@ function createRouter(init) {
+@@ -1579,7 +1631,8 @@ function createRouter(init) {
        // render at the right error boundary after we match routes
        pendingError: error,
        preventScrollReset,
@@ -248,7 +270,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..388fb262d1022fbb0a5a123e752e2e73
      });
    }
    // Revalidate all current loaders.  If a navigation is in progress or if this
-@@ -1655,7 +1697,10 @@ function createRouter(init) {
+@@ -1655,7 +1708,10 @@ function createRouter(init) {
      // Ignore on initial page loads because since the initial load will always
      // be "same hash".  For example, on /page#hash and submit a <Form method="post">
      // which will default to a navigation to /page
@@ -260,7 +282,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..388fb262d1022fbb0a5a123e752e2e73
        completeNavigation(location, {
          matches
        });
-@@ -2499,7 +2544,8 @@ function createRouter(init) {
+@@ -2499,7 +2555,8 @@ function createRouter(init) {
      _internalActiveDeferreds: activeDeferreds,
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
@@ -270,7 +292,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..388fb262d1022fbb0a5a123e752e2e73
    };
    return router;
  }
-@@ -3375,7 +3421,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
+@@ -3375,7 +3432,10 @@ async function callLoaderOrAction(type, request, match, matches, manifest, mapRo
      // Check between word boundaries instead of startsWith() due to the last
      // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
      if (contentType && /\bapplication\/json\b/.test(contentType)) {
@@ -282,7 +304,7 @@ index 476e375a5387243e5e206d0b62ba9c3670a69664..388fb262d1022fbb0a5a123e752e2e73
      } else {
        data = await result.text();
      }
-@@ -3943,4 +3992,4 @@ function getDoneFetcher(data) {
+@@ -3943,4 +4003,4 @@ function getDoneFetcher(data) {
  //#endregion
  
  export { AbortedDeferredError, Action, ErrorResponse, IDLE_BLOCKER, IDLE_FETCHER, IDLE_NAVIGATION, UNSAFE_DEFERRED_SYMBOL, DeferredData as UNSAFE_DeferredData, convertRoutesToDataRoutes as UNSAFE_convertRoutesToDataRoutes, getPathContributingMatches as UNSAFE_getPathContributingMatches, invariant as UNSAFE_invariant, warning as UNSAFE_warning, createBrowserHistory, createHashHistory, createMemoryHistory, createPath, createRouter, createStaticHandler, defer, generatePath, getStaticContextFromError, getToPathname, isDeferredData, isRouteErrorResponse, joinPaths, json, matchPath, matchRoutes, normalizePathname, parsePath, redirect, resolvePath, resolveTo, stripBasename };
@@ -354,7 +376,7 @@ index 5a796fd48dadee89f0b71fcc3991364788a4b6f2..40acea9336f2d997929119dd35fc2637
    "types": "./dist/index.d.ts",
    "files": [
 diff --git a/router.ts b/router.ts
-index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..67490a89332e994def97df2b7dca3a1f04beb63c 100644
+index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..c9a1ef8b22029f72f1dbb970fff3a1e53e2511ec 100644
 --- a/router.ts
 +++ b/router.ts
 @@ -246,6 +246,20 @@ export interface Router {
@@ -388,7 +410,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..67490a89332e994def97df2b7dca3a1f
  };
  
  // Only allowed for submission navigations
-@@ -1078,6 +1095,44 @@ export function createRouter(init: RouterInit): Router {
+@@ -1078,6 +1095,55 @@ export function createRouter(init: RouterInit): Router {
      cancelledFetcherLoads = [];
    }
  
@@ -413,12 +435,23 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..67490a89332e994def97df2b7dca3a1f
 +    let blockers = new Map();
 +    blockerFunctions.clear();
 +
++    // Restore any fetchers with an idle state. Fetchers that were
++    // loading/submitting should have been cancelled when the router state was
++    // deactivated.
++    let fetchers = new Map();
++    for (const [key, fetcher] of newState.fetchers) {
++      if (fetcher.state === "idle") {
++        fetchers.set(key, fetcher);
++      }
++    }
++
 +    updateState({
 +      ...newState,
 +      initialized: true,
 +      navigation: IDLE_NAVIGATION,
 +      revalidation: "idle",
 +      blockers,
++      fetchers,
 +    });
 +
 +    // Reset stateful navigation vars
@@ -433,7 +466,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..67490a89332e994def97df2b7dca3a1f
    // Trigger a navigation event, which can either be a numerical POP or a PUSH
    // replace with an optional submission
    async function navigate(
-@@ -1180,6 +1235,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1180,6 +1246,7 @@ export function createRouter(init: RouterInit): Router {
        pendingError: error,
        preventScrollReset,
        replace: opts && opts.replace,
@@ -441,7 +474,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..67490a89332e994def97df2b7dca3a1f
      });
    }
  
-@@ -1230,6 +1286,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1230,6 +1297,7 @@ export function createRouter(init: RouterInit): Router {
        startUninterruptedRevalidation?: boolean;
        preventScrollReset?: boolean;
        replace?: boolean;
@@ -449,7 +482,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..67490a89332e994def97df2b7dca3a1f
      }
    ): Promise<void> {
      // Abort any in-progress navigations and start a new one. Unset any ongoing
-@@ -1276,7 +1333,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -1276,7 +1344,7 @@ export function createRouter(init: RouterInit): Router {
      if (
        state.initialized &&
        !isRevalidationRequired &&
@@ -458,7 +491,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..67490a89332e994def97df2b7dca3a1f
        !(opts && opts.submission && isMutationMethod(opts.submission.formMethod))
      ) {
        completeNavigation(location, { matches });
-@@ -2486,6 +2543,7 @@ export function createRouter(init: RouterInit): Router {
+@@ -2486,6 +2554,7 @@ export function createRouter(init: RouterInit): Router {
      // TODO: Remove setRoutes, it's temporary to avoid dealing with
      // updating the tree while validating the update algorithm.
      _internalSetRoutes,
@@ -466,7 +499,7 @@ index fdae5b0bbec0c76136b23c3cb2f0c6cc8c282e2e..67490a89332e994def97df2b7dca3a1f
    };
  
    return router;
-@@ -3705,7 +3763,10 @@ async function callLoaderOrAction(
+@@ -3705,7 +3774,10 @@ async function callLoaderOrAction(
      // Check between word boundaries instead of startsWith() due to the last
      // paragraph of https://httpwg.org/specs/rfc9110.html#field.content-type
      if (contentType && /\bapplication\/json\b/.test(contentType)) {
