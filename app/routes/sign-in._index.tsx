@@ -1,4 +1,4 @@
-import {Form, Link, useNavigation} from "@remix-run/react";
+import {Link} from "@remix-run/react";
 import {json, redirect} from "@remix-run/router";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {useState} from "react";
@@ -9,7 +9,7 @@ import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema.js";
+import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {regenerateOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -94,9 +94,9 @@ export default function SignInPage() {
     const [emailAddress, setEmailAddress] = useState("");
     const isFormValid = emailAddress.length > 0 && emailAddress.includes("@");
 
-    const actionData = useActionDataWithSchema(ActionSchema);
+    const fetcher = useFetcherWithSchema(ActionSchema);
 
-    const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
+    const [dismissedFetcherData, setDismissedFetcherData] = useState<SchemaType<
         typeof ActionSchema
     > | null>(null);
 
@@ -123,10 +123,10 @@ export default function SignInPage() {
                     paddingX: "4",
                 })}
             >
-                <Form
+                <fetcher.Form
                     method="post"
                     onSubmit={() => {
-                        if (actionData) setDismissedActionData(actionData);
+                        if (fetcher.data) setDismissedFetcherData(fetcher.data);
                     }}
                 >
                     <h1
@@ -138,12 +138,12 @@ export default function SignInPage() {
                         Sign in
                     </h1>
                     <Spacer space="6" />
-                    {actionData && dismissedActionData !== actionData && (
+                    {fetcher.data && dismissedFetcherData !== fetcher.data && (
                         <>
                             <ErrorInlineAlert
                                 title="Could not sign in"
-                                error={actionData.error}
-                                onDismiss={() => setDismissedActionData(actionData)}
+                                error={fetcher.data.error}
+                                onDismiss={() => setDismissedFetcherData(fetcher.data!)}
                             />
                             <Spacer space="4" />
                         </>
@@ -161,12 +161,12 @@ export default function SignInPage() {
                         variant="accent"
                         shouldSubmitForm={true}
                         fullWidth={true}
-                        isPending={useNavigation().state === "submitting"}
+                        isPending={fetcher.state === "submitting"}
                         isDisabled={!isFormValid}
                     >
                         Sign in
                     </Button>
-                </Form>
+                </fetcher.Form>
                 <Spacer space="32" />
                 <Box paddingTop="2" borderTop="grey-10">
                     Don’t have an account yet?

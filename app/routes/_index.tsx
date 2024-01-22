@@ -1,4 +1,4 @@
-import {Form, Link, useNavigation} from "@remix-run/react";
+import {Link} from "@remix-run/react";
 import {json} from "@remix-run/router";
 import {useEffect, useId, useMemo, useState} from "react";
 import {redirectToAuthenticatedHome} from "~/app/helpers/redirect_to_authenticated_home.js";
@@ -14,7 +14,7 @@ import {InlineAlert} from "~/client/design/inline_alert.js";
 import {MultilineTextInput} from "~/client/design/multiline_text_input.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {TextInput} from "~/client/design/text_input.js";
-import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema.js";
+import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {requestAlphaAccess} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -121,10 +121,9 @@ export default function HomePage() {
 
     const isFormValid = name.length > 0 && emailAddress.length > 0 && emailAddress.includes("@");
 
-    const navigation = useNavigation();
-    const actionData = useActionDataWithSchema(ActionSchema);
+    const fetcher = useFetcherWithSchema(ActionSchema);
 
-    const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
+    const [dismissedFetcherData, setDismissedFetcherData] = useState<SchemaType<
         typeof ActionSchema
     > | null>(null);
 
@@ -137,12 +136,12 @@ export default function HomePage() {
 
     // If the form submission was successful, clear our inputs.
     useEffect(() => {
-        if (navigation.state === "idle" && actionData?.ok) {
+        if (fetcher.state === "idle" && fetcher.data?.ok) {
             setName("");
             setEmailAddress("");
             setMessage("");
         }
-    }, [actionData?.ok, navigation.state]);
+    }, [fetcher.data?.ok, fetcher.state]);
 
     return (
         <Box
@@ -191,32 +190,32 @@ export default function HomePage() {
                     product so they can follow along.
                 </Box>
                 <Spacer space="8" />
-                <Form
+                <fetcher.Form
                     method="post"
                     onSubmit={() => {
-                        if (actionData) setDismissedActionData(actionData);
+                        if (fetcher.data) setDismissedFetcherData(fetcher.data);
                     }}
                 >
                     <Box fontSize="500" fontStyle="bold">
                         Request access
                     </Box>
                     <Spacer space="4" />
-                    {actionData && dismissedActionData !== actionData && (
+                    {fetcher.data && dismissedFetcherData !== fetcher.data && (
                         <>
-                            {actionData.ok ? (
+                            {fetcher.data.ok ? (
                                 <InlineAlert
                                     variant="positive"
                                     title="Requested access"
-                                    onDismiss={() => setDismissedActionData(actionData)}
+                                    onDismiss={() => setDismissedFetcherData(fetcher.data!)}
                                 >
                                     If your request is approved we’ll send an email to{" "}
-                                    {actionData.emailAddress} with further instructions.
+                                    {fetcher.data.emailAddress} with further instructions.
                                 </InlineAlert>
                             ) : (
                                 <ErrorInlineAlert
                                     title="Could not request access"
-                                    error={actionData.error}
-                                    onDismiss={() => setDismissedActionData(actionData)}
+                                    error={fetcher.data.error}
+                                    onDismiss={() => setDismissedFetcherData(fetcher.data!)}
                                 />
                             )}
                             <Spacer space="4" />
@@ -263,12 +262,12 @@ export default function HomePage() {
                             variant="accent"
                             shouldSubmitForm={true}
                             isDisabled={!isFormValid}
-                            isPending={navigation.state === "submitting"}
+                            isPending={fetcher.state === "submitting"}
                         >
                             Request
                         </Button>
                     </Box>
-                </Form>
+                </fetcher.Form>
                 <Spacer space="32" />
                 <Box paddingTop="2" borderTop="grey-10">
                     Already have an account?{" "}

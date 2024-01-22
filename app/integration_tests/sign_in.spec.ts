@@ -1,15 +1,11 @@
 import {expect, test} from "@playwright/test";
 import {createTestServices} from "~/app/integration_tests/helpers/create_test_services.js";
-import {
-    approveAlphaAccessRequest,
-    seedTestAlphaConfiguration,
-} from "~/server/alpha/alpha_access_table.js";
+import {seedDynamo} from "~/app/seed_dynamo.js";
+import {approveAlphaAccessRequest} from "~/server/alpha/alpha_access_table.js";
 import {getDynamoSeedConstants} from "~/server/dynamo/core/dynamo_seed_constants.js";
 import {createTestSession} from "~/server/dynamo/test_helpers/create_test_session.js";
 import {createTestSpace} from "~/server/dynamo/test_helpers/create_test_space.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
-import {seedTestSpaces} from "~/server/spaces/spaces_table.js";
-import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {generateId} from "~/shared/id/id.js";
 
 const {context, services} = createTestServices();
@@ -19,7 +15,7 @@ const adminSession = createTestSession(context, space, {hasInternalAccess: true}
 const emailAddress = `test.${generateId()}@test.cyberworlds.dev`;
 
 test.beforeAll(async () => {
-    await runAllPromises([seedTestAlphaConfiguration(context), seedTestSpaces(context)]);
+    await seedDynamo(context);
 });
 
 test("can request alpha access", async ({page}) => {

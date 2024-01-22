@@ -19,11 +19,14 @@ export function seedDynamo(
 ): Promise<void> {
     assert(process.env.NODE_ENV !== "production");
     return context.tracer.withSpan("Seed DynamoDB test data", async context => {
-        await runAllPromises([
-            seedTestAlphaConfiguration(context),
-            seedTestAccounts(context),
-            seedTestSpaces(context),
-            seedTestChannels(context),
-        ]);
+        // Make sure accounts exist since everything that follows depends
+        // on accounts:
+        await seedTestAccounts(context);
+
+        // Make sure spaces exist since everything that follows depends on
+        // the spaces:
+        await seedTestSpaces(context);
+
+        await runAllPromises([seedTestAlphaConfiguration(context), seedTestChannels(context)]);
     });
 }

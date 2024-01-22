@@ -1,4 +1,4 @@
-import {Form, useNavigation, useParams, useSubmit} from "@remix-run/react";
+import {useParams} from "@remix-run/react";
 import {json, redirect} from "@remix-run/router";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {useEffect, useRef, useState} from "react";
@@ -8,7 +8,7 @@ import {Button} from "~/client/design/button.js";
 import {ErrorInlineAlert} from "~/client/design/error_inline_alert.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
-import {useActionDataWithSchema} from "~/client/remix/use_action_data_with_schema.js";
+import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {attemptOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
@@ -117,18 +117,15 @@ export default function SignInEmailCodePage() {
     const [isDisabledForSubmit, setIsDisabledForSubmit] = useState(false);
     const isFormValid = oneTimePassword.length === 6;
 
-    const actionData = useActionDataWithSchema(ActionSchema);
-    const navigation = useNavigation();
+    const fetcher = useFetcherWithSchema(ActionSchema);
 
-    const [dismissedActionData, setDismissedActionData] = useState<SchemaType<
+    const [dismissedFetcherData, setDismissedFetcherData] = useState<SchemaType<
         typeof ActionSchema
     > | null>(null);
 
-    const submit = useSubmit();
-
     const onDidSubmit = () => {
         setIsDisabledForSubmit(true);
-        if (actionData) setDismissedActionData(actionData);
+        if (fetcher.data) setDismissedFetcherData(fetcher.data);
     };
 
     const onOneTimePasswordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,24 +134,24 @@ export default function SignInEmailCodePage() {
         setOneTimePassword(value);
 
         if (value.length === 6 && formRef.current) {
-            submit(formRef.current);
+            fetcher.submit(formRef.current);
             onDidSubmit();
         }
     };
 
     useEffect(() => {
-        if (navigation.state === "idle") {
+        if (fetcher.state === "idle") {
             setIsDisabledForSubmit(false);
         }
-    }, [navigation.state]);
+    }, [fetcher.state]);
 
-    const hasError = actionData ? !actionData.ok : false;
+    const hasError = fetcher.data ? !fetcher.data.ok : false;
     useEffect(() => {
-        if (navigation.state === "idle" && hasError && inputRef.current) {
+        if (fetcher.state === "idle" && hasError && inputRef.current) {
             setOneTimePassword("");
             inputRef.current.focus();
         }
-    }, [hasError, navigation.state]);
+    }, [hasError, fetcher.state]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         // this is a bit of a hack. the browser will scroll the input to the left, to keep the input
@@ -200,7 +197,7 @@ export default function SignInEmailCodePage() {
                     paddingX: "4",
                 })}
             >
-                <Form
+                <fetcher.Form
                     ref={formRef}
                     method="post"
                     onSubmit={() => {
@@ -229,12 +226,12 @@ export default function SignInEmailCodePage() {
                         . Type the code here to sign in.
                     </Box>
                     <Spacer space="6" />
-                    {actionData && dismissedActionData !== actionData && (
+                    {fetcher.data && dismissedFetcherData !== fetcher.data && (
                         <>
                             <ErrorInlineAlert
                                 title="Could not sign in"
-                                error={actionData.error}
-                                onDismiss={() => setDismissedActionData(actionData)}
+                                error={fetcher.data.error}
+                                onDismiss={() => setDismissedFetcherData(fetcher.data!)}
                             />
                             <Spacer space="4" />
                         </>
@@ -325,12 +322,12 @@ export default function SignInEmailCodePage() {
                         variant="accent"
                         shouldSubmitForm={true}
                         fullWidth={true}
-                        isPending={isDisabledForSubmit || navigation.state === "submitting"}
+                        isPending={isDisabledForSubmit || fetcher.state === "submitting"}
                         isDisabled={!isFormValid}
                     >
                         Sign in
                     </Button>
-                </Form>
+                </fetcher.Form>
             </main>
         </Box>
     );
