@@ -213,5 +213,3 @@ export const NativeMobileBridge: {
         replace(url: URL): void;
     };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;
-
-// NOCOMMIT: Loading spinner on snapshot view

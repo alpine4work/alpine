@@ -377,6 +377,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
 private class WebNavigationEntryController: UIViewController {
     var url: URL
+    private var loadingIndicatorTimer: Timer?
+    private var loadingIndicatorTimerGeneration: Int = 0
+    private var hasViewAppeared: Bool = false
 
     init(url: URL, webView: WKWebView) {
         self.url = url
@@ -393,6 +396,8 @@ private class WebNavigationEntryController: UIViewController {
 
         for subview in view.subviews { subview.removeFromSuperview() }
         view.addSubview(snapshotView)
+
+        resetLoadingIndicatorTimer()
     }
 
     func replaceSubviewsWithWebView(webView: WKWebView) {
@@ -426,5 +431,109 @@ private class WebNavigationEntryController: UIViewController {
         webView.frame = CGRect(origin: .zero, size: view.frame.size)
 
         view.addSubview(webView)
+
+        resetLoadingIndicatorTimer()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        hasViewAppeared = true
+        resetLoadingIndicatorTimer()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        hasViewAppeared = false
+        resetLoadingIndicatorTimer()
+    }
+
+    private func resetLoadingIndicatorTimer() {
+        let hasWebView = view.subviews.first(where: { (view) in view is WKWebView }) != nil
+
+        loadingIndicatorTimer?.invalidate()
+        loadingIndicatorTimer = nil
+        loadingIndicatorTimerGeneration += 1
+        let currentLoadingIndicatorTimerGeneration = loadingIndicatorTimerGeneration
+
+        // Don't show loading indicator if we have a web view.
+        if hasWebView { return }
+
+        // Don't show loading indicator if our entry isn't visible.
+        if !hasViewAppeared { return }
+
+        // Wait to show a loading indicator until any active transition is done.
+        if let transitionCoordinator = transitionCoordinator {
+            if !transitionCoordinator.isInteractive {
+                startLoadingIndicatorTimer()
+            } else {
+                transitionCoordinator.notifyWhenInteractionChanges { [self] (context) in
+                    if context.isInteractive { return }
+                    if context.isCancelled { return }
+
+                    // If `resetLoadingIndicatorTimer()` was called since the notify callback was
+                    // attached then we shouldn't start a new loading indicator timer.
+                    if loadingIndicatorTimerGeneration == currentLoadingIndicatorTimerGeneration {
+                        startLoadingIndicatorTimer()
+                    }
+                }
+            }
+        } else {
+            startLoadingIndicatorTimer()
+        }
+    }
+
+    private func startLoadingIndicatorTimer() {
+        loadingIndicatorTimer = Timer.scheduledTimer(
+            withTimeInterval: delayFullPageTransitionLoadingIndicatorLimitSeconds,
+            repeats: false
+        ) { [self] timer in addLoadingIndicatorSubviews() }
+
+        // Add some tolerance to reduce timer energy impact.
+        loadingIndicatorTimer?.tolerance = 0.1
+    }
+
+    /// If we present a navigation entry to the user that's just a snapshot, wait a
+    /// bit and then show a loading indicator instead of showing a frozen UI which
+    /// feels broken.
+    ///
+    /// The loading indicator blurs the snapshot and adds an animated loading
+    /// spinner in the center.
+    private func addLoadingIndicatorSubviews() {
+        let blurEffectView = UIVisualEffectView()
+        blurEffectView.frame = view.bounds
+        blurEffectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.addSubview(blurEffectView)
+
+        UIView.animate(withDuration: 0.2) {
+            blurEffectView.effect = UIBlurEffect(style: .systemUltraThinMaterial)
+        }
+
+        let imageView = UIImageView(
+            image: UIImage(named: "SpinnerGapIcon")!
+                // Must use template rendering mode for `tintColor` to have any effect.
+                .withRenderingMode(.alwaysTemplate)
+        )
+
+        // The equivalent of size `spacing["6"]` which is used for peek loading
+        // indicators. `spacing["6"]` is 1.5rem and the mobile rem size is 20px.
+        // So 1.5 * 20 = 30.
+        imageView.frame.size.width = 30
+        imageView.frame.size.height = 30
+
+        imageView.tintColor = UIColor(named: "grey-70")!
+
+        view.addSubview(imageView)
+        imageView.center = view.center
+
+        let rotationAnimation = CABasicAnimation(keyPath: "transform.rotation")
+
+        // Same rotation animation as `spinAnimationClassName`. 1s infinite repeat.
+        rotationAnimation.fromValue = 0.0
+        rotationAnimation.toValue = Float.pi * 2.0
+        rotationAnimation.duration = 1
+        rotationAnimation.repeatCount = Float.infinity
+
+        imageView.layer.add(rotationAnimation, forKey: "rotationAnimation")
+
     }
 }

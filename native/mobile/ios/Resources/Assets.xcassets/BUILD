@@ -46,6 +46,7 @@ ICONS = [
     "Plus",
     "Bell",
     "List",
+    "SpinnerGap",
 ]
 
 js_binary(

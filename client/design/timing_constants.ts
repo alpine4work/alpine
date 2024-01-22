@@ -33,6 +33,9 @@ export const delayLoadingIndicatorLimitMs = 500;
  * We use a longer delay for full page transitions vs
  * `delayLoadingIndicatorLimitMs` for responding to, say, a button press since
  * full page transitions are more disruptive.
+ *
+ * If you update this constant, you should also update the related constant in
+ * `TimingConstants.swift`.
  */
 export const delayFullPageTransitionLoadingIndicatorLimitMs = 1000;
 
