@@ -63,7 +63,10 @@ export const NativeMobileBridge: {
      * [4]: https://developer.apple.com/documentation/uikit/uinavigationcontroller
      * [5]: https://developer.apple.com/documentation/uikit/uitabbarcontroller
      */
-    readonly navigation: {};
+    readonly navigation: {
+        // NOCOMMIT: Document
+        replaceUrl(url: URL): void;
+    };
 
     /**
      * Prepare a navigation animation. You must call this immediately before

@@ -119,12 +119,16 @@ export function AppRouterProvider({
         if (lastLocationKeyForLayoutEffectRef.current === state.location.key) return;
         lastLocationKeyForLayoutEffectRef.current = state.location.key;
 
+        const url = new URL(router.createHref(state.location), window.location.href);
+
         if (state.historyAction === "PUSH") {
-            NativeMobileBridge?.runPushNavigationAnimation(
-                new URL(router.createHref(state.location), window.location.href),
-            );
+            NativeMobileBridge?.runPushNavigationAnimation(url);
         } else if (state.historyAction === "POP") {
             NativeMobileBridge?.finishPopNavigationAnimation();
+        }
+        // NOCOMMIT: Test that this works!
+        else if (state.historyAction === "REPLACE") {
+            NativeMobileBridge?.navigation.replaceUrl(url);
         }
     }, [router, state.historyAction, state.location, state.location.key]);
 

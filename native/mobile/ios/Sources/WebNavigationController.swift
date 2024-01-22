@@ -6,6 +6,11 @@ private let bridgeSource = """
         const popNavigationListeners = new Set();
 
         const NativeMobileBridge = {
+            navigation: {
+                replaceUrl: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replaceUrl:${url}`);
+                },
+            },
             preparePushNavigationAnimation: () => {
                 prompt("%%%preparePushNavigationAnimation");
             },
@@ -211,6 +216,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 (topViewController! as! WebNavigationEntryController)
                     .replaceSubviewsWithWebView(webView: webView)
                 return
+            } else if messageBody.starts(with: "navigation.replaceUrl:") {
+                let urlString = messageBody.suffix(
+                    from: messageBody.index(messageBody.startIndex, offsetBy: 22)
+                )
+                let url = URL(string: String(urlString))!
+
+                (topViewController! as! WebNavigationEntryController).url = url
             }
         }
 
@@ -354,7 +366,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 }
 
 private class WebNavigationEntryController: UIViewController {
-    let url: URL
+    var url: URL
 
     init(url: URL, webView: WKWebView) {
         self.url = url
