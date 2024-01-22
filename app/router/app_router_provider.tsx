@@ -110,7 +110,7 @@ export function AppRouterProvider({
             // how much time we spend synchronously blocked. Ideally add it as a property
             // to a navigation span since the duration may be too small to justify its
             // own span.
-            NativeMobileBridge?.preparePushNavigationAnimation();
+            NativeMobileBridge?.navigation.preparePush();
         }
     }, [state.historyAction, state.location.key]);
 
@@ -122,13 +122,12 @@ export function AppRouterProvider({
         const url = new URL(router.createHref(state.location), window.location.href);
 
         if (state.historyAction === "PUSH") {
-            NativeMobileBridge?.runPushNavigationAnimation(url);
+            NativeMobileBridge?.navigation.push(url);
         } else if (state.historyAction === "POP") {
-            NativeMobileBridge?.finishPopNavigationAnimation();
-        }
-        // NOCOMMIT: Test that this works!
-        else if (state.historyAction === "REPLACE") {
-            NativeMobileBridge?.navigation.replaceUrl(url);
+            NativeMobileBridge?.navigation.finishExternalPop();
+        } else if (state.historyAction === "REPLACE") {
+            // NOCOMMIT: Test that this works!
+            NativeMobileBridge?.navigation.replace(url);
         }
     }, [router, state.historyAction, state.location, state.location.key]);
 

@@ -135,9 +135,11 @@ export function createNativeMobileRouter(
         initialize: () => {
             // When native initiates a pop navigation, we need to execute the pop
             // navigation on the web side.
-            unsubscribeFromBridge = NativeMobileBridge!.subscribeToPopNavigation((delta, url) => {
-                history.goFromNative(-delta, url);
-            });
+            unsubscribeFromBridge = NativeMobileBridge!.navigation.subscribeToExternalPop(
+                (delta, url) => {
+                    history.goFromExternal(-delta, url);
+                },
+            );
 
             return routerBase.initialize();
         },
@@ -278,11 +280,11 @@ class NativeMobileMemoryHistory implements History {
      * believes the history stack to be may differ from what web code thinks,
      * native provides a `url` to reconcile the difference.
      */
-    public goFromNative(delta: number, url: URL) {
+    public goFromExternal(delta: number, url: URL) {
         this._go(delta, url);
     }
 
-    private _go(delta: number, urlFromNative: URL | null) {
+    private _go(delta: number, urlFromExternal: URL | null) {
         // We don't support "forward" navigations in our native mobile app. If you go
         // back, it destroys the state for the route you were looking at.
         //
@@ -292,7 +294,7 @@ class NativeMobileMemoryHistory implements History {
 
         if (-delta > this._pastEntries.length) {
             // If this is not a navigation from native, clamp `delta`.
-            if (urlFromNative === null) {
+            if (urlFromExternal === null) {
                 delta = -this._pastEntries.length;
             }
             // If native is asking us to go back further than the entries we have in
@@ -305,9 +307,9 @@ class NativeMobileMemoryHistory implements History {
                 this._action = Action.Pop;
                 this._pastEntries = [];
                 this._currentEntryLocation = createLocation(this._currentEntryLocation.pathname, {
-                    pathname: urlFromNative.pathname,
-                    search: urlFromNative.search,
-                    hash: urlFromNative.hash,
+                    pathname: urlFromExternal.pathname,
+                    search: urlFromExternal.search,
+                    hash: urlFromExternal.hash,
                 });
 
                 // Make sure browser URL reflects history object. We don't respect changes to
@@ -343,15 +345,15 @@ class NativeMobileMemoryHistory implements History {
         // Prefer the URL from native code (since it initiated this navigation) and
         // reset our history state.
         if (
-            urlFromNative !== null &&
-            this.createHref(this._currentEntryLocation) !== this.createHref(urlFromNative)
+            urlFromExternal !== null &&
+            this.createHref(this._currentEntryLocation) !== this.createHref(urlFromExternal)
         ) {
             this._action = Action.Pop;
             this._pastEntries = [];
             this._currentEntryLocation = createLocation(this._currentEntryLocation.pathname, {
-                pathname: urlFromNative.pathname,
-                search: urlFromNative.search,
-                hash: urlFromNative.hash,
+                pathname: urlFromExternal.pathname,
+                search: urlFromExternal.search,
+                hash: urlFromExternal.hash,
             });
 
             // Make sure browser URL reflects history object. We don't respect changes to

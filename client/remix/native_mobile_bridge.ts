@@ -64,48 +64,123 @@ export const NativeMobileBridge: {
      * [5]: https://developer.apple.com/documentation/uikit/uitabbarcontroller
      */
     readonly navigation: {
+        /**
+         * The way a push navigation in our native mobile app works is:
+         *
+         * 1. Web code initiates the push
+         * 2. `NativeMobileMemoryHistory` saves the current router state (with
+         *    `loaderData`) so we can keep rendering the old route offscreen
+         * 3. React begins rendering the new route
+         * 4. Right before React commits the new route to the DOM, it runs
+         *    `useInsertionEffect()` hooks
+         * 5. `preparePushAnimation()` is called which blocks the web main thread while
+         *    native takes a snapshot of the web view and swaps the web view for that
+         *    snapshot
+         * 6. Once React has finished committing the new route to the DOM, it runs
+         *    `useLayoutEffect()` hooks
+         * 7. `push()` is called so native creates a new view, renders the web view in
+         *    it, and animates that new view on top of the old snapshot
+         *
+         * This is an asynchronous process. Our code has to take care to make sure
+         * everything stays in sync.
+         *
+         * This function is step 5. Note that calling this function synchronously
+         * blocks the web browser's main thread! The native platform's web view may be
+         * architected to run native shell code and web code in different processes
+         * which means we're blocked on process communication which may be a
+         * non-trivial amount of time. On iOS, there isn't an official API for
+         * synchronous communication between native code and web code so we [hack in
+         * synchronous communication using the `prompt()` web API][1].
+         *
+         * If you call this function you must make sure to call `push()` afterwards!
+         * Otherwise the app will appear frozen as we only show a snapshot view and not
+         * the underlying web view.
+         *
+         * [1]: https://stackoverflow.com/a/49474323/1568890
+         */
+        preparePush(): void;
+
+        /**
+         * Actually performs the push navigation animation. Step 7 in the
+         * `preparePush()` comment. Some edge cases to consider:
+         *
+         * - If you call this function without calling `preparePush()` first then the
+         *   view will immediately blank out as the new view is pushed on top
+         *
+         * - If you call this function when there wasn't a corresponding push in web
+         *   code then native code's navigation stack will be out-of-sync with web
+         *   code's navigation stack. Native initiated navigations will end up resetting
+         *   our web history state.
+         *
+         * Needs the URL so native can remember the URL of this position in the
+         * navigation stack even if JavaScript forgets. (e.g. Because the web browser
+         * reloaded.) If a native initiated navigation goes back to this screen we'll
+         * make sure this URL is rendered regardless of our current web code navigation
+         * state.
+         */
+        push(url: URL): void;
+
+        /**
+         * There are two kinds of pop navigations that may happen in our native mobile
+         * app:
+         *
+         * 1. Navigations initiated by native code
+         * 2. Navigations initiated by web code
+         *
+         * We call 1 "external" pops which is what this function addresses.
+         *
+         * The way an external pop in our native mobile app works is:
+         *
+         * 1. Native code takes a snapshot of the web view and swaps the web view for
+         *    that snapshot
+         * 2. Native code calls listeners in web code who subscribed with
+         *    `subscribeToExternalPop()` with how many stack frames (`delta`) to pop
+         *    and the expected URL
+         * 3. `NativeMobileMemoryHistory` finds the new route based on its internal
+         *    history stack. One of two things may happen from here:
+         *    - If we have more than `delta` stack frames and the new route has the
+         *      same URL as the expected URL from native
+         *          1. `NativeMobileMemoryHistory` unsafely restores the old route
+         *             state in our web code router. We should have continued to render
+         *             this route with React so all our state is preserved (React
+         *             state, DOM scroll state, etc.). If we haven't continued to
+         *             render this route we need to refetch data from the server
+         *          2. Once React has finished committing the new route to the DOM, it
+         *             runs `useLayoutEffect()` hooks
+         *          3. `finishExternalPop()` is called and native removes the snapshot
+         *             on the popped view (created during the push animation) and adds
+         *             the web view (which is rendering the correct route) back to the
+         *             popped view
+         *    - Otherwise
+         *          1. `NativeMobileMemoryHistory`'s history state is out of sync with
+         *             native!
+         *          2. `NativeMobileMemoryHistory` resets its history state and sets
+         *             the URL from native as the current location
+         *          3. `NativeMobileMemoryHistory` tells `react-router` to start a
+         *             navigation (so we need to load new data from the server)
+         *          4. Once React has finished committing the new route to the DOM, it
+         *             runs `useLayoutEffect()` hooks
+         *          5. `finishExternalPop()` is called and native removes the snapshot
+         *             on the popped view (created during the push animation) and adds
+         *             the web view (which is rendering the correct route) back to the
+         *             popped view
+         *
+         * If you don't promptly call `finishExternalPop()` after this function is
+         * called then the app will appear frozen! As we only show a snapshot view and
+         * not the underlying web view.
+         */
+        subscribeToExternalPop(listener: (delta: number, url: URL) => void): () => void;
+
+        /**
+         * See `subscribeToExternalPop()` for documentation on what this function does.
+         * In short, web code uses this to tell native code we've finished rendering a
+         * native initiated pop navigation.
+         */
+        finishExternalPop(): void;
+
         // NOCOMMIT: Document
-        replaceUrl(url: URL): void;
+        replace(url: URL): void;
     };
-
-    /**
-     * Prepare a navigation animation. You must call this immediately before
-     * painting the new screen. That way our native shell can capture an image of
-     * the current UI and render it alongside the new UI as it animates in.
-     *
-     * This function synchronously blocks until the native shell is done preparing
-     * the animation. If the native platform's web view is architected in such a
-     * way that our native shell code and web code run in different processes, this
-     * may block for a non-trivial amount of time since process communication is
-     * required! On iOS, there isn't an official API for synchronous communication
-     * between native code and web code so we [hack in synchronous communication
-     * using the `prompt()` web API][1].
-     *
-     * If you call this function you must make sure to call `runPushNavigation()`
-     * afterwards! Otherwise the app will appear frozen as we only show a snapshot
-     * view and not the underlying web view.
-     *
-     * [1]: https://stackoverflow.com/a/49474323/1568890
-     */
-    preparePushNavigationAnimation(): void;
-
-    /**
-     * Runs a prepared navigation animation. On iOS the new screen will slide in
-     * from the right on top of the old screen.
-     *
-     * Needs the URL so native can remember the URL of this position in the
-     * navigation stack even if JavaScript forgets. (e.g. Because the web browser
-     * reloaded.)
-     */
-    runPushNavigationAnimation(url: URL): void;
-
-    /**
-     * If a pop navigation was initiated by our native shell (e.g. the user swiped
-     * from the left) then our web process needs to navigate to the previous page.
-     */
-    // NOCOMMIT: Document why `URL` is there
-    subscribeToPopNavigation(listener: (delta: number, url: URL) => void): () => void;
-
-    // NOCOMMIT: Document
-    finishPopNavigationAnimation(): void;
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;
+
+// NOCOMMIT: Loading spinner on snapshot view

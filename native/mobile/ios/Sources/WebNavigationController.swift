@@ -3,41 +3,41 @@ import WebKit
 
 private let bridgeSource = """
     {
-        const popNavigationListeners = new Set();
+        const externalPopNavigationListeners = new Set();
 
         const NativeMobileBridge = {
             navigation: {
-                replaceUrl: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replaceUrl:${url}`);
+                preparePush: () => {
+                    prompt("%%%navigation.preparePush");
                 },
-            },
-            preparePushNavigationAnimation: () => {
-                prompt("%%%preparePushNavigationAnimation");
-            },
-            runPushNavigationAnimation: url => {
-                window.webkit.messageHandlers.NativeMobileBridge.postMessage(`runPushNavigationAnimation:${url}`);
-            },
-            subscribeToPopNavigation: listener => {
-                popNavigationListeners.add(listener);
-                return () => {
-                    popNavigationListeners.delete(listener);
-                };
-            },
-            _callPopNavigationListeners: (delta, urlString) => {
-                const url = new URL(urlString);
+                push: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
+                },
+                subscribeToExternalPop: listener => {
+                    externalPopNavigationListeners.add(listener);
+                    return () => {
+                        externalPopNavigationListeners.delete(listener);
+                    };
+                },
+                _callExternalPopListeners: (delta, urlString) => {
+                    const url = new URL(urlString);
 
-                for (const listener of popNavigationListeners) {
-                    try {
-                        listener(delta, url);
-                    } catch (error) {
-                        setTimeout(() => {
-                            throw error;
-                        }, 0);
+                    for (const listener of externalPopNavigationListeners) {
+                        try {
+                            listener(delta, url);
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
                     }
-                }
-            },
-            finishPopNavigationAnimation: () => {
-                window.webkit.messageHandlers.NativeMobileBridge.postMessage("finishPopNavigationAnimation");
+                },
+                finishExternalPop: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.finishExternalPop");
+                },
+                replace: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
+                },
             },
         };
 
@@ -160,7 +160,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // the app will appear frozen. We expect JavaScript code to promptly call
         // `runPushNavigationAnimation()`. But what if JavaScript code crashes? We need
         // some recovery mechanisms to unfreeze the app.
-        if prompt == "%%%preparePushNavigationAnimation" {
+        if prompt == "%%%navigation.preparePush" {
             (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
             return nil
         } else {
@@ -176,7 +176,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         if message.name == "NativeMobileBridge", let messageBody = message.body as? NSString {
             let messageBody: String = messageBody as String
 
-            if messageBody.starts(with: "runPushNavigationAnimation:") {
+            if messageBody.starts(with: "navigation.push:") {
                 // NOTE(calebmer, 2023-01-18): My old coworker [Sean Keenan][1] invented the
                 // technique of snapshotting a web view to get iOS native animations with web
                 // views. In the code where he first implemented this technique (which he
@@ -201,14 +201,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 webView.frame = CGRect(origin: .zero, size: view.frame.size)
 
                 let urlString = messageBody.suffix(
-                    from: messageBody.index(messageBody.startIndex, offsetBy: 27)
+                    from: messageBody.index(messageBody.startIndex, offsetBy: 16)
                 )
                 let url = URL(string: String(urlString))!
 
                 let viewController = WebNavigationEntryController(url: url, webView: webView)
                 pushViewController(viewController, animated: true)
                 return
-            } else if messageBody == "finishPopNavigationAnimation" {
+            } else if messageBody == "navigation.finishExternalPop" {
                 // See comment above about why we reset `frame`.
                 webView.frame = CGRect(origin: .zero, size: view.frame.size)
 
@@ -216,9 +216,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 (topViewController! as! WebNavigationEntryController)
                     .replaceSubviewsWithWebView(webView: webView)
                 return
-            } else if messageBody.starts(with: "navigation.replaceUrl:") {
+            } else if messageBody.starts(with: "navigation.replace:") {
                 let urlString = messageBody.suffix(
-                    from: messageBody.index(messageBody.startIndex, offsetBy: 22)
+                    from: messageBody.index(messageBody.startIndex, offsetBy: 19)
                 )
                 let url = URL(string: String(urlString))!
 
@@ -270,7 +270,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let viewController = super.popViewController(animated: animated)!
 
-        propagatePopNavigationAnimation(
+        propagateExternalPopNavigation(
             lastTopViewController: viewController as! WebNavigationEntryController,
             delta: 1
         )
@@ -286,7 +286,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let viewControllers = super.popToRootViewController(animated: animated)!
 
-        propagatePopNavigationAnimation(
+        propagateExternalPopNavigation(
             lastTopViewController: viewControllers.last! as! WebNavigationEntryController,
             delta: viewControllers.count - 1
         )
@@ -306,7 +306,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let viewControllers = super.popToViewController(viewController, animated: animated)!
 
-        propagatePopNavigationAnimation(
+        propagateExternalPopNavigation(
             lastTopViewController: viewControllers.last! as! WebNavigationEntryController,
             delta: viewControllers.count - (index + 1)
         )
@@ -314,7 +314,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         return viewControllers
     }
 
-    private func propagatePopNavigationAnimation(
+    private func propagateExternalPopNavigation(
         lastTopViewController: WebNavigationEntryController,
         delta: Int
     ) {
@@ -329,7 +329,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         if let transitionCoordinator = topViewController!.transitionCoordinator {
             if !transitionCoordinator.isInteractive {
-                callWebViewPopNavigationListeners(delta: delta, url: url)
+                callWebViewExternalPopNavigationListeners(delta: delta, url: url)
             } else {
                 transitionCoordinator.notifyWhenInteractionChanges { [self] (context) in
                     // Wait until the transition has finished.
@@ -343,16 +343,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                             lastTopViewController.replaceSubviewsWithWebView(webView: webView)
                         }
                     } else {
-                        callWebViewPopNavigationListeners(delta: delta, url: url)
+                        callWebViewExternalPopNavigationListeners(delta: delta, url: url)
                     }
                 }
             }
         } else {
-            callWebViewPopNavigationListeners(delta: delta, url: url)
+            callWebViewExternalPopNavigationListeners(delta: delta, url: url)
         }
     }
 
-    private func callWebViewPopNavigationListeners(delta: Int, url: URL) {
+    private func callWebViewExternalPopNavigationListeners(delta: Int, url: URL) {
         let jsonEncoder = JSONEncoder()
         var jsonString: String
         do {
@@ -360,7 +360,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         } catch { jsonString = "" }
 
         webView.evaluateJavaScript(
-            #"window.__NativeMobileBridge._callPopNavigationListeners(\#(delta), \#(jsonString))"#
+            #"window.__NativeMobileBridge.navigation._callExternalPopListeners(\#(delta), \#(jsonString))"#
         )
     }
 }
