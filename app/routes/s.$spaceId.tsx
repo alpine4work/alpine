@@ -118,6 +118,7 @@ export default function SpaceLayoutRoute() {
     const rawLoaderData = dataRouterStateContext.loaderData["routes/s.$spaceId"];
     const isInitialAppRender = useIsInitialAppRender();
     const clientInfo = useClientInfo();
+    const isMobile = useIsMobile();
 
     const peekStackRef = useRef<PeekStackContextProviderRef>(null);
 
@@ -142,11 +143,14 @@ export default function SpaceLayoutRoute() {
 
     const [searchState, setSearchState] = useStateWithDependencies<
         {initialQueryText: string} | null,
-        [string]
+        [string, boolean]
     >(
         null,
-        // Reset search state whenever the location changes.
-        [location.key],
+        // Reset search state when:
+        //
+        // - The location changes
+        // - We switch from desktop mode to mobile mode
+        [location.key, isMobile],
     );
 
     const [debugOptions, setDebugOptions] = useLocalStorage(
@@ -177,6 +181,12 @@ export default function SpaceLayoutRoute() {
     useEffect(() => {
         if (isInitialAppRender) return;
 
+        // Don't open the search modal on mobile.
+        //
+        // NOCOMMIT: If we have the `search` param on mobile I think we should navigate
+        // to the search page? To support that URL scheme.
+        if (isMobile) return;
+
         const url = new URL(window.location.href);
 
         if (url.searchParams.has("search")) {
@@ -187,7 +197,7 @@ export default function SpaceLayoutRoute() {
                 return {initialQueryText};
             });
         }
-    }, [isInitialAppRender, setSearchState]);
+    }, [isInitialAppRender, isMobile, setSearchState]);
 
     const lastShiftKeyDownTimeRef = useRef<number | null>(null);
 
@@ -195,7 +205,14 @@ export default function SpaceLayoutRoute() {
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
                 // Double shift opens the search modal.
-                if (event.key === "Shift" && !event.altKey && !event.metaKey && !event.ctrlKey) {
+                if (
+                    event.key === "Shift" &&
+                    !event.altKey &&
+                    !event.metaKey &&
+                    !event.ctrlKey &&
+                    // Don't open the search modal on mobile.
+                    !isMobile
+                ) {
                     event.preventDefault();
                     event.stopPropagation();
 
@@ -277,6 +294,9 @@ export default function SpaceLayoutRoute() {
                                     space={space}
                                     initialInbox={inbox}
                                     onSearchInputPress={() => {
+                                        // Don't open the search modal on mobile.
+                                        if (isMobile) return;
+
                                         setSearchState(searchState => {
                                             if (searchState) return searchState;
                                             return {initialQueryText: ""};
