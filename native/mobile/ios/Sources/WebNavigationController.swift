@@ -54,6 +54,7 @@ private let bridgeSource = """
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
     WKScriptMessageHandler
 {
+    let baseUrl: URL
     let initialPath: String
     let webConfiguration: WKWebViewConfiguration
 
@@ -62,6 +63,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
+        #if PRODUCTION_RUN_ENVIRONMENT
+            baseUrl = URL(string: "https://cyberworlds.dev")!
+        #else
+            baseUrl = URL(string: "http://localhost:3000")!
+        #endif
+
         self.initialPath = initialPath
 
         webConfiguration = WKWebViewConfiguration()
@@ -86,7 +93,27 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             )
         )
 
-        // NOCOMMIT: Initial cookies. Should set `clientInfo` with good values.
+        // Initialize `client-info` cookie to accurate values. This way the initial
+        // server-side rendering is accurate.
+        let clientInfo: [String: Any] = [
+            "screenWidth": UIScreen.main.bounds.width, "screenHeight": UIScreen.main.bounds.height,
+            "timeZone": TimeZone.current.identifier, "locale": "en-US", "isAppleDevice": true,
+            "isNativeMobile": true,
+        ]
+
+        let clientInfoData = try! JSONSerialization.data(withJSONObject: clientInfo)
+        let clientInfoString = String(data: clientInfoData, encoding: .utf8)!
+
+        let clientInfoCookie = HTTPCookie(properties: [
+            .domain: baseUrl.host()!, .path: "/", .name: "client-info", .value: clientInfoString,
+            .expires: NSDate(timeIntervalSinceNow: TimeInterval(60 * 60 * 24 * 365)),
+        ])!
+
+        // NOCOMMIT: Add cookie to `webConfiguration.websiteDataStore.httpCookieStore`
+        //
+        // Appears to be broken:
+        // https://stackoverflow.com/questions/77866910/wkwebsitedatastore-doesn-t-show-cookie-from-setcookie-in-getallcookies
+        let _ = clientInfoCookie
 
         super.init(nibName: nil, bundle: nil)
 
@@ -114,12 +141,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Enable developer tool usage in development environments.
         #if DBG_COMPILATION_MODE || DEVELOPMENT_RUN_ENVIRONMENT
             if #available(iOS 16.4, *) { webView.isInspectable = true }
-        #endif
-
-        #if PRODUCTION_RUN_ENVIRONMENT
-            let baseUrl = URL(string: "https://cyberworlds.dev")!
-        #else
-            let baseUrl = URL(string: "http://localhost:3000")!
         #endif
 
         let url = URL(string: initialPath, relativeTo: baseUrl)!
@@ -366,10 +387,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private func callWebViewExternalPopNavigationListeners(delta: Int, url: URL) {
         let jsonEncoder = JSONEncoder()
-        var jsonString: String
-        do {
-            jsonString = String(data: try jsonEncoder.encode(url.absoluteString), encoding: .utf8)!
-        } catch { jsonString = "" }
+        let jsonString = String(data: try! jsonEncoder.encode(url.absoluteString), encoding: .utf8)!
 
         webView.evaluateJavaScript(
             #"window.__NativeMobileBridge.navigation._callExternalPopListeners(\#(delta), \#(jsonString))"#
