@@ -870,7 +870,7 @@ function PeekStackDraggable({
                 )}
                 position="absolute"
                 bottom="0"
-                zIndex="60"
+                zIndex="10"
                 style={{
                     right: `calc(${peekRightOffset} + ${-deltaXPercentage * 100}%)`,
                     width: peekWidth,

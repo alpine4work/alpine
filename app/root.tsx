@@ -17,7 +17,7 @@ import {
     isRouteErrorResponse,
     useRouteError,
 } from "react-router";
-import {NativeMobileRootOutlet} from "~/app/router/native_mobile_root_outlet.js";
+import {NativeMobileOutlet, nativeMobileOutletStyle} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {AccountClientStoreContextProvider} from "~/client/accounts/account_client_store_context_provider.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
@@ -93,6 +93,8 @@ export function loader({context}: LoaderArgs) {
         devServerPort: context.loader.devServerPort ?? undefined,
     });
 }
+
+const rootNativeMobileOutletParentRouteIds = ["root"] as const;
 
 export default function Root() {
     const remixContext = useContext(RemixContext);
@@ -222,7 +224,7 @@ export default function Root() {
             // Render a `<div>` around children even when we're not rendering in the
             // context of our native mobile app so that layout is consistent across native
             // mobile and everything else.
-            <div key={nodeKey++} style={{width: "100%", height: "100%"}}>
+            <div key={nodeKey++} style={nativeMobileOutletStyle}>
                 <UpdateMetaTitleContextProvider onUpdateMetaTitle={onUpdateMetaTitle}>
                     {error !== undefined ? (
                         <RootErrorRenderer
@@ -240,6 +242,37 @@ export default function Root() {
             </div>,
         );
     } else {
+        const renderedSpaceIds = new Set<unknown>();
+
+        const primarySpaceRouteMatch = dataRouterStateContext.matches.find(
+            match => match.route.id === "routes/s.$spaceId",
+        );
+
+        const getPrimaryNode = () =>
+            // NOTE(calebmer): There may be a cleaner way to handle errors. Since error
+            // handling only happens for the primary route, if an inert route has an error
+            // then nothing will be rendered in the inert route? That's probably fine.
+            error !== undefined ? (
+                <div key={nodeKey++} style={nativeMobileOutletStyle}>
+                    <RootErrorRenderer
+                        error={error}
+                        title={
+                            isRouteErrorResponse(routeError) && routeError.status === 404
+                                ? "Could not find content"
+                                : undefined
+                        }
+                    />
+                </div>
+            ) : (
+                <NativeMobileOutlet
+                    key={nodeKey++}
+                    parentRouteIds={rootNativeMobileOutletParentRouteIds}
+                    tracer={context.tracer.getRoot()}
+                    inertRouterState={null}
+                    onUpdateMetaTitle={onUpdateMetaTitle}
+                />
+            );
+
         // When in our native mobile app, we render multiple routes to the DOM at once!
         // We render the active route and we render previous routes in an inert state.
         // Inert routes are invisible and the user can't interact with them through
@@ -259,54 +292,63 @@ export default function Root() {
         // screen their state is entirely preserved.
         //
         // Keep in mind, it's not enough to unmount a route but preserve its loader
-        // data, then render a route again with the old loader data. This resets UI
-        // state like scroll position.
+        // data, then render a route again with the old loader data. Doing this would
+        // reset UI state like scroll position.
+        //
+        // Not all our inert routes are rendered here in `root.tsx`. Space inert routes
+        // are rendered in `s.$spaceId.tsx`. That way we can share space-level context
+        // across inert routes. Like the task realtime client.
         //
         // NOCOMMIT: Limit number of inert router states to 7 or so
         for (const inertRouterState of nativeMobileRouterState.inertRouterStates) {
-            nodes.push(
-                <NativeMobileRootOutlet
-                    // Previous rendered routes need to preserve their keys if a new route is
-                    // pushed. So the first route in our stack has a key of 1, the second 2, and so
-                    // on. Newly pushed routes get new keys.
-                    //
-                    // We can't use `location.key` because if the URL is replaced then
-                    // `location.key` changes but we don't want to fully remount our routes.
-                    key={nodeKey++}
-                    tracer={context.tracer.getRoot()}
-                    inertRouterState={inertRouterState}
-                    onUpdateMetaTitle={onUpdateMetaTitle}
-                />,
+            // Inert space routes that share the same `SpaceId` should be rendered under
+            // one `/s/:spaceId` route so they share the same space context components.
+            // So render the first `/s/:spaceId` route we see then trust that component to
+            // render the remaining inert router states.
+            const inertSpaceRouteMatch = inertRouterState.matches.find(
+                match => match.route.id === "routes/s.$spaceId",
             );
+            if (inertSpaceRouteMatch) {
+                if (renderedSpaceIds.has(inertSpaceRouteMatch.params.spaceId)) {
+                    continue;
+                } else {
+                    renderedSpaceIds.add(inertSpaceRouteMatch.params.spaceId);
+                }
+            }
+
+            // If our primary route is rendered in the same space as this inert route then
+            // render the primary route in this position with the current `nodeKey` to
+            // preserve the inert route's key path.
+            if (
+                primarySpaceRouteMatch &&
+                inertSpaceRouteMatch &&
+                primarySpaceRouteMatch.params.spaceId === inertSpaceRouteMatch.params.spaceId
+            ) {
+                nodes.push(getPrimaryNode());
+            } else {
+                nodes.push(
+                    <NativeMobileOutlet
+                        // Previous rendered routes need to preserve their keys if a new route is
+                        // pushed. So the first route in our stack has a key of 1, the second 2, and so
+                        // on. Newly pushed routes get new keys.
+                        //
+                        // We can't use `location.key` because if the URL is replaced then
+                        // `location.key` changes but we don't want to fully remount our routes.
+                        key={nodeKey++}
+                        parentRouteIds={rootNativeMobileOutletParentRouteIds}
+                        tracer={context.tracer.getRoot()}
+                        inertRouterState={inertRouterState}
+                        onUpdateMetaTitle={onUpdateMetaTitle}
+                    />,
+                );
+            }
         }
 
-        if (error !== undefined) {
-            // NOTE(calebmer): There's probably a cleaner way to handle errors. I believe
-            // what will happen is that if an error is pushed to `inertRouteStates` then
-            // `<NativeMobileRootOutlet>` will render nothing (since the error handler is
-            // here at the root level). If the route becomes active again then we
-            // completely re-render an entirely new `<RootErrorRenderer>` component.
-            nodes.push(
-                <div key={nodeKey++} style={{width: "100%", height: "100%"}}>
-                    <RootErrorRenderer
-                        error={error}
-                        title={
-                            isRouteErrorResponse(routeError) && routeError.status === 404
-                                ? "Could not find content"
-                                : undefined
-                        }
-                    />
-                </div>,
-            );
-        } else {
-            nodes.push(
-                <NativeMobileRootOutlet
-                    key={nodeKey++}
-                    tracer={context.tracer.getRoot()}
-                    inertRouterState={null}
-                    onUpdateMetaTitle={onUpdateMetaTitle}
-                />,
-            );
+        if (
+            !primarySpaceRouteMatch ||
+            !renderedSpaceIds.has(primarySpaceRouteMatch.params.spaceId)
+        ) {
+            nodes.push(getPrimaryNode());
         }
     }
 

@@ -279,7 +279,10 @@ export function TaskRealtimeClientContextProvider({
         // Only one `<TaskStoreContextProvider>` should be mounted at a time per-space
         // on the client. Error if another client exists and is mounted. Ok if another
         // client exists but is not mounted.
-        assert(!clientEntry.isMounted);
+        assert(
+            !clientEntry.isMounted,
+            "Another <TaskRealtimeClientContextProvider> is mounted for this space",
+        );
         clientEntry.isMounted = true;
 
         const subscriptionsStore = client.store.getSubscriptionsStore();

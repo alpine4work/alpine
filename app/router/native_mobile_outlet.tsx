@@ -12,20 +12,27 @@ import {
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {UpdateMetaTitleContextProvider} from "~/client/remix/use_update_meta_title.js";
 import {InternalError} from "~/shared/error/error.js";
-import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {noop} from "~/shared/helpers/control/noop.js";
+import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-// NOCOMMIT: Integration test this router??
-export function NativeMobileRootOutlet({
+export const nativeMobileOutletStyle = {width: "100%", height: "100%"};
+
+// NOCOMMIT: Integration test this router?? All navigation flows from
+// `NativeMobileBridge`. Outside of a space and inside of a space.
+export function NativeMobileOutlet({
+    parentRouteIds,
     tracer,
     inertRouterState,
     onUpdateMetaTitle,
+    className,
 }: {
+    parentRouteIds: ReadonlyArray<string>;
     tracer: TracerRoot;
     inertRouterState: RouterState | null;
     onUpdateMetaTitle: Memo<(title: string) => void>;
+    className?: string;
 }) {
     const isInert = inertRouterState !== null;
 
@@ -202,9 +209,16 @@ export function NativeMobileRootOutlet({
                 navigationType: inertRouterState.historyAction,
             };
 
-            assert(inertRouterState.matches[0]?.route.id === "root", "First match must be `root`");
-            const matches = inertRouterState.matches.slice(1);
-            const parentMatches = inertRouterState.matches.slice(0, 1);
+            for (let i = 0; i < parentRouteIds.length; i++) {
+                const parentRouteId = parentRouteIds[i]!;
+
+                if (inertRouterState.matches[i]?.route.id !== parentRouteId) {
+                    throw new InternalError(quote`Match index ${i} must be ${parentRouteId}`);
+                }
+            }
+
+            const matches = inertRouterState.matches.slice(parentRouteIds.length);
+            const parentMatches = inertRouterState.matches.slice(0, parentRouteIds.length);
 
             return {
                 dataRouterContext,
@@ -222,14 +236,15 @@ export function NativeMobileRootOutlet({
             currentNavigationContext,
             currentRouteContext.outlet,
             inertRouterState,
+            parentRouteIds,
             tracer,
         ]);
 
     return (
         <div
+            className={className}
             style={{
-                width: "100%",
-                height: "100%",
+                ...nativeMobileOutletStyle,
                 // While inert, remove the document from the content flow and make
                 // it invisible. `bottom: 0` is so that a tall inert route doesn't grow
                 // our `<body>`'s height.

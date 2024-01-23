@@ -4,9 +4,12 @@ import {Component, ReactNode, useContext, useEffect, useMemo, useRef} from "reac
 import {
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
     useLocation,
+    useParams,
     useRouteError,
 } from "react-router";
-import {Box} from "~/client/design/box.js";
+import {NativeMobileOutlet, nativeMobileOutletStyle} from "~/app/router/native_mobile_outlet.js";
+import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
+import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
 import {doubleClickDelayMs} from "~/client/design/timing_constants.js";
 import {
@@ -21,7 +24,9 @@ import {useLocalStorage} from "~/client/helpers/use_local_storage.js";
 import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
+import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/search/search_modal.js";
 import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
@@ -44,6 +49,7 @@ import {
     standardSearchOptions,
 } from "~/shared/search/search_options.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
+import {sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export const LoaderSchema = Schema.object({
@@ -104,6 +110,8 @@ const defaultSearchDebugOptionsSchema: SchemaType<typeof SearchDebugOptionsSchem
     options: standardSearchOptions,
 };
 
+const spaceNativeMobileOutletParentRouteIds = ["root", "routes/s.$spaceId"] as const;
+
 /**
  * Routes that render under `/s/$spaceId` should generally render
  * `<SpaceRouteScrollView>` as their parent since it contains best practices for
@@ -114,9 +122,12 @@ const defaultSearchDebugOptionsSchema: SchemaType<typeof SearchDebugOptionsSchem
 export default function SpaceLayoutRoute() {
     const dataRouterStateContext = assertExists(useContext(DataRouterStateContext));
     const location = useLocation();
+    const params = useParams();
     const error = useRouteError();
     const rawLoaderData = dataRouterStateContext.loaderData["routes/s.$spaceId"];
+    const context = useAppContext();
     const isInitialAppRender = useIsInitialAppRender();
+    const updateMetaTitle = useUpdateMetaTitle();
     const clientInfo = useClientInfo();
     const isMobile = useIsMobile();
 
@@ -201,6 +212,111 @@ export default function SpaceLayoutRoute() {
 
     const lastShiftKeyDownTimeRef = useRef<number | null>(null);
 
+    const nativeMobileRouterState = isNativeMobileRouterState(dataRouterStateContext)
+        ? dataRouterStateContext
+        : null;
+
+    const nodes = [];
+    let nodeKey = 1;
+
+    const outletContainerClassName = sprinkles({
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        position: "relative",
+        zIndex: "0",
+    });
+
+    if (!nativeMobileRouterState) {
+        nodes.push(
+            <div
+                key={nodeKey++}
+                className={outletContainerClassName}
+                style={nativeMobileOutletStyle}
+            >
+                <SpaceLayoutTopBar
+                    space={space}
+                    initialInbox={inbox}
+                    onSearchInputPress={() => {
+                        // Don't open the search modal on mobile.
+                        if (isMobile) return;
+
+                        setSearchState(searchState => {
+                            if (searchState) return searchState;
+                            return {initialQueryText: ""};
+                        });
+                    }}
+                />
+                {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
+            </div>,
+        );
+    } else {
+        // In our native mobile app, render all inert routes for this `SpaceId`. We
+        // render them here instead of `root.tsx` so we can share space context like
+        // the task realtime client.
+        //
+        // To learn more about inert route rendering, there's a comment in `root.tsx`
+        // on top of a similar loop over `nativeMobileRouterState.inertRouterStates`
+        // you can read.
+        for (const inertRouterState of nativeMobileRouterState.inertRouterStates) {
+            if (
+                !inertRouterState.matches.some(
+                    match =>
+                        match.route.id === "routes/s.$spaceId" &&
+                        match.params.spaceId === params.spaceId,
+                )
+            ) {
+                continue;
+            }
+
+            nodes.push(
+                <NativeMobileOutlet
+                    // Previous rendered routes need to preserve their keys if a new route is
+                    // pushed. So the first route in our stack has a key of 1, the second 2, and so
+                    // on. Newly pushed routes get new keys.
+                    //
+                    // We can't use `location.key` because if the URL is replaced then
+                    // `location.key` changes but we don't want to fully remount our routes.
+                    key={nodeKey++}
+                    parentRouteIds={spaceNativeMobileOutletParentRouteIds}
+                    tracer={context.tracer.getRoot()}
+                    inertRouterState={inertRouterState}
+                    onUpdateMetaTitle={updateMetaTitle}
+                    className={outletContainerClassName}
+                />,
+            );
+        }
+
+        nodes.push(
+            // NOTE(calebmer): There may be a cleaner way to handle errors. Since error
+            // handling only happens for the primary route, if an inert route has an error
+            // then nothing will be rendered in the inert route? That's probably fine.
+            error !== undefined ? (
+                <div
+                    key={nodeKey++}
+                    className={outletContainerClassName}
+                    style={nativeMobileOutletStyle}
+                >
+                    <SpaceRouteErrorRenderer error={error} />
+                </div>
+            ) : (
+                <NativeMobileOutlet
+                    key={nodeKey++}
+                    parentRouteIds={spaceNativeMobileOutletParentRouteIds}
+                    tracer={context.tracer.getRoot()}
+                    inertRouterState={null}
+                    onUpdateMetaTitle={updateMetaTitle}
+                    className={outletContainerClassName}
+                />
+            ),
+        );
+    }
+
+    // Put the latest item in the history stack first in the DOM.
+    if (nodes.length > 1) {
+        nodes.reverse();
+    }
+
     return (
         <GlobalKeyDownEvent
             onGlobalKeyDown={event => {
@@ -281,35 +397,9 @@ export default function SpaceLayoutRoute() {
                 >
                     <TaskRealtimeClientContextProvider spaceId={space.id}>
                         <ContextMenuManager />
-                        <Box
-                            display="flex"
-                            flexDirection="column"
-                            height="full"
-                            overflow="hidden"
-                            position="relative"
-                            zIndex="0"
-                        >
-                            <PeekStackContextProvider ref={peekStackRef}>
-                                <SpaceLayoutTopBar
-                                    space={space}
-                                    initialInbox={inbox}
-                                    onSearchInputPress={() => {
-                                        // Don't open the search modal on mobile.
-                                        if (isMobile) return;
-
-                                        setSearchState(searchState => {
-                                            if (searchState) return searchState;
-                                            return {initialQueryText: ""};
-                                        });
-                                    }}
-                                />
-                                {error !== undefined ? (
-                                    <SpaceRouteErrorRenderer error={error} />
-                                ) : (
-                                    <Outlet />
-                                )}
-                            </PeekStackContextProvider>
-                        </Box>
+                        <PeekStackContextProvider ref={peekStackRef}>
+                            {nodes}
+                        </PeekStackContextProvider>
                         {searchState && (
                             <SearchModalErrorBoundary>
                                 <SearchModal
