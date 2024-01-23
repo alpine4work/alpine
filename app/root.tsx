@@ -263,6 +263,7 @@ export default function Root() {
         : null;
 
     const nodes: Array<ReactNode> = [];
+    let nodeKey = 1;
 
     const onUpdateMetaTitle = useCallback((title: string) => {
         document.title = title;
@@ -273,7 +274,7 @@ export default function Root() {
             // Render a `<div>` around children even when we're not rendering in the
             // context of our native mobile app so that layout is consistent across native
             // mobile and everything else.
-            <div key={dataRouterStateContext.location.key} style={{width: "100%", height: "100%"}}>
+            <div key={nodeKey++} style={{width: "100%", height: "100%"}}>
                 <UpdateMetaTitleContextProvider onUpdateMetaTitle={onUpdateMetaTitle}>
                     {error !== undefined ? (
                         <RootErrorRenderer
@@ -291,34 +292,6 @@ export default function Root() {
             </div>,
         );
     } else {
-        if (error !== undefined) {
-            // NOTE(calebmer): There's probably a cleaner way to handle errors. I believe
-            // what will happen is that if an error is pushed to `inertRouteStates` then
-            // `<NativeMobileRootOutlet>` will render nothing (since the error handler is
-            // here at the root level). If the route becomes active again then we
-            // completely re-render an entirely new `<RootErrorRenderer>` component.
-            nodes.push(
-                <RootErrorRenderer
-                    key={dataRouterStateContext.location.key}
-                    error={error}
-                    title={
-                        isRouteErrorResponse(routeError) && routeError.status === 404
-                            ? "Could not find content"
-                            : undefined
-                    }
-                />,
-            );
-        } else {
-            nodes.push(
-                <NativeMobileRootOutlet
-                    key={dataRouterStateContext.location.key}
-                    tracer={context.tracer.getRoot()}
-                    inertRouterState={null}
-                    onUpdateMetaTitle={onUpdateMetaTitle}
-                />,
-            );
-        }
-
         // When in our native mobile app, we render multiple routes to the DOM at once!
         // We render the active route and we render previous routes in an inert state.
         // Inert routes are invisible and the user can't interact with them through
@@ -345,13 +318,52 @@ export default function Root() {
         for (const inertRouterState of nativeMobileRouterState.inertRouterStates) {
             nodes.push(
                 <NativeMobileRootOutlet
-                    key={inertRouterState.location.key}
+                    // Previous rendered routes need to preserve their keys if a new route is
+                    // pushed. So the first route in our stack has a key of 1, the second 2, and so
+                    // on. Newly pushed routes get new keys.
+                    //
+                    // We can't use `location.key` because if the URL is replaced then
+                    // `location.key` changes but we don't want to fully remount our routes.
+                    key={nodeKey++}
                     tracer={context.tracer.getRoot()}
                     inertRouterState={inertRouterState}
                     onUpdateMetaTitle={onUpdateMetaTitle}
                 />,
             );
         }
+
+        if (error !== undefined) {
+            // NOTE(calebmer): There's probably a cleaner way to handle errors. I believe
+            // what will happen is that if an error is pushed to `inertRouteStates` then
+            // `<NativeMobileRootOutlet>` will render nothing (since the error handler is
+            // here at the root level). If the route becomes active again then we
+            // completely re-render an entirely new `<RootErrorRenderer>` component.
+            nodes.push(
+                <RootErrorRenderer
+                    key={nodeKey++}
+                    error={error}
+                    title={
+                        isRouteErrorResponse(routeError) && routeError.status === 404
+                            ? "Could not find content"
+                            : undefined
+                    }
+                />,
+            );
+        } else {
+            nodes.push(
+                <NativeMobileRootOutlet
+                    key={nodeKey++}
+                    tracer={context.tracer.getRoot()}
+                    inertRouterState={null}
+                    onUpdateMetaTitle={onUpdateMetaTitle}
+                />,
+            );
+        }
+    }
+
+    // Put the latest item in the history stack first in the DOM.
+    if (nodes.length > 1) {
+        nodes.reverse();
     }
 
     const wrappedChildren = (
