@@ -1,6 +1,10 @@
 import UIKit
 
-class RootTabBarController: UITabBarController {
+class RootTabBarController: UITabBarController, SceneDelegateRootController {
+    init(spaceId _: String, session _: String) { super.init(nibName: nil, bundle: nil) }
+
+    required init?(coder: NSCoder) { fatalError("Unimplemented") }
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -67,6 +71,10 @@ class RootTabBarController: UITabBarController {
         }
 
         viewControllers = tabControllers
+    }
+
+    func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
+        // NOCOMMIT
     }
 }
 

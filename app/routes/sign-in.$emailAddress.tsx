@@ -10,10 +10,11 @@ import {Spacer} from "~/client/design/spacer.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useFetcherWithSchema} from "~/client/remix/use_fetcher_with_schema.js";
 import {attemptOneTimePasswordSignIn} from "~/server/accounts/accounts_table.js";
+import {getAlphaConfiguration} from "~/server/alpha/alpha_access_table.js";
 import {validateEmailAddress} from "~/server/emails/email_address.js";
 import {jsonWithSchema} from "~/server/remix/json_with_schema.js";
 import {LoaderArgs} from "~/server/remix/loader_context.js";
-import {InvalidArgumentError} from "~/shared/error/error.js";
+import {InternalError, InvalidArgumentError} from "~/shared/error/error.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {isSystemError} from "~/shared/error/is_system_error_code.js";
 import {Schema, SchemaType} from "~/shared/schema/schema.js";
@@ -89,6 +90,36 @@ export async function action({request, context, params}: LoaderArgs) {
                 userAgent: request.headers.get("user-agent"),
             },
         );
+
+        // If the user is signing in from the native mobile app, the native app is
+        // responsible for redirecting the user. Use a custom protocol to signal to the
+        // native app that it should take over.
+        if (context.loader.getClientInfo().isNativeMobile) {
+            // TODO(calebmer): If the account has multiple spaces we should probably route
+            // them to a space switcher?
+            const configuration = await getAlphaConfiguration(context);
+
+            if (!configuration.defaultSpaceId) {
+                throw new InternalError(
+                    "Expected `defaultSpaceId` in alpha configuration to sign in on mobile",
+                );
+            }
+
+            const url = new URL("cyberworlds://sign-in/finish");
+
+            url.searchParams.set("spaceId", configuration.defaultSpaceId);
+
+            url.searchParams.set(
+                "session",
+                await context.loader.tokenAgent.privateSide.dangerouslySignEternalSessionToken({
+                    type: "Session",
+                    sessionId,
+                    accountId: sessionAccountId,
+                }),
+            );
+
+            return redirect(url.toString());
+        }
 
         context.loader.sessionCookie.dangerouslySet({
             type: "Session",

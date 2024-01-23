@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+    The real value of `application-identifier` is
+    `$(AppIdentifierPrefix).$(CFBundleIdentifier)`. However, we can't use
+    `$(AppIdentifierPrefix)` without a provisioning profile. It would appear
+    that when building with XCode the team ID is used as
+    `$(AppIdentifierPrefix)` and it automatically adds these entitlements. So in
+    development use `XXXXXXXXXX` as a placeholder for `$(AppIdentifierPrefix)`.
+
+    See:
+    - https://github.com/bazelbuild/rules_apple/issues/106
+    - https://dkimitsa.github.io/2020/01/05/simulator-enabling-security-framework-err-34018-fix/
+    -->
+    <key>application-identifier</key>
+    <string>XXXXXXXXXX.$(CFBundleIdentifier)</string>
+    <key>keychain-access-groups</key>
+    <array>
+        <string>XXXXXXXXXX.$(CFBundleIdentifier)</string>
+    </array>
+</dict>
+</plist>

@@ -51,6 +51,7 @@
     </array>
     <key>WKAppBoundDomains</key>
     <array>
+        <string>localhost</string>
         <string>cyberworlds.dev</string>
         <string>alpine.inc</string>
     </array>

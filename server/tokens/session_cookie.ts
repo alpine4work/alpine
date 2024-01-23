@@ -84,6 +84,8 @@ export async function withSessionCookie(
     const oldSessionTokenPayload = await oldTokenPromise;
 
     if (newToken !== "Unset" && oldSessionTokenPayload !== newToken) {
+        console.log("SET SESSION COOKIE", response);
+
         const header = await getSessionCookieSetCookieHeader(tokenAgent.privateSide, newToken);
         response.headers.append("set-cookie", header);
     }

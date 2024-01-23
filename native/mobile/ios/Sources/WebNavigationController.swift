@@ -52,9 +52,11 @@ private let bridgeSource = """
     """
 
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
-    WKScriptMessageHandler
+    WKScriptMessageHandler, WKHTTPCookieStoreObserver
 {
     let baseUrl: URL
+    lazy private var baseUrlAbsoluteStringWithTrailingSlash = baseUrl.absoluteString + "/"
+
     let initialPath: String
     let webConfiguration: WKWebViewConfiguration
 
@@ -103,17 +105,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let clientInfoData = try! JSONSerialization.data(withJSONObject: clientInfo)
         let clientInfoString = String(data: clientInfoData, encoding: .utf8)!
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!
 
         let clientInfoCookie = HTTPCookie(properties: [
             .domain: baseUrl.host()!, .path: "/", .name: "client-info", .value: clientInfoString,
             .expires: NSDate(timeIntervalSinceNow: TimeInterval(60 * 60 * 24 * 365)),
         ])!
 
-        // NOCOMMIT: Add cookie to `webConfiguration.websiteDataStore.httpCookieStore`
-        //
-        // Appears to be broken:
-        // https://stackoverflow.com/questions/77866910/wkwebsitedatastore-doesn-t-show-cookie-from-setcookie-in-getallcookies
-        let _ = clientInfoCookie
+        webConfiguration.websiteDataStore.httpCookieStore.setCookie(clientInfoCookie)
 
         super.init(nibName: nil, bundle: nil)
 
@@ -149,6 +148,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let rootViewController = WebNavigationEntryController(url: url, webView: webView)
         viewControllers = [rootViewController]
+    }
+
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async
+        -> WKNavigationActionPolicy
+    {
+        let requestUrl = navigationAction.request.url!
+        let requestUrlAbsoluteString = requestUrl.absoluteString
+
+        // Don't allow requests outside of our `baseUrl`.
+        if !requestUrlAbsoluteString.starts(with: baseUrlAbsoluteStringWithTrailingSlash)
+            && requestUrlAbsoluteString != baseUrl.absoluteString
+        {
+            return .cancel
+        }
+
+        return .allow
     }
 
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {

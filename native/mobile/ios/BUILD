@@ -121,6 +121,11 @@ swift_library(
 ios_application(
     name = "app",
     bundle_id = "dev.cyberworlds.app",
+    entitlements = select({
+        ":development_run_environment": "Resources/EntitlementsDevelopment.entitlements",
+        ":production_run_environment": "Resources/EntitlementsProduction.entitlements",
+        ":test_run_environment": "Resources/EntitlementsDevelopment.entitlements",
+    }),
     families = [
         "iphone",
         "ipad",
