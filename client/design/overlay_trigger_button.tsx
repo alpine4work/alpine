@@ -437,6 +437,8 @@ function OverlayTriggerButton(
         }
     };
 
+    const pendingTriggeredOverlayCloseRef = useRef<(() => void) | null>(null);
+
     return (
         <OverlayAnimated
             // Menus opened with `<OverlayTriggerButton>` block you from interacting with
@@ -467,24 +469,39 @@ function OverlayTriggerButton(
                 const overlayTriggerElement = overlayTriggerRef.current;
                 if (!overlayTriggerElement) return;
 
+                if (pendingTriggeredOverlayCloseRef.current !== null) {
+                    pendingTriggeredOverlayCloseRef.current();
+                    pendingTriggeredOverlayCloseRef.current = null;
+                }
+
                 // Overlay trigger buttons may attach custom event listeners to their DOM
                 // element if they'd like to know if their overlay is open or closed.
                 if (isActuallyVisible) {
                     (overlayTriggerElement as any)[onTriggeredOverlayOpenSymbol]?.();
                 } else {
-                    const pointerOverListener = () => {
-                        // Wait for a `pointerover` event to fire before marking our triggered overlay
-                        // as closed. This prevents a race condition where buttons briefly flash with
-                        // no background color because the new `pointerenter` event hasn't fired on the
-                        // button setting its state to hovered.
+                    pendingTriggeredOverlayCloseRef.current = () => {
                         (overlayTriggerElement as any)[onTriggeredOverlayCloseSymbol]?.();
-
-                        document.removeEventListener("pointerover", pointerOverListener, {
-                            capture: true,
-                        });
                     };
 
-                    document.addEventListener("pointerover", pointerOverListener, {capture: true});
+                    // The double `requestAnimationFrame()` is for overlay triggers which use
+                    // `<IconButton variant="quiet">` or `<Button variant="quiet">`. These
+                    // components show a background color when they're either hovered or their
+                    // overlay is open. When their overlay is open, because `isBlocking` is true
+                    // there's a cover element over the DOM to prevent pointer interactions from
+                    // going to the underlying UI. When the overlay closes, this cover element is
+                    // removed and `pointerover` is fired on the button (if the mouse hasn't moved)
+                    // so it considers itself hovered again. However, there's a small delay between
+                    // the cover being removed and `pointerover` being fired. Two animation frames
+                    // of delay in fact. So wait two animation frames so the button's background
+                    // doesn't flicker when the overlay closes.
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            if (pendingTriggeredOverlayCloseRef.current !== null) {
+                                pendingTriggeredOverlayCloseRef.current();
+                                pendingTriggeredOverlayCloseRef.current = null;
+                            }
+                        });
+                    });
                 }
             }}
         >
