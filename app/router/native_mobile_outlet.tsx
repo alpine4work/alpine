@@ -209,8 +209,14 @@ export function NativeMobileOutlet({
                 navigationType: inertRouterState.historyAction,
             };
 
+            let hasErrorInParentRoute = false;
+
             for (let i = 0; i < parentRouteIds.length; i++) {
                 const parentRouteId = parentRouteIds[i]!;
+
+                if (inertRouterState.errors?.[parentRouteId]) {
+                    hasErrorInParentRoute = true;
+                }
 
                 if (inertRouterState.matches[i]?.route.id !== parentRouteId) {
                     throw new InternalError(quote`Match index ${i} must be ${parentRouteId}`);
@@ -225,9 +231,17 @@ export function NativeMobileOutlet({
                 dataRouterStateContext: inertRouterState,
                 navigationContext,
                 locationContext,
-                outlet: renderMatches(matches, parentMatches, inertRouterState, {
-                    disableErrorBoundaryForFirstMatch: true,
-                }),
+                outlet: !hasErrorInParentRoute
+                    ? renderMatches(matches, parentMatches, inertRouterState, {
+                          disableErrorBoundaryForFirstMatch: true,
+                      })
+                    : // If there's an error in the parent route, we render nothing for our inert
+                      // route. If the inert route becomes the primary route again then the error
+                      // component is completely remounted.
+                      //
+                      // `renderMatches()` throws an error if you try to render with errors in a
+                      // parent route.
+                      null,
             };
         }, [
             currentDataRouterContext,
