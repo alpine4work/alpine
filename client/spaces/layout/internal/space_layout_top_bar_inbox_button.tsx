@@ -392,9 +392,6 @@ export function SpaceLayoutTopBarInboxButton({
                     description="Notifications"
                     // When you hover over the notification bell we open a notification preview.
                     withoutTooltip={true}
-                    // The notification count renders outside the bounds of the icon button. Don't
-                    // clip it!
-                    disableOverflowHidden={true}
                     pressErrorTitle="Couldn’t open notifications"
                     onPress={async () => {
                         try {

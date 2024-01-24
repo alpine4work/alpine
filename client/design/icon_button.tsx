@@ -156,14 +156,6 @@ function IconButton(
         isTabbable?: boolean;
 
         /**
-         * Disable the `overflow="hidden"` style.
-         */
-        // NOTE(calebmer): Don't remember why I added `overflow="hidden"` in the first
-        // place. At least this prop makes it explicit that the component expects
-        // no overflow.
-        disableOverflowHidden?: boolean;
-
-        /**
          * Called when we start hovering the button.
          */
         onHoverStart?: () => void;
@@ -205,7 +197,6 @@ function IconButton(
         tooltipContentOverride,
         isTooltipVisibleWhenFocused = true,
         isTabbable = true,
-        disableOverflowHidden = false,
         onHoverStart,
         onHoverEnd,
         onPointerLeave,
@@ -337,23 +328,27 @@ function IconButton(
               },
     };
 
-    const {buttonSize, iconSize} = (
+    const {buttonSize, iconSize, touchSlopInset} = (
         {
             base: {
                 buttonSize: spacing["7"],
                 iconSize: spacing["5"],
+                touchSlopInset: "-2",
             },
             md: {
                 buttonSize: spacing["6"],
                 iconSize: spacing["4"],
+                touchSlopInset: "-1.5",
             },
             sm: {
                 buttonSize: spacing["5"],
                 iconSize: spacing["4"],
+                touchSlopInset: "-1",
             },
             xs: {
                 buttonSize: spacing["4"],
                 iconSize: spacing["3"],
+                touchSlopInset: "0",
             },
         } as const
     )[size];
@@ -407,7 +402,6 @@ function IconButton(
                         justifyContent: "center",
                         alignItems: "center",
                         borderRadius,
-                        overflow: !disableOverflowHidden ? "hidden" : undefined,
                         // You may notice our button doesn't have a pointer cursor. See:
                         // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
                         cursor: "default",
@@ -428,6 +422,22 @@ function IconButton(
                     // parent element has lost focus.
                     disabled={isPending && !isDisabled ? undefined : buttonProps.disabled}
                 >
+                    {touchSlopInset !== "0" && (
+                        // Give the user more space to hit the button. This is especially important on
+                        // mobile where [we want at least 44px by 44px][1] of hit region per touchable
+                        // target.
+                        //
+                        // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
+                        <span
+                            className={sprinkles({
+                                display: "block",
+                                position: "absolute",
+                                inset: touchSlopInset,
+                                zIndex: "-10",
+                                borderRadius: "full",
+                            })}
+                        />
+                    )}
                     {isPressed && variant === "accent" && (
                         // For accent buttons, instead of choosing a darker background color shade when
                         // pressed we add a black overlay at a lowered opacity. We accomplish this with
@@ -441,6 +451,7 @@ function IconButton(
                         // pressed down.
                         <span
                             className={sprinkles({
+                                display: "block",
                                 position: "absolute",
                                 zIndex: "50",
                                 inset: "0",

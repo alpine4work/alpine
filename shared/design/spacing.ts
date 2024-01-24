@@ -53,6 +53,15 @@ export type Spacing = keyof typeof spacing;
  *
  * We use rems to represent our spacing scale. This allows us to easily adjust
  * the platform scale.
+ *
+ * Important values:
+ *
+ * - Our default font size (`75`) has a line height of `4`
+ * - As a general rule, buttons should have a hit region of at least `9` (aka
+ *   45px on mobile, [Apple recommends a 44px minimum hit region][1])
+ * - Peek content typically has a width of `128`
+ *
+ * [1]: https://developer.apple.com/design/human-interface-guidelines/buttons
  */
 export const spacing = {
     "0": "0rem",
