@@ -140,7 +140,10 @@ class RootTabController: UIViewController {
         extendedLayoutIncludesOpaqueBars = true
 
         self.title = title
-        self.tabBarItem = UITabBarItem(title: title, image: image, selectedImage: image)
+
+        // Only show icon in tab bar item. No word. With word it looks a little busy.
+        // The icons we use are also fairly universally understood.
+        tabBarItem = UITabBarItem(title: "", image: image, selectedImage: image)
     }
 
     required init?(coder: NSCoder) { fatalError("Unimplemented") }

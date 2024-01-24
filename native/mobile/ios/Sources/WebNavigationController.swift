@@ -116,6 +116,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         super.init(nibName: nil, bundle: nil)
 
+        // Web code is responsible for displaying a navigation bar.
+        navigationBar.isHidden = true
+
         // Render content underneath opaque bars like the tab bar. We make sure content
         // isn't hidden by opaque bars in web code.
         extendedLayoutIncludesOpaqueBars = true
