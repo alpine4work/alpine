@@ -36,7 +36,9 @@ export function getTaskStatusMenuActions({
             return [
                 {
                     label: "Mark active",
-                    icon: <TaskDisplayStatusCircle displayStatus="OpenActive" size="3" />,
+                    icon: ({size}) => (
+                        <TaskDisplayStatusCircle displayStatus="OpenActive" size={size} />
+                    ),
                     iconPlacement: "end",
                     onPress: () => {
                         const time1 = store.clock.now();
@@ -92,7 +94,9 @@ export function getTaskStatusMenuActions({
                 },
                 {
                     label: "Mark closed",
-                    icon: <TaskDisplayStatusCircle displayStatus="Closed" size="3" />,
+                    icon: ({size}) => (
+                        <TaskDisplayStatusCircle displayStatus="Closed" size={size} />
+                    ),
                     iconPlacement: "end",
                     onPress: () => {
                         const time = store.clock.now();
@@ -127,7 +131,9 @@ export function getTaskStatusMenuActions({
             return [
                 {
                     label: "Mark inactive",
-                    icon: <TaskDisplayStatusCircle displayStatus="OpenInactive" size="3" />,
+                    icon: ({size}) => (
+                        <TaskDisplayStatusCircle displayStatus="OpenInactive" size={size} />
+                    ),
                     iconPlacement: "end",
                     onPress: () => {
                         const time = store.clock.now();
@@ -151,7 +157,9 @@ export function getTaskStatusMenuActions({
                 },
                 {
                     label: "Mark closed",
-                    icon: <TaskDisplayStatusCircle displayStatus="Closed" size="3" />,
+                    icon: ({size}) => (
+                        <TaskDisplayStatusCircle displayStatus="Closed" size={size} />
+                    ),
                     iconPlacement: "end",
                     onPress: () => {
                         const time = store.clock.now();

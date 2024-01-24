@@ -29,6 +29,7 @@ import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {isReadonlyArray} from "~/shared/helpers/array/is_readonly_array.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
@@ -62,7 +63,7 @@ type MenuStandardAction = {
     /**
      * An optional icon element rendered next to the action label.
      */
-    readonly icon?: ReactNode | ((props: {isDisabled: boolean}) => ReactNode);
+    readonly icon?: ReactNode | ((props: {size: "3" | "4"; isDisabled: boolean}) => ReactNode);
 
     /**
      * Is the icon at the front or back of the menu item? Defaults to `start`.
@@ -170,12 +171,55 @@ type MenuCustomAction = {
     }) => ReactNode;
 };
 
-export type MenuWidth = "32" | "48" | "64";
+export type MenuSize = "base" | "lg" | "xl";
 export type MenuMaxHeight = "48" | "64" | "96";
-export type MenuIconSize = "3" | "4";
 
-export const defaultMenuWidth: MenuWidth = "32";
-export const defaultMenuIconSize: MenuIconSize = "3";
+export const menuSizeConstants: {
+    [Key in MenuSize]: {
+        [Key in "desktop" | "mobile"]: {
+            width: Spacing;
+            iconSize: "3" | "4";
+            itemPaddingY: Spacing;
+        };
+    };
+} = {
+    base: {
+        desktop: {
+            width: "32",
+            iconSize: "3",
+            itemPaddingY: "1",
+        },
+        mobile: {
+            width: "48",
+            iconSize: "4",
+            itemPaddingY: "1.5",
+        },
+    },
+    lg: {
+        desktop: {
+            width: "48",
+            iconSize: "3",
+            itemPaddingY: "1",
+        },
+        mobile: {
+            width: "48",
+            iconSize: "4",
+            itemPaddingY: "1.5",
+        },
+    },
+    xl: {
+        desktop: {
+            width: "64",
+            iconSize: "4",
+            itemPaddingY: "1.5",
+        },
+        mobile: {
+            width: "64",
+            iconSize: "4",
+            itemPaddingY: "1.5",
+        },
+    },
+};
 
 /**
  * A menu button is a button which opens a menu overlay. The menu overlay
@@ -188,9 +232,8 @@ export const defaultMenuIconSize: MenuIconSize = "3";
 export function MenuButton({
     actions,
     placement = "bottom-start",
-    width = defaultMenuWidth,
+    size = "base",
     maxHeight,
-    iconSize = defaultMenuIconSize,
     offset = defaultTooltipOffset,
     offsetAlong,
     children,
@@ -216,21 +259,19 @@ export function MenuButton({
     placement?: OverlayPlacement;
 
     /**
-     * The width of items in our menu. Defaults to `32`.
+     * The size of our menu. Defaults to `base`.
+     *
+     * On mobile, `base` menus get larger to accommodate less precise input
+     * mechanisms (fingers). Items grow to `lg` size even if the menu width as a
+     * whole doesn't.
      */
-    width?: MenuWidth;
+    size?: MenuSize;
 
     /**
      * The maximum height of the menu. If none is provided the menu will grow
      * indefinitely.
      */
     maxHeight?: MenuMaxHeight;
-
-    /**
-     * The size of icons in the menu. Defaults to `3` which means items with icons
-     * will have the same layout as items without icons.
-     */
-    iconSize?: MenuIconSize;
 
     /**
      * Offset of the menu from the target.
@@ -275,9 +316,8 @@ export function MenuButton({
                 <Menu
                     actions={actions}
                     placement={placement}
-                    width={width}
+                    size={size}
                     maxHeight={maxHeight}
-                    iconSize={iconSize}
                     onCloseWithAnimation={onCloseWithAnimation}
                     onCloseWithoutAnimation={onCloseWithoutAnimation}
                     shouldNotCloseAfterActionPress={shouldNotCloseAfterActionPress}
@@ -299,28 +339,30 @@ export function MenuButton({
  */
 export const Menu = forwardRef(function Menu(
     {
+        size = "base",
         actions: nestedActions,
         placement,
-        width = defaultMenuWidth,
         maxHeight,
-        iconSize = defaultMenuIconSize,
         onCloseWithAnimation,
         onCloseWithoutAnimation,
         shouldNotCloseAfterActionPress,
     }: {
+        size?: MenuSize;
         actions:
             | (ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>)
             | (() => ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>);
         placement?: OverlayPlacement;
-        width?: MenuWidth;
         maxHeight?: MenuMaxHeight;
-        iconSize?: MenuIconSize;
         onCloseWithAnimation: () => void;
         onCloseWithoutAnimation: () => void;
         shouldNotCloseAfterActionPress?: boolean;
     },
     ref: Ref<HTMLDivElement>,
 ) {
+    const isMobile = useIsMobile();
+
+    const {width, itemPaddingY} = menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+
     const flattenedActions = useMemo(() => {
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
             [];
@@ -599,8 +641,7 @@ export const Menu = forwardRef(function Menu(
                             <MenuItem
                                 key={index}
                                 ref={menuItemRefs[index]}
-                                width={width}
-                                iconSize={iconSize}
+                                size={size}
                                 action={action.action}
                                 parentPlacement={placement}
                                 onCloseWithAnimation={onCloseWithAnimation}
@@ -621,8 +662,7 @@ const defaultMenuItemPressErrorTitle = "The menu option you pressed didn’t wor
 
 export const MenuItem = forwardRef(function MenuItem(
     {
-        width = defaultMenuWidth,
-        iconSize = defaultMenuIconSize,
+        size = "base",
         action,
         parentPlacement,
         onCloseWithAnimation,
@@ -631,8 +671,7 @@ export const MenuItem = forwardRef(function MenuItem(
         isFocusRingVisible = false,
         shouldNotCloseAfterPress = false,
     }: {
-        width?: MenuWidth;
-        iconSize?: MenuIconSize;
+        size?: MenuSize;
         action: MenuAction;
         parentPlacement?: OverlayPlacement;
         onCloseWithAnimation: () => void;
@@ -679,8 +718,7 @@ export const MenuItem = forwardRef(function MenuItem(
                 {({skipHoverDelay}) => (
                     <MenuStandardItem
                         ref={ref}
-                        width={width}
-                        iconSize={iconSize}
+                        size={size}
                         menuItemId={id}
                         action={action}
                         onCloseWithAnimation={onCloseWithAnimation}
@@ -697,8 +735,7 @@ export const MenuItem = forwardRef(function MenuItem(
         return (
             <MenuStandardItem
                 ref={ref}
-                width={width}
-                iconSize={iconSize}
+                size={size}
                 menuItemId={id}
                 action={action}
                 onCloseWithAnimation={onCloseWithAnimation}
@@ -713,8 +750,7 @@ export const MenuItem = forwardRef(function MenuItem(
 
 const MenuStandardItem = forwardRef(function MenuStandardItem(
     {
-        width,
-        iconSize,
+        size,
         menuItemId,
         action,
         onCloseWithAnimation,
@@ -724,8 +760,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
         isFocusRingVisible,
         shouldNotCloseAfterPress,
     }: {
-        width: MenuWidth;
-        iconSize: MenuIconSize;
+        size: MenuSize;
         menuItemId: string;
         action: MenuStandardAction;
         onCloseWithAnimation: () => void;
@@ -737,7 +772,12 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
     },
     ref: Ref<HTMLDivElement>,
 ) {
+    const isMobile = useIsMobile();
     const showToast = useShowToast();
+
+    const {width, iconSize, itemPaddingY} =
+        menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+
     const [pendingState, setPendingState] = useState<
         | {isPending: false; shouldShowPendingSpinner: false}
         | {isPending: true; shouldShowPendingSpinner: boolean}
@@ -857,7 +897,9 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     weight: "regular",
                 }}
             >
-                {typeof action.icon === "function" ? action.icon({isDisabled}) : action.icon}
+                {typeof action.icon === "function"
+                    ? action.icon({size: iconSize, isDisabled})
+                    : action.icon}
             </IconContext.Provider>
         </Box>
     );
@@ -880,7 +922,7 @@ const MenuStandardItem = forwardRef(function MenuStandardItem(
                     : {})}
                 width={width}
                 paddingX="2"
-                paddingY={action.icon && iconSize === "4" ? "1.5" : "1"}
+                paddingY={itemPaddingY}
                 borderRadius="base"
                 // NOTE(calebmer): We don't have a red destructive menu item style because it
                 // seems silly to call attention to the destructive action with color.

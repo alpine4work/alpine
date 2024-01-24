@@ -57,8 +57,7 @@ export function TaskLayoutTopBar({
                 isCollectionsTabActive={isCollectionsTabActive}
             />
             <MenuButton
-                width="64"
-                iconSize="4"
+                size="xl"
                 actions={[
                     [
                         {

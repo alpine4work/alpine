@@ -85,7 +85,7 @@ export function TaskNotepadViewPaginator({
                 Fresh page
             </Button>
             <MenuButton
-                width="48"
+                size="lg"
                 maxHeight="64"
                 placement="bottom-end"
                 actions={useCallback(() => {
