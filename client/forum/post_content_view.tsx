@@ -18,6 +18,7 @@ import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js"
 import {MessageList} from "~/client/messaging/message_list.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {
@@ -71,6 +72,7 @@ export function PostContentView({
     onTogglePostComments: () => void;
     onLoadInitialPostComments: () => Promise<void>;
 }) {
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
 
     return (
@@ -105,7 +107,11 @@ export function PostContentView({
                                 : []),
                         ]}
                     >
-                        <IconButton size="md" description="More" withoutTooltip={true}>
+                        <IconButton
+                            size={isMobile ? "base" : "md"}
+                            description="More"
+                            withoutTooltip={true}
+                        >
                             <DotsThree />
                         </IconButton>
                     </MenuButton>

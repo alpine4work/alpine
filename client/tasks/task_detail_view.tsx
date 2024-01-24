@@ -903,7 +903,11 @@ function TaskDetailViewMain(
                             right={assertSpacing(`${parseInt(paddingX, 10) - 2}`)}
                         >
                             <MenuButton actions={contextMenuActions}>
-                                <IconButton size="md" description="More" withoutTooltip={true}>
+                                <IconButton
+                                    size={isMobile ? "base" : "md"}
+                                    description="More"
+                                    withoutTooltip={true}
+                                >
                                     <DotsThree />
                                 </IconButton>
                             </MenuButton>

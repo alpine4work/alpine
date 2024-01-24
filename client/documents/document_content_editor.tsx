@@ -42,6 +42,7 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     addRemLengths,
     convertRemLengthToPx,
@@ -174,6 +175,7 @@ function DocumentContentEditorStateful({
 
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice} = useClientInfo();
+    const isMobile = useIsMobile();
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -878,7 +880,11 @@ function DocumentContentEditorStateful({
                                 ...contextMenuActions,
                             ]}
                         >
-                            <IconButton size="md" description="More" withoutTooltip={true}>
+                            <IconButton
+                                size={isMobile ? "base" : "md"}
+                                description="More"
+                                withoutTooltip={true}
+                            >
                                 <DotsThree />
                             </IconButton>
                         </MenuButton>
