@@ -54,8 +54,13 @@ private let bridgeSource = """
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
     WKScriptMessageHandler, WKHTTPCookieStoreObserver
 {
-    let baseUrl: URL
-    lazy private var baseUrlAbsoluteStringWithTrailingSlash = baseUrl.absoluteString + "/"
+    #if PRODUCTION_RUN_ENVIRONMENT
+        static let baseUrl = URL(string: "https://cyberworlds.dev")!
+    #else
+        static let baseUrl = URL(string: "http://localhost:3000")!
+    #endif
+
+    static private var baseUrlAbsoluteStringWithTrailingSlash = baseUrl.absoluteString + "/"
 
     let initialPath: String
     let webConfiguration: WKWebViewConfiguration
@@ -65,12 +70,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
-        #if PRODUCTION_RUN_ENVIRONMENT
-            baseUrl = URL(string: "https://cyberworlds.dev")!
-        #else
-            baseUrl = URL(string: "http://localhost:3000")!
-        #endif
-
         self.initialPath = initialPath
 
         webConfiguration = WKWebViewConfiguration()
@@ -108,7 +107,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!
 
         let clientInfoCookie = HTTPCookie(properties: [
-            .domain: baseUrl.host()!, .path: "/", .name: "client-info", .value: clientInfoString,
+            .domain: WebNavigationController.baseUrl.host()!, .path: "/", .name: "client-info",
+            .value: clientInfoString,
             .expires: NSDate(timeIntervalSinceNow: TimeInterval(60 * 60 * 24 * 365)),
         ])!
 
@@ -142,7 +142,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             if #available(iOS 16.4, *) { webView.isInspectable = true }
         #endif
 
-        let url = URL(string: initialPath, relativeTo: baseUrl)!
+        let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
         let request = URLRequest(url: url)
         webView.load(request)
 
@@ -157,9 +157,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let requestUrlAbsoluteString = requestUrl.absoluteString
 
         // Don't allow requests outside of our `baseUrl`.
-        if !requestUrlAbsoluteString.starts(with: baseUrlAbsoluteStringWithTrailingSlash)
-            && requestUrlAbsoluteString != baseUrl.absoluteString
-        {
+        if !requestUrlAbsoluteString.starts(
+            with: WebNavigationController.baseUrlAbsoluteStringWithTrailingSlash
+        ) && requestUrlAbsoluteString != WebNavigationController.baseUrl.absoluteString {
             return .cancel
         }
 

@@ -84,8 +84,6 @@ export async function withSessionCookie(
     const oldSessionTokenPayload = await oldTokenPromise;
 
     if (newToken !== "Unset" && oldSessionTokenPayload !== newToken) {
-        console.log("SET SESSION COOKIE", response);
-
         const header = await getSessionCookieSetCookieHeader(tokenAgent.privateSide, newToken);
         response.headers.append("set-cookie", header);
     }
@@ -101,12 +99,15 @@ async function getSessionCookieSetCookieHeader(
         ? await tokenAgentPrivateSide.dangerouslySignEternalSessionToken(token)
         : "";
 
+    // If you update the cookie configuration here, you also need to update where
+    // we set the cookie in our native mobile apps. For iOS we currently construct
+    // the cookie in the file `RootTabBarController.swift`.
     return serialize("session", cookieString, {
         // The session cookie domain is not set in development because we may be
         // accessing from a proxied domain or an IP address on a mobile device.
         domain: process.env.NODE_ENV === "production" ? "cyberworlds.dev" : undefined,
-        httpOnly: true,
         path: "/",
+        httpOnly: true,
         sameSite: "lax",
         // Only allow the session cookie to be sent over HTTPS in production. In
         // development we use plain HTTP.

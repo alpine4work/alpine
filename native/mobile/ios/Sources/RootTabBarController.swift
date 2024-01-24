@@ -1,12 +1,50 @@
 import UIKit
+import WebKit
 
-class RootTabBarController: UITabBarController, SceneDelegateRootController {
-    init(spaceId _: String, session _: String) { super.init(nibName: nil, bundle: nil) }
+class RootTabBarController: UITabBarController, SceneDelegateRootController,
+    UITabBarControllerDelegate
+{
+    let spaceId: String
+    let webNavigationController: WebNavigationController
 
-    required init?(coder: NSCoder) { fatalError("Unimplemented") }
+    init(spaceId: String, session: String) {
+        self.spaceId = spaceId
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
+        // We use a non-persistent store while the user is signed out, but once they're
+        // signed in we remember their `localStorage`, cookies, etc.
+        let websiteDataStore = WKWebsiteDataStore.default()
+
+        let sessionCookieProperties: [HTTPCookiePropertyKey: Any] = [
+            .name: "session", .value: session, .domain: WebNavigationController.baseUrl.host()!,
+            .path: "/",
+            // iOS doesn't have a constant for the `HttpOnly` key so manually initialize.
+            // https://forums.developer.apple.com/forums/thread/701770
+            .init(rawValue: "HttpOnly"): true, .sameSitePolicy: HTTPCookieStringPolicy.sameSiteLax,
+            .expires: NSDate(timeIntervalSinceNow: TimeInterval(60 * 60 * 24 * 365)),
+        ]
+
+        #if PRODUCTION_RUN_ENVIRONMENT
+            sessionCookieProperties[.secure] = true
+        #endif
+
+        // This cookie needs to be the same as the session cookie created in
+        // `session_cookie.ts`. We set the cookie within our native mobile app shell
+        // instead of on the server for our native mobile app.
+        let sessionCookie = HTTPCookie(properties: sessionCookieProperties)!
+
+        // Make sure our `.init(rawValue: "HttpOnly")` worked.
+        assert(sessionCookie.isHTTPOnly)
+
+        websiteDataStore.httpCookieStore.setCookie(sessionCookie)
+
+        webNavigationController = WebNavigationController(
+            initialPath: "/s/\(spaceId)/tasks",
+            websiteDataStore: websiteDataStore
+        )
+
+        super.init(nibName: nil, bundle: nil)
+
+        delegate = self
 
         let appearance = UITabBarAppearance()
         let itemAppearance = UITabBarItemAppearance()
@@ -37,65 +75,66 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController {
         tabBar.standardAppearance = appearance
         tabBar.scrollEdgeAppearance = appearance
 
-        let homeTabController = RootTabController()
-        homeTabController.title = "Home"
-        homeTabController.image = UIImage(named: "HouseIcon")!
+        let homeTabController = RootTabController(
+            title: "Home",
+            image: UIImage(named: "HouseIcon")!
+        )
 
-        let searchTabController = RootTabController()
-        searchTabController.title = "Search"
-        searchTabController.image = UIImage(named: "MagnifyingGlassIcon")!
+        let searchTabController = RootTabController(
+            title: "Search",
+            image: UIImage(named: "MagnifyingGlassIcon")!
+        )
 
-        let createTabController = RootTabController()
-        createTabController.title = "Create"
-        createTabController.image = UIImage(named: "PlusIcon")!
+        let createTabController = RootTabController(
+            title: "Create",
+            image: UIImage(named: "PlusIcon")!
+        )
 
-        let inboxTabController = RootTabController()
-        inboxTabController.title = "Inbox"
-        inboxTabController.image = UIImage(named: "BellIcon")!
+        let inboxTabController = RootTabController(
+            title: "Inbox",
+            image: UIImage(named: "BellIcon")!
+        )
 
-        let moreTabController = RootTabController()
-        moreTabController.title = "More"
-        moreTabController.image = UIImage(named: "ListIcon")!
+        let moreTabController = RootTabController(title: "More", image: UIImage(named: "ListIcon")!)
 
         let tabControllers = [
             homeTabController, searchTabController, createTabController, inboxTabController,
             moreTabController,
         ]
 
-        for tabController in tabControllers {
-            tabController.tabBarItem = UITabBarItem(
-                title: tabController.title,
-                image: tabController.image,
-                selectedImage: tabController.image
-            )
-        }
-
         viewControllers = tabControllers
+
+        selectedViewController!.view.addSubview(webNavigationController.view)
     }
 
+    required init?(coder: NSCoder) { fatalError("Unimplemented") }
+
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
-        // NOCOMMIT
+        webNavigationController.setWindowSafeAreaInsets(windowSafeAreaInsets)
+    }
+
+    func tabBarController(
+        _ tabBarController: UITabBarController,
+        didSelect viewController: UIViewController
+    ) {
+        // We only have one underlying web view for each tab. So whenever the user
+        // switches the tab, move our web view to the new tab.
+        webNavigationController.view.removeFromSuperview()
+        viewController.view.addSubview(webNavigationController.view)
     }
 }
 
 class RootTabController: UIViewController {
-    var image: UIImage?
+    let image: UIImage
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    init(title: String, image: UIImage) {
+        self.image = image
 
-        view.backgroundColor = UIColor.white
+        super.init(nibName: nil, bundle: nil)
 
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = title
-        label.textColor = UIColor.black
-
-        view.addSubview(label)
-
-        NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: self.view.centerXAnchor),
-            label.centerYAnchor.constraint(equalTo: self.view.centerYAnchor),
-        ])
+        self.title = title
+        self.tabBarItem = UITabBarItem(title: title, image: image, selectedImage: image)
     }
+
+    required init?(coder: NSCoder) { fatalError("Unimplemented") }
 }
