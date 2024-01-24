@@ -82,7 +82,7 @@ export function PostContentView({
                 <Box
                     position="absolute"
                     top={assertSpacing(`${parseInt(postContentViewPaddingY, 10) - 2}`)}
-                    right={assertSpacing(`${parseInt(paddingX, 10) - 2}`)}
+                    right={assertSpacing(`${parseInt(postContentViewPaddingY, 10) - 2}`)}
                 >
                     <MenuButton
                         actions={[
