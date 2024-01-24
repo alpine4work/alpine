@@ -17,7 +17,7 @@ import {
     isRouteErrorResponse,
     useRouteError,
 } from "react-router";
-import {NativeMobileOutlet, nativeMobileOutletStyle} from "~/app/router/native_mobile_outlet.js";
+import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {AccountClientStoreContextProvider} from "~/client/accounts/account_client_store_context_provider.js";
 import {AppContextProvider, useAppContext} from "~/client/context/app_context.js";
@@ -219,12 +219,14 @@ export default function Root() {
         document.title = title;
     }, []);
 
+    const outletContainerStyle = {minHeight: "100vh"};
+
     if (!nativeMobileRouterState) {
         nodes.push(
             // Render a `<div>` around children even when we're not rendering in the
             // context of our native mobile app so that layout is consistent across native
             // mobile and everything else.
-            <div key={nodeKey++} style={nativeMobileOutletStyle}>
+            <div key={nodeKey++} style={outletContainerStyle}>
                 <UpdateMetaTitleContextProvider onUpdateMetaTitle={onUpdateMetaTitle}>
                     {error !== undefined ? (
                         <RootErrorRenderer
@@ -253,7 +255,7 @@ export default function Root() {
             // handling only happens for the primary route, if an inert route has an error
             // then nothing will be rendered in the inert route? That's probably fine.
             error !== undefined ? (
-                <div key={nodeKey++} style={nativeMobileOutletStyle}>
+                <div key={nodeKey++} style={outletContainerStyle}>
                     <RootErrorRenderer
                         error={error}
                         title={
@@ -270,6 +272,7 @@ export default function Root() {
                     tracer={context.tracer.getRoot()}
                     inertRouterState={null}
                     onUpdateMetaTitle={onUpdateMetaTitle}
+                    style={outletContainerStyle}
                 />
             );
 
@@ -339,6 +342,7 @@ export default function Root() {
                         tracer={context.tracer.getRoot()}
                         inertRouterState={inertRouterState}
                         onUpdateMetaTitle={onUpdateMetaTitle}
+                        style={outletContainerStyle}
                     />,
                 );
             }

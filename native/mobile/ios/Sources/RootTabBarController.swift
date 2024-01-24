@@ -42,6 +42,28 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             websiteDataStore: websiteDataStore
         )
 
+        let homeTabController = RootTabController(
+            title: "Home",
+            image: UIImage(named: "HouseIcon")!
+        )
+
+        let searchTabController = RootTabController(
+            title: "Search",
+            image: UIImage(named: "MagnifyingGlassIcon")!
+        )
+
+        let createTabController = RootTabController(
+            title: "Create",
+            image: UIImage(named: "PlusIcon")!
+        )
+
+        let inboxTabController = RootTabController(
+            title: "Inbox",
+            image: UIImage(named: "BellIcon")!
+        )
+
+        let moreTabController = RootTabController(title: "More", image: UIImage(named: "ListIcon")!)
+
         super.init(nibName: nil, bundle: nil)
 
         delegate = self
@@ -75,35 +97,12 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         tabBar.standardAppearance = appearance
         tabBar.scrollEdgeAppearance = appearance
 
-        let homeTabController = RootTabController(
-            title: "Home",
-            image: UIImage(named: "HouseIcon")!
-        )
-
-        let searchTabController = RootTabController(
-            title: "Search",
-            image: UIImage(named: "MagnifyingGlassIcon")!
-        )
-
-        let createTabController = RootTabController(
-            title: "Create",
-            image: UIImage(named: "PlusIcon")!
-        )
-
-        let inboxTabController = RootTabController(
-            title: "Inbox",
-            image: UIImage(named: "BellIcon")!
-        )
-
-        let moreTabController = RootTabController(title: "More", image: UIImage(named: "ListIcon")!)
-
-        let tabControllers = [
+        viewControllers = [
             homeTabController, searchTabController, createTabController, inboxTabController,
             moreTabController,
         ]
 
-        viewControllers = tabControllers
-
+        selectedViewController = homeTabController
         selectedViewController!.view.addSubview(webNavigationController.view)
     }
 
@@ -131,6 +130,9 @@ class RootTabController: UIViewController {
         self.image = image
 
         super.init(nibName: nil, bundle: nil)
+
+        // Render content underneath opaque bars like the top bar and bottom bar.
+        extendedLayoutIncludesOpaqueBars = true
 
         self.title = title
         self.tabBarItem = UITabBarItem(title: title, image: image, selectedImage: image)

@@ -46,8 +46,8 @@ globalStyle("body", {
     ...fontSizes["75"],
 });
 
-globalStyle("html, body, #__next", {
-    height: "100%",
+globalStyle("html, body", {
+    minHeight: "100vh",
 });
 
 globalStyle("*", {

@@ -1,5 +1,5 @@
 import {IDLE_BLOCKER, IDLE_FETCHER, Router, RouterState, stripBasename} from "@remix-run/router";
-import {ContextType, Memo, useContext, useMemo} from "react";
+import {CSSProperties, ContextType, Memo, useContext, useMemo} from "react";
 import {
     UNSAFE_DataRouterContext as DataRouterContext,
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
@@ -17,8 +17,6 @@ import {noop} from "~/shared/helpers/control/noop.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {TracerRoot} from "~/shared/tracer/tracer_root.js";
 
-export const nativeMobileOutletStyle = {width: "100%", height: "100%"};
-
 // NOCOMMIT: Integration test this router?? All navigation flows from
 // `NativeMobileBridge`. Outside of a space and inside of a space.
 export function NativeMobileOutlet({
@@ -27,12 +25,14 @@ export function NativeMobileOutlet({
     inertRouterState,
     onUpdateMetaTitle,
     className,
+    style,
 }: {
     parentRouteIds: ReadonlyArray<string>;
     tracer: TracerRoot;
     inertRouterState: RouterState | null;
     onUpdateMetaTitle: Memo<(title: string) => void>;
     className?: string;
+    style?: CSSProperties;
 }) {
     const isInert = inertRouterState !== null;
 
@@ -258,7 +258,7 @@ export function NativeMobileOutlet({
         <div
             className={className}
             style={{
-                ...nativeMobileOutletStyle,
+                ...style,
                 // While inert, remove the document from the content flow and make
                 // it invisible. `bottom: 0` is so that a tall inert route doesn't grow
                 // our `<body>`'s height.

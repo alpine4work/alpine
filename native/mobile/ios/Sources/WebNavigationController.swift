@@ -117,19 +117,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         super.init(nibName: nil, bundle: nil)
 
         webConfiguration.userContentController.add(self, name: "NativeMobileBridge")
-    }
-
-    required init(coder: NSCoder) { fatalError("Unimplemented") }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
 
         // NOCOMMIT: Stop navigation out of `/sign-in` routes.
 
-        webView = WKWebView(
-            frame: CGRect(origin: .zero, size: view.frame.size),
-            configuration: webConfiguration
-        )
+        webView = WKWebView(frame: view.bounds, configuration: webConfiguration)
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         webView.navigationDelegate = self
         webView.uiDelegate = self
 
@@ -149,6 +141,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let rootViewController = WebNavigationEntryController(url: url, webView: webView)
         viewControllers = [rootViewController]
     }
+
+    required init(coder: NSCoder) { fatalError("Unimplemented") }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async
         -> WKNavigationActionPolicy
@@ -463,7 +457,7 @@ private class WebNavigationEntryController: UIViewController {
         // > associated logic
         //
         // [1]: https://www.linkedin.com/in/sean9keenan
-        webView.frame = CGRect(origin: .zero, size: view.frame.size)
+        webView.frame = view.bounds
 
         view.addSubview(webView)
 
@@ -558,6 +552,7 @@ private class WebNavigationEntryController: UIViewController {
         imageView.tintColor = UIColor(named: "grey-70")!
 
         view.addSubview(imageView)
+        // NOCOMMIT: Should center with auto-layout?
         imageView.center = view.center
 
         let rotationAnimation = CABasicAnimation(keyPath: "transform.rotation")
@@ -569,6 +564,5 @@ private class WebNavigationEntryController: UIViewController {
         rotationAnimation.repeatCount = Float.infinity
 
         imageView.layer.add(rotationAnimation, forKey: "rotationAnimation")
-
     }
 }

@@ -23,11 +23,11 @@ export default function VirtualizedScrollViewDesignPlaygroundPage() {
     return (
         <main
             className={sprinkles({
-                height: "full",
                 display: "flex",
                 flexDirection: "column",
                 position: "relative",
             })}
+            style={{height: "100vh"}}
         >
             <Box
                 flexShrink="0"

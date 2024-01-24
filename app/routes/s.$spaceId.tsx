@@ -7,7 +7,7 @@ import {
     useParams,
     useRouteError,
 } from "react-router";
-import {NativeMobileOutlet, nativeMobileOutletStyle} from "~/app/router/native_mobile_outlet.js";
+import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {ContextMenuManager} from "~/client/design/context_menu.js";
@@ -227,13 +227,11 @@ export default function SpaceLayoutRoute() {
         zIndex: "0",
     });
 
+    const outletContainerStyle = {height: "100vh"};
+
     if (!nativeMobileRouterState) {
         nodes.push(
-            <div
-                key={nodeKey++}
-                className={outletContainerClassName}
-                style={nativeMobileOutletStyle}
-            >
+            <div key={nodeKey++} className={outletContainerClassName} style={outletContainerStyle}>
                 <SpaceLayoutTopBar
                     space={space}
                     initialInbox={inbox}
@@ -283,6 +281,7 @@ export default function SpaceLayoutRoute() {
                     inertRouterState={inertRouterState}
                     onUpdateMetaTitle={updateMetaTitle}
                     className={outletContainerClassName}
+                    style={outletContainerStyle}
                 />,
             );
         }
@@ -295,7 +294,7 @@ export default function SpaceLayoutRoute() {
                 <div
                     key={nodeKey++}
                     className={outletContainerClassName}
-                    style={nativeMobileOutletStyle}
+                    style={outletContainerStyle}
                 >
                     <SpaceRouteErrorRenderer error={error} />
                 </div>
@@ -307,6 +306,7 @@ export default function SpaceLayoutRoute() {
                     inertRouterState={null}
                     onUpdateMetaTitle={updateMetaTitle}
                     className={outletContainerClassName}
+                    style={outletContainerStyle}
                 />
             ),
         );
