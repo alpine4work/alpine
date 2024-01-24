@@ -57,12 +57,12 @@ const elevation = {
         ],
     }),
     "elevation-20": createElevation({
-        lightBorderColor: "rgb(0 0 0 / 0.08)",
+        lightBorderColor: "rgb(0 0 0 / 0.09)",
         darkBorderColor: "grey-70",
         shadows: [
             {
                 shadow: "0px 4px 8px -2px",
-                lightColor: "rgb(18 18 20 / 0.1)",
+                lightColor: "rgb(18 18 20 / 0.12)",
                 darkColor: "rgb(0 0 0 / 0.3)",
             },
             {
@@ -73,12 +73,12 @@ const elevation = {
         ],
     }),
     "elevation-30": createElevation({
-        lightBorderColor: "rgb(0 0 0 / 0.08)",
+        lightBorderColor: "rgb(0 0 0 / 0.09)",
         darkBorderColor: "grey-70",
         shadows: [
             {
                 shadow: "0px 12px 16px -4px",
-                lightColor: "rgb(18 18 20 / 0.08)",
+                lightColor: "rgb(18 18 20 / 0.12)",
                 darkColor: "rgb(0 0 0 / 0.24)",
             },
             {
@@ -94,7 +94,7 @@ const elevation = {
         shadows: [
             {
                 shadow: "0px 12px 16px -4px",
-                lightColor: "rgb(18 18 20 / 0.08)",
+                lightColor: "rgb(18 18 20 / 0.12)",
                 darkColor: "rgb(0 0 0 / 0.24)",
             },
             {
@@ -105,12 +105,12 @@ const elevation = {
         ],
     }),
     "elevation-40": createElevation({
-        lightBorderColor: "rgb(0 0 0 / 0.08)",
+        lightBorderColor: "rgb(0 0 0 / 0.09)",
         darkBorderColor: "grey-70",
         shadows: [
             {
                 shadow: "0px 20px 24px -4px",
-                lightColor: "rgb(18 18 20 / 0.08)",
+                lightColor: "rgb(18 18 20 / 0.12)",
                 darkColor: "rgb(0 0 0 / 0.24)",
             },
             {
@@ -121,23 +121,23 @@ const elevation = {
         ],
     }),
     "elevation-50": createElevation({
-        lightBorderColor: "rgb(0 0 0 / 0.08)",
+        lightBorderColor: "rgb(0 0 0 / 0.09)",
         darkBorderColor: "grey-70",
         shadows: [
             {
                 shadow: "0px 24px 48px -12px",
-                lightColor: "rgb(18 18 20 / 0.18)",
+                lightColor: "rgb(18 18 20 / 0.20)",
                 darkColor: "rgb(0 0 0 / 0.46)",
             },
         ],
     }),
     "elevation-60": createElevation({
-        lightBorderColor: "rgb(0 0 0 / 0.08)",
+        lightBorderColor: "rgb(0 0 0 / 0.09)",
         darkBorderColor: "grey-70",
         shadows: [
             {
                 shadow: "0px 32px 64px -12px",
-                lightColor: "rgb(18 18 20 / 0.14)",
+                lightColor: "rgb(18 18 20 / 0.15)",
                 darkColor: "rgb(0 0 0 / 0.38)",
             },
         ],
@@ -149,7 +149,7 @@ function createElevation({
     darkBorderColor,
     shadows,
 }: {
-    lightBorderColor: "rgb(0 0 0 / 0.05)" | "rgb(0 0 0 / 0.08)" | "grey-10";
+    lightBorderColor: `rgb(${string})` | "grey-10";
     darkBorderColor: "grey-70" | "grey-80";
     shadows: Array<{shadow: string; lightColor: string; darkColor: string}>;
 }) {

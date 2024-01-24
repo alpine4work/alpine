@@ -487,7 +487,9 @@ export const Menu = forwardRef(function Menu(
                     borderRadius: "md",
                     padding: "1",
                     backgroundColor: "grey-0",
-                    boxShadow: "elevation-20",
+                    // On mobile, increase the distance of a menu from the underlying content.
+                    // Increased contrast is useful.
+                    boxShadow: isMobile ? "elevation-30" : "elevation-20",
                 }),
             )}
             onFocus={setAriaActiveDescendant}

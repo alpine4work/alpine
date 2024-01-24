@@ -299,8 +299,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let safeAreaInsetLeft = windowSafeAreaInsets.left
         let safeAreaInsetRight = windowSafeAreaInsets.right
 
-        print(safeAreaInsetBottom)
-
         let styleString =
             ":root { --safe-area-inset-top: \(safeAreaInsetTop)px; --safe-area-inset-bottom: \(safeAreaInsetBottom)px; --safe-area-inset-left: \(safeAreaInsetLeft)px; --safe-area-inset-right: \(safeAreaInsetRight)px }"
 
