@@ -31,6 +31,7 @@ import {useStore} from "~/client/helpers/store/use_store.js";
 import {useHoverWithOverlaySupport} from "~/client/helpers/use_hover_with_overlay_support.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
@@ -190,9 +191,11 @@ const titleCellClassName = sprinkles({
     overflow: "hidden",
 });
 
+const paddingBottomHeight = "5";
+
 const paddingBottomClassName = sprinkles({
     width: "full",
-    height: "5",
+    height: paddingBottomHeight,
 });
 
 function TaskRowView(
@@ -1509,10 +1512,17 @@ function TaskRowViewPaddingBottom({
     focusTitleEnd: () => void;
     focusTitleAll: () => void;
 }) {
+    const isMobile = useIsMobile();
+
     return (
         <div
             className={paddingBottomClassName}
-            style={{cursor: !capabilities.isReadOnly ? "text" : undefined}}
+            style={{
+                cursor: !capabilities.isReadOnly ? "text" : undefined,
+                height: isMobile
+                    ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing[paddingBottomHeight]})`
+                    : undefined,
+            }}
             {...useOutOfBoundsClickSelection({
                 isDisabled: capabilities.isReadOnly,
                 onSelect: focusTitleEnd,

@@ -5,12 +5,14 @@ import {
     useRouteError,
 } from "react-router";
 import {Box} from "~/client/design/box.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {SpaceRouteErrorRenderer} from "~/client/spaces/space_route_error_renderer.js";
 import {TaskLayoutTopBar} from "~/client/tasks/task_layout_top_bar.js";
 import {useTaskStoreLoaderDataWithoutRetainingOnlyStore} from "~/client/tasks/task_realtime_client_context_provider.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 
 export default function TasksLayoutRoute() {
+    const isMobile = useIsMobile();
     const error = useRouteError();
     const store = useTaskStoreLoaderDataWithoutRetainingOnlyStore();
 
@@ -56,13 +58,17 @@ export default function TasksLayoutRoute() {
             display="flex"
             flexDirection="column"
         >
-            <TaskLayoutTopBar
-                store={store}
-                isNotepadTabActive={isNotepadTabActive}
-                isCollectionsTabActive={isCollectionsTabActive}
-                isViewsTabActive={isViewsTabActive}
-                withoutBorderBottom={withoutBorderBottom}
-            />
+            {!isMobile && (
+                // NOCOMMIT: How do you access this functionality on mobile? Ability to create
+                // collections, views, etc.
+                <TaskLayoutTopBar
+                    store={store}
+                    isNotepadTabActive={isNotepadTabActive}
+                    isCollectionsTabActive={isCollectionsTabActive}
+                    isViewsTabActive={isViewsTabActive}
+                    withoutBorderBottom={withoutBorderBottom}
+                />
+            )}
             {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
         </Box>
     );

@@ -104,6 +104,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         ]
 
         selectedViewController = homeTabController
+        selectedViewController!.addChild(webNavigationController)
         selectedViewController!.view.addSubview(webNavigationController.view)
     }
 
@@ -120,6 +121,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // We only have one underlying web view for each tab. So whenever the user
         // switches the tab, move our web view to the new tab.
         webNavigationController.view.removeFromSuperview()
+        webNavigationController.removeFromParent()
+        viewController.addChild(webNavigationController)
         viewController.view.addSubview(webNavigationController.view)
     }
 }
@@ -132,7 +135,8 @@ class RootTabController: UIViewController {
 
         super.init(nibName: nil, bundle: nil)
 
-        // Render content underneath opaque bars like the top bar and bottom bar.
+        // Render content underneath opaque bars like the tab bar. We make sure content
+        // isn't hidden by opaque bars in web code.
         extendedLayoutIncludesOpaqueBars = true
 
         self.title = title

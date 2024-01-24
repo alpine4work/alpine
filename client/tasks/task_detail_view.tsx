@@ -120,7 +120,7 @@ export function TaskDetailView({
 
     const mainRef = useRef<TaskDetailViewMainRef>(null);
 
-    const hasSubtasks = useStore(
+    const showSubtasks = useStore(
         useMemo(
             () => taskSubscription.taskEntryStore.map(({task}) => !task?.isDeleted()),
             [taskSubscription.taskEntryStore],
@@ -399,7 +399,7 @@ export function TaskDetailView({
                     ref={viewRef}
                     stateKey={childrenGridViewStateKey}
                     bufferedItemHeight={childrenGridViewBufferedItemHeight}
-                    itemCount={hasSubtasks ? childrenGridViewItemCount + 1 : 1}
+                    itemCount={showSubtasks ? childrenGridViewItemCount + 1 : 1}
                     alwaysRenderAdditionalItemIndexes={useMemo(
                         () => [
                             // Always render `<TaskDetailViewMain>` regardless of where we've scrolled.
@@ -437,7 +437,7 @@ export function TaskDetailView({
                                             affinityManager={affinityManager}
                                             initialNotesVersion={initialNotesVersion}
                                             initialNotesContent={initialNotesContent}
-                                            hasSubtasks={hasSubtasks}
+                                            showSubtasks={showSubtasks}
                                             readOnlyReason={readOnlyReason}
                                             focusChildrenGridViewStart={focusChildrenGridViewStart}
                                             pushUndoStackEntry={pushUndoStackEntry}
@@ -456,7 +456,7 @@ export function TaskDetailView({
                             affinityManager,
                             initialNotesVersion,
                             initialNotesContent,
-                            hasSubtasks,
+                            showSubtasks,
                             readOnlyReason,
                             focusChildrenGridViewStart,
                             pushUndoStackEntry,
@@ -498,7 +498,7 @@ function TaskDetailViewMain(
         affinityManager,
         initialNotesVersion,
         initialNotesContent,
-        hasSubtasks,
+        showSubtasks,
         readOnlyReason,
         focusChildrenGridViewStart,
         pushUndoStackEntry,
@@ -509,7 +509,7 @@ function TaskDetailViewMain(
         affinityManager: TaskClientStoreSearchEntityAffinityManager;
         initialNotesVersion: number;
         initialNotesContent: TaskNotesContentWithReferences;
-        hasSubtasks: boolean;
+        showSubtasks: boolean;
         readOnlyReason: Memo<{icon: ReactNode; message: string}> | null;
         focusChildrenGridViewStart: Memo<() => void>;
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
@@ -836,6 +836,10 @@ function TaskDetailViewMain(
 
     return (
         <>
+            {isMobile && (
+                // NOCOMMIT: How does this look with the read-only bar?
+                <Box style={{height: "var(--safe-area-inset-top)"}} />
+            )}
             {readOnlyReason && (
                 // TODO(calebmer): This should really be a sticky header. We should probably
                 // have a sticky header for the task title too.
@@ -1137,7 +1141,7 @@ function TaskDetailViewMain(
                     pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
                     pushRedoStackEntry={pushRedoStackEntry}
                 />
-                {hasSubtasks && (
+                {showSubtasks ? (
                     <>
                         <Spacer space="8" />
                         <Box>
@@ -1169,6 +1173,17 @@ function TaskDetailViewMain(
                             </span>
                         </Box>
                     </>
+                ) : (
+                    <Box
+                        width="full"
+                        height="5"
+                        pointerEvents="none"
+                        style={{
+                            height: isMobile
+                                ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
+                                : undefined,
+                        }}
+                    />
                 )}
             </Box>
             {taskDeleteConfirmationState && (

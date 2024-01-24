@@ -3,6 +3,7 @@ import UIKit
 import WebKit
 
 // NOCOMMIT: Top bars and back buttons on sign in routes
+// NOCOMMIT: Safe area inset should include top bar?
 class RootAnonymousController: WebNavigationController, SceneDelegateRootController {
     init() {
         super

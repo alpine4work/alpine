@@ -33,6 +33,7 @@ import {Store} from "~/client/helpers/store/store.js";
 import {undefinedStore} from "~/client/helpers/store/undefined_store.js";
 import {useStore} from "~/client/helpers/store/use_store.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getTaskGridViewLoadQueryLimit} from "~/client/tasks/get_task_grid_view_load_query_limit.js";
 import {findTaskIndexInGridViewVirtualizedListIfExists} from "~/client/tasks/internal/find_task_index_in_grid_view_virtualized_list_if_exists.js";
@@ -1852,7 +1853,7 @@ export function useTaskGridViewVirtualizedList({
                             capabilities={capabilities}
                             isRootQueryNull={isRootQueryNull}
                             relativeItemIndex={relativeItemIndex}
-                            isLastItem={itemIndex === itemCount - 1}
+                            withPaddingBottom={itemIndex === itemCount - 1}
                             focusPreviousTaskTitleEnd={events.focusPreviousTaskTitleEnd}
                             focusPreviousTaskTitleAll={events.focusPreviousTaskTitleAll}
                         />
@@ -2436,17 +2437,18 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
     capabilities,
     isRootQueryNull,
     relativeItemIndex,
-    isLastItem,
+    withPaddingBottom,
     focusPreviousTaskTitleEnd,
     focusPreviousTaskTitleAll,
 }: {
     capabilities: Memo<TaskGridViewCapabilities>;
     isRootQueryNull: boolean;
     relativeItemIndex: number;
-    isLastItem: boolean;
+    withPaddingBottom: boolean;
     focusPreviousTaskTitleEnd: Memo<(key: string) => void>;
     focusPreviousTaskTitleAll: Memo<(key: string) => void>;
 }) {
+    const isMobile = useIsMobile();
     const isInert = capabilities.isReadOnly || isRootQueryNull;
 
     return (
@@ -2480,7 +2482,18 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
                     boxShadow: `0 -1px 0 0 ${colorSchemeVars["grey-5"]}, inset 0 -1px 0 0 ${colorSchemeVars["grey-5"]}`,
                 }}
             />
-            {isLastItem && <Box width="full" height="2" pointerEvents="none" />}
+            {withPaddingBottom && (
+                <Box
+                    width="full"
+                    height="5"
+                    pointerEvents="none"
+                    style={{
+                        height: isMobile
+                            ? `calc(var(--safe-area-inset-bottom, 0px) + ${spacing["5"]})`
+                            : undefined,
+                    }}
+                />
+            )}
         </Box>
     );
 });

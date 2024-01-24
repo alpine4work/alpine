@@ -116,6 +116,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         super.init(nibName: nil, bundle: nil)
 
+        // Render content underneath opaque bars like the tab bar. We make sure content
+        // isn't hidden by opaque bars in web code.
+        extendedLayoutIncludesOpaqueBars = true
+
         webConfiguration.userContentController.add(self, name: "NativeMobileBridge")
 
         // NOCOMMIT: Stop navigation out of `/sign-in` routes.
@@ -283,8 +287,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         self.windowSafeAreaInsets = windowSafeAreaInsets
         if !hasInitialWebViewNavigationCommit { return }
 
+        // Include the navigation bar and tab bar in our safe area insets.
+        let safeAreaInsetTop = max(windowSafeAreaInsets.top, navigationBar.frame.height)
+        let safeAreaInsetBottom = max(
+            windowSafeAreaInsets.bottom,
+            tabBarController?.tabBar.frame.height ?? 0
+        )
+        let safeAreaInsetLeft = windowSafeAreaInsets.left
+        let safeAreaInsetRight = windowSafeAreaInsets.right
+
+        print(safeAreaInsetBottom)
+
         let styleString =
-            ":root { --safe-area-inset-top: \(windowSafeAreaInsets.top)px; --safe-area-inset-bottom: \(windowSafeAreaInsets.bottom)px; --safe-area-inset-left: \(windowSafeAreaInsets.left)px; --safe-area-inset-right: \(windowSafeAreaInsets.right)px }"
+            ":root { --safe-area-inset-top: \(safeAreaInsetTop)px; --safe-area-inset-bottom: \(safeAreaInsetBottom)px; --safe-area-inset-left: \(safeAreaInsetLeft)px; --safe-area-inset-right: \(safeAreaInsetRight)px }"
 
         let source = """
             {
@@ -414,6 +429,10 @@ private class WebNavigationEntryController: UIViewController {
         self.url = url
 
         super.init(nibName: nil, bundle: nil)
+
+        // Render content underneath opaque bars like the tab bar. We make sure content
+        // isn't hidden by opaque bars in web code.
+        extendedLayoutIncludesOpaqueBars = true
 
         replaceSubviewsWithWebView(webView: webView)
     }
