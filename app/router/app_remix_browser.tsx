@@ -9,11 +9,6 @@ import {ReactElement} from "react";
 import {createBrowserRouter} from "react-router-dom";
 import {AppRouterProvider} from "~/app/router/app_router_provider.js";
 import {createNativeMobileRouter} from "~/app/router/native_mobile_router.js";
-import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
-
-// `isNativeMobile` is a constant throughout our application's lifetime.
-const isNativeMobile =
-    typeof window !== "undefined" && getClientInfoWithoutListening().isNativeMobile;
 
 let router: Router | undefined;
 
@@ -25,7 +20,9 @@ let router: Router | undefined;
  *
  * [1]: https://github.com/remix-run/remix/blob/d8f403490baef9b2814f7c2b984294bf08fc09df/packages/remix-react/browser.tsx#L150-L234
  */
-export function AppRemixBrowser(_props: RemixBrowserProps): ReactElement {
+export function AppRemixBrowser({
+    isNativeMobile,
+}: RemixBrowserProps & {isNativeMobile: boolean}): ReactElement {
     if (!router) {
         const routes = createClientRoutes(
             window.__remixManifest.routes,

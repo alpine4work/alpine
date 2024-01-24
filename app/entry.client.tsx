@@ -5,6 +5,7 @@ import {AppContext, AppContextProvider} from "~/client/context/app_context.js";
 import {ReactContextModule} from "~/client/context/react_context_module.js";
 import {installScrollbarAuditorInDev} from "~/client/design/scrollbar.js";
 import {attachDevConsoleNotInProduction} from "~/client/dev/dev_console.js";
+import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
 import {ClientRpcContextModule} from "~/client/rpc/client_rpc_context_module.js";
 import {createClientTracer} from "~/client/tracer/client_tracer.js";
 import {Context} from "~/shared/context/context.js";
@@ -88,10 +89,14 @@ async function main() {
 
     // Don't block the browser's main thread with the initial render.
     startTransition(() => {
+        // `isNativeMobile` is a constant throughout our application's lifetime.
+        const isNativeMobile =
+            typeof window !== "undefined" && getClientInfoWithoutListening().isNativeMobile;
+
         hydrateRoot(
             document,
             <AppContextProvider value={context}>
-                <AppRemixBrowser />
+                <AppRemixBrowser isNativeMobile={isNativeMobile} />
             </AppContextProvider>,
             {
                 onRecoverableError: error => {

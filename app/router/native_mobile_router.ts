@@ -6,6 +6,7 @@ import {
     Path,
     Router,
     RouterState,
+    StaticHandlerContext,
     To,
     createPath,
     createRouter,
@@ -13,6 +14,7 @@ import {
 } from "@remix-run/router";
 import {FutureConfig, UNSAFE_mapRouteProperties as mapRouteProperties} from "react-router";
 import {RouteObject} from "react-router-dom";
+import {createStaticRouter} from "react-router-dom/server.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {omitObject} from "~/shared/helpers/object/omit_object.js";
@@ -152,6 +154,77 @@ export function createNativeMobileRouter(
     };
 
     router.initialize();
+    return router;
+}
+
+/**
+ * `createNativeMobileRouter()` but for use in server-side rendering.
+ */
+export function createNativeMobileStaticRouter(
+    routes: Array<RouteObject>,
+    context: StaticHandlerContext,
+) {
+    const routerBase = createStaticRouter(routes, context);
+
+    const router: NativeMobileRouter = {
+        get basename() {
+            return routerBase.basename;
+        },
+        get state() {
+            const state: any = routerBase.state;
+
+            if (!state[isNativeMobileRouterStateSymbol]) {
+                // Should be non-enumerable so that a spread doesn't copy the property.
+                Object.defineProperty(state, isNativeMobileRouterStateSymbol, {
+                    value: true,
+                    enumerable: false,
+                });
+
+                state.inertRouterStates = [];
+            }
+
+            return state as NativeMobileRouterState;
+        },
+        get routes() {
+            return routerBase.routes;
+        },
+        subscribe: fn => {
+            return routerBase.subscribe((state: any) => {
+                if (!state[isNativeMobileRouterStateSymbol]) {
+                    // Should be non-enumerable so that a spread doesn't copy the property.
+                    Object.defineProperty(state, isNativeMobileRouterStateSymbol, {
+                        value: true,
+                        enumerable: false,
+                    });
+
+                    state.inertRouterStates = [];
+                }
+
+                return fn(state as NativeMobileRouterState);
+            });
+        },
+        enableScrollRestoration: routerBase.enableScrollRestoration.bind(routerBase),
+        navigate: routerBase.navigate.bind(routerBase),
+        fetch: routerBase.fetch.bind(routerBase),
+        revalidate: routerBase.revalidate.bind(routerBase),
+        createHref: routerBase.createHref.bind(routerBase),
+        encodeLocation: routerBase.encodeLocation.bind(routerBase),
+        getFetcher: routerBase.getFetcher.bind(routerBase),
+        deleteFetcher: routerBase.deleteFetcher.bind(routerBase),
+        getBlocker: routerBase.getBlocker.bind(routerBase),
+        deleteBlocker: routerBase.deleteBlocker.bind(routerBase),
+        _internalSetRoutes: routerBase._internalSetRoutes.bind(routerBase),
+        _internalFetchControllers: routerBase._internalFetchControllers,
+        _internalActiveDeferreds: routerBase._internalActiveDeferreds,
+        _internalUnsafelyRestoreNavigation:
+            // NOTE(calebmer): Optional because we don't patch `react-router-dom` to
+            // implement a throwing version of `_internalUnsafelyRestoreNavigation`.
+            routerBase._internalUnsafelyRestoreNavigation?.bind(routerBase),
+
+        initialize: routerBase.initialize.bind(routerBase),
+        dispose: routerBase.dispose.bind(routerBase),
+    };
+
     return router;
 }
 

@@ -6,6 +6,7 @@ import {
 import {ReactElement} from "react";
 import {createStaticRouter} from "react-router-dom/server.js";
 import {AppStaticRouterProvider} from "~/app/router/app_static_router_provider.js";
+import {createNativeMobileStaticRouter} from "~/app/router/native_mobile_router.js";
 
 /**
  * This is a fork of the [`<RemixServer>` component in `@remix-run/react`][1].
@@ -15,14 +16,22 @@ import {AppStaticRouterProvider} from "~/app/router/app_static_router_provider.j
  *
  * [1]: https://github.com/remix-run/remix/blob/d8f403490baef9b2814f7c2b984294bf08fc09df/packages/remix-react/server.tsx#L27-L66
  */
-export function AppRemixServer({context, url, abortDelay}: RemixServerProps): ReactElement {
+export function AppRemixServer({
+    context,
+    url,
+    abortDelay,
+    isNativeMobile,
+}: RemixServerProps & {isNativeMobile: boolean}): ReactElement {
     if (typeof url === "string") {
         url = new URL(url);
     }
 
     const {manifest, routeModules, serverHandoffString} = context;
     const routes = createServerRoutes(manifest.routes, routeModules, context.future);
-    const router = createStaticRouter(routes, context.staticHandlerContext);
+    const router = (isNativeMobile ? createNativeMobileStaticRouter : createStaticRouter)(
+        routes,
+        context.staticHandlerContext,
+    );
 
     return (
         <RemixContext.Provider

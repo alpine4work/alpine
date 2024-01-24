@@ -34,7 +34,11 @@ export default async function handleRequest(
     try {
         const markup = renderToString(
             <AppContextProvider value={appContext}>
-                <AppRemixServer context={remixContext} url={request.url} />
+                <AppRemixServer
+                    context={remixContext}
+                    url={request.url}
+                    isNativeMobile={loadContext.loader.getClientInfo().isNativeMobile}
+                />
             </AppContextProvider>,
         );
 
