@@ -38,7 +38,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         websiteDataStore.httpCookieStore.setCookie(sessionCookie)
 
         webNavigationController = WebNavigationController(
-            initialPath: "/s/\(spaceId)/tasks",
+            // NOCOMMIT: Proper initial path. Just for debugging
+            initialPath: "/s/\(spaceId)/tasks/wstgc96gen6yp2zfetsksmg4t0",
             websiteDataStore: websiteDataStore
         )
 
