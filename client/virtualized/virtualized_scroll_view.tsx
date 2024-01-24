@@ -32,7 +32,9 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {
     addResizeListenerForElement,
+    addSuppressResizeLoopErrorNotificationForElement,
     removeResizeListenerForElement,
+    removeSuppressResizeLoopErrorNotificationForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {
@@ -823,8 +825,10 @@ function VirtualizedScrollView(
                                 index,
                                 element,
                                 lastRenderedHeight: currentElementRef?.lastRenderedHeight ?? null,
-                                cleanup: () =>
-                                    removeResizeListenerForElement(element, handleResize),
+                                cleanup: () => {
+                                    removeResizeListenerForElement(element, handleResize);
+                                    removeSuppressResizeLoopErrorNotificationForElement(element);
+                                },
                             };
 
                             // IMPORTANT: Be careful about using props in this function because we will
@@ -852,6 +856,14 @@ function VirtualizedScrollView(
                             };
 
                             addResizeListenerForElement(element, handleResize);
+
+                            // When a virtualized item resizes then the content height of the full
+                            // virtualized view also changes. `ResizeObserver` doesn't like this and logs
+                            // an error instead of notifying us about the content height change. The state
+                            // update we make for this resize considers the content height changing so it's
+                            // ok that we don't get the content height change notification from
+                            // `ResizeObserver`.
+                            addSuppressResizeLoopErrorNotificationForElement(element);
 
                             itemsRef.current.elementRefByKey.set(item.key, newElementRef);
                         }

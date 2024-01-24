@@ -2,6 +2,7 @@ import {RefCallback, useCallback, useState} from "react";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
+import {iterableEvery} from "~/shared/helpers/iterable/iterable_every.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 
 /**
@@ -53,7 +54,69 @@ export function useResizeObserver(): [
 
 const resizeListenersByElement = new Map<Element, Set<(entry: ResizeObserverEntry) => void>>();
 const lastResizeObserverEntryByElement = new WeakMap<Element, ResizeObserverEntry>();
+const suppressingResizeLoopErrorNotificationForElements = new WeakMap<Element, number>();
 let resizeObserver: ResizeObserver | undefined;
+
+function createResizeObserver() {
+    let lastEntryTargets = new Set<Element>();
+
+    const resizeObserver = new ResizeObserver(entries => {
+        const entryTargets = new Set<Element>();
+
+        // Run resize observer listeners with immediate priority. React component
+        // updates made in resize listeners should happen in the same browser paint
+        // where they were dispatched so the user doesn't see a tear in the UI.
+        runWithImmediatePriority(() => {
+            for (const entry of entries) {
+                entryTargets.add(entry.target);
+
+                lastResizeObserverEntryByElement.set(entry.target, entry);
+                const resizeListeners = resizeListenersByElement.get(entry.target);
+                if (resizeListeners) {
+                    for (const listener of resizeListeners) {
+                        try {
+                            listener(entry);
+                        } catch (error) {
+                            scheduleUncaughtError(error);
+                        }
+                    }
+                }
+            }
+        });
+
+        lastEntryTargets = entryTargets;
+    });
+
+    const handleWindowError = (event: ErrorEvent) => {
+        // Handle errors from the "deliver resize loop error notification" procedure.
+        // https://www.w3.org/TR/resize-observer/#deliver-resize-error
+        if (event.message !== "ResizeObserver loop completed with undelivered notifications.") {
+            return;
+        }
+
+        // If every target from the last `ResizeObserver` notification has requested
+        // resize observer loop errors to be suppressed then we can safely suppress the
+        // error.
+        if (
+            lastEntryTargets.size > 0 &&
+            iterableEvery(lastEntryTargets, entryTarget =>
+                suppressingResizeLoopErrorNotificationForElements.has(entryTarget),
+            )
+        ) {
+            event.preventDefault();
+        }
+    };
+
+    window.addEventListener("error", handleWindowError, true);
+
+    return {
+        resizeObserver,
+        dispose: () => {
+            window.removeEventListener("error", handleWindowError, true);
+            resizeObserver.disconnect();
+        },
+    };
+}
 
 /**
  * Adds a resize listener for the provided element.
@@ -66,26 +129,7 @@ export function addResizeListenerForElement(
     listener: (entry: ResizeObserverEntry) => void,
 ) {
     if (!resizeObserver) {
-        resizeObserver = new ResizeObserver(entries => {
-            // Run resize observer listeners with immediate priority. React component
-            // updates made in resize listeners should happen in the same browser paint
-            // where they were dispatched so the user doesn't see a tear in the UI.
-            runWithImmediatePriority(() => {
-                for (const entry of entries) {
-                    lastResizeObserverEntryByElement.set(entry.target, entry);
-                    const resizeListeners = resizeListenersByElement.get(entry.target);
-                    if (resizeListeners) {
-                        for (const listener of resizeListeners) {
-                            try {
-                                listener(entry);
-                            } catch (error) {
-                                scheduleUncaughtError(error);
-                            }
-                        }
-                    }
-                }
-            });
-        });
+        resizeObserver = createResizeObserver().resizeObserver;
     }
 
     const resizeListeners = getOrSetDefaultMapValue(
@@ -123,5 +167,35 @@ export function removeResizeListenerForElement(
     if (resizeListeners.size === 0) {
         resizeListenersByElement.delete(element);
         resizeObserver?.unobserve(element);
+    }
+}
+
+/**
+ * Suppress the error message "ResizeObserver loop completed with undelivered
+ * notifications" for resizes that affect the provided element. Sometimes we
+ * change the layout of other elements in a resize observer and that's
+ * expected.
+ *
+ * If you suppress errors for an element, document why it's fine.
+ */
+export function addSuppressResizeLoopErrorNotificationForElement(element: Element) {
+    const count = suppressingResizeLoopErrorNotificationForElements.get(element) ?? 0;
+    const newCount = count + 1;
+    suppressingResizeLoopErrorNotificationForElements.set(element, newCount);
+}
+
+/**
+ * Remove error suppression added by
+ * `addSuppressResizeLoopErrorNotificationForElement()` for the provided
+ * element.
+ */
+export function removeSuppressResizeLoopErrorNotificationForElement(element: Element) {
+    const count = suppressingResizeLoopErrorNotificationForElements.get(element) ?? 0;
+    const newCount = count - 1;
+
+    if (newCount <= 0) {
+        suppressingResizeLoopErrorNotificationForElements.delete(element);
+    } else {
+        suppressingResizeLoopErrorNotificationForElements.set(element, newCount);
     }
 }

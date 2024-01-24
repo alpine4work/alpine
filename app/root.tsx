@@ -155,7 +155,7 @@ export default function Root() {
 
             context.tracer.getRoot().logUncaughtException(
                 "Uncaught exception",
-                event.error,
+                event.error ?? new UnknownError(event.message),
                 {},
                 {
                     // Uncaught browser errors were already logged. We don't need to do it again.
