@@ -3,7 +3,7 @@ import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 
 export function unauthenticatedSessionError() {
     return new UnauthenticatedError("Unauthenticated session", {
-        displayMessage: errorDisplayMessage`You are not signed in. Please ${errorDisplayMessage.link(
+        displayMessage: errorDisplayMessage`You aren’t signed in. Please ${errorDisplayMessage.link(
             "sign in",
             "/sign-in",
         )} and try again.`,
