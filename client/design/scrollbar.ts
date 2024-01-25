@@ -10,14 +10,28 @@ import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
+    borderRadius,
+    scrollbarClassName,
+    scrollbarFadeOutAnimationDurationMs,
+    scrollbarFadeOutClassName,
+    scrollbarHideClassName,
     scrollbarThumbClassName,
     scrollbarThumbDraggingClassName,
-    scrollbarThumbFadeOutAnimationDurationMs,
-    scrollbarThumbHitClassName,
-    scrollbarThumbHitFadeOutClassName,
-    scrollbarThumbHitHideClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
+
+const scrollbarMargin = "0.5";
+const scrollbarInteractiveMargin = "1.5";
+const scrollbarWidth = "1.5";
+const minScrollbarHeight = "6";
+
+const scrollbarMarginRem = parseRemLengthNumber(spacing[scrollbarMargin]);
+const scrollbarInteractiveLeftMarginRem = parseRemLengthNumber(spacing[scrollbarInteractiveMargin]);
+const scrollbarThumbWidthRem = parseRemLengthNumber(spacing[scrollbarWidth]);
+const minScrollbarHeightRem = parseRemLengthNumber(spacing[minScrollbarHeight]);
+
+const scrollbarWidthRem =
+    scrollbarInteractiveLeftMarginRem + scrollbarThumbWidthRem + scrollbarMarginRem;
 
 const scrollbarVisibleAfterScrollDurationMs = 1000;
 
@@ -65,16 +79,18 @@ export function useScrollbar<T extends HTMLElement>({
  * chunky old fashioned scrollbars which take horizontal space from the content
  * and have up/down arrow buttons.
  *
- * That MacOS default scrollbar has these two properties. However, the Windows
+ * The MacOS default scrollbar has these two properties. However, the Windows
  * default scrollbar does not. It's a chunky scrollbar that takes horizontal
- * space. On MacOS you can also configure scrollbars to always be displayed
- * using a chunky non-overlain design.
+ * space. On MacOS you can also configure (at an operating system level)
+ * scrollbars to always be displayed using a chunky non-overlain design.
  *
  * This makes scrollbars a little challenging to design around. Your screen
  * needs to work well with any platform scrollbar style. There are some [CSS
  * customization options][1] for scrollbars but they're quite limited and
  * different browsers support different properties. The CSS customization
  * options currently do not support overlain scrollbars.
+ *
+ * So for design consistency purposes we implement our own scrollbars.
  *
  * In addition to cross platform design consistency, we get very powerful
  * design customization opportunities. For example, we support adding
@@ -114,187 +130,17 @@ export function useScrollbar<T extends HTMLElement>({
  * achieve butter smooth 60fps scrolling since the browser has to wait for
  * JavaScript code to execute in between each scroll frame.
  *
- * So we want to use a solution like `position: sticky` to get buttery smooth
- * scrolling animations.
+ * So we want to use a solution like `position: sticky` or
+ * `transform: matrix3d()` to get buttery smooth scrolling animations.
  *
- * ### Time for some math
+ * At first we invented our own approach for scrollbars using
+ * `position: sticky` but later came across a better approach which [uses
+ * `transform: matrix3d()` on the Chrome blog][5]. The `transform: matrix3d()`
+ * approach works nicely with iOS overscroll whereas our `position: sticky`
+ * approach didn't.
  *
- * `position: sticky` is designed for UI like sticky headers that move at the
- * same rate as the user scrolls. However, our custom scrollbar needs to move
- * slower than the rate at which the user scrolls so it stays in frame for the
- * entire content view. We can change the rate at which the scrollbar moves
- * with `transform: scaleY()`.
- *
- * Let's visualize this. We render a scrollbar track the entire scroll view
- * content height. We can render a scrollbar thumb as our scroll view window's
- * height and give it `position: sticky` so that it moves with the scroll view
- * window.
- *
- * ```
- *                                         scrollbar
- *                                           track
- *                                             ↓
- *              ┌► ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┯━┓
- *              │  ┃                          │ ┃
- *  scroll view │  ┃                          │ ┃
- *    content   │  ┃                          │ ┃
- *              │  ┠──────────────────────────┼─┨ ◄┐
- *              │  ┃          scroll          │ ┃  │
- *              │  ┃           view           │ ┃  │ scrollbar
- *              │  ┃          window          │ ┃  │   thumb
- *              │  ┠──────────────────────────┼─┨ ◄┘
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              └► ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┷━┛
- * ```
- *
- * Now we have a scrollbar, we can scale it down with
- * `transform: scaleY(scrollViewWindowHeight / scrollViewContentHeight)`. The
- * problem is while the scaled scrollbar is the right size and moves at the
- * right speed, it's stuck at the top of the view! The scaled scrollbar needs
- * to move with the scroll window.
- *
- * So what we do is instead of scaling the scrollbar track down, we scale the
- * scrollbar track up! And with math make sure the thumb moves through the
- * track at the correct speed. Like this:
- *
- * ```
- *                                         scrollbar
- *                                           track
- *                                             ↓
- *              ┌► ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┯━┓
- *              │  ┃                          │ ┃
- *  scroll view │  ┃                          │ ┃
- *    content   │  ┃                          │ ┃
- *              │  ┠──────────────────────────┼─┨
- *              │  ┃          scroll          ├─┨ ◄┐
- *              │  ┃           view           │ ┃  │
- *              │  ┃          window          │ ┃  │ scrollbar
- *              │  ┠──────────────────────────┼─┨  │   thumb
- *              │  ┃                          │ ┃  │
- *              │  ┃                          │ ┃  │
- *              │  ┃                          ├─┨ ◄┘
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              └► ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┿━┩
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            └─┘
- * ```
- *
- * Here we've scaled our scrollbar track up by ~50%. The scrollbar thumb is
- * also now about ~50% larger than the scroll view window and has moved further
- * down the track. It's now in the correct position but it's not the correct
- * size. If we apply `transform: scaleY()` again on just our thumb we can get
- * it to be the correct size in the correct position.
- *
- * ```
- *                                         scrollbar
- *                                           track
- *                                             ↓
- *              ┌► ┏━━━━━━━━━━━━━━━━━━━━━━━━━━┯━┓
- *              │  ┃                          │ ┃
- *  scroll view │  ┃                          │ ┃
- *    content   │  ┃                          │ ┃
- *              │  ┠──────────────────────────┼─┨
- *              │  ┃          scroll          ├─┨ ◄┐ scrollbar
- *              │  ┃           view           ├─┨ ◄┘   thumb
- *              │  ┃          window          │ ┃
- *              │  ┠──────────────────────────┼─┨
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              │  ┃                          │ ┃
- *              └► ┗━━━━━━━━━━━━━━━━━━━━━━━━━━┿━┩
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            │ │
- *                                            └─┘
- * ```
- *
- * So how do we figure out what our scrollbar track scale factor should be?
- * Let's say the variable `scale` is how much the track needs to scale.
- *
- * The thumb will move from `y = 0` to
- * `y = (contentHeight - windowHeight) * scale`. Let's write down an equation
- * for the `maxThumbY` variable.
- *
- * ```
- * maxThumbY = (contentHeight - windowHeight) * scale
- * ```
- *
- * Our thumb height starts as `windowHeight` then scaled it has a height of
- * `windowHeight * scale`. At the end we scale the thumb back to our desired
- * height which is:
- *
- * ```
- * thumbDesiredHeight = windowHeight * (windowHeight / contentHeight)
- * ```
- *
- * Well, we also apply a minimum size so its doesn't get too small in a large
- * scroll view:
- *
- * ```
- * thumbDesiredHeight = max(windowHeight * (windowHeight / contentHeight), minThumbDesiredHeight)
- * ```
- *
- * Visually to the user the thumb moves from `y = 0` to
- * `y = contentHeight - thumbDesiredHeight`. This value should be the same as
- * `maxThumbY`.
- *
- * ```
- * maxThumbY = contentHeight - thumbDesiredHeight
- * ```
- *
- * We have a system of equations here!
- *
- * ```
- * maxThumbY = (contentHeight - windowHeight) * scale
- * maxThumbY = contentHeight - thumbDesiredHeight
- * ```
- *
- * or:
- *
- * ```
- * (contentHeight - windowHeight) * scale = contentHeight - thumbDesiredHeight
- * ```
- *
- * If we solve for `scale` we get:
- *
- * ```
- * scale = (contentHeight - thumbDesiredHeight) / (contentHeight - windowHeight)
- * ```
- *
- * The insight here is the scaled up thumb should end at the same Y position as
- * after we scale it back down.
- *
- * To my (Caleb's) knowledge this approach hasn't been used before for building
- * a custom scrollbar. However, since inventing this approach [I've found
- * another approach that uses `transform: matrix3d()` to achieve the same
- * effect][5]. The [CSS Houdini low-level APIs][6] should eventually make it
- * possible to implement this scrollbar effect without workarounds like this.
+ * Once [CSS Houdini low-level APIs][6] gets broad support, presumably we could
+ * implement custom scrollbars with those APIs.
  *
  * [1]: https://css-tricks.com/the-current-state-of-styling-scrollbars-in-css/
  * [2]: https://kingsora.github.io/OverlayScrollbars/
@@ -315,92 +161,75 @@ export function initializeScrollbar(
         insetRight?: RemLength | number;
     } = {},
 ): () => void {
+    {
+        const {perspective, position} = getComputedStyle(element);
+
+        // We need to set `perspective` and `perspective-origin` for our scrollbar to
+        // work. If needed, presumably we could make scrollbars work with whatever
+        // `perspective` value but for now it's simpler to not allow perspective
+        // customization.
+        //
+        // We don't check that `perspective-origin` is correct since the computed style
+        // is `50% 50%` resolved to pixels.
+        assert(
+            perspective === "none",
+            "`perspective` CSS style should be initial value on scrollable element",
+        );
+        assert(
+            !element.style.perspective,
+            "There shouldn't be a `perspective` inline CSS style on scrollable element",
+        );
+        assert(
+            !element.style.perspectiveOrigin,
+            "There shouldn't be a `perspective-origin` inline CSS style on scrollable element",
+        );
+
+        // Scrollbar will lay itself out with `position: absolute` so the scrollable
+        // element should form a containing block. The easiest way to do this is by
+        // setting `position: relative` on the scrollable element but here are some
+        // other ways:
+        // https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block#identifying_the_containing_block
+        assert(
+            position === "relative",
+            "Scrollable element must be a containing block (set `position: relative` on the element)",
+        );
+    }
+
+    let visibleAfterScrollTimeout: Timeout | null = null;
+
     /* ========================================================================== *\
      *                               Construct DOM                                *
     \* ========================================================================== */
 
     const scrollbarElement = document.createElement("div");
 
-    const scrollbarTrackElement = document.createElement("div");
-    scrollbarElement.appendChild(scrollbarTrackElement);
-
-    const scrollbarThumbStickyElement = document.createElement("div");
-    scrollbarTrackElement.appendChild(scrollbarThumbStickyElement);
-
-    const scrollbarThumbHitElement = document.createElement("div");
-    scrollbarThumbStickyElement.appendChild(scrollbarThumbHitElement);
-
     const scrollbarThumbElement = document.createElement("div");
-    scrollbarThumbHitElement.appendChild(scrollbarThumbElement);
+    scrollbarElement.appendChild(scrollbarThumbElement);
 
-    /* ========================================================================== *\
-     *                              Constant styling                              *
-    \* ========================================================================== */
-
-    const thumbMargin = "0.5";
-    const thumbInteractiveMargin = "1.5";
-    const thumbWidth = "1.5";
-    const minThumbHeight = "6";
-
-    const thumbMarginRem = parseRemLengthNumber(spacing[thumbMargin]);
-    const thumbInteractiveMarginRem = parseRemLengthNumber(spacing[thumbInteractiveMargin]);
-    const thumbWidthRem = parseRemLengthNumber(spacing[thumbWidth]);
-    const minThumbHeightRem = parseRemLengthNumber(spacing[minThumbHeight]);
-
-    scrollbarElement.className = sprinkles({
-        position: "absolute",
-        top: "0",
-        right: "0",
-        pointerEvents: "none",
-    });
-
-    const thumbHitWidthRem = thumbInteractiveMarginRem + thumbWidthRem + thumbMarginRem;
-
+    scrollbarElement.className = scrollbarClassName;
+    scrollbarElement.style.position = "absolute";
+    scrollbarElement.style.top = "0";
+    scrollbarElement.style.right = "0";
+    scrollbarElement.style.transformOrigin = "top right";
     scrollbarElement.style.width =
         insetRight !== 0
             ? typeof insetRight === "number"
-                ? `calc(${thumbHitWidthRem}rem + ${insetRight}px)`
-                : `${thumbHitWidthRem + parseRemLengthNumber(insetRight)}rem`
-            : `${thumbHitWidthRem}rem`;
-
-    // For our scrollbar implementation, we scale up the scrollbar track so the
-    // scrollbar thumb moves faster down the track than the user's scroll. So then
-    // we need to hide the excess scrollbar track.
-    //
-    // We can't use `overflow: hidden` since that creates a new scrolling ancestor
-    // that `sticky` will stick to instead of our parent scroll view. So we use
-    // `contain: paint` instead which has the same effect but doesn't create a new
-    // scrolling ancestor.
-    scrollbarElement.style.contain = "paint";
-
-    scrollbarTrackElement.className = sprinkles({
-        position: "absolute",
-        top: "0",
-        left: "0",
-        right: "0",
-    });
-
-    scrollbarTrackElement.style.transformOrigin = "top center";
-
-    scrollbarThumbStickyElement.className = sprinkles({
-        position: "sticky",
-        top: "0",
-        left: "0",
-        right: "0",
-    });
-
-    scrollbarThumbHitElement.className = scrollbarThumbHitClassName;
-
-    scrollbarThumbHitElement.style.paddingLeft = `${thumbInteractiveMarginRem}rem`;
-
-    scrollbarThumbHitElement.style.paddingRight =
-        insetRight !== 0
-            ? typeof insetRight === "number"
-                ? `calc(${thumbMarginRem}rem + ${insetRight}px)`
-                : `${thumbMarginRem + parseRemLengthNumber(insetRight)}rem`
-            : `${thumbMarginRem}rem`;
+                ? `calc(${scrollbarWidthRem}rem + ${insetRight}px)`
+                : `${scrollbarWidthRem + parseRemLengthNumber(insetRight)}rem`
+            : `${scrollbarWidthRem}rem`;
 
     scrollbarThumbElement.className = scrollbarThumbClassName;
+    scrollbarThumbElement.style.position = "absolute";
+    scrollbarThumbElement.style.top = `${scrollbarMarginRem}rem`;
+    scrollbarThumbElement.style.bottom = `${scrollbarMarginRem}rem`;
+    scrollbarThumbElement.style.left = `${scrollbarInteractiveLeftMarginRem}rem`;
+    scrollbarThumbElement.style.right =
+        insetRight !== 0
+            ? typeof insetRight === "number"
+                ? `calc(${scrollbarMarginRem}rem + ${insetRight}px)`
+                : `${scrollbarMarginRem + parseRemLengthNumber(insetRight)}rem`
+            : `${scrollbarMarginRem}rem`;
+    scrollbarThumbElement.style.borderRadius = borderRadius["full"];
 
     /* ========================================================================== *\
      *                        Handle resizing & scrolling                         *
@@ -410,72 +239,10 @@ export function initializeScrollbar(
         scrollHeight: number;
         clientHeight: number;
     } | null = null;
-    let visibleAfterScrollTimeout: Timeout | null = null;
 
     const handleResize = () => {
         const clientHeight = element.clientHeight;
-
-        // We can't use `element.scrollHeight` to get the scrollable element's content
-        // height. That's because it includes the height of our scrollbar. If the
-        // scrollable element's content shrinks then our scrollbar will maintain the
-        // old height. So calculate `element.scrollHeight` excluding the scrollbar.
-        let scrollHeight = 0;
-
-        for (const childNode of element.childNodes) {
-            if (!(childNode instanceof HTMLElement)) continue;
-
-            // Ignore our scrollbar element.
-            if (childNode === scrollbarElement) continue;
-
-            // The offset from the top of our child to the top of our scroll area
-            // `element`.
-            //
-            // If `childNode.offsetParent === element` (true if `element` has the CSS
-            // `position: relative`) then that's `childNode.offsetTop`.
-            //
-            // However, if `childNode.offsetParent !== element` we need to subtract
-            // `element.offsetTop` to get our child's offset relative to `element` instead
-            // of relative to their shared parent.
-            const childOffsetTop =
-                childNode.offsetTop - (childNode.offsetParent !== element ? element.offsetTop : 0);
-
-            // If the child's overflow is visible then we should use `scrollHeight` instead
-            // of `offsetHeight` since `offsetHeight` will be clipped to the overflow
-            // bounds. The overflowed content contributes to `element`'s `scrollHeight`.
-            //
-            // As of 2023-12-08, `<DocumentContentEditor>` is an example where this is
-            // necessary. The content element is the screen height but has more visible
-            // content underneath.
-            const childHeight =
-                getComputedStyle(childNode).overflowY === "visible"
-                    ? childNode.scrollHeight
-                    : childNode.offsetHeight;
-
-            // Children can be positioned in many surprising ways between `display: flex`
-            // or `float: right` or `position: absolute`. To determine the height of our
-            // content, we look for the element with the largest bottom position.
-            scrollHeight = Math.max(scrollHeight, childOffsetTop + childHeight);
-        }
-
-        // Make sure the element's `paddingTop`/`paddingBottom` is included in the
-        // computed height.
-        //
-        // NOTE(calebmer): I'm not sure if this is the correct calculation when we have
-        // some absolute positioned elements affecting the element's height?
-        let paddingTopPx: number;
-        let paddingBottomPx: number;
-        {
-            const {paddingTop, paddingBottom} = getComputedStyle(element);
-
-            paddingTopPx = parseFloat(paddingTop);
-            if (isNaN(paddingTopPx)) paddingTopPx = 0;
-
-            paddingBottomPx = parseFloat(paddingBottom);
-            if (isNaN(paddingBottomPx)) paddingBottomPx = 0;
-
-            scrollHeight = Math.max(scrollHeight, paddingTopPx);
-            scrollHeight += paddingBottomPx;
-        }
+        const scrollHeight = element.scrollHeight;
 
         // Optimization: If `scrollHeight` and `clientHeight` don't change then don't
         // update our styles which may cause the browser to do some layout work.
@@ -487,15 +254,15 @@ export function initializeScrollbar(
             return;
         }
 
-        // If after a resize we have lest scroll content then the scrollable element,
+        // If after a resize we have less scroll content then the scrollable element,
         // cancel any scrolling animations and hide the scrollbar.
         if (
             sizes !== null &&
             scrollHeight <= clientHeight &&
             sizes.scrollHeight > sizes.clientHeight
         ) {
-            scrollbarThumbHitElement.classList.add(scrollbarThumbHitHideClassName);
-            scrollbarThumbHitElement.classList.remove(scrollbarThumbHitFadeOutClassName);
+            scrollbarElement.classList.add(scrollbarHideClassName);
+            scrollbarElement.classList.remove(scrollbarFadeOutClassName);
 
             visibleAfterScrollTimeout?.clear();
             visibleAfterScrollTimeout = null;
@@ -520,60 +287,34 @@ export function initializeScrollbar(
                 ? parseRemLengthNumber(insetBottom) * remPx
                 : insetBottom;
 
-        const thumbStickyHeight = Math.max(
-            clientHeight * (clientHeight / scrollHeight),
-            insetTopPx + minThumbHeightRem * remPx + insetBottomPx,
+        const scrollbarHeight = Math.max(
+            clientHeight * ((clientHeight - insetTopPx - insetBottomPx) / scrollHeight),
+            minScrollbarHeightRem * remPx,
         );
 
-        const trackScaleY =
-            scrollHeight > clientHeight
-                ? (thumbStickyHeight - scrollHeight) / (clientHeight - scrollHeight)
-                : // If there is not enough content to fill the scroll view we'll hide the
-                  // scrollbar so don't scale beyond 2. (Otherwise the scale grows
-                  // exponentially.)
-                  2;
-        const undoTrackScaleY = 1 / trackScaleY;
+        const scaleFactor =
+            (clientHeight - scrollbarHeight - insetTopPx - insetBottomPx) /
+            (scrollHeight - clientHeight);
 
-        scrollbarElement.style.height = `${scrollHeight}px`;
-        scrollbarTrackElement.style.height = `${scrollHeight}px`;
-        scrollbarThumbStickyElement.style.height = `${thumbStickyHeight * undoTrackScaleY}px`;
+        const transform = [
+            // prettier-ignore
+            `matrix3d(${[
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, -1,
+                ].join(", ")})`,
+            `scale(${1 / scaleFactor})`,
+            `translateZ(${1 - 1 / scaleFactor}px)`,
+            "translateZ(-2px)",
+        ];
 
-        scrollbarTrackElement.style.transform = `scaleY(${trackScaleY})`;
-
-        // We want `thumbMarginRem` vertical padding on our thumb. But since our thumb
-        // is scaled we need to scale the padding to achieve this effect.
-        scrollbarThumbStickyElement.style.paddingTop =
-            scrollbarThumbStickyElement.style.paddingBottom = `${
-                thumbMarginRem * undoTrackScaleY
-            }rem`;
-
-        if (insetTop !== 0) {
-            scrollbarThumbStickyElement.style.paddingTop = `${
-                (insetTopPx + thumbMarginRem * remPx) * undoTrackScaleY
-            }px`;
+        if (insetTopPx > 0) {
+            transform.push(`translateY(${insetTopPx}px)`);
         }
 
-        if (insetBottom !== 0) {
-            scrollbarThumbStickyElement.style.paddingBottom = `${
-                (insetBottomPx + thumbMarginRem * remPx) * undoTrackScaleY
-            }px`;
-        }
-
-        // NOTE(calebmer): It would appear that in elements with padding, `top: 0` on a
-        // sticky element starts the element inside the parent's padding? Counter-act
-        // this by applying negative padding.
-        //
-        // This feels hacky, though. Don't love this solution.
-        if (paddingTopPx > 0) {
-            scrollbarThumbStickyElement.style.top = `-${paddingTopPx}px`;
-        }
-
-        const borderRadiusHorizontal = (thumbWidthRem * remPx) / 2;
-        const borderRadiusVertical = borderRadiusHorizontal * undoTrackScaleY;
-
-        // We want a fully rounded `border-radius` on our thumb. But since our thumb is
-        // scaled we need to scale the vertical rounding to achieve this effect.
-        scrollbarThumbElement.style.borderRadius = `${borderRadiusHorizontal}px / ${borderRadiusVertical}px`;
+        scrollbarElement.style.height = `${scrollbarHeight}px`;
+        scrollbarElement.style.transform = transform.join(" ");
     };
 
     // Temporarily show the scrollbar while the user is scrolling then fade it out
@@ -592,8 +333,8 @@ export function initializeScrollbar(
     const restartVisibleAfterScrollTimeout = () => {
         if (sizes === null || sizes.scrollHeight <= sizes.clientHeight) return;
 
-        scrollbarThumbHitElement.classList.remove(scrollbarThumbHitHideClassName);
-        scrollbarThumbHitElement.classList.remove(scrollbarThumbHitFadeOutClassName);
+        scrollbarElement.classList.remove(scrollbarHideClassName);
+        scrollbarElement.classList.remove(scrollbarFadeOutClassName);
 
         visibleAfterScrollTimeout?.clear();
         visibleAfterScrollTimeout = null;
@@ -601,12 +342,12 @@ export function initializeScrollbar(
         let timeout2: Timeout | null = null;
 
         const timeout1 = createTimeout(() => {
-            scrollbarThumbHitElement.classList.add(scrollbarThumbHitFadeOutClassName);
+            scrollbarElement.classList.add(scrollbarFadeOutClassName);
 
             timeout2 = createTimeout(() => {
-                scrollbarThumbHitElement.classList.add(scrollbarThumbHitHideClassName);
-                scrollbarThumbHitElement.classList.remove(scrollbarThumbHitFadeOutClassName);
-            }, scrollbarThumbFadeOutAnimationDurationMs);
+                scrollbarElement.classList.add(scrollbarHideClassName);
+                scrollbarElement.classList.remove(scrollbarFadeOutClassName);
+            }, scrollbarFadeOutAnimationDurationMs);
         }, scrollbarVisibleAfterScrollDurationMs);
 
         visibleAfterScrollTimeout = {
@@ -619,7 +360,7 @@ export function initializeScrollbar(
     };
 
     // The scrollbar always starts out hidden.
-    scrollbarThumbHitElement.classList.add(scrollbarThumbHitHideClassName);
+    scrollbarElement.classList.add(scrollbarHideClassName);
 
     // Run resize function to initialize styles.
     handleResize();
@@ -671,8 +412,8 @@ export function initializeScrollbar(
             startScrollTop: element.scrollTop,
         };
 
-        scrollbarThumbHitElement.classList.remove(scrollbarThumbHitHideClassName);
-        scrollbarThumbHitElement.classList.remove(scrollbarThumbHitFadeOutClassName);
+        scrollbarElement.classList.remove(scrollbarHideClassName);
+        scrollbarElement.classList.remove(scrollbarFadeOutClassName);
 
         visibleAfterScrollTimeout?.clear();
         visibleAfterScrollTimeout = null;
@@ -697,21 +438,21 @@ export function initializeScrollbar(
         restartVisibleAfterScrollTimeout();
     };
 
-    scrollbarThumbHitElement.addEventListener("pointerdown", startDrag);
+    scrollbarElement.addEventListener("pointerdown", startDrag);
 
-    scrollbarThumbHitElement.addEventListener("pointerenter", () => {
+    scrollbarElement.addEventListener("pointerenter", () => {
         isPointerOver = true;
 
         if (!dragState && sizes !== null && sizes.scrollHeight > sizes.clientHeight) {
-            scrollbarThumbHitElement.classList.remove(scrollbarThumbHitHideClassName);
-            scrollbarThumbHitElement.classList.remove(scrollbarThumbHitFadeOutClassName);
+            scrollbarElement.classList.remove(scrollbarHideClassName);
+            scrollbarElement.classList.remove(scrollbarFadeOutClassName);
 
             visibleAfterScrollTimeout?.clear();
             visibleAfterScrollTimeout = null;
         }
     });
 
-    scrollbarThumbHitElement.addEventListener("pointerleave", () => {
+    scrollbarElement.addEventListener("pointerleave", () => {
         isPointerOver = false;
 
         if (!dragState) {
@@ -736,10 +477,25 @@ export function initializeScrollbar(
      *                       Connect to scrollable element                        *
     \* ========================================================================== */
 
-    elementsWithInitializedScrollbarForDev?.add(element);
+    element.style.perspective = "1px";
+    element.style.perspectiveOrigin = "top right";
+
     element.appendChild(scrollbarElement);
+
+    elementsWithInitializedScrollbarForDev?.add(element);
     addResizeListenerForElement(element, handleResize);
     element.addEventListener("scroll", handleScroll);
+
+    const listeningToChildElementResizes = new Set<HTMLElement>();
+    for (const childNode of element.childNodes) {
+        if (!(childNode instanceof HTMLElement)) continue;
+
+        // Ignore our scrollbar element.
+        if (childNode === scrollbarElement) continue;
+
+        addResizeListenerForElement(childNode, handleResize);
+        listeningToChildElementResizes.add(childNode);
+    }
 
     // We need to listen to:
     //
@@ -752,30 +508,23 @@ export function initializeScrollbar(
     // us when children are added/removed so we can listen to resizes for them.
     const mutationObserver = new MutationObserver(records => {
         for (const record of records) {
-            if (record.type === "attributes") {
-                // Padding on the element may have changed which changes
-                // `element.scrollHeight`.
-                handleResize();
-            }
-
             if (record.type === "childList") {
                 if (record.addedNodes && record.addedNodes.length > 0) {
-                    // Adding nodes may change `element.scrollHeight`.
-                    handleResize();
-
                     for (const addedNode of record.addedNodes) {
                         if (!(addedNode instanceof HTMLElement)) continue;
 
                         // Ignore our scrollbar element.
                         if (addedNode === scrollbarElement) continue;
 
+                        // Adding a resize listener will make an initial call to `handleResize()`.
+                        // We don't need to make an additional call.
                         addResizeListenerForElement(addedNode, handleResize);
                         listeningToChildElementResizes.add(addedNode);
                     }
                 }
 
                 if (record.removedNodes && record.removedNodes.length > 0) {
-                    // Removing nodes may change `element.scrollHeight`.
+                    // Removed nodes may change `element.scrollHeight`.
                     handleResize();
 
                     for (const removedNode of record.removedNodes) {
@@ -792,19 +541,7 @@ export function initializeScrollbar(
         }
     });
 
-    const listeningToChildElementResizes = new Set<HTMLElement>();
-    for (const childNode of element.childNodes) {
-        if (!(childNode instanceof HTMLElement)) continue;
-
-        // Ignore our scrollbar element.
-        if (childNode === scrollbarElement) continue;
-
-        addResizeListenerForElement(childNode, handleResize);
-        listeningToChildElementResizes.add(childNode);
-    }
-
     mutationObserver.observe(element, {
-        attributes: true,
         childList: true,
     });
 
@@ -813,16 +550,21 @@ export function initializeScrollbar(
          *                     Disconnect from scrollable element                     *
         \* ========================================================================== */
 
-        elementsWithInitializedScrollbarForDev?.delete(element);
-        element.removeChild(scrollbarElement);
-        removeResizeListenerForElement(element, handleResize);
-        element.addEventListener("scroll", handleScroll);
+        mutationObserver.disconnect();
 
         for (const element of listeningToChildElementResizes)
             removeResizeListenerForElement(element, handleResize);
 
         listeningToChildElementResizes.clear();
-        mutationObserver.disconnect();
+
+        element.removeEventListener("scroll", handleScroll);
+        removeResizeListenerForElement(element, handleResize);
+        elementsWithInitializedScrollbarForDev?.delete(element);
+
+        element.removeChild(scrollbarElement);
+
+        element.style.removeProperty("perspective");
+        element.style.removeProperty("perspective-origin");
     };
 }
 

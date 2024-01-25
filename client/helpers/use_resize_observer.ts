@@ -121,6 +121,8 @@ function createResizeObserver() {
 /**
  * Adds a resize listener for the provided element.
  *
+ * The listener is immediately called with the initial element size.
+ *
  * We will construct a single `ResizeObserver` for all elements who want to
  * listen to resizes.
  */
