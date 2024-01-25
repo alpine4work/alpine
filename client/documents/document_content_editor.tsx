@@ -800,7 +800,6 @@ function DocumentContentEditorStateful({
                             aria-label="Document"
                             placeholder="Share your ideas…"
                             className={documentContentClassName}
-                            containerClassName={sprinkles({height: "full"})}
                             phantomSelections={phantomSelections}
                             openCommentThread={openCommentThread}
                             onCommentThreadPressedChange={(commentThreadId, isHovered) => {

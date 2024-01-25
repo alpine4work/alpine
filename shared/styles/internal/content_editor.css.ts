@@ -1,9 +1,48 @@
 import {globalStyle, style} from "@vanilla-extract/css";
-import {linkClassName, mentionClassName} from "~/shared/styles/internal/content_schema.css.js";
+import {
+    docClassName,
+    linkClassName,
+    mentionClassName,
+} from "~/shared/styles/internal/content_schema.css.js";
 import {backgroundFontSizePercentage} from "~/shared/styles/internal/fonts.css.js";
 
+// The CSS for setting `min-height: 100%` here is pretty annoying. We set
+// `docClassName` to `min-height: 100%` and `containerClassName` to
+// `min-height: 100%`. However, the `docClassName` element does not end up
+// having `min-height: 100%` of `containerClassName`'s parent which we'd
+// expect! Instead `docClassName` has the height of its content. It's probably
+// calculating `containerClassName` to have a height of 0px instead of 100%
+// of its container.
+//
+// This StackOverflow question has much discussion of this problem with no good
+// solution:
+// https://stackoverflow.com/a/8468131/1568890
+//
+// We need two things:
+//
+// 1. `docClassName`'s height should be at least 100% of `containerClassName`'s
+//    parent
+// 2. `containerClassName` should have the height of `docClassName` if
+//    `docClassName`'s height is greater than 100% of `containerClassName`'s
+//    parent
+//
+// Most solutions to this problem give one or the other. For instance, the top
+// voted question on the StackOverflow answer gives 1 but not 2. Setting
+// `min-height: 100%` with nothing else on `containerClassName` and
+// `docClassName` gives 2 but not 1.
+//
+// Our solution is to use flexbox which appears to work. Setting `docClassName`
+// to `flex-grow: 1` gets `docClassName` to grow when its height is less than
+// 100% of `containerClassName`'s parent. The best answer on the StackOverflow
+// question does something similar but with `display: table`.
 export const containerClassName = style({
     minHeight: "100%",
+    display: "flex",
+    flexDirection: "column",
+});
+
+globalStyle(`${containerClassName} > ${docClassName}`, {
+    flexGrow: 1,
 });
 
 /**
