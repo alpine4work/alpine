@@ -284,7 +284,7 @@ export function TaskQueryView({
         onRenderedRangeChange: onGridViewRenderedRangeChange,
         onRenderedRangeLayoutChange: onGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderAdditionalGridViewItemIndexes,
-        insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
+        scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
     } = useTaskGridViewVirtualizedList({
@@ -419,7 +419,7 @@ export function TaskQueryView({
                     bufferedItemHeight={gridViewBufferedItemHeight}
                     itemCount={gridViewItemCount}
                     alwaysRenderAdditionalItemIndexes={alwaysRenderAdditionalGridViewItemIndexes}
-                    insetScrollbarItemIndex={insetScrollbarGridViewItemIndex}
+                    scrollbarInsetTopItemIndex={scrollbarInsetTopGridViewItemIndex}
                     renderItem={renderGridViewItem}
                     onRenderedRangeChange={onGridViewRenderedRangeChange}
                     onRenderedRangeLayoutChange={onGridViewRenderedRangeLayoutChange}

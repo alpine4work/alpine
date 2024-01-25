@@ -1,14 +1,16 @@
 import {useDndContext} from "@dnd-kit/core";
-import {useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
+import {Memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from "react";
 import {Box} from "~/client/design/box.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
+import {TaskGridViewCapabilities} from "~/client/tasks/internal/task_grid_view_capabilities.js";
 import {TaskNotepadViewActiveSection} from "~/client/tasks/internal/task_notepad_view_active_section.js";
 import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_view_paginator.js";
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     TaskGridViewVirtualizedListViewRef,
+    getTaskGridViewColumnHeaderWithControlsHeight,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -251,6 +253,28 @@ export function TaskNotepadView({
         [shiftRenderedRangeForGridView],
     );
 
+    const gridViewColumnHeaderControlsHeight = withMobileLayout ? "2.75rem" : "3rem";
+
+    const gridViewCapabilities: Memo<TaskGridViewCapabilities> = useMemo(() => {
+        if (!withMobileLayout) {
+            return {
+                isReadOnly: false,
+                hasParentTaskTitle: false,
+                hasMultilineTitle: false,
+                hasColumns: true,
+                hasDenseFields: false,
+            };
+        } else {
+            return {
+                isReadOnly: false,
+                hasParentTaskTitle: false,
+                hasMultilineTitle: true,
+                hasColumns: false,
+                hasDenseFields: true,
+            };
+        }
+    }, [withMobileLayout]);
+
     const {
         stateKey: gridViewStateKey,
         bufferedItemHeight: gridViewBufferedItemHeight,
@@ -260,29 +284,16 @@ export function TaskNotepadView({
         onRenderedRangeChange: onGridViewRenderedRangeChange,
         onRenderedRangeLayoutChange: onGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderGridViewItemIndexes,
-        insetScrollbarItemIndex: insetScrollbarGridViewItemIndex,
+        // We don't inset the scrollbar under the active cards. We inset it our column
+        // header controls height. This way our scrollbar doesn't conflict with the
+        // sticky header but it also doesn't start too low in the view.
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
+        remPx,
     } = useTaskGridViewVirtualizedList({
-        capabilities: useMemo(() => {
-            if (!withMobileLayout) {
-                return {
-                    isReadOnly: false,
-                    hasParentTaskTitle: false,
-                    hasMultilineTitle: false,
-                    hasColumns: true,
-                    hasDenseFields: false,
-                };
-            } else {
-                return {
-                    isReadOnly: false,
-                    hasParentTaskTitle: false,
-                    hasMultilineTitle: true,
-                    hasColumns: false,
-                    hasDenseFields: true,
-                };
-            }
-        }, [withMobileLayout]),
+        capabilities: gridViewCapabilities,
         store,
         query: queryState.activeQuery.query,
         affinityManager,
@@ -323,11 +334,12 @@ export function TaskNotepadView({
         withColumnHeaderBorderTop: !withMobileLayout,
         columnHeaderControls: useMemo(() => {
             return {
-                minHeight: withMobileLayout ? "2.75rem" : "3rem",
+                minHeight: gridViewColumnHeaderControlsHeight,
                 node: (
                     <Box
                         paddingTop="2.5"
                         style={{
+                            height: gridViewColumnHeaderControlsHeight,
                             // Make sure `paddingBottom` is the same as `paddingTop` when in a mobile
                             // layout when we don't have column headers.
                             paddingBottom: withMobileLayout
@@ -383,7 +395,13 @@ export function TaskNotepadView({
                     </Box>
                 ),
             };
-        }, [allNotepadPageIds, notepadPageState.notepadPageId, store, withMobileLayout]),
+        }, [
+            allNotepadPageIds,
+            gridViewColumnHeaderControlsHeight,
+            notepadPageState.notepadPageId,
+            store,
+            withMobileLayout,
+        ]),
     });
 
     return (
@@ -418,11 +436,11 @@ export function TaskNotepadView({
                         () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
                         [alwaysRenderGridViewItemIndexes],
                     )}
-                    insetScrollbarItemIndex={
-                        insetScrollbarGridViewItemIndex !== undefined
-                            ? insetScrollbarGridViewItemIndex + 1
-                            : undefined
-                    }
+                    scrollbarInsetTopPx={getTaskGridViewColumnHeaderWithControlsHeight(
+                        remPx,
+                        gridViewCapabilities,
+                        gridViewColumnHeaderControlsHeight,
+                    )}
                     renderItem={useCallback(
                         index => {
                             if (index === 0) {

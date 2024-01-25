@@ -294,10 +294,10 @@ export function useTaskGridViewVirtualizedList({
     alwaysRenderAdditionalItemIndexes: Memo<ReadonlyArray<number>>;
 
     /**
-     * Item index the scrollbar should be inset after. Should be passed to
-     * `<VirtualizedScrollView>`.
+     * (Optional, but recommended) Item index the scrollbar should be inset after.
+     * Should be passed to `<VirtualizedScrollView>`.
      */
-    insetScrollbarItemIndex: number | undefined;
+    scrollbarInsetTopItemIndex: number | undefined;
 
     /**
      * Modals opened during operation of the grid view (e.g. remainingWidth confirmation
@@ -313,29 +313,34 @@ export function useTaskGridViewVirtualizedList({
     onGlobalKeyDown: (event: KeyboardEvent) => void;
 
     /**
-     * (Optional.) Focuses the start of the grid view.
+     * (Optional) Focuses the start of the grid view.
      */
     focusStart: Memo<() => void>;
 
     /**
-     * (Optional.) Focuses the end of the grid view.
+     * (Optional) Focuses the end of the grid view.
      */
     focusEnd: Memo<() => void>;
 
     /**
-     * (Optional.) Add an entry to the grid view's undo stack.
+     * (Optional) Add an entry to the grid view's undo stack.
      */
     pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
 
     /**
-     * (Optional.) Add an entry to the grid view's undo stack.
+     * (Optional) Add an entry to the grid view's undo stack.
      */
     pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
 
     /**
-     * (Optional.) Add an entry to the grid view's redo stack.
+     * (Optional) Add an entry to the grid view's redo stack.
      */
     pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
+
+    /**
+     * (Optional) Returns the current `remPx` value for convenience.
+     */
+    remPx: number;
 } {
     const {isAppleDevice} = useClientInfo();
     const context = useAppContext();
@@ -1735,10 +1740,11 @@ export function useTaskGridViewVirtualizedList({
         return (itemIndex: number): VirtualizedScrollViewItem => {
             // If this item is above our task list then render it.
             if (itemIndex < itemCountBeforeState) {
-                const minHeight =
-                    (columnHeaderControlsWithMinHeightPx?.minHeight ?? 0) +
-                    (capabilities.hasColumns ? convertRemLengthToPx("1.25rem", remPx) : 0) +
-                    taskGridViewColumnHeaderExtraPaddingBottom;
+                const minHeight = getTaskGridViewColumnHeaderWithControlsHeight(
+                    remPx,
+                    capabilities,
+                    columnHeaderControlsWithMinHeightPx?.minHeight ?? 0,
+                );
 
                 return {
                     key: "ColumnHeader",
@@ -2004,7 +2010,7 @@ export function useTaskGridViewVirtualizedList({
             () => (hasColumnHeaderItem ? [0] : emptyArray),
             [hasColumnHeaderItem],
         ),
-        insetScrollbarItemIndex: hasColumnHeaderItem ? 0 : undefined,
+        scrollbarInsetTopItemIndex: hasColumnHeaderItem ? 0 : undefined,
         modals: taskDeleteConfirmationState && rootQuery && (
             <TaskDeleteConfirmationModalDialog
                 store={rootQuery.store}
@@ -2020,6 +2026,7 @@ export function useTaskGridViewVirtualizedList({
         pushUndoStackEntry: events.pushUndoStackEntry,
         pushUndoStackEntryFromRedo: events.pushUndoStackEntryFromRedo,
         pushRedoStackEntry: events.pushRedoStackEntry,
+        remPx,
     };
 }
 
@@ -2062,11 +2069,29 @@ type TaskGridViewVirtualizedListEvents = MemoObject<{
     readonly setTaskRowZIndex: (taskKey: TaskGridViewTaskKey, zIndex: number) => () => void;
 }>;
 
+const taskGridViewColumnHeaderHeight = "5";
+
 // It takes 2px to render the bottom borders on our column header. 1px for the
 // border itself and 1px below that to avoid covering the first row's bottom
 // border. We don't want to take those 2px from the column header's height so
 // we need to add back some extra padding bottom height.
 const taskGridViewColumnHeaderExtraPaddingBottom = 2;
+
+export function getTaskGridViewColumnHeaderWithControlsHeight(
+    remPx: number,
+    capabilities: TaskGridViewCapabilities,
+    columnHeaderControlsHeight: RemLength | number,
+): number {
+    return (
+        (typeof columnHeaderControlsHeight === "string"
+            ? convertRemLengthToPx(columnHeaderControlsHeight, remPx)
+            : columnHeaderControlsHeight) +
+        (capabilities.hasColumns
+            ? convertRemLengthToPx(spacing[taskGridViewColumnHeaderHeight], remPx)
+            : 0) +
+        taskGridViewColumnHeaderExtraPaddingBottom
+    );
+}
 
 const TaskGridViewColumnHeaderMemo = memo(forwardRef(TaskGridViewColumnHeader));
 
@@ -2319,7 +2344,11 @@ function TaskGridViewColumnHeader(
                             </Box>
                         )}
                         {hasColumns && (
-                            <Box paddingTop="0.5" display="flex">
+                            <Box
+                                height={taskGridViewColumnHeaderHeight}
+                                paddingTop="0.5"
+                                display="flex"
+                            >
                                 <Box
                                     flexShrink="0"
                                     width="32"

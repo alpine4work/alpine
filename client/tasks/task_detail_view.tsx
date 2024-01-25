@@ -245,7 +245,7 @@ export function TaskDetailView({
         onRenderedRangeChange: onChildrenGridViewRenderedRangeChange,
         onRenderedRangeLayoutChange: onChildrenGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderChildrenGridViewItemIndexes,
-        insetScrollbarItemIndex: insetScrollbarChildrenGridViewItemIndex,
+        scrollbarInsetTopItemIndex: scrollbarInsetTopChildrenGridViewItemIndex,
         onGlobalKeyDown: onChildrenGridViewGlobalKeyDown,
         focusStart: focusChildrenGridViewStart,
         // We use the grid view's undo stack as our full task detail view undo stack.
@@ -409,9 +409,9 @@ export function TaskDetailView({
                         ],
                         [alwaysRenderChildrenGridViewItemIndexes],
                     )}
-                    insetScrollbarItemIndex={
-                        insetScrollbarChildrenGridViewItemIndex !== undefined
-                            ? insetScrollbarChildrenGridViewItemIndex + 1
+                    scrollbarInsetTopItemIndex={
+                        scrollbarInsetTopChildrenGridViewItemIndex !== undefined
+                            ? scrollbarInsetTopChildrenGridViewItemIndex + 1
                             : undefined
                     }
                     renderItem={useCallback(
