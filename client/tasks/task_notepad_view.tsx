@@ -10,7 +10,6 @@ import {TaskNotepadViewPaginator} from "~/client/tasks/internal/task_notepad_vie
 import {useOutOfBoundsClickSelection} from "~/client/tasks/internal/use_out_of_bounds_click_selection.js";
 import {
     TaskGridViewVirtualizedListViewRef,
-    getTaskGridViewColumnHeaderWithControlsHeight,
     useTaskGridViewVirtualizedList,
 } from "~/client/tasks/internal/use_task_grid_view_virtualized_list.js";
 import {TaskClientQuery} from "~/client/tasks/task_client_query.js";
@@ -284,14 +283,9 @@ export function TaskNotepadView({
         onRenderedRangeChange: onGridViewRenderedRangeChange,
         onRenderedRangeLayoutChange: onGridViewRenderedRangeLayoutChange,
         alwaysRenderAdditionalItemIndexes: alwaysRenderGridViewItemIndexes,
-        // We don't inset the scrollbar under the active cards. We inset it our column
-        // header controls height. This way our scrollbar doesn't conflict with the
-        // sticky header but it also doesn't start too low in the view.
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         scrollbarInsetTopItemIndex: scrollbarInsetTopGridViewItemIndex,
         onGlobalKeyDown: onGridViewGlobalKeyDown,
         focusEnd: focusGridViewEnd,
-        remPx,
     } = useTaskGridViewVirtualizedList({
         capabilities: gridViewCapabilities,
         store,
@@ -436,11 +430,11 @@ export function TaskNotepadView({
                         () => alwaysRenderGridViewItemIndexes.map(index => index + 1),
                         [alwaysRenderGridViewItemIndexes],
                     )}
-                    scrollbarInsetTopPx={getTaskGridViewColumnHeaderWithControlsHeight(
-                        remPx,
-                        gridViewCapabilities,
-                        gridViewColumnHeaderControlsHeight,
-                    )}
+                    scrollbarInsetTopItemIndex={
+                        scrollbarInsetTopGridViewItemIndex !== undefined
+                            ? scrollbarInsetTopGridViewItemIndex + 1
+                            : undefined
+                    }
                     renderItem={useCallback(
                         index => {
                             if (index === 0) {

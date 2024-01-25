@@ -423,7 +423,7 @@ function VirtualizedScrollView(
         stateKey,
         alwaysRenderAdditionalItemIndexes,
         scrollbarInsetTopItemIndex,
-        scrollbarInsetTopPx,
+        scrollbarInsetTop: actualScrollbarInsetTop,
         extraChildren,
     }: {
         /**
@@ -531,9 +531,9 @@ function VirtualizedScrollView(
 
         /**
          * Inset the scrollbar by this many pixels. If both `insetScrollbarItemIndex`
-         * and `scrollbarInsetTopPx` are set then `scrollbarInsetTopPx` wins.
+         * and `scrollbarInsetTop` are set then `scrollbarInsetTop` wins.
          */
-        scrollbarInsetTopPx?: RemLength | number;
+        scrollbarInsetTop?: RemLength | number;
 
         /**
          * Extra children to always render in our virtualized scroll view. Useful if
@@ -1521,8 +1521,8 @@ function VirtualizedScrollView(
     );
 
     let scrollbarInsetTop: RemLength | number | undefined;
-    if (scrollbarInsetTopPx) {
-        scrollbarInsetTop = scrollbarInsetTopPx;
+    if (actualScrollbarInsetTop !== undefined) {
+        scrollbarInsetTop = actualScrollbarInsetTop;
     } else if (scrollbarInsetTopItemIndex !== undefined) {
         const {offset, height} = state.getPositionByIndex(scrollbarInsetTopItemIndex);
         scrollbarInsetTop = offset + height;
