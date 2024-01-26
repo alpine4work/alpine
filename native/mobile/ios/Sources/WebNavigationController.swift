@@ -1,56 +1,6 @@
 import UIKit
 import WebKit
 
-private let bridgeSource = """
-    {
-        const externalPopNavigationListeners = new Set();
-
-        const NativeMobileBridge = {
-            navigation: {
-                preparePush: () => {
-                    prompt("%%%navigation.preparePush");
-                },
-                push: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
-                },
-                subscribeToExternalPop: listener => {
-                    externalPopNavigationListeners.add(listener);
-                    return () => {
-                        externalPopNavigationListeners.delete(listener);
-                    };
-                },
-                _callExternalPopListeners: (delta, urlString) => {
-                    const url = new URL(urlString);
-
-                    for (const listener of externalPopNavigationListeners) {
-                        try {
-                            listener(delta, url);
-                        } catch (error) {
-                            setTimeout(() => {
-                                throw error;
-                            }, 0);
-                        }
-                    }
-                },
-                finishExternalPop: () => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.finishExternalPop");
-                },
-                preparePop: () => {
-                    prompt("%%%navigation.preparePop");
-                },
-                pop: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
-                },
-                replace: url => {
-                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
-                },
-            },
-        };
-
-        window.__NativeMobileBridge = NativeMobileBridge;
-    }
-    """
-
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
     WKScriptMessageHandler, WKHTTPCookieStoreObserver, UIViewTreeObserverDelegate
 {
@@ -622,3 +572,53 @@ private class WebNavigationEntryController: UIViewController {
         imageView.layer.add(rotationAnimation, forKey: "rotationAnimation")
     }
 }
+
+private let bridgeSource = """
+    {
+        const externalPopNavigationListeners = new Set();
+
+        const NativeMobileBridge = {
+            navigation: {
+                preparePush: () => {
+                    prompt("%%%navigation.preparePush");
+                },
+                push: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
+                },
+                subscribeToExternalPop: listener => {
+                    externalPopNavigationListeners.add(listener);
+                    return () => {
+                        externalPopNavigationListeners.delete(listener);
+                    };
+                },
+                _callExternalPopListeners: (delta, urlString) => {
+                    const url = new URL(urlString);
+
+                    for (const listener of externalPopNavigationListeners) {
+                        try {
+                            listener(delta, url);
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
+                    }
+                },
+                finishExternalPop: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigation.finishExternalPop");
+                },
+                preparePop: () => {
+                    prompt("%%%navigation.preparePop");
+                },
+                pop: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.pop:${url}`);
+                },
+                replace: url => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
+                },
+            },
+        };
+
+        window.__NativeMobileBridge = NativeMobileBridge;
+    }
+    """
