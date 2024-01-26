@@ -401,9 +401,7 @@ export function initializeScrollbar(
 
     scrollbarTrackElement.className = sprinkles({
         position: "absolute",
-        top: "0",
-        left: "0",
-        right: "0",
+        inset: "0",
     });
 
     scrollbarTrackElement.style.transformOrigin = "top center";
@@ -545,10 +543,15 @@ export function initializeScrollbar(
                 ? parseRemLengthNumber(insetBottom) * remPx
                 : insetBottom;
 
-        const thumbStickyHeight = Math.max(
-            clientHeight * (clientHeight / scrollHeight),
-            insetTopPx + minScrollbarThumbHeightRem * remPx + insetBottomPx,
+        const insetRightPx =
+            typeof insetRight === "string" ? parseRemLengthNumber(insetRight) * remPx : insetRight;
+
+        const thumbHeight = Math.max(
+            clientHeight * ((clientHeight - insetTopPx - insetBottomPx) / scrollHeight),
+            minScrollbarThumbHeightRem * remPx,
         );
+
+        const thumbStickyHeight = insetTopPx + thumbHeight + insetBottomPx;
 
         const trackScaleY =
             scrollHeight > clientHeight
@@ -560,7 +563,6 @@ export function initializeScrollbar(
         const undoTrackScaleY = 1 / trackScaleY;
 
         scrollbarElement.style.height = `${scrollHeight}px`;
-        scrollbarTrackElement.style.height = `${scrollHeight}px`;
         scrollbarThumbStickyElement.style.height = `${thumbStickyHeight * undoTrackScaleY}px`;
 
         scrollbarTrackElement.style.transform = `scaleY(${trackScaleY})`;
@@ -593,12 +595,156 @@ export function initializeScrollbar(
             scrollbarThumbStickyElement.style.top = `-${paddingTopPx}px`;
         }
 
-        const borderRadiusHorizontal = (scrollbarThumbWidthRem * remPx) / 2;
-        const borderRadiusVertical = borderRadiusHorizontal * undoTrackScaleY;
+        const borderRadius = (scrollbarThumbWidthRem * remPx) / 2;
+        const borderRadiusWithUndoTrackScaleY = borderRadius * undoTrackScaleY;
 
         // We want a fully rounded `border-radius` on our thumb. But since our thumb is
         // scaled we need to scale the vertical rounding to achieve this effect.
-        scrollbarThumbElement.style.borderRadius = `${borderRadiusHorizontal}px / ${borderRadiusVertical}px`;
+        scrollbarThumbElement.style.borderRadius = `${borderRadius}px / ${borderRadiusWithUndoTrackScaleY}px`;
+
+        // These two styles affect overscroll bounds in Safari. A sticky element moves
+        // with overscroll in Safari. However, a sticky element can't:
+        //
+        // 1. Move further up then its initial position
+        // 2. Move further down then the bottom of the content area of its parent
+        //
+        // We want to allow our scrollbar to move out of our scrollable content (and so
+        // shrink as it slides out of bounds) but only until it reaches certain
+        // bounds. That way the scrollbar will never completely shrink to nothing.
+        //
+        // For 1 we use negative margin to set the sticky element's initial position
+        // out of the scroll track. For 2 we add padding to the bottom of the scroll
+        // track so eventually the scrollbar stops moving down the track.
+        //
+        // We need negative margin for the scrollbar to be able to move out of bounds
+        // at all. Otherwise it stops its movement at the top of scrollable content
+        // which is its natural initial position.
+        //
+        // To test try scrolling on an iOS device or with trackpad or magic mouse on
+        // Safari for MacOS. Then overscroll near the top/bottom of the container.
+        {
+            const extraTrackHeight = scrollHeight * trackScaleY - scrollHeight;
+            const overscrollThumbHeight = thumbHeight - minScrollbarThumbHeightRem * remPx;
+
+            scrollbarThumbStickyElement.style.marginTop = `-${
+                overscrollThumbHeight * undoTrackScaleY
+            }px`;
+
+            scrollbarTrackElement.style.paddingBottom = `${
+                (extraTrackHeight - overscrollThumbHeight) * undoTrackScaleY
+            }px`;
+        }
+
+        // Add a `clip-path` to our scrollbar element to handle Safari overscrolling.
+        // When the user is overscrolling the scrollbar leaves the bounds of of the
+        // scrollbar element and so is clipped. To make sure it's not clipped with a
+        // hard edge, we add a `clip-path` to give the scrollbar a rounded edge when
+        // clipped. This has the effect of making the scrollbar look like it's
+        // shrinking when overscrolled.
+        //
+        // To test this try overscrolling on iOS and see how the scrollbar appears
+        // to shrink.
+        //
+        // To debug the clip path add `backgroundColor: "red-10"` or similar to
+        // `scrollbarElement`.
+        {
+            const scrollbarWidthPx = scrollbarThumbHitWidthRem * remPx + insetRightPx;
+            const scrollbarThumbMarginPx = scrollbarThumbMarginRem * remPx;
+            const scrollbarThumbInteractiveMarginRemPx = scrollbarThumbInteractiveMarginRem * remPx;
+
+            // We're drawing the following shape except the knobs at the top/bottom are
+            // rounded instead of square..
+            //
+            //   ┌─┐
+            // ┌─┘ └─┐
+            // │     │
+            // │     │
+            // └─┐ ┌─┘
+            //   └─┘
+            //
+            // At each step we'll trace where our path currently is by adding double lines.
+            scrollbarElement.style.clipPath = `path("${[
+                //   ┌─┐
+                // ╒─┘ └─┐
+                // │     │
+                // │     │
+                // └─┐ ┌─┘
+                //   └─┘
+                `M 0,${scrollbarThumbMarginPx + borderRadius}`,
+
+                //   ┌─┐
+                // ╒═╛ └─┐
+                // │     │
+                // │     │
+                // └─┐ ┌─┘
+                //   └─┘
+                `L ${scrollbarThumbInteractiveMarginRemPx},${
+                    scrollbarThumbMarginPx + borderRadius
+                }`,
+
+                //   ╔═╗
+                // ╒═╝ ╙─┐
+                // │     │
+                // │     │
+                // └─┐ ┌─┘
+                //   └─┘
+                `A ${borderRadius},${borderRadius} 0 0 1 ${
+                    scrollbarWidthPx - scrollbarThumbMarginPx - insetRightPx
+                },${scrollbarThumbMarginPx + borderRadius}`,
+
+                //   ╔═╗
+                // ╒═╝ ╚═╕
+                // │     │
+                // │     │
+                // └─┐ ┌─┘
+                //   └─┘
+                `L ${scrollbarWidthPx},${scrollbarThumbMarginPx + borderRadius}`,
+
+                //   ╔═╗
+                // ╒═╝ ╚═╗
+                // │     ║
+                // │     ║
+                // └─┐ ┌─╜
+                //   └─┘
+                `L ${scrollbarWidthPx},${scrollHeight - scrollbarThumbMarginPx - borderRadius}`,
+
+                //   ╔═╗
+                // ╒═╝ ╚═╗
+                // │     ║
+                // │     ║
+                // └─┐ ╒═╝
+                //   └─┘
+                `L ${scrollbarWidthPx - scrollbarThumbMarginPx - insetRightPx},${
+                    scrollHeight - scrollbarThumbMarginPx - borderRadius
+                }`,
+
+                //   ╔═╗
+                // ╒═╝ ╚═╗
+                // │     ║
+                // │     ║
+                // └─╖ ╔═╝
+                //   ╚═╝
+                `A ${borderRadius},${borderRadius} 0 0 1 ${scrollbarThumbInteractiveMarginRemPx},${
+                    scrollHeight - scrollbarThumbMarginPx - borderRadius
+                }`,
+
+                //   ╔═╗
+                // ╒═╝ ╚═╗
+                // │     ║
+                // │     ║
+                // ╘═╗ ╔═╝
+                //   ╚═╝
+                `L 0,${scrollHeight - scrollbarThumbMarginPx - borderRadius}`,
+
+                //   ╔═╗
+                // ╔═╝ ╚═╗
+                // ║     ║
+                // ║     ║
+                // ╚═╗ ╔═╝
+                //   ╚═╝
+                "Z",
+            ].join(" ")}")`;
+        }
     };
 
     // Temporarily show the scrollbar while the user is scrolling then fade it out
