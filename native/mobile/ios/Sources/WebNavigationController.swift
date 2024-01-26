@@ -236,7 +236,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         if let scrollView = view as? UIScrollView {
             webScrollViews.insert(scrollView)
 
-            // Whenever a new scroll view is added to our web view, set the correct scroll
+            // Whenever a new scroll view is added to our web view, set the current scroll
             // indicator insets.
             scrollView.verticalScrollIndicatorInsets = getSafeAreaInsets()
         }
@@ -277,8 +277,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         let safeAreaInsets = getSafeAreaInsets()
 
-        // Whenever the safe area changes, update the scroll indicator inset for our
-        // web views.
+        // Whenever the safe area changes, update the scroll indicator inset for the
+        // scroll views that are currently mounted.
         for webScrollView in webScrollViews {
             webScrollView.verticalScrollIndicatorInsets = safeAreaInsets
         }
