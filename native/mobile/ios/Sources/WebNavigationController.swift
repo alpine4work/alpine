@@ -52,7 +52,7 @@ private let bridgeSource = """
     """
 
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
-    WKScriptMessageHandler, WKHTTPCookieStoreObserver
+    WKScriptMessageHandler, WKHTTPCookieStoreObserver, UIViewTreeObserverDelegate
 {
     #if PRODUCTION_RUN_ENVIRONMENT
         static let baseUrl = URL(string: "https://cyberworlds.dev")!
@@ -66,8 +66,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     let webConfiguration: WKWebViewConfiguration
 
     var webView: WKWebView!
+    private var webViewTreeObserver: UIViewTreeObserver?
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
+    private var webScrollViews = Set<UIScrollView>()
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
@@ -140,6 +142,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         #if DBG_COMPILATION_MODE || DEVELOPMENT_RUN_ENVIRONMENT
             if #available(iOS 16.4, *) { webView.isInspectable = true }
         #endif
+
+        webViewTreeObserver = UIViewTreeObserver(delegate: self, rootView: webView)
 
         let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
         let request = URLRequest(url: url)
@@ -278,6 +282,38 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         }
     }
 
+    func viewTreeObserver(_ viewTreeObserver: UIViewTreeObserver, didAdd view: UIView) {
+        if let scrollView = view as? UIScrollView {
+            webScrollViews.insert(scrollView)
+
+            // Whenever a new scroll view is added to our web view, set the correct scroll
+            // indicator insets.
+            scrollView.verticalScrollIndicatorInsets = getSafeAreaInsets()
+        }
+    }
+
+    func viewTreeObserver(_ viewTreeObserver: UIViewTreeObserver, didRemove view: UIView) {
+        if let scrollView = view as? UIScrollView { webScrollViews.remove(scrollView) }
+    }
+
+    private func getSafeAreaInsets() -> UIEdgeInsets {
+        // Include the navigation bar and tab bar in our safe area insets.
+        let safeAreaInsetTop = max(windowSafeAreaInsets.top, navigationBar.frame.height)
+        let safeAreaInsetBottom = max(
+            windowSafeAreaInsets.bottom,
+            tabBarController?.tabBar.frame.height ?? 0
+        )
+        let safeAreaInsetLeft = windowSafeAreaInsets.left
+        let safeAreaInsetRight = windowSafeAreaInsets.right
+
+        return UIEdgeInsets(
+            top: safeAreaInsetTop,
+            left: safeAreaInsetLeft,
+            bottom: safeAreaInsetBottom,
+            right: safeAreaInsetRight
+        )
+    }
+
     // We set safe area insets as CSS variables. Then we use these CSS
     // variables to apply padding.
     //
@@ -288,19 +324,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     // [1]: https://bugs.webkit.org/show_bug.cgi?id=191872
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
         self.windowSafeAreaInsets = windowSafeAreaInsets
+
+        let safeAreaInsets = getSafeAreaInsets()
+
+        // Whenever the safe area changes, update the scroll indicator inset for our
+        // web views.
+        for webScrollView in webScrollViews {
+            webScrollView.verticalScrollIndicatorInsets = safeAreaInsets
+        }
+
         if !hasInitialWebViewNavigationCommit { return }
 
-        // Include the navigation bar and tab bar in our safe area insets.
-        let safeAreaInsetTop = max(windowSafeAreaInsets.top, navigationBar.frame.height)
-        let safeAreaInsetBottom = max(
-            windowSafeAreaInsets.bottom,
-            tabBarController?.tabBar.frame.height ?? 0
-        )
-        let safeAreaInsetLeft = windowSafeAreaInsets.left
-        let safeAreaInsetRight = windowSafeAreaInsets.right
-
         let styleString =
-            ":root { --safe-area-inset-top: \(safeAreaInsetTop)px; --safe-area-inset-bottom: \(safeAreaInsetBottom)px; --safe-area-inset-left: \(safeAreaInsetLeft)px; --safe-area-inset-right: \(safeAreaInsetRight)px }"
+            ":root { --safe-area-inset-top: \(safeAreaInsets.top)px; --safe-area-inset-bottom: \(safeAreaInsets.bottom)px; --safe-area-inset-left: \(safeAreaInsets.left)px; --safe-area-inset-right: \(safeAreaInsets.right)px }"
 
         let source = """
             {
