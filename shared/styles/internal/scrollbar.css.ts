@@ -90,6 +90,8 @@ export const scrollbarThumbHitClassName = style({
     pointerEvents: "auto",
 });
 
+export const scrollbarThumbHoveredClassName = style({});
+
 export const scrollbarThumbDraggingClassName = style({
     backgroundColor: scrollbarActiveColorVar,
 });
@@ -101,7 +103,7 @@ export const scrollbarThumbClassName = style({
         [`&:not(${scrollbarThumbDraggingClassName})`]: {
             backgroundColor: scrollbarColorVar,
         },
-        [`${scrollbarThumbHitClassName}:hover &:not(${scrollbarThumbDraggingClassName})`]: {
+        [`&${scrollbarThumbHoveredClassName}:not(${scrollbarThumbDraggingClassName})`]: {
             backgroundColor: scrollbarHoverColorVar,
         },
     },

@@ -16,6 +16,7 @@ import {
     scrollbarThumbHitClassName,
     scrollbarThumbHitFadeOutClassName,
     scrollbarThumbHitHideClassName,
+    scrollbarThumbHoveredClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
 
@@ -873,6 +874,8 @@ export function initializeScrollbar(
     scrollbarThumbHitElement.addEventListener("pointerenter", () => {
         isPointerOver = true;
 
+        scrollbarThumbElement.classList.add(scrollbarThumbHoveredClassName);
+
         if (!dragState && sizes !== null && sizes.scrollHeight > sizes.clientHeight) {
             scrollbarThumbHitElement.classList.remove(scrollbarThumbHitHideClassName);
             scrollbarThumbHitElement.classList.remove(scrollbarThumbHitFadeOutClassName);
@@ -884,6 +887,8 @@ export function initializeScrollbar(
 
     scrollbarThumbHitElement.addEventListener("pointerleave", () => {
         isPointerOver = false;
+
+        scrollbarThumbElement.classList.remove(scrollbarThumbHoveredClassName);
 
         if (!dragState) {
             // Hide the scrollbar after a delay when the pointer leaves.
