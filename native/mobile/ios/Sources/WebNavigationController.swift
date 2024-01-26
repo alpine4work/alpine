@@ -238,6 +238,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
             // Whenever a new scroll view is added to our web view, set the current scroll
             // indicator insets.
+            scrollView.automaticallyAdjustsScrollIndicatorInsets = false
             scrollView.verticalScrollIndicatorInsets = getSafeAreaInsets()
         }
     }
@@ -279,8 +280,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Whenever the safe area changes, update the scroll indicator inset for the
         // scroll views that are currently mounted.
-        for webScrollView in webScrollViews {
-            webScrollView.verticalScrollIndicatorInsets = safeAreaInsets
+        for scrollView in webScrollViews {
+            scrollView.automaticallyAdjustsScrollIndicatorInsets = false
+            scrollView.verticalScrollIndicatorInsets = safeAreaInsets
         }
 
         if !hasInitialWebViewNavigationCommit { return }
