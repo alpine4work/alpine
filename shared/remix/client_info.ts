@@ -14,50 +14,40 @@ export type ClientInfo = SchemaType<typeof ClientInfoSchema>;
 /**
  * Default client info to use in tests or in server-side rendering before we
  * set the client info cookie.
+ *
+ * Defaults are chosen based on our company's developer machines. Since default
+ * client info is often used, unmodified, in unit tests. We should do some user
+ * agent sniffing on the server to create a more refined client info.
  */
 export const defaultClientInfo = {
-    /**
-     * The default screen width we use when server-side rendering when we don't
-     * know what the user's actual screen width is. 1920px is the width of the
-     * [largest common screen resolution][1] so that should cover the majority of
-     * devices.
-     *
-     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
-     */
+    // The default screen width we use when server-side rendering when we don't
+    // know what the user's actual screen width is. 1920px is the width of the
+    // [largest common screen resolution][1] so that should cover the majority of
+    // devices.
+    //
+    // [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
     screenWidth: 1920,
 
-    /**
-     * The default screen height we use when server-side rendering when we don't
-     * know what the user's actual screen height is. 1080px is the height of the
-     * [largest common screen resolution][1] so that should cover the majority of
-     * devices.
-     *
-     * [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
-     */
+    // The default screen height we use when server-side rendering when we don't
+    // know what the user's actual screen height is. 1080px is the height of the
+    // [largest common screen resolution][1] so that should cover the majority of
+    // devices.
+    //
+    // [1]: https://www.browserstack.com/guide/ideal-screen-sizes-for-responsive-design
     screenHeight: 1080,
 
-    /**
-     * We use the New York time zone when we haven't gotten the client's actual
-     * time zone since that's where our company is based.
-     */
+    // We use the New York time zone when we haven't gotten the client's actual
+    // time zone since that's where our company is based.
     timeZone: defaultTimeZone,
 
-    /**
-     * We use English as the default locale when we haven't gotten the client's
-     * actual locale since we are a US company.
-     */
+    // We use English as the default locale when we haven't gotten the client's
+    // actual locale since we are a US company.
     locale: "en-US" as const,
 
-    /**
-     * Default to assuming we're running on an Apple device. We make this
-     * assumption since our company's recommended developer machines are Apple
-     * machines.
-     */
+    // Default to assuming we're running on an Apple MacOS desktop device. We make
+    // this assumption since our company's recommended developer machines are Apple
+    // machines.
     isAppleDevice: true,
-
-    /**
-     * Default to assuming we're running on the open web.
-     */
     isNativeMobile: false,
 };
 
@@ -175,5 +165,5 @@ export const defaultMobileClientInfo: ClientInfo = {
  * [2]: https://deviceatlas.com/blog/list-of-user-agent-strings
  */
 export function isAppleDeviceUserAgent(userAgent: string): boolean {
-    return /Mac|iPhone|iPad|CyberworldsNativeMobileIos/.test(userAgent);
+    return /Mac|iPhone|iPad|iPod|CyberworldsNativeMobileIos/.test(userAgent);
 }

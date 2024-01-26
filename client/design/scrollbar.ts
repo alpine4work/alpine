@@ -6,10 +6,13 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {
+    nativeScrollbarClassName,
     scrollbarThumbClassName,
     scrollbarThumbDraggingClassName,
     scrollbarThumbFadeOutAnimationDurationMs,
@@ -50,17 +53,35 @@ export function useScrollbar<T extends HTMLElement>({
     insetBottom?: RemLength | number;
     insetRight?: RemLength | number;
 } = {}): RefCallback<T> {
+    const isMobile = useIsMobile();
+    const {isAppleDevice} = useClientInfo();
+
     insetTop = insetTop ?? insetY ?? inset;
     insetBottom = insetBottom ?? insetY ?? inset;
     insetRight = insetRight ?? inset;
 
     return useLifecycleRef(
         useCallback(
-            element => initializeScrollbar(element, {insetTop, insetBottom, insetRight}),
-            [insetBottom, insetRight, insetTop],
+            element =>
+                initializeScrollbar(element, {
+                    isMobile,
+                    isAppleDevice,
+                    insetTop,
+                    insetBottom,
+                    insetRight,
+                }),
+            [insetBottom, insetRight, insetTop, isAppleDevice, isMobile],
         ),
     );
 }
+
+/**
+ * Values of `navigator.platform` for mobile iOS devices. Excludes iPad.
+ *
+ * See:
+ * https://stackoverflow.com/a/9039885/1568890
+ */
+const appleIosMobilePlatforms = new Set(["iPhone Simulator", "iPod Simulator", "iPhone", "iPod"]);
 
 /**
  * Instead of using native platform scrollbars, we implement our own custom
@@ -107,6 +128,25 @@ export function useScrollbar<T extends HTMLElement>({
  * scroll. In the future we should explore ways to make the scrollbar feel more
  * fluid while lazy loading data so it doesn't jump around. For now we emulate
  * the same behavior as a native scrollbar.
+ *
+ * ## Mobile iOS (excluding iPad)
+ *
+ * Apple's iOS operating system has pretty great scrollbars. They meet our two
+ * requirements for a scrollbar (iOS scrollbars are overlain on content and
+ * disappear when the user is not scrolling).
+ *
+ * iOS scrollbars also have a bunch of useful iOS-specific behaviors:
+ *
+ * - Shrinks when overscrolling
+ * - Tapping, dragging, then throwing the scrollbar does a momentum scroll
+ * - Gets bigger on press and provides haptic feedback
+ *
+ * So to meet platform expectations, we use the native scrollbars on mobile
+ * iOS. We accept that our enhancements (like configurable insets) aren't
+ * available and design around that.
+ *
+ * iPad still uses our custom scrollbars since it uses the desktop UI. So
+ * custom behaviors like configurable insets are more important.
  *
  * ## How do we implement our custom scrollbar?
  *
@@ -329,14 +369,18 @@ export function useScrollbar<T extends HTMLElement>({
 export function initializeScrollbar(
     element: HTMLElement,
     {
+        isMobile,
+        isAppleDevice,
         insetTop = 0,
         insetBottom = 0,
         insetRight = 0,
     }: {
+        isMobile: boolean;
+        isAppleDevice: boolean;
         insetTop?: RemLength | number;
         insetBottom?: RemLength | number;
         insetRight?: RemLength | number;
-    } = {},
+    },
 ): () => void {
     {
         const {position} = getComputedStyle(element);
@@ -353,6 +397,20 @@ export function initializeScrollbar(
     }
 
     let visibleAfterScrollTimeout: Timeout | null = null;
+
+    /* ========================================================================== *\
+     *                                    iOS                                     *
+    \* ========================================================================== */
+
+    if (appleIosMobilePlatforms.has(navigator.platform)) {
+        element.classList.add(nativeScrollbarClassName);
+        elementsWithInitializedScrollbarForDev?.add(element);
+
+        return () => {
+            elementsWithInitializedScrollbarForDev?.delete(element);
+            element.classList.remove(nativeScrollbarClassName);
+        };
+    }
 
     /* ========================================================================== *\
      *                               Construct DOM                                *

@@ -21,22 +21,27 @@ import {
 // configuration option to always show scrollbars. Windows does not have
 // scrollbars like this.
 
-globalStyle(`*`, {
+export const nativeScrollbarClassName = style({});
+
+globalStyle(`:not(${nativeScrollbarClassName})`, {
     // TypeScript doesn't like `!important` but it works
     // https://github.com/frenic/csstype/issues/114
     // @ts-expect-error
     scrollbarWidth: "none !important",
 });
 
-globalStyle("::-webkit-scrollbar, ::-webkit-scrollbar-corner", {
-    // TypeScript doesn't like `!important` but it works
-    // https://github.com/frenic/csstype/issues/114
-    // @ts-expect-error
-    appearance: "none !important",
-    display: "none !important",
-    width: "0 !important",
-    height: "0 !important",
-});
+globalStyle(
+    `:not(${nativeScrollbarClassName})::-webkit-scrollbar, :not(${nativeScrollbarClassName})::-webkit-scrollbar-corner`,
+    {
+        // TypeScript doesn't like `!important` but it works
+        // https://github.com/frenic/csstype/issues/114
+        // @ts-expect-error
+        appearance: "none !important",
+        display: "none !important",
+        width: "0 !important",
+        height: "0 !important",
+    },
+);
 
 const scrollbarColorVar = createVar("scrollbar");
 const scrollbarHoverColorVar = createVar("scrollbar-hover");
