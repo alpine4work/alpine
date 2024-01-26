@@ -84,36 +84,42 @@ globalStyle(darkColorSchemeSelector, {
     },
 });
 
-export const scrollbarClassName = style({});
+export const scrollbarThumbHitClassName = style({
+    width: "100%",
+    height: "100%",
+    pointerEvents: "auto",
+});
 
 export const scrollbarThumbDraggingClassName = style({
     backgroundColor: scrollbarActiveColorVar,
 });
 
 export const scrollbarThumbClassName = style({
+    width: "100%",
+    height: "100%",
     selectors: {
         [`&:not(${scrollbarThumbDraggingClassName})`]: {
             backgroundColor: scrollbarColorVar,
         },
-        [`${scrollbarClassName}:hover &:not(${scrollbarThumbDraggingClassName})`]: {
+        [`${scrollbarThumbHitClassName}:hover &:not(${scrollbarThumbDraggingClassName})`]: {
             backgroundColor: scrollbarHoverColorVar,
         },
     },
 });
 
-export const scrollbarHideClassName = style({
+export const scrollbarThumbHitHideClassName = style({
     display: "none",
 });
 
-const scrollbarFadeOutKeyframes = keyframes({
+const scrollbarThumbFadeOutKeyframes = keyframes({
     from: {opacity: 1},
     to: {opacity: 0},
 });
 
-export const scrollbarFadeOutAnimationDurationMs = overlayFadeOutAnimationDurationMs;
+export const scrollbarThumbFadeOutAnimationDurationMs = overlayFadeOutAnimationDurationMs;
 
-const scrollbarFadeOutAnimation = `${scrollbarFadeOutKeyframes} ${scrollbarFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
+const scrollbarThumbFadeOutAnimation = `${scrollbarThumbFadeOutKeyframes} ${scrollbarThumbFadeOutAnimationDurationMs}ms ${overlayFadeInOutTimingFunction} forwards`;
 
-export const scrollbarFadeOutClassName = style({
-    animation: scrollbarFadeOutAnimation,
+export const scrollbarThumbHitFadeOutClassName = style({
+    animation: scrollbarThumbFadeOutAnimation,
 });

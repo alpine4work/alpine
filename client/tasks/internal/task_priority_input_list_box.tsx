@@ -37,7 +37,6 @@ export function TaskPriorityInputListBox({
             className={classNames(
                 greyElevated2ClassName,
                 sprinkles({
-                    position: "relative",
                     borderRadius: "md",
                     padding: "1",
                     backgroundColor: "grey-0",
