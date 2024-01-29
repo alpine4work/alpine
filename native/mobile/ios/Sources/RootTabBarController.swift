@@ -12,7 +12,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     private struct WebDragScrollState {
         let scrollView: UIScrollView
         let initialTabBarIsHidden: Bool
-        let initialTabBarFrameOrigin: CGPoint
         let initialContentOffset: CGPoint
     }
 
@@ -160,7 +159,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             webDragScrollState = WebDragScrollState(
                 scrollView: scrollView,
                 initialTabBarIsHidden: tabBar.isHidden,
-                initialTabBarFrameOrigin: tabBar.frame.origin,
                 initialContentOffset: scrollView.contentOffset
             )
         }
@@ -171,9 +169,12 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             webDragScrollState.scrollView === scrollView
         else { return }
 
-        let yDelta = scrollView.contentOffset.y - webDragScrollState.initialContentOffset.y
+        let initialY =
+            webDragScrollState.initialTabBarIsHidden
+            ? view.frame.height : view.frame.height - tabBar.frame.height
 
-        var y = webDragScrollState.initialTabBarFrameOrigin.y + yDelta
+        let yDelta = scrollView.contentOffset.y - webDragScrollState.initialContentOffset.y
+        var y = initialY + yDelta
 
         y = min(y, view.frame.height)
         y = max(y, view.frame.height - tabBar.frame.height)
@@ -183,11 +184,41 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         if yDelta < 0 && tabBar.isHidden { tabBar.isHidden = false }
 
         tabBar.frame = CGRect(
-            x: webDragScrollState.initialTabBarFrameOrigin.x,
+            x: tabBar.frame.origin.x,
             y: y,
             width: tabBar.frame.width,
             height: tabBar.frame.height
         )
+
+        if webDragScrollState.initialTabBarIsHidden {
+            if yDelta > 0 {
+                self.webDragScrollState = WebDragScrollState(
+                    scrollView: scrollView,
+                    initialTabBarIsHidden: true,
+                    initialContentOffset: scrollView.contentOffset
+                )
+            } else if y <= view.frame.height - tabBar.frame.height {
+                self.webDragScrollState = WebDragScrollState(
+                    scrollView: scrollView,
+                    initialTabBarIsHidden: false,
+                    initialContentOffset: scrollView.contentOffset
+                )
+            }
+        } else {
+            if yDelta < 0 {
+                self.webDragScrollState = WebDragScrollState(
+                    scrollView: scrollView,
+                    initialTabBarIsHidden: false,
+                    initialContentOffset: scrollView.contentOffset
+                )
+            } else if y >= view.frame.height {
+                self.webDragScrollState = WebDragScrollState(
+                    scrollView: scrollView,
+                    initialTabBarIsHidden: true,
+                    initialContentOffset: scrollView.contentOffset
+                )
+            }
+        }
     }
 
     func webScrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
@@ -214,7 +245,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             options: .curveLinear,
             animations: { [self] in
                 tabBar.frame = CGRect(
-                    x: webDragScrollState.initialTabBarFrameOrigin.x,
+                    x: tabBar.frame.origin.x,
                     y: endY,
                     width: tabBar.frame.width,
                     height: tabBar.frame.height
