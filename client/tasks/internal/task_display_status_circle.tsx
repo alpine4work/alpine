@@ -82,7 +82,7 @@ export function TaskDisplayStatusCircle({
     isPressed,
 }: {
     displayStatus: TaskDisplayStatus;
-    size: "3" | "4" | "5" | "6";
+    size: "3" | "4" | "5" | "6" | "7";
     isPressed?: boolean;
 }) {
     // NOTE(calebmer): You are not allowed to use the `sprinkles()` function in
@@ -103,7 +103,11 @@ export function TaskDisplayStatusCircle({
 
     const sizeInt = parseInt(size, 10);
     const activeHalfCircleMargin =
-        sizeInt >= 6
+        sizeInt >= 7
+            ? // On high-pixel density devices round up to 2.5 and on low-pixel density devices round
+              // down to 2.
+              2.48
+            : sizeInt >= 6
             ? 2
             : sizeInt >= 5
             ? // On high-pixel density devices round up to 1.5 and on low-pixel density devices round

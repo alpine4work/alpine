@@ -38,6 +38,12 @@ globalStyle(":root", {
     // `userSelect: "none"` means text is not selectable it still has the text
     // cursor.
     cursor: "default",
+
+    // Disable Safari on iOS's highlight overlay on tap. By default when you tap
+    // on an element Safari puts a grey highlight on it. Our components are
+    // responsible for implementing their own touch feedback styles.
+    WebkitTouchCallout: "none",
+    WebkitTapHighlightColor: "rgba(0, 0, 0, 0)",
 });
 
 globalStyle("body", {

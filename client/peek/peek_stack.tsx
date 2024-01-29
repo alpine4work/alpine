@@ -1596,6 +1596,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                             </FocusRing>
                             <IconButton
                                 size="xs"
+                                // TODO(calebmer): Give expand a global keyboard shortcut.
                                 description="Expand"
                                 tooltipPlacement="top"
                                 pressErrorTitle="Couldn’t expand"

@@ -2,8 +2,13 @@ import {KeyboardEvent, Ref, forwardRef, useRef} from "react";
 import {mergeProps, useButton} from "react-aria";
 import {useAppContext} from "~/client/context/app_context.js";
 import {FocusRing} from "~/client/design/focus_ring.js";
+import {
+    desktopTouchSlopBySpacing,
+    mobileTouchSlopBySpacing,
+} from "~/client/design/use_touch_slop.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {TaskDisplayStatusCircle} from "~/client/tasks/internal/task_display_status_circle.js";
 import {
@@ -11,6 +16,7 @@ import {
     TaskClientStoreSearchEntityAffinityManager,
     TaskClientStoreUndoManager,
 } from "~/client/tasks/task_client_store.js";
+import {createObjectFromKeys} from "~/shared/helpers/object/create_object_from_keys.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
@@ -32,19 +38,27 @@ const Box = null;
 const TaskStatusButtonForwardRef = forwardRef(TaskStatusButton);
 export {TaskStatusButtonForwardRef as TaskStatusButton};
 
-const size4ClassName = sprinkles({
-    display: "block",
-    width: "4",
-    height: "4",
-    borderRadius: "full",
-});
+const mobileClassNameBySize = createObjectFromKeys(["4", "5", "7"], size =>
+    sprinkles({
+        display: "flex",
+        width: mobileTouchSlopBySpacing[size].sizeWithSlop,
+        height: mobileTouchSlopBySpacing[size].sizeWithSlop,
+        padding: mobileTouchSlopBySpacing[size].slop,
+        margin: `-${mobileTouchSlopBySpacing[size].slop}`,
+        borderRadius: "full",
+    }),
+);
 
-const size5ClassName = sprinkles({
-    display: "block",
-    width: "5",
-    height: "5",
-    borderRadius: "full",
-});
+const desktopClassNameBySize = createObjectFromKeys(["4", "5", "7"], size =>
+    sprinkles({
+        display: "flex",
+        width: desktopTouchSlopBySpacing[size].sizeWithSlop,
+        height: desktopTouchSlopBySpacing[size].sizeWithSlop,
+        padding: mobileTouchSlopBySpacing[size].slop,
+        margin: `-${desktopTouchSlopBySpacing[size].slop}`,
+        borderRadius: "full",
+    }),
+);
 
 function TaskStatusButton(
     {
@@ -64,7 +78,7 @@ function TaskStatusButton(
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchEntityAffinityManager;
         task: TaskModel;
-        size?: "4" | "5";
+        size?: "4" | "5" | "7";
         isDisabled?: boolean;
         isFocusable?: boolean;
         isTabbable?: boolean;
@@ -92,6 +106,7 @@ function TaskStatusButton(
 
     const context = useAppContext();
     const {timeZone} = useClientInfo();
+    const isMobile = useIsMobile();
     const {currentAccount} = useSpaceContext();
     const buttonRef = useRef<HTMLElement | null>(null);
     const mergedButtonRef = useMergedRefs(ref, buttonRef);
@@ -150,13 +165,13 @@ function TaskStatusButton(
         buttonRef,
     );
 
-    const className = size === "4" ? size4ClassName : size5ClassName;
-
     let displayStatus = task.getDisplayStatus();
 
     if (shouldShowClosedStatusWhenPressed && isPressed && displayStatus !== "Closed") {
         displayStatus = "Closed";
     }
+
+    const className = isMobile ? mobileClassNameBySize[size] : desktopClassNameBySize[size];
 
     return (
         <FocusRing>

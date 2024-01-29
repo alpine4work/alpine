@@ -21,6 +21,7 @@ import {
 import {useShowToast} from "~/client/design/toast.js";
 import {Tooltip, defaultTooltipOffset} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
+import {useTouchSlop} from "~/client/design/use_touch_slop.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
@@ -37,13 +38,13 @@ import {
 const IconButtonForwardRef = forwardRef(IconButton);
 export {IconButtonForwardRef as IconButton};
 
-type IconButtonVariant =
+export type IconButtonVariant =
     | "accent"
     | "quiet"
     | "quiet-above-grey-5-background"
     | "quiet-above-grey-5-dark-background";
 
-type IconButtonSize = "base" | "md" | "sm" | "xs";
+export type IconButtonSize = "base" | "md" | "sm" | "xs";
 
 /**
  * A button represented by a single icon.
@@ -328,30 +329,16 @@ function IconButton(
               },
     };
 
-    const {buttonSize, iconSize, touchSlopInset} = (
+    const {buttonSize, iconSize} = (
         {
-            base: {
-                buttonSize: spacing["7"],
-                iconSize: spacing["5"],
-                touchSlopInset: "-2",
-            },
-            md: {
-                buttonSize: spacing["6"],
-                iconSize: spacing["4"],
-                touchSlopInset: "-1.5",
-            },
-            sm: {
-                buttonSize: spacing["5"],
-                iconSize: spacing["4"],
-                touchSlopInset: "-1",
-            },
-            xs: {
-                buttonSize: spacing["4"],
-                iconSize: spacing["3"],
-                touchSlopInset: "0",
-            },
+            base: {buttonSize: "7", iconSize: "5"},
+            md: {buttonSize: "6", iconSize: "4"},
+            sm: {buttonSize: "5", iconSize: "4"},
+            xs: {buttonSize: "4", iconSize: "3"},
         } as const
     )[size];
+
+    const touchSlop = useTouchSlop(buttonSize);
 
     // We wait a bit before showing our pending spinner. Some actions are very fast so we
     // delay showing a spinner to avoid a loading spinner flicker which can be jarring.
@@ -399,81 +386,74 @@ function IconButton(
                     ref={useMergedRefs(foreignRef, localRef)}
                     className={sprinkles({
                         display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
+                        width: touchSlop.sizeWithSlop,
+                        height: touchSlop.sizeWithSlop,
+                        padding: touchSlop.slop,
+                        margin: `-${touchSlop.slop}`,
                         borderRadius,
-                        // You may notice our button doesn't have a pointer cursor. See:
-                        // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
-                        cursor: "default",
-                        position: "relative",
-                        zIndex: "0",
                         // If this button is in a `display: flex` element, don't shrink the button based
                         // on other contents.
                         flexShrink: "0",
-                        ...stylesByVariant[variant],
                     })}
-                    style={{
-                        width: buttonSize,
-                        height: buttonSize,
-                    }}
                     // Allow the button to maintain focus when pending. This way if a button is
                     // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
                     // `<DocumentContentEditor>`) and it enters a pending state we don't think the
                     // parent element has lost focus.
                     disabled={isPending && !isDisabled ? undefined : buttonProps.disabled}
                 >
-                    {touchSlopInset !== "0" && (
-                        // Give the user more space to hit the button. This is especially important on
-                        // mobile where [we want at least 44px by 44px][1] of hit region per touchable
-                        // target.
-                        //
-                        // [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
-                        <span
-                            className={sprinkles({
-                                display: "block",
-                                position: "absolute",
-                                inset: touchSlopInset,
-                                zIndex: "-10",
-                                borderRadius: "full",
-                            })}
-                        />
-                    )}
-                    {isPressed && variant === "accent" && (
-                        // For accent buttons, instead of choosing a darker background color shade when
-                        // pressed we add a black overlay at a lowered opacity. We accomplish this with
-                        // an overlay element since such a color is not in our color scheme.
-                        //
-                        // Darker shades in our color scheme are more saturated. We want the effect of a
-                        // button being physically pressed down.
-                        //
-                        // When we added this there was a happy accident. The text color also got
-                        // darker! This is more fitting for the physical analogy of a button being
-                        // pressed down.
-                        <span
-                            className={sprinkles({
-                                display: "block",
-                                position: "absolute",
-                                zIndex: "50",
-                                inset: "0",
-                                backgroundColor: "grey-dark",
-                                pointerEvents: "none",
-                                borderRadius: "full",
-                            })}
-                            style={{opacity: buttonPressedOverlayOpacity}}
-                        />
-                    )}
-                    <IconContext.Provider
-                        value={{
-                            color: "currentColor",
-                            size: iconSize,
-                        }}
+                    <span
+                        className={sprinkles({
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            width: buttonSize,
+                            height: buttonSize,
+                            borderRadius,
+                            // You may notice our button doesn't have a pointer cursor. See:
+                            // https://medium.com/simple-human/buttons-shouldnt-have-a-hand-cursor-b11e99ca374b
+                            cursor: "default",
+                            position: "relative",
+                            zIndex: "0",
+                            ...stylesByVariant[variant],
+                        })}
                     >
-                        {shouldShowPendingSpinner ? (
-                            <SpinnerGap className={spinAnimationClassName} />
-                        ) : (
-                            children
+                        {isPressed && variant === "accent" && (
+                            // For accent buttons, instead of choosing a darker background color shade when
+                            // pressed we add a black overlay at a lowered opacity. We accomplish this with
+                            // an overlay element since such a color is not in our color scheme.
+                            //
+                            // Darker shades in our color scheme are more saturated. We want the effect of a
+                            // button being physically pressed down.
+                            //
+                            // When we added this there was a happy accident. The text color also got
+                            // darker! This is more fitting for the physical analogy of a button being
+                            // pressed down.
+                            <span
+                                className={sprinkles({
+                                    display: "block",
+                                    position: "absolute",
+                                    zIndex: "50",
+                                    inset: "0",
+                                    backgroundColor: "grey-dark",
+                                    pointerEvents: "none",
+                                    borderRadius,
+                                })}
+                                style={{opacity: buttonPressedOverlayOpacity}}
+                            />
                         )}
-                    </IconContext.Provider>
+                        <IconContext.Provider
+                            value={{
+                                color: "currentColor",
+                                size: spacing[iconSize],
+                            }}
+                        >
+                            {shouldShowPendingSpinner ? (
+                                <SpinnerGap className={spinAnimationClassName} />
+                            ) : (
+                                children
+                            )}
+                        </IconContext.Provider>
+                    </span>
                 </button>
             </FocusRing>
         </Tooltip>

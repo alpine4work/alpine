@@ -1,5 +1,5 @@
 import {setInteractionModality} from "@react-aria/interactions";
-import {CaretRight, DotsThree, IconContext, Lock, Trash} from "phosphor-react";
+import {CaretLeft, CaretRight, DotsThree, IconContext, Lock, Trash} from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
 import {
     Memo,
@@ -77,7 +77,7 @@ import {
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
 import {Context} from "~/shared/context/context.js";
-import {Spacing, assertSpacing, spacing} from "~/shared/design/spacing.js";
+import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {interleaveArray} from "~/shared/helpers/array/interleave_array.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -619,7 +619,7 @@ function TaskDetailViewMain(
         handleCommitPromise(commitPromise);
     };
 
-    const paddingX: Spacing = isMobile ? "3" : "5";
+    const paddingX: Spacing = isMobile ? "4" : "5";
 
     // Naming nit: An "input" is some editable component without a label. A "field"
     // is the combination of both a label and an input.
@@ -868,6 +868,18 @@ function TaskDetailViewMain(
                 flexDirection="column"
                 position="relative"
             >
+                {isMobile && (
+                    <Box paddingY="1" paddingLeft="3">
+                        <IconButton
+                            size="base"
+                            description="Back"
+                            withoutTooltip={true}
+                            onPress={() => navigate(-1)}
+                        >
+                            <CaretLeft />
+                        </IconButton>
+                    </Box>
+                )}
                 <ContextMenuActions actions={contextMenuActions}>
                     <Box
                         paddingTop={taskDetailViewPaddingTop}
@@ -880,7 +892,7 @@ function TaskDetailViewMain(
                         {task ? (
                             <TaskStatusButton
                                 ref={statusButtonRef}
-                                size="5"
+                                size={isMobile ? "7" : "5"}
                                 store={store}
                                 undoManager={undoManager}
                                 affinityManager={affinityManager}
@@ -890,28 +902,13 @@ function TaskDetailViewMain(
                         ) : (
                             <Box
                                 ref={statusButtonRef as Ref<HTMLDivElement>}
-                                width="5"
-                                height="5"
+                                width={isMobile ? "7" : "5"}
+                                height={isMobile ? "7" : "5"}
                                 borderRadius="full"
                                 border="grey-10"
                                 pointerEvents="none"
                             />
                         )}
-                        <Box
-                            position="absolute"
-                            top={assertSpacing(`${parseInt(taskDetailViewPaddingTop, 10) - 2}`)}
-                            right={assertSpacing(`${parseInt(taskDetailViewPaddingTop, 10) - 2}`)}
-                        >
-                            <MenuButton actions={contextMenuActions}>
-                                <IconButton
-                                    size={isMobile ? "base" : "md"}
-                                    description="More"
-                                    withoutTooltip={true}
-                                >
-                                    <DotsThree />
-                                </IconButton>
-                            </MenuButton>
-                        </Box>
                         <Box>
                             <TaskDetailViewParentBreadcrumbs
                                 task={task}
@@ -954,6 +951,17 @@ function TaskDetailViewMain(
                         </Box>
                     </Box>
                 </ContextMenuActions>
+                <Box position="absolute" top={isMobile ? "1" : "3"} right="3">
+                    <MenuButton actions={contextMenuActions}>
+                        <IconButton
+                            size={isMobile ? "base" : "md"}
+                            description="More"
+                            withoutTooltip={true}
+                        >
+                            <DotsThree />
+                        </IconButton>
+                    </MenuButton>
+                </Box>
                 <Box
                     paddingX={paddingX}
                     display="grid"
