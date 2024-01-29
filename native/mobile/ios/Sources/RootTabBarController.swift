@@ -190,6 +190,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             height: tabBar.frame.height
         )
 
+        // This branch does two things:
+        //
+        // 1. If we have finished scrolling in a certain direction then update our
+        //    `webDragScrollState`
+        // 2. If we are already hidden (or shown) and continue scrolling in the same
+        //    direction update `webDragScrollState.initialContentOffset` with the
+        //    current offset so if the user immediately pivots their scroll the tab bar
+        //    can reappear (or rehide)
         if webDragScrollState.initialTabBarIsHidden {
             if yDelta > 0 {
                 self.webDragScrollState = WebDragScrollState(
@@ -228,7 +236,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
         self.webDragScrollState = nil
 
-        let speed = 250.0  // points per second
+        let animationSpeed = 250.0  // points per second
         let contentOffsetThreshold = decelerate ? 0 : 25.0
 
         let yDelta = scrollView.contentOffset.y - webDragScrollState.initialContentOffset.y
@@ -240,7 +248,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         let endY = shouldHide ? view.frame.height : view.frame.height - tabBar.frame.height
 
         UIView.animate(
-            withDuration: abs(tabBar.frame.origin.y - endY) / speed,
+            withDuration: abs(tabBar.frame.origin.y - endY) / animationSpeed,
             delay: 0,
             options: .curveLinear,
             animations: { [self] in
