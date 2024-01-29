@@ -1,6 +1,15 @@
 import UIKit
 import WebKit
 
+@objc protocol WebNavigationControllerDelegate {
+    @objc optional func webScrollViewWillBeginDragging(_ scrollView: UIScrollView)
+    @objc optional func webScrollViewDidScroll(_ scrollView: UIScrollView)
+    @objc optional func webScrollViewDidEndDragging(
+        _ scrollView: UIScrollView,
+        willDecelerate decelerate: Bool
+    )
+}
+
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
     WKScriptMessageHandler, WKHTTPCookieStoreObserver, UIViewTreeObserverDelegate,
     UIScrollViewDelegate
@@ -13,10 +22,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     static private var baseUrlAbsoluteStringWithTrailingSlash = baseUrl.absoluteString + "/"
 
-    let initialPath: String
-    let webConfiguration: WKWebViewConfiguration
+    private let initialPath: String
+    private let webConfiguration: WKWebViewConfiguration
 
-    var webView: WKWebView!
+    // Called `webDelegate` so we don't override `UINavigationController`'s
+    // `delegate` property.
+    weak var webDelegate: WebNavigationControllerDelegate?
+
+    private var webView: WKWebView!
     private var webViewTreeObserver: UIViewTreeObserver?
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
@@ -189,7 +202,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 let url = URL(string: String(urlString))!
 
                 let viewController = WebNavigationEntryController(url: url, webView: webView)
-                pushViewController(viewController, animated: true)
+                super.pushViewController(viewController, animated: true)
             } else if messageBody == "navigation.finishExternalPop" {
                 (topViewController! as! WebNavigationEntryController)
                     .replaceSubviewsWithWebView(webView: webView)
@@ -252,13 +265,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        // NOCOMMIT
-        print("scrollViewWillBeginDragging")
+        webDelegate?.webScrollViewWillBeginDragging?(scrollView)
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        // NOCOMMIT
-        print("scrollViewDidScroll", scrollView.contentOffset)
+        webDelegate?.webScrollViewDidScroll?(scrollView)
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        webDelegate?.webScrollViewDidEndDragging?(scrollView, willDecelerate: decelerate)
     }
 
     private func getSafeAreaInsets() -> UIEdgeInsets {
@@ -321,6 +336,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             """
 
         webView.evaluateJavaScript(source)
+    }
+
+    override func pushViewController(_ viewController: UIViewController, animated: Bool) {
+        // Noop. Don't allow external classes to push view controllers.
+        // `WebNavigationController` completely manages its navigation stack.
     }
 
     // Override pop navigation functions. We need to let JavaScript control when

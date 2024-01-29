@@ -2,10 +2,19 @@ import UIKit
 import WebKit
 
 class RootTabBarController: UITabBarController, SceneDelegateRootController,
-    UITabBarControllerDelegate
+    UITabBarControllerDelegate, WebNavigationControllerDelegate
 {
     let spaceId: String
     let webNavigationController: WebNavigationController
+
+    private var webDragScrollState: WebDragScrollState?
+
+    private struct WebDragScrollState {
+        let scrollView: UIScrollView
+        let initialTabBarIsHidden: Bool
+        let initialTabBarFrameOrigin: CGPoint
+        let initialContentOffset: CGPoint
+    }
 
     init(spaceId: String, session: String) {
         self.spaceId = spaceId
@@ -69,6 +78,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         super.init(nibName: nil, bundle: nil)
 
         delegate = self
+        webNavigationController.webDelegate = self
 
         let appearance = UITabBarAppearance()
         let itemAppearance = UITabBarItemAppearance()
@@ -125,6 +135,93 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         webNavigationController.removeFromParent()
         viewController.addChild(webNavigationController)
         viewController.view.addSubview(webNavigationController.view)
+    }
+
+    func webScrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        if webDragScrollState == nil {
+            tabBar.layer.removeAllAnimations()
+
+            if tabBar.isHidden {
+                tabBar.frame = CGRect(
+                    x: tabBar.frame.origin.x,
+                    y: view.frame.height,
+                    width: tabBar.frame.width,
+                    height: tabBar.frame.height
+                )
+            } else {
+                tabBar.frame = CGRect(
+                    x: tabBar.frame.origin.x,
+                    y: view.frame.height - tabBar.frame.height,
+                    width: tabBar.frame.width,
+                    height: tabBar.frame.height
+                )
+            }
+
+            webDragScrollState = WebDragScrollState(
+                scrollView: scrollView,
+                initialTabBarIsHidden: tabBar.isHidden,
+                initialTabBarFrameOrigin: tabBar.frame.origin,
+                initialContentOffset: scrollView.contentOffset
+            )
+        }
+    }
+
+    func webScrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard let webDragScrollState = webDragScrollState,
+            webDragScrollState.scrollView === scrollView
+        else { return }
+
+        let yDelta = scrollView.contentOffset.y - webDragScrollState.initialContentOffset.y
+
+        var y = webDragScrollState.initialTabBarFrameOrigin.y + yDelta
+
+        y = min(y, view.frame.height)
+        y = max(y, view.frame.height - tabBar.frame.height)
+
+        // If we are animating the tab bar from hidden offscreen to visible then we
+        // need to mark `isHidden = false` while scrolling.
+        if yDelta < 0 && tabBar.isHidden { tabBar.isHidden = false }
+
+        tabBar.frame = CGRect(
+            x: webDragScrollState.initialTabBarFrameOrigin.x,
+            y: y,
+            width: tabBar.frame.width,
+            height: tabBar.frame.height
+        )
+    }
+
+    func webScrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        guard let webDragScrollState = webDragScrollState,
+            webDragScrollState.scrollView === scrollView
+        else { return }
+
+        self.webDragScrollState = nil
+
+        let speed = 250.0  // points per second
+        let contentOffsetThreshold = decelerate ? 0 : 25.0
+
+        let yDelta = scrollView.contentOffset.y - webDragScrollState.initialContentOffset.y
+
+        let shouldHide =
+            !webDragScrollState.initialTabBarIsHidden
+            ? yDelta > contentOffsetThreshold : !(yDelta < -contentOffsetThreshold)
+
+        let endY = shouldHide ? view.frame.height : view.frame.height - tabBar.frame.height
+
+        UIView.animate(
+            withDuration: abs(tabBar.frame.origin.y - endY) / speed,
+            delay: 0,
+            options: .curveLinear,
+            animations: { [self] in
+                tabBar.frame = CGRect(
+                    x: webDragScrollState.initialTabBarFrameOrigin.x,
+                    y: endY,
+                    width: tabBar.frame.width,
+                    height: tabBar.frame.height
+                )
+            },
+            completion: { [self] (finished) in if finished { tabBar.isHidden = shouldHide } }
+        )
     }
 }
 
