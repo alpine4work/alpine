@@ -2,7 +2,8 @@ import UIKit
 import WebKit
 
 class WebNavigationController: UINavigationController, WKNavigationDelegate, WKUIDelegate,
-    WKScriptMessageHandler, WKHTTPCookieStoreObserver, UIViewTreeObserverDelegate
+    WKScriptMessageHandler, WKHTTPCookieStoreObserver, UIViewTreeObserverDelegate,
+    UIScrollViewDelegate
 {
     #if PRODUCTION_RUN_ENVIRONMENT
         static let baseUrl = URL(string: "https://cyberworlds.dev")!
@@ -19,7 +20,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var webViewTreeObserver: UIViewTreeObserver?
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
-    private var webScrollViews = Set<UIScrollView>()
+    private var webScrollViews = [UIScrollView: UIScrollViewDelegateForwarder]()
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
@@ -234,7 +235,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     func viewTreeObserver(_ viewTreeObserver: UIViewTreeObserver, didAdd view: UIView) {
         if let scrollView = view as? UIScrollView {
-            webScrollViews.insert(scrollView)
+            webScrollViews[scrollView] = UIScrollViewDelegateForwarder(
+                scrollView: scrollView,
+                delegate: self
+            )
 
             // Whenever a new scroll view is added to our web view, set the current scroll
             // indicator insets.
@@ -244,7 +248,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func viewTreeObserver(_ viewTreeObserver: UIViewTreeObserver, didRemove view: UIView) {
-        if let scrollView = view as? UIScrollView { webScrollViews.remove(scrollView) }
+        if let scrollView = view as? UIScrollView { webScrollViews.removeValue(forKey: scrollView) }
+    }
+
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        // NOCOMMIT
+        print("scrollViewWillBeginDragging")
+    }
+
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        // NOCOMMIT
+        print("scrollViewDidScroll", scrollView.contentOffset)
     }
 
     private func getSafeAreaInsets() -> UIEdgeInsets {
@@ -280,7 +294,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Whenever the safe area changes, update the scroll indicator inset for the
         // scroll views that are currently mounted.
-        for scrollView in webScrollViews {
+        for scrollView in webScrollViews.keys {
             scrollView.automaticallyAdjustsScrollIndicatorInsets = false
             scrollView.verticalScrollIndicatorInsets = safeAreaInsets
         }

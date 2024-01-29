@@ -9,6 +9,14 @@ protocol UIViewTreeObserverDelegate: AnyObject {
 /// initialization. When views are added or removed we report to our delegate.
 /// Useful when using `WKWebView` or some other UIKit library you don't
 /// control and you need to make some modifications to the views it creates.
+///
+/// The way it works is by observing `CALayer`'s `sublayers` property. Since
+/// `UIView`'s `subviews` property is not observable using [KVO][1]. We depend
+/// on `CALayer`'s `delegate` property being the corresponding `UIView` which
+/// created it. If the `CALayer` tree and `UIView` tree don't match up you may
+/// get undefined behavior.
+///
+/// [1]: https://nalexn.github.io/kvo-guide-for-key-value-observing/
 class UIViewTreeObserver: NSObject {
     weak var delegate: UIViewTreeObserverDelegate?
 
