@@ -23,6 +23,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
+import {useNavigationBar} from "~/client/design/use_navigation_bar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -391,12 +392,15 @@ export function TaskDetailView({
         },
     });
 
+    const {scrollViewRef, navigationBar} = useNavigationBar();
+
     return (
         <>
             {childrenGridViewModals}
             <GlobalKeyDownEvent onGlobalKeyDown={onChildrenGridViewGlobalKeyDown}>
                 <VirtualizedScrollView
                     ref={viewRef}
+                    elementRef={scrollViewRef}
                     stateKey={childrenGridViewStateKey}
                     bufferedItemHeight={childrenGridViewBufferedItemHeight}
                     itemCount={showSubtasks ? childrenGridViewItemCount + 1 : 1}
@@ -474,6 +478,7 @@ export function TaskDetailView({
                             shiftRenderedRangeForChildrenGridView(range),
                         );
                     }}
+                    extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
         </>

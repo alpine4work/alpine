@@ -19,7 +19,7 @@ import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_m
  */
 export function useResizeObserver(): [
     RefCallback<HTMLElement>,
-    {height: number; width: number} | null,
+    {readonly height: number; readonly width: number} | null,
 ] {
     const [contentRect, setContentRect] = useState<{height: number; width: number} | null>(null);
 

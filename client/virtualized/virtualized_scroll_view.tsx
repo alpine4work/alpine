@@ -420,6 +420,7 @@ function VirtualizedScrollView(
         onRenderedRangeChange,
         onRenderedRangeLayoutChange,
         onScroll,
+        elementRef,
         stateKey,
         alwaysRenderAdditionalItemIndexes,
         scrollbarInsetTopItemIndex,
@@ -501,6 +502,12 @@ function VirtualizedScrollView(
          * scroll position.
          */
         onScroll?: (scrollOffset: number) => void;
+
+        /**
+         * If you want to attach a ref to the scroll view DOM element instead of
+         * `VirtualizedScrollViewRef` then you may use this prop.
+         */
+        elementRef?: Ref<HTMLDivElement>;
 
         /**
          * When the `stateKey` changes we reset our virtualized scroll view's internal
@@ -1536,6 +1543,7 @@ function VirtualizedScrollView(
                     useScrollbar(
                         scrollbarInsetTop !== undefined ? {insetTop: scrollbarInsetTop} : undefined,
                     ),
+                    elementRef,
                 )}
                 className={sprinkles({
                     flexGrow: "1",
@@ -1574,10 +1582,7 @@ function VirtualizedScrollView(
                                     // We need to render extra children in an absolutely positioned `<div>` so
                                     // it doesn't affect server side rendering.
                                     position: "absolute",
-                                    top: 0,
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
+                                    inset: 0,
                                     pointerEvents: "none",
                                 }}
                             >

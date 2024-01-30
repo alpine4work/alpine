@@ -2483,7 +2483,6 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
     return (
         <Box
             paddingX="5"
-            height={taskRowViewMinHeight}
             // Create an illusion that the text editor extends into the margins by giving
             // the margin a text cursor and making it clickable putting focus in the task.
             // A double click selects the task text.
@@ -2501,7 +2500,7 @@ const TaskGridViewDecorativeGhostTaskMemo = memo(function TaskGridViewDecorative
         >
             <Box
                 width="full"
-                height="full"
+                height={taskRowViewMinHeight}
                 pointerEvents="none"
                 style={{
                     // Draw the top and bottom border with a shadow so it:

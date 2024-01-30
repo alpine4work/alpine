@@ -1,4 +1,5 @@
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
+import {Box} from "~/client/design/box.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {mobileMaxScreenWidth, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
@@ -49,5 +50,24 @@ export function IsMobileContextProvider({children}: {children?: ReactNode}) {
         };
     }, [isNativeMobile]);
 
-    return <IsMobileContext.Provider value={isMobile}>{children}</IsMobileContext.Provider>;
+    return (
+        <IsMobileContext.Provider value={isMobile}>
+            {children}
+            {/* {isNativeMobile && (
+                // NOCOMMIT: WIP
+                <Box
+                    position="absolute"
+                    top="0"
+                    left="0"
+                    right="0"
+                    display="flex"
+                    flexDirection="column"
+                    backgroundColor="grey-0"
+                    style={{height: "var(--safe-area-inset-top)"}}
+                    // Render over everything, including blocking overlays.
+                    zIndex="80"
+                />
+            )} */}
+        </IsMobileContext.Provider>
+    );
 }

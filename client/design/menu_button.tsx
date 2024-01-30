@@ -361,7 +361,7 @@ export const Menu = forwardRef(function Menu(
 ) {
     const isMobile = useIsMobile();
 
-    const {width, itemPaddingY} = menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
+    const {width} = menuSizeConstants[size][isMobile ? "mobile" : "desktop"];
 
     const flattenedActions = useMemo(() => {
         const flattenedActions: Array<{type: "Action"; action: MenuAction} | {type: "Divider"}> =
@@ -469,7 +469,7 @@ export const Menu = forwardRef(function Menu(
 
     return (
         <div
-            ref={useMergedRefs(useMergedRefs(ref, menuRef), useScrollbar())}
+            ref={useMergedRefs(ref, menuRef, useScrollbar())}
             role="menu"
             // The menu container has `tabindex` set to -1 or 0 and
             // `aria-activedescendant` set to the ID of the focused item.
