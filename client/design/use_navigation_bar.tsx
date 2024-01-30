@@ -1,5 +1,13 @@
 import {AnimationControls, animate} from "motion";
-import {ReactNode, RefCallback, useCallback, useRef, useState} from "react";
+import {
+    MutableRefObject,
+    ReactNode,
+    RefCallback,
+    useCallback,
+    useImperativeHandle,
+    useRef,
+    useState,
+} from "react";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {scrollbarVisibleAfterScrollDurationMs} from "~/client/design/scrollbar.js";
@@ -143,15 +151,7 @@ export function useNavigationBar(): {
      */
     navigationBar: ReactNode;
 } {
-    const navigationBarRef = useRef<HTMLDivElement>(null);
-
-    const [scrollDirectionState, setScrollDirectionState] = useState<ScrollDirectionState>(
-        initialScrollDirectionState,
-    );
-
-    const lastScrollOffsetRef = useRef(0);
-    const lastScrollDirectionRef = useRef(scrollDirectionState.scrollDirection);
-    const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
+    const handleScrollRef = useRef<((element: HTMLElement) => void) | null>(null);
 
     const [scrollViewSize, setScrollViewSize] = useState<{height: number; width: number} | null>(
         null,
@@ -172,9 +172,54 @@ export function useNavigationBar(): {
                 });
             };
 
+            const handleScroll = () => {
+                handleScrollRef.current?.(element);
+            };
+
+            // Immediately populate the content rect with our element's dimensions
+            // on mount.
+            handleResize();
+
+            addResizeListenerForElement(element, handleResize);
+            element.addEventListener("scroll", handleScroll);
+
+            return () => {
+                element.removeEventListener("scroll", handleScroll);
+                removeResizeListenerForElement(element, handleResize);
+            };
+        }, []),
+    );
+
+    const navigationBar = (
+        <NavigationBar scrollViewSize={scrollViewSize} handleScrollRef={handleScrollRef} />
+    );
+
+    return {scrollViewRef, navigationBar};
+}
+
+function NavigationBar({
+    scrollViewSize,
+    handleScrollRef,
+}: {
+    scrollViewSize: {width: number; height: number} | null;
+    handleScrollRef: MutableRefObject<((element: HTMLElement) => void) | null>;
+}) {
+    const navigationBarRef = useRef<HTMLDivElement>(null);
+
+    const [scrollDirectionState, setScrollDirectionState] = useState<ScrollDirectionState>(
+        initialScrollDirectionState,
+    );
+
+    const lastScrollOffsetRef = useRef(0);
+    const lastScrollDirectionRef = useRef(scrollDirectionState.scrollDirection);
+    const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
+
+    useImperativeHandle(
+        handleScrollRef,
+        () => {
             let scrollDebounceTimeout: Timeout | null = null;
 
-            const handleScroll = () => {
+            return (element: HTMLElement) => {
                 // Immediately finish any animations when scrolling begins.
                 if (animationControlsRef.current && animationControlsRef.current.size > 0) {
                     const animationControls = animationControlsRef.current;
@@ -257,19 +302,8 @@ export function useNavigationBar(): {
                     });
                 }, navigationBarTransitionDebounceScrollTimeoutMs);
             };
-
-            // Immediately populate the content rect with our element's dimensions
-            // on mount.
-            handleResize();
-
-            addResizeListenerForElement(element, handleResize);
-            element.addEventListener("scroll", handleScroll);
-
-            return () => {
-                element.removeEventListener("scroll", handleScroll);
-                removeResizeListenerForElement(element, handleResize);
-            };
-        }, []),
+        },
+        [],
     );
 
     const animationControlsRef = useRef<Set<AnimationControls> | null>(null);
@@ -300,7 +334,7 @@ export function useNavigationBar(): {
         animationControlsRef.current.add(animationControls);
     }, [scrollDirectionState]);
 
-    const navigationBar = (
+    return (
         <div
             style={{
                 position: "absolute",
@@ -365,6 +399,4 @@ export function useNavigationBar(): {
             </div>
         </div>
     );
-
-    return {scrollViewRef, navigationBar};
 }

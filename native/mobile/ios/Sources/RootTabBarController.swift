@@ -204,6 +204,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
             var tabBarTopOffset: Double
 
+            // NOCOMMIT:
             print("DIFFERENCE", tabBarHeight - tabBarScrollOffset)
 
             if tabBarHeight - tabBarScrollOffset >= navigationBarRevealAfterScrollThreshold {
