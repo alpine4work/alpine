@@ -7,12 +7,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     let spaceId: String
     let webNavigationController: WebNavigationController
 
-    private var webDragScrollState: WebDragScrollState?
+    private var lastScrollOffset = 0.0
+    private var lastScrollDirection = ScrollDirection.down
+    private var lastTabBarTopOffset = 0.0
+    private var scrollDebounceTimeout: Timer?
 
-    private struct WebDragScrollState {
-        let scrollView: UIScrollView
-        let initialTabBarIsHidden: Bool
-        let initialContentOffset: CGPoint
+    private enum ScrollDirection {
+        case up
+        case down
     }
 
     init(spaceId: String, session: String) {
@@ -136,131 +138,117 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         viewController.view.addSubview(webNavigationController.view)
     }
 
-    func webScrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        if webDragScrollState == nil {
-            tabBar.layer.removeAllAnimations()
+    func webScrollViewDidScroll(_ scrollView: UIScrollView) {
+        // We implement the same logic here as in `use_navigation_bar.tsx` for
+        // revealing/hiding our tab bar as the user scrolls. By implementing identical
+        // logic to `use_navigation_bar.tsx` the app feels cohesive.
+        //
+        // Ideally, we'd only consider scroll events on scroll views
+        // `use_navigation_bar.tsx` is initialized on. However, we can't really
+        // associate `UIScrollView`s with WebKit DOM nodes from here. Instead we make
+        // assumptions. Like assuming there's only one `useNavigationBar()` scroll view
+        // on the page at a time.
+        //
+        // TODO(calebmer): Ignore scroll views that only scroll horizontally but not
+        // vertically.
+        //
+        // TODO(calebmer): If we ever have nested vertical scroll views, ignore scrolls
+        // from a scroll view that is nested inside another scroll view.
 
-            if tabBar.isHidden {
-                tabBar.frame = CGRect(
-                    x: tabBar.frame.origin.x,
-                    y: view.frame.height,
-                    width: tabBar.frame.width,
-                    height: tabBar.frame.height
-                )
+        // Immediately finish any animations when scrolling begins.
+        tabBar.layer.removeAllAnimations()
+
+        // Clamp scroll offset so it's not affected by overscroll at the top of the
+        // scroll view. Overscroll at the bottom of the scroll view is desired! We want
+        // the top bar (which should be collapsed) to continue with the scroll window
+        // when at the bottom of the view.
+        //
+        // This also creates a neat effect where when the overscroll bounces back the
+        // navigation bar is revealed. If the user is at the end of the scroll view
+        // they probably need the navigation bar to navigate out.
+        let scrollOffset = max(0, scrollView.contentOffset.y)
+
+        let lastScrollOffset = self.lastScrollOffset
+        self.lastScrollOffset = scrollOffset
+
+        let tabBarHeight = tabBar.frame.height
+
+        let scrollDirection: ScrollDirection = scrollOffset > lastScrollOffset ? .down : .up
+        let lastScrollDirection = self.lastScrollDirection
+        self.lastScrollDirection = scrollDirection
+
+        let tabBarScrollOffset = max(0, min(scrollOffset - self.lastTabBarTopOffset, tabBarHeight))
+
+        if scrollDirection != lastScrollDirection {
+            let tabBarTopOffset = scrollOffset - tabBarScrollOffset
+            self.lastTabBarTopOffset = tabBarTopOffset
+        }
+
+        // This is only in native code: Actually update tab bar position based on how
+        // much it's been offset. While we need to use `position: sticky` to be frame
+        // perfect in web code, native code scroll handling is already frame perfect.
+        tabBar.frame.origin.y = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+
+        self.scrollDebounceTimeout?.invalidate()
+        self.scrollDebounceTimeout = nil
+
+        let scrollDebounceTimeout = Timer(
+            timeInterval: navigationBarTransitionDebounceScrollTimeoutSeconds,
+            repeats: false
+        ) { [self] (_) in
+            self.scrollDebounceTimeout = nil
+
+            // Navigation bar is completely scrolled in or completely scrolled out. We don't
+            // need to animate.
+            if tabBarScrollOffset == 0 || tabBarScrollOffset == tabBarHeight { return }
+
+            var tabBarTopOffset: Double
+
+            print("DIFFERENCE", tabBarHeight - tabBarScrollOffset)
+
+            if tabBarHeight - tabBarScrollOffset >= navigationBarRevealAfterScrollThreshold {
+                tabBarTopOffset = scrollOffset
             } else {
-                tabBar.frame = CGRect(
-                    x: tabBar.frame.origin.x,
-                    y: view.frame.height - tabBar.frame.height,
-                    width: tabBar.frame.width,
-                    height: tabBar.frame.height
-                )
+                tabBarTopOffset = max(0, scrollOffset - tabBarHeight)
             }
 
-            webDragScrollState = WebDragScrollState(
-                scrollView: scrollView,
-                initialTabBarIsHidden: tabBar.isHidden,
-                initialContentOffset: scrollView.contentOffset
+            let lastTabBarTopOffset = self.lastTabBarTopOffset
+            self.lastTabBarTopOffset = tabBarTopOffset
+
+            let animateNavigationBarTranslateY = tabBarTopOffset - lastTabBarTopOffset
+
+            // The following is only in native code: Actually animate the tab bar into
+            // position after our timeout has fired. Web code needs to wait for a React
+            // effect before the animation can run.
+
+            let tabBarScrollOffset = max(0, min(scrollOffset - tabBarTopOffset, tabBarHeight))
+            let tabBarFrameOriginY = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+
+            UIView.animate(
+                withDuration: abs(animateNavigationBarTranslateY)
+                    / navigationBarRevealOrHideAnimationSpeed,
+                delay: 0,
+                options: .curveLinear,
+                animations: { [self] in tabBar.frame.origin.y = tabBarFrameOriginY },
+                completion: { [self] (finished) in
+                    // Make sure even if the animation was cancelled we set the correct
+                    // position.
+                    if !finished { tabBar.frame.origin.y = tabBarFrameOriginY }
+                }
             )
         }
-    }
 
-    func webScrollViewDidScroll(_ scrollView: UIScrollView) {
-        guard let webDragScrollState = webDragScrollState,
-            webDragScrollState.scrollView === scrollView
-        else { return }
+        // Add some tolerance to reduce energy impact of timer.
+        scrollDebounceTimeout.tolerance = 0.05
 
-        let initialY =
-            webDragScrollState.initialTabBarIsHidden
-            ? view.frame.height : view.frame.height - tabBar.frame.height
+        self.scrollDebounceTimeout = scrollDebounceTimeout
 
-        let yDelta = scrollView.contentOffset.y - webDragScrollState.initialContentOffset.y
-        var y = initialY + yDelta
-
-        y = min(y, view.frame.height)
-        y = max(y, view.frame.height - tabBar.frame.height)
-
-        // If we are animating the tab bar from hidden offscreen to visible then we
-        // need to mark `isHidden = false` while scrolling.
-        if yDelta < 0 && tabBar.isHidden { tabBar.isHidden = false }
-
-        tabBar.frame = CGRect(
-            x: tabBar.frame.origin.x,
-            y: y,
-            width: tabBar.frame.width,
-            height: tabBar.frame.height
-        )
-
-        // This branch does two things:
+        // We need to add our timeout to the common run loop mode so it can execute
+        // even while a drag is occuring.
         //
-        // 1. If we have finished scrolling in a certain direction then update our
-        //    `webDragScrollState`
-        // 2. If we are already hidden (or shown) and continue scrolling in the same
-        //    direction update `webDragScrollState.initialContentOffset` with the
-        //    current offset so if the user immediately pivots their scroll the tab bar
-        //    can reappear (or rehide)
-        if webDragScrollState.initialTabBarIsHidden {
-            if yDelta > 0 {
-                self.webDragScrollState = WebDragScrollState(
-                    scrollView: scrollView,
-                    initialTabBarIsHidden: true,
-                    initialContentOffset: scrollView.contentOffset
-                )
-            } else if y <= view.frame.height - tabBar.frame.height {
-                self.webDragScrollState = WebDragScrollState(
-                    scrollView: scrollView,
-                    initialTabBarIsHidden: false,
-                    initialContentOffset: scrollView.contentOffset
-                )
-            }
-        } else {
-            if yDelta < 0 {
-                self.webDragScrollState = WebDragScrollState(
-                    scrollView: scrollView,
-                    initialTabBarIsHidden: false,
-                    initialContentOffset: scrollView.contentOffset
-                )
-            } else if y >= view.frame.height {
-                self.webDragScrollState = WebDragScrollState(
-                    scrollView: scrollView,
-                    initialTabBarIsHidden: true,
-                    initialContentOffset: scrollView.contentOffset
-                )
-            }
-        }
-    }
-
-    func webScrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        guard let webDragScrollState = webDragScrollState,
-            webDragScrollState.scrollView === scrollView
-        else { return }
-
-        self.webDragScrollState = nil
-
-        let animationSpeed = 250.0  // points per second
-        let contentOffsetThreshold = decelerate ? 0 : 25.0
-
-        let yDelta = scrollView.contentOffset.y - webDragScrollState.initialContentOffset.y
-
-        let shouldHide =
-            !webDragScrollState.initialTabBarIsHidden
-            ? yDelta > contentOffsetThreshold : !(yDelta < -contentOffsetThreshold)
-
-        let endY = shouldHide ? view.frame.height : view.frame.height - tabBar.frame.height
-
-        UIView.animate(
-            withDuration: abs(tabBar.frame.origin.y - endY) / animationSpeed,
-            delay: 0,
-            options: .curveLinear,
-            animations: { [self] in
-                tabBar.frame = CGRect(
-                    x: tabBar.frame.origin.x,
-                    y: endY,
-                    width: tabBar.frame.width,
-                    height: tabBar.frame.height
-                )
-            },
-            completion: { [self] (finished) in if finished { tabBar.isHidden = shouldHide } }
-        )
+        // For more information about run loops:
+        // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
+        RunLoop.current.add(scrollDebounceTimeout, forMode: .common)
     }
 }
 

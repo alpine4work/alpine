@@ -30,10 +30,28 @@ const initialScrollDirectionState: ScrollDirectionState = {
 const navigationBarHeight = "32";
 const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]);
 
-// NOCOMMIT: Pick a real value
+/**
+ * After the user has stopped scrolling then this timeout elapses, we will
+ * fully show/hide the navigation bar if it's in a partially occluded state.
+ *
+ * Should be the same as `scrollbarVisibleAfterScrollDurationMs` so the
+ * navigation bar and scrollbar animate to their static states at the
+ * same time.
+ */
+// IMPORTANT: If you change this value, you must also change
+// `navigationBarTransitionDebounceScrollTimeoutSeconds` in
+// `NavigationBarConstants.swift`.
 const navigationBarTransitionDebounceScrollTimeoutMs = 1200;
 
-// NOCOMMIT: Document value
+/**
+ * After the `navigationBarTransitionDebounceScrollTimeoutMs` timeout, if the
+ * navigation bar is partially occluded we must make the decision to either
+ * fully show the navigation bar or fully hide the navigation bar. We make that
+ * decision based on whether more than this many pixels of the navigation bar
+ * have been revealed.
+ */
+// IMPORTANT: If you change this value, you must also change
+// `navigationBarRevealAfterScrollThreshold` in `NavigationBarConstants.swift`.
 const navigationBarRevealAfterScrollThreshold = 40;
 
 /**
@@ -41,7 +59,7 @@ const navigationBarRevealAfterScrollThreshold = 40;
  * animation moves. The duration of the animation depends on how many pixels we
  * need to move the navigation bar.
  */
-const navigationBarRevealOrHideAnimationSpeed = 50;
+const navigationBarRevealOrHideAnimationSpeed = 300;
 
 // Make sure if `scrollbarVisibleAfterScrollDurationMs` changes,
 // `navigationBarTransitionDebounceScrollTimeoutMs` also changes. We don't assign
@@ -49,6 +67,23 @@ const navigationBarRevealOrHideAnimationSpeed = 50;
 // want to clearly document that when the navigation bar duration changes, we
 // need to update native mobile code as well.
 assert(navigationBarTransitionDebounceScrollTimeoutMs === scrollbarVisibleAfterScrollDurationMs);
+
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
+//                                 IMPORTANT                                 //
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
+//
+// We implement navigation bars in web code but we implement tab bars in native
+// code. Tab bars should respond to scroll interactions identically to
+// navigation bars. That way they clearly look like they're a part of the
+// same app.
+//
+// Any change to this file you must thoroughly test and port to native code.
+// For iOS we implement the tab bar in `RootTabBarController.swift`.
+//
+// An implication of needing to implement identical behavior in web code and
+// native code is you have to be careful about which events contribute to
+// navigation bar behavior. We have consistent scroll events across web code
+// and native code so we can use that. Touch events are more dicey.
 
 /**
  * Most content in our product comes with a navigation bar. The navigation bar
@@ -150,8 +185,6 @@ export function useNavigationBar(): {
                     }
                 }
 
-                let scrollOffset = element.scrollTop;
-
                 // Clamp scroll offset so it's not affected by overscroll at the top of the
                 // scroll view. Overscroll at the bottom of the scroll view is desired! We want
                 // the top bar (which should be collapsed) to continue with the scroll window
@@ -160,7 +193,7 @@ export function useNavigationBar(): {
                 // This also creates a neat effect where when the overscroll bounces back the
                 // navigation bar is revealed. If the user is at the end of the scroll view
                 // they probably need the navigation bar to navigate out.
-                scrollOffset = Math.max(0, scrollOffset);
+                const scrollOffset = Math.max(0, element.scrollTop);
 
                 const lastScrollOffset = lastScrollOffsetRef.current;
                 lastScrollOffsetRef.current = scrollOffset;
@@ -200,6 +233,8 @@ export function useNavigationBar(): {
                     ) {
                         return;
                     }
+
+                    console.log("DIFFERENCE", navigationBarHeight - navigationBarScrollOffset);
 
                     let navigationBarTopOffset: number;
                     if (
