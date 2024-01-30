@@ -17,7 +17,7 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
-import {parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -35,8 +35,24 @@ const initialScrollDirectionState: ScrollDirectionState = {
     animateNavigationBarTranslateY: 0,
 };
 
+/**
+ * The height of our navigation bar.
+ */
 export const navigationBarHeight = "9";
+
 const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]);
+
+{
+    // IMPORTANT: If you change this value, you must also change
+    // `navigationBarHeight` in `NavigationBarConstants.swift`.
+    //
+    // We have an assertion below to make sure this value always equals the
+    // navigation bar's pixel height on mobile devices. After converting `Spacing`
+    // to an actual value and applying the rem pixel count.
+    const mobileNavigationBarHeight = 45;
+
+    assert(mobileNavigationBarHeight === navigationBarHeightRem * remPxByPlatform.mobile);
+}
 
 /**
  * After the user has stopped scrolling then this timeout elapses, we will

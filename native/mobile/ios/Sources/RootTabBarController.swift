@@ -9,7 +9,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
     private var lastScrollOffset = 0.0
     private var lastScrollDirection = ScrollDirection.down
-    private var lastTabBarTopOffset = 0.0
+    private var lastNavigationBarTopOffset = 0.0
     private var scrollDebounceTimeout: Timer?
 
     private enum ScrollDirection {
@@ -171,23 +171,35 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         let lastScrollOffset = self.lastScrollOffset
         self.lastScrollOffset = scrollOffset
 
-        let tabBarHeight = tabBar.frame.height
-
         let scrollDirection: ScrollDirection = scrollOffset > lastScrollOffset ? .down : .up
         let lastScrollDirection = self.lastScrollDirection
         self.lastScrollDirection = scrollDirection
 
-        let tabBarScrollOffset = max(0, min(scrollOffset - self.lastTabBarTopOffset, tabBarHeight))
+        let navigationBarScrollOffset = max(
+            0,
+            min(scrollOffset - self.lastNavigationBarTopOffset, navigationBarHeight)
+        )
 
         if scrollDirection != lastScrollDirection {
-            let tabBarTopOffset = scrollOffset - tabBarScrollOffset
-            self.lastTabBarTopOffset = tabBarTopOffset
+            let navigationBarTopOffset = scrollOffset - navigationBarScrollOffset
+            self.lastNavigationBarTopOffset = navigationBarTopOffset
         }
 
-        // This is only in native code: Actually update tab bar position based on how
-        // much it's been offset. While we need to use `position: sticky` to be frame
-        // perfect in web code, native code scroll handling is already frame perfect.
-        tabBar.frame.origin.y = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+        // The following is only in native code: Actually update tab bar position based
+        // on how much it's been offset. While we need to use `position: sticky` to be
+        // frame perfect in web code, native code scroll handling is already frame
+        // perfect.
+        do {
+            // Convert from navigation bar offset to tab bar offset. We want the native tab
+            // bar to disappear at the same rate as the web navigation bar.
+            let tabBarScrollOffset =
+                ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
+
+            tabBar.frame.origin.y = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+
+            // Mark the tab bar as hidden if the navigation bar is fully scrolled.
+            tabBar.isHidden = navigationBarScrollOffset >= navigationBarHeight
+        }
 
         self.scrollDebounceTimeout?.invalidate()
         self.scrollDebounceTimeout = nil
@@ -200,9 +212,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
             // Navigation bar is completely scrolled in or completely scrolled out. We don't
             // need to animate.
-            if tabBarScrollOffset == 0 || tabBarScrollOffset == tabBarHeight { return }
-
-            var tabBarTopOffset: Double
+            if navigationBarScrollOffset == 0 || navigationBarScrollOffset == navigationBarHeight {
+                return
+            }
 
             // If we last scrolled up, then show the navigation bar. If we last scrolled
             // down, then hide the navigation bar.
@@ -211,40 +223,52 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             // that wasn't consistent across web code and native code since the navigation
             // bar and tab bar have different heights. So they don't always move in unison.
             // Using the scroll direction is also predictable for users which is nice.
+            var navigationBarTopOffset: Double
             if scrollDirection == .up {
-                tabBarTopOffset = scrollOffset
+                navigationBarTopOffset = scrollOffset
             } else {
-                tabBarTopOffset = max(0, scrollOffset - tabBarHeight)
+                navigationBarTopOffset = max(0, scrollOffset - navigationBarHeight)
             }
 
-            let lastTabBarTopOffset = self.lastTabBarTopOffset
-            self.lastTabBarTopOffset = tabBarTopOffset
+            let lastNavigationBarTopOffset = self.lastNavigationBarTopOffset
+            self.lastNavigationBarTopOffset = navigationBarTopOffset
 
-            let animateNavigationBarTranslateY = tabBarTopOffset - lastTabBarTopOffset
+            let animateNavigationBarTranslateY = navigationBarTopOffset - lastNavigationBarTopOffset
 
             // The following is only in native code: Actually animate the tab bar into
             // position after our timeout has fired. Web code needs to wait for a React
             // effect before the animation can run.
+            do {
+                let navigationBarScrollOffset = max(
+                    0,
+                    min(scrollOffset - navigationBarTopOffset, navigationBarTopOffset)
+                )
 
-            let tabBarScrollOffset = max(0, min(scrollOffset - tabBarTopOffset, tabBarHeight))
-            let tabBarFrameOriginY = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+                // Convert from navigation bar offset to tab bar offset. We want the native tab
+                // bar to disappear at the same rate as the web navigation bar.
+                let tabBarScrollOffset =
+                    ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
 
-            UIView.animate(
-                withDuration: abs(animateNavigationBarTranslateY)
-                    / navigationBarRevealOrHideAnimationSpeed,
-                delay: 0,
-                options: .curveLinear,
-                animations: { [self] in tabBar.frame.origin.y = tabBarFrameOriginY },
-                completion: { [self] (finished) in
-                    // Make sure even if the animation was cancelled we set the correct
-                    // position.
-                    if !finished { tabBar.frame.origin.y = tabBarFrameOriginY }
-                }
-            )
+                let tabBarFrameOriginY =
+                    (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+
+                UIView.animate(
+                    withDuration: abs(animateNavigationBarTranslateY)
+                        / navigationBarRevealOrHideAnimationSpeed,
+                    delay: 0,
+                    options: .curveLinear,
+                    animations: { [self] in tabBar.frame.origin.y = tabBarFrameOriginY },
+                    completion: { [self] (finished) in
+                        // Make sure even if the animation was cancelled we set the correct
+                        // position.
+                        if !finished { tabBar.frame.origin.y = tabBarFrameOriginY }
+
+                        // Mark the tab bar as hidden if the navigation bar is fully scrolled.
+                        tabBar.isHidden = navigationBarScrollOffset >= navigationBarHeight
+                    }
+                )
+            }
         }
-
-        // Add some tolerance to reduce energy impact of timer.
-        scrollDebounceTimeout.tolerance = 0.05
 
         self.scrollDebounceTimeout = scrollDebounceTimeout
 
