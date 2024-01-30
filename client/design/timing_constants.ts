@@ -34,10 +34,15 @@ export const delayLoadingIndicatorLimitMs = 500;
  * `delayLoadingIndicatorLimitMs` for responding to, say, a button press since
  * full page transitions are more disruptive.
  *
- * If you update this constant, you should also update the related constant in
- * `TimingConstants.swift`.
+ * 1000ms since according to [UX Research][1] 1000ms is "about the limit for
+ * the user's flow of thought to stay uninterrupted, even though the user will
+ * notice the delay".
+ *
+ * [1]: https://www.nngroup.com/articles/response-times-3-important-limits/
  */
-export const delayFullPageTransitionLoadingIndicatorLimitMs = 1000;
+// IMPORTANT: If you update this constant, you should also update the same
+// constant in `TimingConstants.swift`.
+export const delayScreenTransitionLoadingIndicatorLimitMs = 1000;
 
 /**
  * The delay between clicks for registering a click event as a double click.

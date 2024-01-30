@@ -38,7 +38,22 @@ const minScrollbarThumbHeightRem = parseRemLengthNumber(spacing[minScrollbarThum
 const scrollbarThumbHitWidthRem =
     scrollbarThumbInteractiveMarginRem + scrollbarThumbWidthRem + scrollbarThumbMarginRem;
 
-const scrollbarVisibleAfterScrollDurationMs = 1000;
+/**
+ * Duration after scrolling before the scrollbar disappears. We also use this to
+ * determine when our navigation bar should animate to fully hidden or fully
+ * revealed. We want our navigation bar to perform this animation at the same time
+ * the scrollbar disappears.
+ *
+ * Since on mobile iOS platforms we use the native scrollbar, ideally this timeout
+ * would be the same as the timeout until which iOS scrollbars disappear. That way
+ * the navigation bar disappears with native scrollbars. We can't quite perfectly
+ * replicate the time iOS native scrollbars disappear since while the user is
+ * touching the screen on iOS, the scrollbar will remain.
+ *
+ * From some primitive testing, 1.2s appears to be the duration Apple uses
+ * for iOS.
+ */
+export const scrollbarVisibleAfterScrollDurationMs = 1200;
 
 export function useScrollbar<T extends HTMLElement>({
     inset,

@@ -11,7 +11,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
-import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
     DocumentCommentThreadListView,
@@ -499,7 +499,7 @@ function DocumentContentEditorStateful({
         transition.dataPromise.then(acceptTransition, acceptTransition);
         const timeout = createTimeout(
             acceptTransition,
-            delayFullPageTransitionLoadingIndicatorLimitMs,
+            delayScreenTransitionLoadingIndicatorLimitMs,
         );
 
         return () => {

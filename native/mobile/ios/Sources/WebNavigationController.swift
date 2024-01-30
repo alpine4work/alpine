@@ -555,7 +555,7 @@ private class WebNavigationEntryController: UIViewController {
 
     private func startLoadingIndicatorTimer() {
         loadingIndicatorTimer = Timer.scheduledTimer(
-            withTimeInterval: delayFullPageTransitionLoadingIndicatorLimitSeconds,
+            withTimeInterval: delayScreenTransitionLoadingIndicatorLimitSeconds,
             repeats: false
         ) { [self] timer in addLoadingIndicatorSubviews() }
 

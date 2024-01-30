@@ -1,6 +1,6 @@
 import {HydrationState, MemoryHistory, createMemoryHistory, resolvePath} from "@remix-run/router";
 import {Key, Memo, useEffect} from "react";
-import {delayFullPageTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useStateWithDependencies} from "~/client/helpers/lifecycle/use_state_with_dependencies.js";
 import {loadInitialPeekDataForClient} from "~/client/peek/load_initial_peek_data_for_client.js";
@@ -223,7 +223,7 @@ export function usePeekSwitcherState<Extra>({
         transition.peek.routerPromise.then(acceptTransition, acceptTransition);
         const timeout = createTimeout(
             acceptTransition,
-            delayFullPageTransitionLoadingIndicatorLimitMs,
+            delayScreenTransitionLoadingIndicatorLimitMs,
         );
 
         return () => {
