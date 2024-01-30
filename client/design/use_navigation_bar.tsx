@@ -52,17 +52,6 @@ const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]
 const navigationBarTransitionDebounceScrollTimeoutMs = 1200;
 
 /**
- * After the `navigationBarTransitionDebounceScrollTimeoutMs` timeout, if the
- * navigation bar is partially occluded we must make the decision to either
- * fully show the navigation bar or fully hide the navigation bar. We make that
- * decision based on whether more than this many pixels of the navigation bar
- * have been revealed.
- */
-// IMPORTANT: If you change this value, you must also change
-// `navigationBarRevealAfterScrollThreshold` in `NavigationBarConstants.swift`.
-const navigationBarRevealAfterScrollThreshold = 40;
-
-/**
  * The speed (in pixels per second) at which the navigation bar hide/show
  * animation moves. The duration of the animation depends on how many pixels we
  * need to move the navigation bar.
@@ -279,13 +268,15 @@ function NavigationBar({
                         return;
                     }
 
-                    console.log("DIFFERENCE", navigationBarHeight - navigationBarScrollOffset);
-
+                    // If we last scrolled up, then show the navigation bar. If we last scrolled
+                    // down, then hide the navigation bar.
+                    //
+                    // We experimented with heuristics like "reveal if scrolled 40px or more" but
+                    // that wasn't consistent across web code and native code since the navigation
+                    // bar and tab bar have different heights. So they don't always move in unison.
+                    // Using the scroll direction is also predictable for users which is nice.
                     let navigationBarTopOffset: number;
-                    if (
-                        navigationBarHeight - navigationBarScrollOffset >=
-                        navigationBarRevealAfterScrollThreshold
-                    ) {
+                    if (scrollDirection === "Up") {
                         navigationBarTopOffset = scrollOffset;
                     } else {
                         navigationBarTopOffset = Math.max(0, scrollOffset - navigationBarHeight);

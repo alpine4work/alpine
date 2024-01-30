@@ -204,10 +204,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
             var tabBarTopOffset: Double
 
-            // NOCOMMIT:
-            print("DIFFERENCE", tabBarHeight - tabBarScrollOffset)
-
-            if tabBarHeight - tabBarScrollOffset >= navigationBarRevealAfterScrollThreshold {
+            // If we last scrolled up, then show the navigation bar. If we last scrolled
+            // down, then hide the navigation bar.
+            //
+            // We experimented with heuristics like "reveal if scrolled 40px or more" but
+            // that wasn't consistent across web code and native code since the navigation
+            // bar and tab bar have different heights. So they don't always move in unison.
+            // Using the scroll direction is also predictable for users which is nice.
+            if scrollDirection == .up {
                 tabBarTopOffset = scrollOffset
             } else {
                 tabBarTopOffset = max(0, scrollOffset - tabBarHeight)

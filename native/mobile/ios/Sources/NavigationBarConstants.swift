@@ -4,14 +4,6 @@
 /// hide the navigation bar (implemented in web code).
 let navigationBarTransitionDebounceScrollTimeoutSeconds = 1.2
 
-/// The same value as `navigationBarRevealAfterScrollThreshold` in
-/// `use_navigation_bar.tsx`. So our behavior to automatically hide the tab bar
-/// (implemented in native code) is the same as our behavior to automatically
-/// hide the navigation bar (implemented in web code).
-///
-/// Measured in points, not pixels. iOS points are the same as web pixels.
-let navigationBarRevealAfterScrollThreshold = 40.0
-
 /// The same value as `navigationBarRevealOrHideAnimationSpeed` in
 /// `use_navigation_bar.tsx`. So our behavior to automatically hide the tab bar
 /// (implemented in native code) is the same as our behavior to automatically
