@@ -9,7 +9,10 @@ import {
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {TimeZone} from "~/shared/helpers/date/time_zone.js";
+import {TaskId} from "~/shared/id/types/id_types.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
+import {TaskAssigneeWithSortableAccount} from "~/shared/tasks/task_assignee.js";
+import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 
 export function getTaskStatusMenuActions({
@@ -29,8 +32,40 @@ export function getTaskStatusMenuActions({
     affinityManager: TaskClientStoreSearchEntityAffinityManager;
     task: TaskModel;
 }): ReadonlyArray<MenuAction> {
-    const displayStatus = task.getDisplayStatus();
+    return getTaskStatusMenuActionsWithoutFullTask({
+        context,
+        timeZone,
+        currentAccount,
+        store,
+        undoManager,
+        affinityManager,
+        taskId: task.id,
+        displayStatus: task.getDisplayStatus(),
+        getAssigneeSnapshot: () => task.getAssignee(),
+    });
+}
 
+export function getTaskStatusMenuActionsWithoutFullTask({
+    context,
+    timeZone,
+    currentAccount,
+    store,
+    undoManager,
+    affinityManager,
+    taskId,
+    displayStatus,
+    getAssigneeSnapshot,
+}: {
+    context: AppContext;
+    timeZone: TimeZone;
+    currentAccount: AccountModel;
+    store: TaskClientStore;
+    undoManager: TaskClientStoreUndoManager | null;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    taskId: TaskId;
+    displayStatus: TaskDisplayStatus;
+    getAssigneeSnapshot: () => TaskAssigneeWithSortableAccount | null;
+}): ReadonlyArray<MenuAction> {
     switch (displayStatus) {
         case "OpenInactive": {
             return [
@@ -43,7 +78,7 @@ export function getTaskStatusMenuActions({
                     onPress: () => {
                         const time1 = store.clock.now();
                         const time2 = store.clock.now();
-                        const currentAssignee = task.getAssignee();
+                        const currentAssignee = getAssigneeSnapshot();
 
                         // If we are marking a task as active and there's not currently an assignee,
                         // then set ourselves as the assignee.
@@ -53,7 +88,7 @@ export function getTaskStatusMenuActions({
                                 {
                                     type: "UpdateTask",
                                     time: time1,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateAssignee",
                                         assignee: currentAssignee
@@ -75,7 +110,7 @@ export function getTaskStatusMenuActions({
                                 {
                                     type: "UpdateTask",
                                     time: time2,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateAssigneeStatus",
                                         assigneeStatus: {
@@ -107,7 +142,7 @@ export function getTaskStatusMenuActions({
                                 {
                                     type: "UpdateTask",
                                     time,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateStatus",
                                         status: {
@@ -144,7 +179,7 @@ export function getTaskStatusMenuActions({
                                 {
                                     type: "UpdateTask",
                                     time,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateStatus",
                                         status: {type: "Open"},
@@ -170,7 +205,7 @@ export function getTaskStatusMenuActions({
                                 {
                                     type: "UpdateTask",
                                     time,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateStatus",
                                         status: {
@@ -205,7 +240,7 @@ export function getTaskStatusMenuActions({
                                 {
                                     type: "UpdateTask",
                                     time,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateStatus",
                                         status: {type: "Open"},
@@ -223,7 +258,7 @@ export function getTaskStatusMenuActions({
                     onPress: () => {
                         const time1 = store.clock.now();
                         const time2 = store.clock.now();
-                        const currentAssignee = task.getAssignee();
+                        const currentAssignee = getAssigneeSnapshot();
 
                         // If we are marking a task as active and there's not currently an assignee,
                         // then set ourselves as the assignee.
@@ -233,7 +268,7 @@ export function getTaskStatusMenuActions({
                                 {
                                     type: "UpdateTask",
                                     time: time1,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateStatus",
                                         status: {type: "Open"},
@@ -242,7 +277,7 @@ export function getTaskStatusMenuActions({
                                 {
                                     type: "UpdateTask",
                                     time: time1,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateAssignee",
                                         assignee: currentAssignee
@@ -264,7 +299,7 @@ export function getTaskStatusMenuActions({
                                 {
                                     type: "UpdateTask",
                                     time: time2,
-                                    taskId: task.id,
+                                    taskId,
                                     taskAction: {
                                         type: "UpdateAssigneeStatus",
                                         assigneeStatus: {

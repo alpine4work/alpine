@@ -35,7 +35,7 @@ const initialScrollDirectionState: ScrollDirectionState = {
     animateNavigationBarTranslateY: 0,
 };
 
-const navigationBarHeight = "32";
+export const navigationBarHeight = "9";
 const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]);
 
 /**
@@ -103,7 +103,15 @@ assert(navigationBarTransitionDebounceScrollTimeoutMs === scrollbarVisibleAfterS
  * Our native mobile apps implement tab bar UI which uses the same logic as our
  * web code navigation bar. As the user scrolls down, the tab bar disappears.
  */
-export function useNavigationBar(): {
+export function useNavigationBar({
+    left = null,
+    center = null,
+    right = null,
+}: {
+    left?: ReactNode;
+    center?: ReactNode;
+    right?: ReactNode;
+} = {}): {
     /**
      * (Required) Attach this ref to the scroll view the navigation bar renders
      * on top of.
@@ -180,7 +188,13 @@ export function useNavigationBar(): {
     );
 
     const navigationBar = (
-        <NavigationBar scrollViewSize={scrollViewSize} handleScrollRef={handleScrollRef} />
+        <NavigationBar
+            scrollViewSize={scrollViewSize}
+            handleScrollRef={handleScrollRef}
+            left={left}
+            center={center}
+            right={right}
+        />
     );
 
     return {scrollViewRef, navigationBar};
@@ -189,9 +203,15 @@ export function useNavigationBar(): {
 function NavigationBar({
     scrollViewSize,
     handleScrollRef,
+    left,
+    center,
+    right,
 }: {
     scrollViewSize: {width: number; height: number} | null;
     handleScrollRef: MutableRefObject<((element: HTMLElement) => void) | null>;
+    left: ReactNode;
+    center: ReactNode;
+    right: ReactNode;
 }) {
     const navigationBarRef = useRef<HTMLDivElement>(null);
 
@@ -365,13 +385,11 @@ function NavigationBar({
                         height: scrollDirectionState.navigationBarTopOffset,
                     }}
                 />
-                <Box
+                <div
                     ref={navigationBarRef}
-                    position="sticky"
-                    width="full"
-                    backgroundColor="grey-10"
-                    opacity="60"
                     style={{
+                        position: "sticky",
+                        width: "100%",
                         height: `calc(${
                             scrollViewSize?.height ?? 0
                         }px + ${navigationBarHeightRem}rem)`,
@@ -380,13 +398,54 @@ function NavigationBar({
                             : {bottom: `-${navigationBarHeightRem}rem`}),
                     }}
                 >
-                    <Box width="full" height={navigationBarHeight} backgroundColor="red-10"></Box>
                     <Box
-                        width="full"
-                        backgroundColor="red-20"
-                        style={{height: "var(--safe-area-inset-top)"}}
-                    ></Box>
-                </Box>
+                        pointerEvents="auto"
+                        backgroundColor="grey-0"
+                        borderBottom="grey-10"
+                        style={{paddingTop: "var(--safe-area-inset-top)"}}
+                    >
+                        <Box
+                            width="full"
+                            overflow="hidden"
+                            display="flex"
+                            gap="3"
+                            paddingX="3"
+                            // Minus 1px to make space for border which is rendered by our parent.
+                            style={{height: `calc(${spacing[navigationBarHeight]} - 1px)`}}
+                        >
+                            <Box
+                                flexGrow="1"
+                                height={navigationBarHeight}
+                                display="flex"
+                                justifyContent="flex-start"
+                                alignItems="center"
+                                gap="3"
+                            >
+                                {left}
+                            </Box>
+                            <Box
+                                width="1/2"
+                                height={navigationBarHeight}
+                                display="flex"
+                                justifyContent="center"
+                                alignItems="center"
+                                gap="3"
+                            >
+                                {center}
+                            </Box>
+                            <Box
+                                flexGrow="1"
+                                height={navigationBarHeight}
+                                display="flex"
+                                justifyContent="flex-end"
+                                alignItems="center"
+                                gap="3"
+                            >
+                                {right}
+                            </Box>
+                        </Box>
+                    </Box>
+                </div>
             </div>
         </div>
     );

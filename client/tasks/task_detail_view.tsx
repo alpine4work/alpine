@@ -5,6 +5,7 @@ import {
     Memo,
     ReactNode,
     Ref,
+    SetStateAction,
     forwardRef,
     memo,
     useCallback,
@@ -23,7 +24,7 @@ import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
-import {useNavigationBar} from "~/client/design/use_navigation_bar.js";
+import {navigationBarHeight, useNavigationBar} from "~/client/design/use_navigation_bar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -39,7 +40,7 @@ import {
     createTaskEntryAccessStore,
 } from "~/client/tasks/internal/create_task_entry_access_store.js";
 import {getNewTaskPositionForQuerySortedByPosition} from "~/client/tasks/internal/get_new_task_position_for_query_sorted_by_position.js";
-import {getTaskStatusMenuActions} from "~/client/tasks/internal/get_task_status_menu_actions.js";
+import {getTaskStatusMenuActionsWithoutFullTask} from "~/client/tasks/internal/get_task_status_menu_actions.js";
 import {PencilSimpleSlash} from "~/client/tasks/internal/pencil_simple_slash.js";
 import {
     TaskAssigneeInput,
@@ -115,9 +116,15 @@ export function TaskDetailView({
     initialNotesVersion: number;
     initialNotesContent: TaskNotesContentWithReferences;
 }) {
+    const navigate = useNavigate();
     const context = useAppContext();
-    const {currentAccount} = useSpaceContext();
-    const {store} = taskSubscription;
+    const {timeZone} = useClientInfo();
+    const isMobile = useIsMobile();
+    const {
+        space: {id: spaceId},
+        currentAccount,
+    } = useSpaceContext();
+    const {store, taskId, taskEntryStore} = taskSubscription;
 
     const mainRef = useRef<TaskDetailViewMainRef>(null);
 
@@ -372,11 +379,11 @@ export function TaskDetailView({
                         break;
                     }
                     case "Priority": {
-                        assertExists(mainRef.current).focusPriorityInput();
+                        focusPriorityInput();
                         break;
                     }
                     case "DueDate": {
-                        assertExists(mainRef.current).focusDueDateInput();
+                        focusDueDateInput();
                         break;
                     }
                     case "Collections": {
@@ -392,7 +399,252 @@ export function TaskDetailView({
         },
     });
 
-    const {scrollViewRef, navigationBar} = useNavigationBar();
+    const displayStatus = useStore(
+        useMemo(
+            () => taskEntryStore.map(({task}) => task?.getDisplayStatus() ?? "OpenInactive"),
+            [taskEntryStore],
+        ),
+    );
+    const isPriorityDefined = useStore(
+        useMemo(() => taskEntryStore.map(({task}) => !!task?.getPriority()), [taskEntryStore]),
+    );
+    const isDueDateDefined = useStore(
+        useMemo(() => taskEntryStore.map(({task}) => !!task?.getDueDate()), [taskEntryStore]),
+    );
+
+    const priorityInputRef = useRef<HTMLDivElement>(null);
+    const dueDateInputRef = useRef<HTMLDivElement>(null);
+
+    const [priorityInputState, setPriorityInputState] = useState<
+        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
+    >(
+        isPriorityDefined
+            ? {isVisible: true, shouldFocus: false, isFocused: false}
+            : {isVisible: false},
+    );
+
+    if (
+        priorityInputState.isVisible &&
+        !priorityInputState.isFocused &&
+        !priorityInputState.shouldFocus &&
+        !isPriorityDefined
+    ) {
+        // In task row dense fields we hide the priority field when the value is set to
+        // null. But since the user may actively be editing the field in detail view,
+        // keep it around.
+    }
+
+    if (!priorityInputState.isVisible && isPriorityDefined) {
+        setPriorityInputState({isVisible: true, shouldFocus: false, isFocused: false});
+    }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (priorityInputState.isVisible && priorityInputState.shouldFocus) {
+            assertExists(
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(priorityInputRef.current),
+                }),
+            ).focus({preventScroll: true});
+
+            setPriorityInputState(priorityInputState => {
+                if (!priorityInputState.isVisible) return priorityInputState;
+                return {...priorityInputState, shouldFocus: false};
+            });
+        }
+    }, [priorityInputState]);
+
+    const [dueDateInputState, setDueDateInputState] = useState<
+        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
+    >(
+        isDueDateDefined
+            ? {isVisible: true, shouldFocus: false, isFocused: false}
+            : {isVisible: false},
+    );
+
+    if (
+        dueDateInputState.isVisible &&
+        !dueDateInputState.isFocused &&
+        !dueDateInputState.shouldFocus &&
+        !isDueDateDefined
+    ) {
+        // In task row dense fields we hide the due date field when the value is set to
+        // null. But since the user may actively be editing the field in detail view,
+        // keep it around.
+    }
+
+    if (!dueDateInputState.isVisible && isDueDateDefined) {
+        setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
+    }
+
+    useLayoutEffectWithoutServerSideWarning(() => {
+        if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
+            assertExists(
+                getNextFocusableElementIfExists(null, {
+                    withinElement: assertExists(dueDateInputRef.current),
+                }),
+            ).focus({preventScroll: true});
+
+            setDueDateInputState(dueDateInputState => {
+                if (!dueDateInputState.isVisible) return dueDateInputState;
+                return {...dueDateInputState, shouldFocus: false};
+            });
+        }
+    }, [dueDateInputState]);
+
+    const {focusPriorityInput, focusDueDateInput} = useEvents({
+        focusPriorityInput: () => {
+            if (priorityInputState.isVisible) {
+                assertExists(
+                    getNextFocusableElementIfExists(null, {
+                        withinElement: assertExists(priorityInputRef.current),
+                    }),
+                ).focus({preventScroll: true});
+            } else {
+                setPriorityInputState({
+                    isVisible: true,
+                    shouldFocus: true,
+                    isFocused: false,
+                });
+            }
+        },
+        focusDueDateInput: () => {
+            if (dueDateInputState.isVisible) {
+                assertExists(
+                    getNextFocusableElementIfExists(null, {
+                        withinElement: assertExists(dueDateInputRef.current),
+                    }),
+                ).focus({preventScroll: true});
+            } else {
+                setDueDateInputState({
+                    isVisible: true,
+                    shouldFocus: true,
+                    isFocused: false,
+                });
+            }
+        },
+    });
+
+    const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
+        taskId: TaskId;
+        onAfterDelete?: () => void;
+    } | null>(null);
+
+    const undoManager: TaskClientStoreUndoManager = useMemo(
+        () => ({
+            pushUndoStackEntry: ({undoActions, removedFromQueries, leaseId, release}) => {
+                pushUndoStackEntry({
+                    type: "Actions",
+                    rootParentTaskId: taskId,
+                    undoActions,
+                    removedFromQueries,
+                    leaseId,
+                    release,
+                });
+            },
+        }),
+        [pushUndoStackEntry, taskId],
+    );
+
+    const contextMenuActions = useMemo(() => {
+        const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
+
+        contextMenuActions.push([
+            {
+                label: "Copy link",
+                pressErrorTitle: "Couldn’t copy task link",
+                onPress: async () => {
+                    const url = new URL(`/s/${spaceId}/tasks/${taskId}`, window.location.href);
+                    await writeTextToClipboard(url.toString());
+                },
+            },
+        ]);
+
+        if (!isReadOnly) {
+            contextMenuActions.push(
+                getTaskStatusMenuActionsWithoutFullTask({
+                    context,
+                    timeZone,
+                    currentAccount,
+                    store,
+                    undoManager,
+                    affinityManager,
+                    taskId,
+                    displayStatus,
+                    getAssigneeSnapshot: () =>
+                        taskEntryStore.getSnapshot().task?.getAssignee() ?? null,
+                }),
+            );
+
+            contextMenuActions.push([
+                {
+                    label: priorityInputState.isVisible ? "Edit priority" : "Add priority",
+                    onPress: focusPriorityInput,
+                },
+                {
+                    label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
+                    onPress: focusDueDateInput,
+                },
+            ]);
+
+            contextMenuActions.push([
+                {
+                    label: "Delete",
+                    onPress: () => {
+                        setTaskDeleteConfirmationState({
+                            taskId,
+                            onAfterDelete: () => {
+                                // If the task is open in a peek this will close the peek.
+                                void navigate(-1);
+                            },
+                        });
+                    },
+                },
+            ]);
+        }
+
+        return contextMenuActions;
+    }, [
+        affinityManager,
+        context,
+        currentAccount,
+        displayStatus,
+        dueDateInputState.isVisible,
+        focusDueDateInput,
+        focusPriorityInput,
+        isReadOnly,
+        navigate,
+        priorityInputState.isVisible,
+        spaceId,
+        store,
+        taskEntryStore,
+        taskId,
+        timeZone,
+        undoManager,
+    ]);
+
+    const {scrollViewRef, navigationBar} = useNavigationBar({
+        left: isMobile && (
+            <IconButton
+                size="base"
+                description="Back"
+                withoutTooltip={true}
+                onPress={() => navigate(-1)}
+            >
+                <CaretLeft />
+            </IconButton>
+        ),
+        right: (
+            <MenuButton actions={contextMenuActions}>
+                <IconButton
+                    size={isMobile ? "base" : "md"}
+                    description="More"
+                    withoutTooltip={true}
+                >
+                    <DotsThree />
+                </IconButton>
+            </MenuButton>
+        ),
+    });
 
     return (
         <>
@@ -438,6 +690,7 @@ export function TaskDetailView({
                                         <TaskDetailViewMainMemo
                                             ref={mainRef}
                                             taskSubscription={taskSubscription}
+                                            undoManager={undoManager}
                                             affinityManager={affinityManager}
                                             initialNotesVersion={initialNotesVersion}
                                             initialNotesContent={initialNotesContent}
@@ -447,6 +700,15 @@ export function TaskDetailView({
                                             pushUndoStackEntry={pushUndoStackEntry}
                                             pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
                                             pushRedoStackEntry={pushRedoStackEntry}
+                                            contextMenuActions={contextMenuActions}
+                                            priorityInputRef={priorityInputRef}
+                                            isPriorityInputVisible={priorityInputState.isVisible}
+                                            setPriorityInputState={setPriorityInputState}
+                                            focusPriorityInput={focusPriorityInput}
+                                            dueDateInputRef={dueDateInputRef}
+                                            isDueDateInputVisible={dueDateInputState.isVisible}
+                                            setDueDateInputState={setDueDateInputState}
+                                            focusDueDateInput={focusDueDateInput}
                                         />
                                     ),
                                 };
@@ -457,6 +719,7 @@ export function TaskDetailView({
                         [
                             renderChildrenGridViewItem,
                             taskSubscription,
+                            undoManager,
                             affinityManager,
                             initialNotesVersion,
                             initialNotesContent,
@@ -466,6 +729,11 @@ export function TaskDetailView({
                             pushUndoStackEntry,
                             pushUndoStackEntryFromRedo,
                             pushRedoStackEntry,
+                            contextMenuActions,
+                            priorityInputState.isVisible,
+                            focusPriorityInput,
+                            dueDateInputState.isVisible,
+                            focusDueDateInput,
                         ],
                     )}
                     onRenderedRangeChange={range => {
@@ -481,17 +749,28 @@ export function TaskDetailView({
                     extraChildren={navigationBar}
                 />
             </GlobalKeyDownEvent>
+            {taskDeleteConfirmationState && (
+                <TaskDeleteConfirmationModalDialog
+                    store={store}
+                    undoManager={undoManager}
+                    taskId={taskDeleteConfirmationState.taskId}
+                    onClose={() => setTaskDeleteConfirmationState(null)}
+                    onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
+                />
+            )}
         </>
     );
 }
+
+type TaskDetailViewInputState =
+    | {readonly isVisible: false}
+    | {readonly isVisible: true; readonly shouldFocus: boolean; readonly isFocused: boolean};
 
 type TaskDetailViewMainRef = {
     focusStatusButton(): void;
     focusTitleInput(): void;
     focusAssigneeInput(): void;
     focusCollectionsInput(): void;
-    focusPriorityInput(): void;
-    focusDueDateInput(): void;
     focusNotesInput(): void;
 };
 
@@ -500,6 +779,7 @@ const TaskDetailViewMainMemo = memo(forwardRef(TaskDetailViewMain));
 function TaskDetailViewMain(
     {
         taskSubscription,
+        undoManager,
         affinityManager,
         initialNotesVersion,
         initialNotesContent,
@@ -509,8 +789,18 @@ function TaskDetailViewMain(
         pushUndoStackEntry,
         pushUndoStackEntryFromRedo,
         pushRedoStackEntry,
+        contextMenuActions,
+        priorityInputRef,
+        isPriorityInputVisible,
+        setPriorityInputState,
+        focusPriorityInput,
+        dueDateInputRef,
+        isDueDateInputVisible,
+        setDueDateInputState,
+        focusDueDateInput,
     }: {
         taskSubscription: TaskClientTaskSubscription;
+        undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchEntityAffinityManager;
         initialNotesVersion: number;
         initialNotesContent: TaskNotesContentWithReferences;
@@ -520,14 +810,24 @@ function TaskDetailViewMain(
         pushUndoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
         pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
+        contextMenuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
+        priorityInputRef: Ref<HTMLDivElement>;
+        isPriorityInputVisible: boolean;
+        setPriorityInputState: (action: SetStateAction<TaskDetailViewInputState>) => void;
+        focusPriorityInput: Memo<() => void>;
+        dueDateInputRef: Ref<HTMLDivElement>;
+        isDueDateInputVisible: boolean;
+        setDueDateInputState: (action: SetStateAction<TaskDetailViewInputState>) => void;
+        focusDueDateInput: Memo<() => void>;
     },
     ref: Ref<TaskDetailViewMainRef>,
 ) {
     const context = useAppContext();
-    const navigate = useNavigate();
     const isMobile = useIsMobile();
     const {timeZone} = useClientInfo();
     const {currentAccount} = useSpaceContext();
+
+    const paddingX: Spacing = isMobile ? "4" : "5";
 
     const isReadOnly = readOnlyReason !== null;
 
@@ -537,22 +837,6 @@ function TaskDetailViewMain(
     const assigneeAccountData = useStore(assigneeAccountStore);
     const priority = task?.getPriority() ?? null;
     const dueDate = task?.getDueDate() ?? null;
-
-    const undoManager: TaskClientStoreUndoManager = useMemo(
-        () => ({
-            pushUndoStackEntry: ({undoActions, removedFromQueries, leaseId, release}) => {
-                pushUndoStackEntry({
-                    type: "Actions",
-                    rootParentTaskId: taskId,
-                    undoActions,
-                    removedFromQueries,
-                    leaseId,
-                    release,
-                });
-            },
-        }),
-        [pushUndoStackEntry, taskId],
-    );
 
     const titleCommitStateRef = useRef<{
         pendingActionTransactionBuilder: {
@@ -624,118 +908,13 @@ function TaskDetailViewMain(
         handleCommitPromise(commitPromise);
     };
 
-    const paddingX: Spacing = isMobile ? "4" : "5";
-
     // Naming nit: An "input" is some editable component without a label. A "field"
     // is the combination of both a label and an input.
     const statusButtonRef = useRef<HTMLElement>(null);
     const titleInputRef = useRef<TaskDetailTitleInputRef>(null);
     const assigneeInputRef = useRef<TaskAssigneeInputRef>(null);
     const collectionsInputRef = useRef<TaskCollectionsInputRef>(null);
-    const priorityInputRef = useRef<HTMLDivElement>(null);
-    const dueDateInputRef = useRef<HTMLDivElement>(null);
     const notesFieldRef = useRef<TaskDetailNotesFieldRef>(null);
-
-    const [priorityInputState, setPriorityInputState] = useState<
-        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    >(priority ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
-
-    if (
-        priorityInputState.isVisible &&
-        !priorityInputState.isFocused &&
-        !priorityInputState.shouldFocus &&
-        !priority
-    ) {
-        // In task row dense fields we hide the priority field when the value is set to
-        // null. But since the user may actively be editing the field in detail view,
-        // keep it around.
-    }
-
-    if (!priorityInputState.isVisible && priority) {
-        setPriorityInputState({isVisible: true, shouldFocus: false, isFocused: false});
-    }
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (priorityInputState.isVisible && priorityInputState.shouldFocus) {
-            assertExists(
-                getNextFocusableElementIfExists(null, {
-                    withinElement: assertExists(priorityInputRef.current),
-                }),
-            ).focus({preventScroll: true});
-
-            setPriorityInputState(priorityInputState => {
-                if (!priorityInputState.isVisible) return priorityInputState;
-                return {...priorityInputState, shouldFocus: false};
-            });
-        }
-    }, [priorityInputState]);
-
-    const [dueDateInputState, setDueDateInputState] = useState<
-        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    >(dueDate ? {isVisible: true, shouldFocus: false, isFocused: false} : {isVisible: false});
-
-    if (
-        dueDateInputState.isVisible &&
-        !dueDateInputState.isFocused &&
-        !dueDateInputState.shouldFocus &&
-        !dueDate
-    ) {
-        // In task row dense fields we hide the due date field when the value is set to
-        // null. But since the user may actively be editing the field in detail view,
-        // keep it around.
-    }
-
-    if (!dueDateInputState.isVisible && dueDate) {
-        setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
-    }
-
-    useLayoutEffectWithoutServerSideWarning(() => {
-        if (dueDateInputState.isVisible && dueDateInputState.shouldFocus) {
-            assertExists(
-                getNextFocusableElementIfExists(null, {
-                    withinElement: assertExists(dueDateInputRef.current),
-                }),
-            ).focus({preventScroll: true});
-
-            setDueDateInputState(dueDateInputState => {
-                if (!dueDateInputState.isVisible) return dueDateInputState;
-                return {...dueDateInputState, shouldFocus: false};
-            });
-        }
-    }, [dueDateInputState]);
-
-    const {focusPriorityInput, focusDueDateInput} = useEvents({
-        focusPriorityInput: () => {
-            if (priorityInputState.isVisible) {
-                assertExists(
-                    getNextFocusableElementIfExists(null, {
-                        withinElement: assertExists(priorityInputRef.current),
-                    }),
-                ).focus({preventScroll: true});
-            } else {
-                setPriorityInputState({
-                    isVisible: true,
-                    shouldFocus: true,
-                    isFocused: false,
-                });
-            }
-        },
-        focusDueDateInput: () => {
-            if (dueDateInputState.isVisible) {
-                assertExists(
-                    getNextFocusableElementIfExists(null, {
-                        withinElement: assertExists(dueDateInputRef.current),
-                    }),
-                ).focus({preventScroll: true});
-            } else {
-                setDueDateInputState({
-                    isVisible: true,
-                    shouldFocus: true,
-                    isFocused: false,
-                });
-            }
-        },
-    });
 
     useImperativeHandle(
         ref,
@@ -769,75 +948,6 @@ function TaskDetailViewMain(
         }),
         [focusDueDateInput, focusPriorityInput],
     );
-
-    const [taskDeleteConfirmationState, setTaskDeleteConfirmationState] = useState<{
-        taskId: TaskId;
-        onAfterDelete?: () => void;
-    } | null>(null);
-
-    const contextMenuActions = (() => {
-        const contextMenuActions: Array<ReadonlyArray<MenuAction>> = [];
-
-        if (task) {
-            contextMenuActions.push([
-                {
-                    label: "Copy link",
-                    pressErrorTitle: "Couldn’t copy task link",
-                    onPress: async () => {
-                        const url = new URL(
-                            `/s/${task.getSpaceId()}/tasks/${task.id}`,
-                            window.location.href,
-                        );
-                        await writeTextToClipboard(url.toString());
-                    },
-                },
-            ]);
-        }
-
-        if (!isReadOnly) {
-            if (task) {
-                contextMenuActions.push(
-                    getTaskStatusMenuActions({
-                        context,
-                        timeZone,
-                        currentAccount,
-                        store,
-                        undoManager,
-                        affinityManager,
-                        task,
-                    }),
-                );
-            }
-
-            contextMenuActions.push([
-                {
-                    label: priorityInputState.isVisible ? "Edit priority" : "Add priority",
-                    onPress: focusPriorityInput,
-                },
-                {
-                    label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
-                    onPress: focusDueDateInput,
-                },
-            ]);
-
-            contextMenuActions.push([
-                {
-                    label: "Delete",
-                    onPress: () => {
-                        setTaskDeleteConfirmationState({
-                            taskId,
-                            onAfterDelete: () => {
-                                // If the task is open in a peek this will close the peek.
-                                void navigate(-1);
-                            },
-                        });
-                    },
-                },
-            ]);
-        }
-
-        return contextMenuActions;
-    })();
 
     return (
         <>
@@ -874,16 +984,9 @@ function TaskDetailViewMain(
                 position="relative"
             >
                 {isMobile && (
-                    <Box paddingY="1" paddingLeft="3">
-                        <IconButton
-                            size="base"
-                            description="Back"
-                            withoutTooltip={true}
-                            onPress={() => navigate(-1)}
-                        >
-                            <CaretLeft />
-                        </IconButton>
-                    </Box>
+                    // On mobile, create some space for the navigation bar since it's back button
+                    // will conflict with the status button.
+                    <Spacer space={navigationBarHeight} />
                 )}
                 <ContextMenuActions actions={contextMenuActions}>
                     <Box
@@ -956,17 +1059,6 @@ function TaskDetailViewMain(
                         </Box>
                     </Box>
                 </ContextMenuActions>
-                <Box position="absolute" top={isMobile ? "1" : "3"} right="3">
-                    <MenuButton actions={contextMenuActions}>
-                        <IconButton
-                            size={isMobile ? "base" : "md"}
-                            description="More"
-                            withoutTooltip={true}
-                        >
-                            <DotsThree />
-                        </IconButton>
-                    </MenuButton>
-                </Box>
                 <Box
                     paddingX={paddingX}
                     display="grid"
@@ -1028,7 +1120,7 @@ function TaskDetailViewMain(
                             />
                         )}
                     </TaskDetailViewDenseField>
-                    {priorityInputState.isVisible && (
+                    {isPriorityInputVisible && (
                         <TaskDetailViewDenseField label="Priority">
                             {({"aria-labelledby": ariaLabelledBy}) => (
                                 <Box
@@ -1086,7 +1178,7 @@ function TaskDetailViewMain(
                             )}
                         </TaskDetailViewDenseField>
                     )}
-                    {dueDateInputState.isVisible && (
+                    {isDueDateInputVisible && (
                         <TaskDetailViewDenseField label="Due date">
                             {({"aria-labelledby": ariaLabelledBy}) => (
                                 <Box
@@ -1203,15 +1295,6 @@ function TaskDetailViewMain(
                     />
                 )}
             </Box>
-            {taskDeleteConfirmationState && (
-                <TaskDeleteConfirmationModalDialog
-                    store={store}
-                    undoManager={undoManager}
-                    taskId={taskDeleteConfirmationState.taskId}
-                    onClose={() => setTaskDeleteConfirmationState(null)}
-                    onAfterDelete={taskDeleteConfirmationState.onAfterDelete}
-                />
-            )}
         </>
     );
 }
