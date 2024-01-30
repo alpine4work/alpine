@@ -224,7 +224,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
             // bar and tab bar have different heights. So they don't always move in unison.
             // Using the scroll direction is also predictable for users which is nice.
             var navigationBarTopOffset: Double
-            if scrollDirection == .up {
+            if navigationBarHeight - navigationBarScrollOffset
+                >= navigationBarVisibleHeightThresholdForReveal
+            {
                 navigationBarTopOffset = scrollOffset
             } else {
                 navigationBarTopOffset = max(0, scrollOffset - navigationBarHeight)

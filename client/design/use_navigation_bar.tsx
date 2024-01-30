@@ -39,7 +39,6 @@ const initialScrollDirectionState: ScrollDirectionState = {
  * The height of our navigation bar.
  */
 export const navigationBarHeight = "9";
-
 const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]);
 
 {
@@ -66,6 +65,33 @@ const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]
 // `navigationBarTransitionDebounceScrollTimeoutSeconds` in
 // `NavigationBarConstants.swift`.
 const navigationBarTransitionDebounceScrollTimeoutMs = 1200;
+
+/**
+ * When the user is done scrolling but the navigation bar is partially visible,
+ * we need to make a decision to either fully show the navigation bar or fully
+ * hide the navigation bar. If more than this height of the navigation bar is
+ * visible then we show it, otherwise we hide it.
+ */
+const navigationBarVisibleHeightThresholdForReveal = "5";
+const navigationBarVisibleHeightThresholdForRevealRem = parseRemLengthNumber(
+    spacing[navigationBarVisibleHeightThresholdForReveal],
+);
+
+{
+    // IMPORTANT: If you change this value, you must also change
+    // `navigationBarVisibleHeightThresholdForReveal` in
+    // `NavigationBarConstants.swift`.
+    //
+    // We have an assertion below to make sure this value always equals the
+    // navigation bar's pixel height on mobile devices. After converting `Spacing`
+    // to an actual value and applying the rem pixel count.
+    const mobileNavigationBarVisibleHeightThresholdForReveal = 25;
+
+    assert(
+        mobileNavigationBarVisibleHeightThresholdForReveal ===
+            navigationBarVisibleHeightThresholdForRevealRem * remPxByPlatform.mobile,
+    );
+}
 
 /**
  * The speed (in pixels per second) at which the navigation bar hide/show
@@ -312,7 +338,10 @@ function NavigationBar({
                     // bar and tab bar have different heights. So they don't always move in unison.
                     // Using the scroll direction is also predictable for users which is nice.
                     let navigationBarTopOffset: number;
-                    if (scrollDirection === "Up") {
+                    if (
+                        navigationBarHeight - navigationBarScrollOffset >=
+                        navigationBarVisibleHeightThresholdForRevealRem * getRemPxWithoutListening()
+                    ) {
                         navigationBarTopOffset = scrollOffset;
                     } else {
                         navigationBarTopOffset = Math.max(0, scrollOffset - navigationBarHeight);
