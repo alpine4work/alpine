@@ -18,11 +18,16 @@ import {
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
+import {navigationBarStyles, tasksStyles} from "~/shared/styles/styles.js";
+
+const {navigationBarFadeOutAnimationClassName} = navigationBarStyles;
+const {pointerEventsNoneNotInheritedClassName} = tasksStyles;
 
 type ScrollDirectionState = {
     readonly scrollDirection: "Up" | "Down";
@@ -243,6 +248,11 @@ export function useNavigationBar({
     return {scrollViewRef, navigationBar};
 }
 
+const initialNavigationBarOpaqueState = {
+    isOpaque: false,
+    shouldAnimate: false,
+};
+
 function NavigationBar({
     scrollViewSize,
     handleScrollRef,
@@ -256,15 +266,21 @@ function NavigationBar({
     center: ReactNode;
     right: ReactNode;
 }) {
+    const isMobile = useIsMobile();
+
     const navigationBarRef = useRef<HTMLDivElement>(null);
 
     const [scrollDirectionState, setScrollDirectionState] = useState<ScrollDirectionState>(
         initialScrollDirectionState,
     );
+    const [navigationBarOpaqueState, setNavigationBarOpaqueState] = useState(
+        initialNavigationBarOpaqueState,
+    );
 
     const lastScrollOffsetRef = useRef(0);
     const lastScrollDirectionRef = useRef(scrollDirectionState.scrollDirection);
     const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
+    const lastIsNavigationBarOpaqueRef = useRef(navigationBarOpaqueState.isOpaque);
 
     useImperativeHandle(
         handleScrollRef,
@@ -306,6 +322,31 @@ function NavigationBar({
                 const scrollDirection = scrollOffset > lastScrollOffset ? "Down" : "Up";
                 const lastScrollDirection = lastScrollDirectionRef.current;
                 lastScrollDirectionRef.current = scrollDirection;
+
+                // The following is web code only: Change whether navigation bar is translucent
+                // or opaque based on how far the page has been scrolled.
+                //
+                // The navigation bar is translucent at the top of the screen and rests inline
+                // with the content. As you scroll it becomes an opaque, fixed, navigation bar.
+                // In general, when your scroll offset is 0 the navigation bar is translucent.
+                // If your scroll offset is greater than 0 the navigation bar is opaque. With
+                // an exception for when you scroll down for the first time. Since when
+                // scrolling down for the first time, the navigation bar is not sticky so it
+                // would be weird if it jumped from translucent to opaque.
+                {
+                    const isNavigationBarOpaque =
+                        scrollDirection === "Down" && !lastIsNavigationBarOpaqueRef.current
+                            ? scrollOffset > navigationBarHeight
+                            : scrollOffset > 0;
+
+                    if (lastIsNavigationBarOpaqueRef.current !== isNavigationBarOpaque) {
+                        lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
+                        setNavigationBarOpaqueState({
+                            isOpaque: isNavigationBarOpaque,
+                            shouldAnimate: true,
+                        });
+                    }
+                }
 
                 const navigationBarScrollOffset = clamp(
                     0,
@@ -450,19 +491,33 @@ function NavigationBar({
                     }}
                 >
                     <Box
-                        pointerEvents="auto"
-                        backgroundColor="grey-0"
-                        borderBottom="grey-10"
+                        position="relative"
+                        zIndex="0"
+                        overflow="hidden"
                         style={{paddingTop: "var(--safe-area-inset-top)"}}
                     >
                         <Box
+                            position="absolute"
+                            inset="0"
+                            backgroundColor="grey-0"
+                            borderBottom="grey-10"
+                            opacity={navigationBarOpaqueState.isOpaque ? "100" : "0"}
+                            pointerEvents={navigationBarOpaqueState.isOpaque ? "auto" : "none"}
+                            className={
+                                !navigationBarOpaqueState.isOpaque &&
+                                navigationBarOpaqueState.shouldAnimate
+                                    ? navigationBarFadeOutAnimationClassName
+                                    : undefined
+                            }
+                        />
+                        <Box
+                            position="relative"
                             width="full"
+                            height={navigationBarHeight}
                             overflow="hidden"
                             display="flex"
                             gap="3"
-                            paddingX="3"
-                            // Minus 1px to make space for border which is rendered by our parent.
-                            style={{height: `calc(${spacing[navigationBarHeight]} - 1px)`}}
+                            paddingX={isMobile ? "3" : "1.5"}
                         >
                             <Box
                                 flexGrow="1"
@@ -471,6 +526,8 @@ function NavigationBar({
                                 justifyContent="flex-start"
                                 alignItems="center"
                                 gap="3"
+                                // Gives children `pointer-events: initial` so the user can interact with them.
+                                className={pointerEventsNoneNotInheritedClassName}
                             >
                                 {left}
                             </Box>
@@ -481,6 +538,8 @@ function NavigationBar({
                                 justifyContent="center"
                                 alignItems="center"
                                 gap="3"
+                                // Gives children `pointer-events: initial` so the user can interact with them.
+                                className={pointerEventsNoneNotInheritedClassName}
                             >
                                 {center}
                             </Box>
@@ -491,6 +550,8 @@ function NavigationBar({
                                 justifyContent="flex-end"
                                 alignItems="center"
                                 gap="3"
+                                // Gives children `pointer-events: initial` so the user can interact with them.
+                                className={pointerEventsNoneNotInheritedClassName}
                             >
                                 {right}
                             </Box>
