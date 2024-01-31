@@ -256,10 +256,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 delegate: self
             )
 
+            let safeAreaInsets = getSafeAreaInsets()
+
             // Whenever a new scroll view is added to our web view, set the current scroll
             // indicator insets.
             scrollView.automaticallyAdjustsScrollIndicatorInsets = false
-            scrollView.verticalScrollIndicatorInsets = getSafeAreaInsets()
+            scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
+                top: safeAreaInsets.top + navigationBarHeight,
+                left: safeAreaInsets.left,
+                bottom: safeAreaInsets.bottom,
+                right: safeAreaInsets.right
+            )
+
         }
     }
 
@@ -272,12 +280,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func getSafeAreaInsets() -> UIEdgeInsets {
-        // Include the navigation bar and tab bar in our safe area insets.
-        let safeAreaInsetTop = max(windowSafeAreaInsets.top, navigationBar.frame.height)
+        let safeAreaInsetTop = windowSafeAreaInsets.top
+
+        // Include the tab bar in our safe area insets.
         let safeAreaInsetBottom = max(
             windowSafeAreaInsets.bottom,
             tabBarController?.tabBar.frame.height ?? 0
         )
+
         let safeAreaInsetLeft = windowSafeAreaInsets.left
         let safeAreaInsetRight = windowSafeAreaInsets.right
 
@@ -306,7 +316,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // scroll views that are currently mounted.
         for scrollView in webScrollViews.keys {
             scrollView.automaticallyAdjustsScrollIndicatorInsets = false
-            scrollView.verticalScrollIndicatorInsets = safeAreaInsets
+            scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
+                top: safeAreaInsets.top + navigationBarHeight,
+                left: safeAreaInsets.left,
+                bottom: safeAreaInsets.bottom,
+                right: safeAreaInsets.right
+            )
         }
 
         if !hasInitialWebViewNavigationCommit { return }

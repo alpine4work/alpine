@@ -1,4 +1,4 @@
-import {AnimationControls, animate} from "motion";
+import {AnimationControls, timeline} from "motion";
 import {
     MutableRefObject,
     ReactNode,
@@ -248,11 +248,6 @@ export function useNavigationBar({
     return {scrollViewRef, navigationBar};
 }
 
-const initialNavigationBarOpaqueState = {
-    isOpaque: false,
-    shouldAnimate: false,
-};
-
 function NavigationBar({
     scrollViewSize,
     handleScrollRef,
@@ -269,18 +264,19 @@ function NavigationBar({
     const isMobile = useIsMobile();
 
     const navigationBarRef = useRef<HTMLDivElement>(null);
+    const navigationBarBackgroundRef = useRef<HTMLDivElement>(null);
+    const navigationBarContentRef = useRef<HTMLDivElement>(null);
 
     const [scrollDirectionState, setScrollDirectionState] = useState<ScrollDirectionState>(
         initialScrollDirectionState,
-    );
-    const [navigationBarOpaqueState, setNavigationBarOpaqueState] = useState(
-        initialNavigationBarOpaqueState,
     );
 
     const lastScrollOffsetRef = useRef(0);
     const lastScrollDirectionRef = useRef(scrollDirectionState.scrollDirection);
     const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
-    const lastIsNavigationBarOpaqueRef = useRef(navigationBarOpaqueState.isOpaque);
+    const lastIsNavigationBarOpaqueRef = useRef(false);
+
+    const animationControlsRef = useRef<Set<AnimationControls> | null>(null);
 
     useImperativeHandle(
         handleScrollRef,
@@ -305,7 +301,7 @@ function NavigationBar({
                 if (scrollOffset === lastScrollOffsetRef.current) return;
 
                 // Immediately finish any animations when scrolling begins.
-                if (animationControlsRef.current && animationControlsRef.current.size > 0) {
+                if (animationControlsRef.current) {
                     const animationControls = animationControlsRef.current;
                     animationControlsRef.current = null;
 
@@ -323,6 +319,12 @@ function NavigationBar({
                 const lastScrollDirection = lastScrollDirectionRef.current;
                 lastScrollDirectionRef.current = scrollDirection;
 
+                const navigationBarScrollOffset = clamp(
+                    0,
+                    scrollOffset - lastNavigationBarTopOffsetRef.current,
+                    navigationBarHeight,
+                );
+
                 // The following is web code only: Change whether navigation bar is translucent
                 // or opaque based on how far the page has been scrolled.
                 //
@@ -333,26 +335,84 @@ function NavigationBar({
                 // an exception for when you scroll down for the first time. Since when
                 // scrolling down for the first time, the navigation bar is not sticky so it
                 // would be weird if it jumped from translucent to opaque.
+                //
+                // Additionally, if we have some safe area at the top of our screen then the
+                // navigation bar content moves into the safe area. We need to decrease the
+                // content opacity to zero so it doesn't conflict with operation system content
+                // in the safe area.
                 {
+                    const lastNavigationBarScrollOffset = clamp(
+                        0,
+                        lastScrollOffset - lastNavigationBarTopOffsetRef.current,
+                        navigationBarHeight,
+                    );
+
+                    const navigationBarBackgroundElement = assertExists(
+                        navigationBarBackgroundRef.current,
+                    );
+                    const navigationBarContentElement = assertExists(
+                        navigationBarContentRef.current,
+                    );
+
+                    const doesNavigationBarHaveSafeAreaInsetTop =
+                        navigationBarBackgroundElement.clientHeight >
+                        navigationBarContentElement.clientHeight;
+
+                    const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
+
                     const isNavigationBarOpaque =
-                        scrollDirection === "Down" && !lastIsNavigationBarOpaqueRef.current
+                        scrollDirection === "Down" && !lastIsNavigationBarOpaque
                             ? scrollOffset > navigationBarHeight
                             : scrollOffset > 0;
 
-                    if (lastIsNavigationBarOpaqueRef.current !== isNavigationBarOpaque) {
-                        lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
-                        setNavigationBarOpaqueState({
-                            isOpaque: isNavigationBarOpaque,
-                            shouldAnimate: true,
-                        });
+                    lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
+
+                    // If our navigation bar includes some safe area inset then as we scroll up we
+                    // want to decrease the opacity of content in the navigation bar so it doesn't
+                    // conflict with operating system content in the safe area.
+                    if (
+                        doesNavigationBarHaveSafeAreaInsetTop &&
+                        navigationBarScrollOffset !== lastNavigationBarScrollOffset
+                    ) {
+                        const navigationBarScrollPercentage =
+                            navigationBarScrollOffset / navigationBarHeight;
+
+                        if (isNavigationBarOpaque) {
+                            navigationBarBackgroundElement.style.opacity = "1";
+                        } else {
+                            navigationBarBackgroundElement.style.opacity = `${navigationBarScrollPercentage}`;
+                        }
+
+                        // If we have a fade out animation running, cancel it.
+                        navigationBarBackgroundElement.classList.remove(
+                            navigationBarFadeOutAnimationClassName,
+                        );
+
+                        navigationBarContentElement.style.opacity = `${
+                            1 - navigationBarScrollPercentage
+                        }`;
+                    }
+
+                    // Handle the transition from a translucent navigation bar to an opaque
+                    // navigation bar.
+                    if (lastIsNavigationBarOpaque !== isNavigationBarOpaque) {
+                        if (!isNavigationBarOpaque) {
+                            navigationBarBackgroundElement.style.opacity = "0";
+
+                            // TODO(calebmer): For some reason `animate()` isn't working with opacity here
+                            // on iOS? So instead use a CSS animation.
+                            navigationBarBackgroundElement.classList.add(
+                                navigationBarFadeOutAnimationClassName,
+                            );
+                        } else {
+                            navigationBarBackgroundElement.style.opacity = "1";
+
+                            navigationBarBackgroundElement.classList.remove(
+                                navigationBarFadeOutAnimationClassName,
+                            );
+                        }
                     }
                 }
-
-                const navigationBarScrollOffset = clamp(
-                    0,
-                    scrollOffset - lastNavigationBarTopOffsetRef.current,
-                    navigationBarHeight,
-                );
 
                 if (scrollDirection !== lastScrollDirection) {
                     const navigationBarTopOffset = scrollOffset - navigationBarScrollOffset;
@@ -409,32 +469,54 @@ function NavigationBar({
         [],
     );
 
-    const animationControlsRef = useRef<Set<AnimationControls> | null>(null);
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         const navigationBarElement = assertExists(navigationBarRef.current);
+        const navigationBarBackgroundElement = assertExists(navigationBarBackgroundRef.current);
+        const navigationBarContentElement = assertExists(navigationBarContentRef.current);
 
         if (lastAnimatedScrollDirectionStateRef.current === scrollDirectionState) return;
         lastAnimatedScrollDirectionStateRef.current = scrollDirectionState;
 
         if (scrollDirectionState.animateNavigationBarTranslateY === 0) return;
 
-        const animationControls = animate(
-            navigationBarElement,
-            {
-                y: [-scrollDirectionState.animateNavigationBarTranslateY, 0],
-            },
-            {
-                easing: "linear",
-                duration:
-                    Math.abs(scrollDirectionState.animateNavigationBarTranslateY) /
-                    navigationBarRevealOrHideAnimationSpeed,
-            },
-        );
+        const doesNavigationBarHaveSafeAreaInsetTop =
+            navigationBarBackgroundElement.clientHeight > navigationBarContentElement.clientHeight;
+
+        const timelineDefinition: Parameters<typeof timeline>[0] = [
+            [
+                navigationBarElement,
+                {y: [-scrollDirectionState.animateNavigationBarTranslateY, 0]},
+                {easing: "linear"},
+            ],
+        ];
+
+        if (doesNavigationBarHaveSafeAreaInsetTop) {
+            timelineDefinition.push([
+                navigationBarContentElement,
+                {
+                    opacity: scrollDirectionState.animateNavigationBarTranslateY > 0 ? 1 : 0,
+                },
+                {at: "<", easing: "linear"},
+            ]);
+        }
+
+        const animationControls = timeline(timelineDefinition, {
+            duration:
+                Math.abs(scrollDirectionState.animateNavigationBarTranslateY) /
+                navigationBarRevealOrHideAnimationSpeed,
+        });
 
         animationControlsRef.current ??= new Set();
         animationControlsRef.current.add(animationControls);
+
+        animationControls.finished.finally(() => {
+            animationControlsRef.current?.delete(animationControls);
+            if (animationControlsRef.current && animationControlsRef.current.size === 0) {
+                animationControlsRef.current = null;
+            }
+        });
     }, [scrollDirectionState]);
 
     return (
@@ -497,20 +579,15 @@ function NavigationBar({
                         style={{paddingTop: "var(--safe-area-inset-top)"}}
                     >
                         <Box
+                            ref={navigationBarBackgroundRef}
                             position="absolute"
                             inset="0"
                             backgroundColor="grey-0"
                             borderBottom="grey-10"
-                            opacity={navigationBarOpaqueState.isOpaque ? "100" : "0"}
-                            pointerEvents={navigationBarOpaqueState.isOpaque ? "auto" : "none"}
-                            className={
-                                !navigationBarOpaqueState.isOpaque &&
-                                navigationBarOpaqueState.shouldAnimate
-                                    ? navigationBarFadeOutAnimationClassName
-                                    : undefined
-                            }
+                            opacity="0"
                         />
                         <Box
+                            ref={navigationBarContentRef}
                             position="relative"
                             width="full"
                             height={navigationBarHeight}
