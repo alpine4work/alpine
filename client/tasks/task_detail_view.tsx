@@ -620,7 +620,7 @@ export function TaskDetailView({
         undoManager,
     ]);
 
-    const {scrollViewRef, navigationBar} = useNavigationBar({
+    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
         left: isMobile && (
             <IconButton
                 size="base"
@@ -651,6 +651,7 @@ export function TaskDetailView({
                 <VirtualizedScrollView
                     ref={viewRef}
                     elementRef={scrollViewRef}
+                    scrollbarInsetTop={scrollbarInsetTop}
                     stateKey={childrenGridViewStateKey}
                     bufferedItemHeight={childrenGridViewBufferedItemHeight}
                     itemCount={showSubtasks ? childrenGridViewItemCount + 1 : 1}

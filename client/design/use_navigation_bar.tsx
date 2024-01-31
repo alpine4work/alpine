@@ -19,7 +19,12 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
+import {
+    RemLength,
+    parseRemLengthNumber,
+    remPxByPlatform,
+    spacing,
+} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
@@ -195,6 +200,13 @@ export function useNavigationBar({
      * height of the scrollable window.
      */
     navigationBar: ReactNode;
+
+    /**
+     * (Required) The `insetTop` value to pass to `useScrollbar()`. Otherwise the
+     * custom scrollbar may sometimes overlap the header which looks weird. You are
+     * expected to pass this to `useScrollbar()`.
+     */
+    scrollbarInsetTop?: RemLength;
 } {
     const handleScrollRef = useRef<((element: HTMLElement) => void) | null>(null);
 
@@ -245,7 +257,11 @@ export function useNavigationBar({
         />
     );
 
-    return {scrollViewRef, navigationBar};
+    return {
+        scrollViewRef,
+        navigationBar,
+        scrollbarInsetTop: spacing[navigationBarHeight],
+    };
 }
 
 function NavigationBar({
