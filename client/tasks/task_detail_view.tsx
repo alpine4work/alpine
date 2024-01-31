@@ -379,11 +379,11 @@ export function TaskDetailView({
                         break;
                     }
                     case "Priority": {
-                        focusPriorityInput();
+                        focusPriorityInput({preventScroll: false});
                         break;
                     }
                     case "DueDate": {
-                        focusDueDateInput();
+                        focusDueDateInput({preventScroll: false});
                         break;
                     }
                     case "Collections": {
@@ -415,12 +415,10 @@ export function TaskDetailView({
     const priorityInputRef = useRef<HTMLDivElement>(null);
     const dueDateInputRef = useRef<HTMLDivElement>(null);
 
-    const [priorityInputState, setPriorityInputState] = useState<
-        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    >(
+    const [priorityInputState, setPriorityInputState] = useState<TaskDetailViewInputState>(
         isPriorityDefined
-            ? {isVisible: true, shouldFocus: false, isFocused: false}
-            : {isVisible: false},
+            ? initialVisibleTaskDetailViewInputState
+            : initialNotVisibleTaskDetailViewInputState,
     );
 
     if (
@@ -435,7 +433,7 @@ export function TaskDetailView({
     }
 
     if (!priorityInputState.isVisible && isPriorityDefined) {
-        setPriorityInputState({isVisible: true, shouldFocus: false, isFocused: false});
+        setPriorityInputState(initialVisibleTaskDetailViewInputState);
     }
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -444,21 +442,19 @@ export function TaskDetailView({
                 getNextFocusableElementIfExists(null, {
                     withinElement: assertExists(priorityInputRef.current),
                 }),
-            ).focus({preventScroll: true});
+            ).focus({preventScroll: priorityInputState.shouldFocusPreventScroll});
 
             setPriorityInputState(priorityInputState => {
                 if (!priorityInputState.isVisible) return priorityInputState;
-                return {...priorityInputState, shouldFocus: false};
+                return {...priorityInputState, shouldFocus: false, shouldFocusPreventScroll: false};
             });
         }
     }, [priorityInputState]);
 
-    const [dueDateInputState, setDueDateInputState] = useState<
-        {isVisible: false} | {isVisible: true; shouldFocus: boolean; isFocused: boolean}
-    >(
+    const [dueDateInputState, setDueDateInputState] = useState<TaskDetailViewInputState>(
         isDueDateDefined
-            ? {isVisible: true, shouldFocus: false, isFocused: false}
-            : {isVisible: false},
+            ? initialVisibleTaskDetailViewInputState
+            : initialNotVisibleTaskDetailViewInputState,
     );
 
     if (
@@ -473,7 +469,7 @@ export function TaskDetailView({
     }
 
     if (!dueDateInputState.isVisible && isDueDateDefined) {
-        setDueDateInputState({isVisible: true, shouldFocus: false, isFocused: false});
+        setDueDateInputState(initialVisibleTaskDetailViewInputState);
     }
 
     useLayoutEffectWithoutServerSideWarning(() => {
@@ -482,42 +478,44 @@ export function TaskDetailView({
                 getNextFocusableElementIfExists(null, {
                     withinElement: assertExists(dueDateInputRef.current),
                 }),
-            ).focus({preventScroll: true});
+            ).focus({preventScroll: dueDateInputState.shouldFocusPreventScroll});
 
             setDueDateInputState(dueDateInputState => {
                 if (!dueDateInputState.isVisible) return dueDateInputState;
-                return {...dueDateInputState, shouldFocus: false};
+                return {...dueDateInputState, shouldFocus: false, shouldFocusPreventScroll: false};
             });
         }
     }, [dueDateInputState]);
 
     const {focusPriorityInput, focusDueDateInput} = useEvents({
-        focusPriorityInput: () => {
+        focusPriorityInput: ({preventScroll}: {preventScroll: boolean}) => {
             if (priorityInputState.isVisible) {
                 assertExists(
                     getNextFocusableElementIfExists(null, {
                         withinElement: assertExists(priorityInputRef.current),
                     }),
-                ).focus({preventScroll: true});
+                ).focus({preventScroll});
             } else {
                 setPriorityInputState({
                     isVisible: true,
                     shouldFocus: true,
+                    shouldFocusPreventScroll: preventScroll,
                     isFocused: false,
                 });
             }
         },
-        focusDueDateInput: () => {
+        focusDueDateInput: ({preventScroll}: {preventScroll: boolean}) => {
             if (dueDateInputState.isVisible) {
                 assertExists(
                     getNextFocusableElementIfExists(null, {
                         withinElement: assertExists(dueDateInputRef.current),
                     }),
-                ).focus({preventScroll: true});
+                ).focus({preventScroll});
             } else {
                 setDueDateInputState({
                     isVisible: true,
                     shouldFocus: true,
+                    shouldFocusPreventScroll: preventScroll,
                     isFocused: false,
                 });
             }
@@ -578,11 +576,11 @@ export function TaskDetailView({
             contextMenuActions.push([
                 {
                     label: priorityInputState.isVisible ? "Edit priority" : "Add priority",
-                    onPress: focusPriorityInput,
+                    onPress: () => focusPriorityInput({preventScroll: false}),
                 },
                 {
                     label: dueDateInputState.isVisible ? "Edit due date" : "Add due date",
-                    onPress: focusDueDateInput,
+                    onPress: () => focusDueDateInput({preventScroll: false}),
                 },
             ]);
 
@@ -764,7 +762,29 @@ export function TaskDetailView({
 
 type TaskDetailViewInputState =
     | {readonly isVisible: false}
-    | {readonly isVisible: true; readonly shouldFocus: boolean; readonly isFocused: boolean};
+    | {
+          readonly isVisible: true;
+          readonly shouldFocus: true;
+          readonly shouldFocusPreventScroll: boolean;
+          readonly isFocused: false;
+      }
+    | {
+          readonly isVisible: true;
+          readonly shouldFocus: false;
+          readonly shouldFocusPreventScroll: false;
+          readonly isFocused: boolean;
+      };
+
+const initialNotVisibleTaskDetailViewInputState: TaskDetailViewInputState = {
+    isVisible: false,
+};
+
+const initialVisibleTaskDetailViewInputState: TaskDetailViewInputState = {
+    isVisible: true,
+    shouldFocus: false,
+    shouldFocusPreventScroll: false,
+    isFocused: false,
+};
 
 type TaskDetailViewMainRef = {
     focusStatusButton(): void;
@@ -814,11 +834,11 @@ function TaskDetailViewMain(
         priorityInputRef: Ref<HTMLDivElement>;
         isPriorityInputVisible: boolean;
         setPriorityInputState: (action: SetStateAction<TaskDetailViewInputState>) => void;
-        focusPriorityInput: Memo<() => void>;
+        focusPriorityInput: Memo<(options: {preventScroll: boolean}) => void>;
         dueDateInputRef: Ref<HTMLDivElement>;
         isDueDateInputVisible: boolean;
         setDueDateInputState: (action: SetStateAction<TaskDetailViewInputState>) => void;
-        focusDueDateInput: Memo<() => void>;
+        focusDueDateInput: Memo<(options: {preventScroll: boolean}) => void>;
     },
     ref: Ref<TaskDetailViewMainRef>,
 ) {
@@ -1132,7 +1152,13 @@ function TaskDetailViewMain(
                                                 return priorityInputState;
                                             if (priorityInputState.isFocused)
                                                 return priorityInputState;
-                                            return {...priorityInputState, isFocused: true};
+
+                                            return {
+                                                ...priorityInputState,
+                                                isFocused: true,
+                                                shouldFocus: false,
+                                                shouldFocusPreventScroll: false,
+                                            };
                                         });
                                     }}
                                     onBlur={event => {
@@ -1190,7 +1216,13 @@ function TaskDetailViewMain(
                                                 return dueDateInputState;
                                             if (dueDateInputState.isFocused)
                                                 return dueDateInputState;
-                                            return {...dueDateInputState, isFocused: true};
+
+                                            return {
+                                                ...dueDateInputState,
+                                                isFocused: true,
+                                                shouldFocus: false,
+                                                shouldFocusPreventScroll: false,
+                                            };
                                         });
                                     }}
                                     onBlur={event => {
