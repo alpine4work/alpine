@@ -212,4 +212,30 @@ export const NativeMobileBridge: {
          */
         replace(url: URL): void;
     };
+
+    /**
+     * Functions for synchronizing the web code navigation bar with the native code
+     * tab bar.
+     */
+    readonly navigationBar: {
+        /**
+         * When the user is done scrolling, after about a second if the navigation bar
+         * (and tab bar) are partially occluded we run an animation to completely hide
+         * the navigation bar (and tab bar) or completely hide the navigation bar (and
+         * tab bar).
+         *
+         * Both native code and web code setup a timeout with the same time interval
+         * constant. However, in practice we've observed native code and web code
+         * timers sometimes firing at different times. Since their timers may be
+         * implemented in different environments. So as a safeguard, web code will
+         * call this function when its timer fires to force native code's timer to be
+         * fired near the same time if it's slow.
+         *
+         * We could also have native code call web code when native's timer fires to
+         * handle the case where native is faster than web. However, in practice we've
+         * not yet seen the native tab bar visually animate before the web navigation
+         * bar. So reduce cross process chatter by only having web call native.
+         */
+        runScrollDebounceTimeout(): void;
+    };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;

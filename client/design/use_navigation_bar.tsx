@@ -17,6 +17,7 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {parseRemLengthNumber, remPxByPlatform, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
@@ -271,16 +272,6 @@ function NavigationBar({
             let scrollDebounceTimeout: Timeout | null = null;
 
             return (element: HTMLElement) => {
-                // Immediately finish any animations when scrolling begins.
-                if (animationControlsRef.current && animationControlsRef.current.size > 0) {
-                    const animationControls = animationControlsRef.current;
-                    animationControlsRef.current = null;
-
-                    for (const animationControl of animationControls) {
-                        animationControl.finish();
-                    }
-                }
-
                 // Clamp scroll offset so it's not affected by overscroll at the top of the
                 // scroll view. Overscroll at the bottom of the scroll view is desired! We want
                 // the top bar (which should be collapsed) to continue with the scroll window
@@ -290,6 +281,22 @@ function NavigationBar({
                 // navigation bar is revealed. If the user is at the end of the scroll view
                 // they probably need the navigation bar to navigate out.
                 const scrollOffset = Math.max(0, element.scrollTop);
+
+                // Sometimes native code sends us a scroll event twice for the same scroll
+                // offset. Since scroll offsets may not be integers (e.g. 574.3333) this may be
+                // the fractional part changing but when rounded there's no change. Whatever
+                // the reason, ignore scroll events that repeat a scroll offset.
+                if (scrollOffset === lastScrollOffsetRef.current) return;
+
+                // Immediately finish any animations when scrolling begins.
+                if (animationControlsRef.current && animationControlsRef.current.size > 0) {
+                    const animationControls = animationControlsRef.current;
+                    animationControlsRef.current = null;
+
+                    for (const animationControl of animationControls) {
+                        animationControl.finish();
+                    }
+                }
 
                 const lastScrollOffset = lastScrollOffsetRef.current;
                 lastScrollOffsetRef.current = scrollOffset;
@@ -320,43 +327,42 @@ function NavigationBar({
                 scrollDebounceTimeout?.clear();
                 scrollDebounceTimeout = null;
 
-                scrollDebounceTimeout = createTimeout(() => {
-                    // Navigation bar is completely scrolled in or completely scrolled out. We don't
-                    // need to animate.
-                    if (
-                        navigationBarScrollOffset === 0 ||
-                        navigationBarScrollOffset === navigationBarHeight
-                    ) {
-                        return;
-                    }
+                // We only need a timeout to run our reveal/hide animation if the navigation
+                // bar isn't completely scrolled in or completely scrolled out.
+                if (
+                    navigationBarScrollOffset !== 0 &&
+                    navigationBarScrollOffset !== navigationBarHeight
+                ) {
+                    scrollDebounceTimeout = createTimeout(() => {
+                        // Precaution: Make sure native runs its timeout at the same time as we run ours
+                        // so our animations are synced.
+                        NativeMobileBridge?.navigationBar.runScrollDebounceTimeout();
 
-                    // If we last scrolled up, then show the navigation bar. If we last scrolled
-                    // down, then hide the navigation bar.
-                    //
-                    // We experimented with heuristics like "reveal if scrolled 40px or more" but
-                    // that wasn't consistent across web code and native code since the navigation
-                    // bar and tab bar have different heights. So they don't always move in unison.
-                    // Using the scroll direction is also predictable for users which is nice.
-                    let navigationBarTopOffset: number;
-                    if (
-                        navigationBarHeight - navigationBarScrollOffset >=
-                        navigationBarVisibleHeightThresholdForRevealRem * getRemPxWithoutListening()
-                    ) {
-                        navigationBarTopOffset = scrollOffset;
-                    } else {
-                        navigationBarTopOffset = Math.max(0, scrollOffset - navigationBarHeight);
-                    }
+                        let navigationBarTopOffset: number;
+                        if (
+                            navigationBarHeight - navigationBarScrollOffset >=
+                            navigationBarVisibleHeightThresholdForRevealRem *
+                                getRemPxWithoutListening()
+                        ) {
+                            navigationBarTopOffset = scrollOffset;
+                        } else {
+                            navigationBarTopOffset = Math.max(
+                                0,
+                                scrollOffset - navigationBarHeight,
+                            );
+                        }
 
-                    const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
-                    lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+                        const lastNavigationBarTopOffset = lastNavigationBarTopOffsetRef.current;
+                        lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
 
-                    setScrollDirectionState({
-                        scrollDirection,
-                        navigationBarTopOffset,
-                        animateNavigationBarTranslateY:
-                            navigationBarTopOffset - lastNavigationBarTopOffset,
-                    });
-                }, navigationBarTransitionDebounceScrollTimeoutMs);
+                        setScrollDirectionState({
+                            scrollDirection,
+                            navigationBarTopOffset,
+                            animateNavigationBarTranslateY:
+                                navigationBarTopOffset - lastNavigationBarTopOffset,
+                        });
+                    }, navigationBarTransitionDebounceScrollTimeoutMs);
+                }
             };
         },
         [],

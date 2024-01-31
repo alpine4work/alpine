@@ -138,7 +138,10 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         viewController.view.addSubview(webNavigationController.view)
     }
 
-    func webScrollViewDidScroll(_ scrollView: UIScrollView) {
+    func webNavigationController(
+        _ navigationController: WebNavigationController,
+        didScroll scrollView: UIScrollView
+    ) {
         // We implement the same logic here as in `use_navigation_bar.tsx` for
         // revealing/hiding our tab bar as the user scrolls. By implementing identical
         // logic to `use_navigation_bar.tsx` the app feels cohesive.
@@ -155,9 +158,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // TODO(calebmer): If we ever have nested vertical scroll views, ignore scrolls
         // from a scroll view that is nested inside another scroll view.
 
-        // Immediately finish any animations when scrolling begins.
-        tabBar.layer.removeAllAnimations()
-
         // Clamp scroll offset so it's not affected by overscroll at the top of the
         // scroll view. Overscroll at the bottom of the scroll view is desired! We want
         // the top bar (which should be collapsed) to continue with the scroll window
@@ -166,7 +166,19 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // This also creates a neat effect where when the overscroll bounces back the
         // navigation bar is revealed. If the user is at the end of the scroll view
         // they probably need the navigation bar to navigate out.
-        let scrollOffset = max(0, scrollView.contentOffset.y)
+        //
+        // Native code only: We need to round the content offset since it's an integer
+        // in web code but fractional in native code.
+        let scrollOffset = max(0, round(scrollView.contentOffset.y))
+
+        // Sometimes native code sends us a scroll event twice for the same scroll
+        // offset. Since scroll offsets may not be integers (e.g. 574.3333) this may be
+        // the fractional part changing but when rounded there's no change. Whatever
+        // the reason, ignore scroll events that repeat a scroll offset.
+        if scrollOffset == self.lastScrollOffset { return }
+
+        // Immediately finish any animations when scrolling begins.
+        tabBar.layer.removeAllAnimations()
 
         let lastScrollOffset = self.lastScrollOffset
         self.lastScrollOffset = scrollOffset
@@ -204,82 +216,89 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         self.scrollDebounceTimeout?.invalidate()
         self.scrollDebounceTimeout = nil
 
-        let scrollDebounceTimeout = Timer(
-            timeInterval: navigationBarTransitionDebounceScrollTimeoutSeconds,
-            repeats: false
-        ) { [self] (_) in
-            self.scrollDebounceTimeout = nil
+        // We only need a timeout to run our reveal/hide animation if the navigation
+        // bar isn't completely scrolled in or completely scrolled out.
+        if navigationBarScrollOffset != 0 && navigationBarScrollOffset != navigationBarHeight {
+            let scrollDebounceTimeout = Timer(
+                timeInterval: navigationBarTransitionDebounceScrollTimeoutSeconds,
+                repeats: false
+            ) { [self] (_) in
+                self.scrollDebounceTimeout = nil
 
-            // Navigation bar is completely scrolled in or completely scrolled out. We don't
-            // need to animate.
-            if navigationBarScrollOffset == 0 || navigationBarScrollOffset == navigationBarHeight {
-                return
+                // In web, scroll offset is an integer. In native, scroll offset is a float.
+                // `round()` to try and make sure we have the same value on web and native.
+                var navigationBarTopOffset: Double
+                if navigationBarHeight - navigationBarScrollOffset
+                    >= navigationBarVisibleHeightThresholdForReveal
+                {
+                    navigationBarTopOffset = scrollOffset
+                } else {
+                    navigationBarTopOffset = max(0, scrollOffset - navigationBarHeight)
+                }
+
+                let lastNavigationBarTopOffset = self.lastNavigationBarTopOffset
+                self.lastNavigationBarTopOffset = navigationBarTopOffset
+
+                let animateNavigationBarTranslateY =
+                    navigationBarTopOffset - lastNavigationBarTopOffset
+
+                // The following is only in native code: Actually animate the tab bar into
+                // position after our timeout has fired. Web code needs to wait for a React
+                // effect before the animation can run.
+                do {
+                    let navigationBarScrollOffset = max(
+                        0,
+                        min(scrollOffset - navigationBarTopOffset, navigationBarTopOffset)
+                    )
+
+                    // Convert from navigation bar offset to tab bar offset. We want the native tab
+                    // bar to disappear at the same rate as the web navigation bar.
+                    let tabBarScrollOffset =
+                        ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
+
+                    let tabBarFrameOriginY =
+                        (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+
+                    UIView.animate(
+                        withDuration: abs(animateNavigationBarTranslateY)
+                            / navigationBarRevealOrHideAnimationSpeed,
+                        delay: 0,
+                        options: .curveLinear,
+                        animations: { [self] in tabBar.frame.origin.y = tabBarFrameOriginY },
+                        completion: { [self] (finished) in
+                            // Make sure even if the animation was cancelled we set the correct
+                            // position.
+                            if !finished { tabBar.frame.origin.y = tabBarFrameOriginY }
+
+                            // Mark the tab bar as hidden if the navigation bar is fully scrolled.
+                            tabBar.isHidden = navigationBarScrollOffset >= navigationBarHeight
+                        }
+                    )
+                }
             }
 
-            // If we last scrolled up, then show the navigation bar. If we last scrolled
-            // down, then hide the navigation bar.
+            self.scrollDebounceTimeout = scrollDebounceTimeout
+
+            // We need to add our timeout to the common run loop mode so it can execute
+            // even while a drag is occuring.
             //
-            // We experimented with heuristics like "reveal if scrolled 40px or more" but
-            // that wasn't consistent across web code and native code since the navigation
-            // bar and tab bar have different heights. So they don't always move in unison.
-            // Using the scroll direction is also predictable for users which is nice.
-            var navigationBarTopOffset: Double
-            if navigationBarHeight - navigationBarScrollOffset
-                >= navigationBarVisibleHeightThresholdForReveal
-            {
-                navigationBarTopOffset = scrollOffset
-            } else {
-                navigationBarTopOffset = max(0, scrollOffset - navigationBarHeight)
-            }
-
-            let lastNavigationBarTopOffset = self.lastNavigationBarTopOffset
-            self.lastNavigationBarTopOffset = navigationBarTopOffset
-
-            let animateNavigationBarTranslateY = navigationBarTopOffset - lastNavigationBarTopOffset
-
-            // The following is only in native code: Actually animate the tab bar into
-            // position after our timeout has fired. Web code needs to wait for a React
-            // effect before the animation can run.
-            do {
-                let navigationBarScrollOffset = max(
-                    0,
-                    min(scrollOffset - navigationBarTopOffset, navigationBarTopOffset)
-                )
-
-                // Convert from navigation bar offset to tab bar offset. We want the native tab
-                // bar to disappear at the same rate as the web navigation bar.
-                let tabBarScrollOffset =
-                    ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
-
-                let tabBarFrameOriginY =
-                    (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
-
-                UIView.animate(
-                    withDuration: abs(animateNavigationBarTranslateY)
-                        / navigationBarRevealOrHideAnimationSpeed,
-                    delay: 0,
-                    options: .curveLinear,
-                    animations: { [self] in tabBar.frame.origin.y = tabBarFrameOriginY },
-                    completion: { [self] (finished) in
-                        // Make sure even if the animation was cancelled we set the correct
-                        // position.
-                        if !finished { tabBar.frame.origin.y = tabBarFrameOriginY }
-
-                        // Mark the tab bar as hidden if the navigation bar is fully scrolled.
-                        tabBar.isHidden = navigationBarScrollOffset >= navigationBarHeight
-                    }
-                )
-            }
+            // For more information about run loops:
+            // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
+            RunLoop.current.add(scrollDebounceTimeout, forMode: .common)
         }
+    }
 
-        self.scrollDebounceTimeout = scrollDebounceTimeout
-
-        // We need to add our timeout to the common run loop mode so it can execute
-        // even while a drag is occuring.
-        //
-        // For more information about run loops:
-        // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
-        RunLoop.current.add(scrollDebounceTimeout, forMode: .common)
+    func webNavigationController(
+        runScrollDebounceTimeout navigationController: WebNavigationController
+    ) {
+        // If web code tells us to fire the scroll debounce timeout then don't wait for
+        // the timer, fire immediately since we want to run our animation at the same
+        // time as web.
+        if let scrollDebounceTimeout = scrollDebounceTimeout {
+            scrollDebounceTimeout.fire()
+            scrollDebounceTimeout.invalidate()
+            self.scrollDebounceTimeout = nil
+        }
     }
 }
 

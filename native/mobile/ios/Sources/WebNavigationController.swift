@@ -2,11 +2,12 @@ import UIKit
 import WebKit
 
 @objc protocol WebNavigationControllerDelegate {
-    @objc optional func webScrollViewWillBeginDragging(_ scrollView: UIScrollView)
-    @objc optional func webScrollViewDidScroll(_ scrollView: UIScrollView)
-    @objc optional func webScrollViewDidEndDragging(
-        _ scrollView: UIScrollView,
-        willDecelerate decelerate: Bool
+    @objc optional func webNavigationController(
+        _ navigationController: WebNavigationController,
+        didScroll scrollView: UIScrollView
+    )
+    @objc optional func webNavigationController(
+        runScrollDebounceTimeout navigationController: WebNavigationController
     )
 }
 
@@ -242,6 +243,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 let url = URL(string: String(urlString))!
 
                 (topViewController! as! WebNavigationEntryController).url = url
+            } else if messageBody == "navigationBar.runScrollDebounceTimeout" {
+                webDelegate?.webNavigationController?(runScrollDebounceTimeout: self)
             }
         }
     }
@@ -264,16 +267,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         if let scrollView = view as? UIScrollView { webScrollViews.removeValue(forKey: scrollView) }
     }
 
-    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        webDelegate?.webScrollViewWillBeginDragging?(scrollView)
-    }
-
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        webDelegate?.webScrollViewDidScroll?(scrollView)
-    }
-
-    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        webDelegate?.webScrollViewDidEndDragging?(scrollView, willDecelerate: decelerate)
+        webDelegate?.webNavigationController?(self, didScroll: scrollView)
     }
 
     private func getSafeAreaInsets() -> UIEdgeInsets {
@@ -409,7 +404,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         if let transitionCoordinator = topViewController!.transitionCoordinator {
             if !transitionCoordinator.isInteractive {
-                callWebViewExternalPopNavigationListeners(delta: delta, url: url)
+                callNavigationExternalPopListeners(delta: delta, url: url)
             } else {
                 transitionCoordinator.notifyWhenInteractionChanges { [self] (context) in
                     // Wait until the transition has finished.
@@ -423,16 +418,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                             lastTopViewController.replaceSubviewsWithWebView(webView: webView)
                         }
                     } else {
-                        callWebViewExternalPopNavigationListeners(delta: delta, url: url)
+                        callNavigationExternalPopListeners(delta: delta, url: url)
                     }
                 }
             }
         } else {
-            callWebViewExternalPopNavigationListeners(delta: delta, url: url)
+            callNavigationExternalPopListeners(delta: delta, url: url)
         }
     }
 
-    private func callWebViewExternalPopNavigationListeners(delta: Int, url: URL) {
+    private func callNavigationExternalPopListeners(delta: Int, url: URL) {
         let jsonEncoder = JSONEncoder()
         let jsonString = String(data: try! jsonEncoder.encode(url.absoluteString), encoding: .utf8)!
 
@@ -611,7 +606,7 @@ private class WebNavigationEntryController: UIViewController {
 
 private let bridgeSource = """
     {
-        const externalPopNavigationListeners = new Set();
+        const navigationExternalPopListeners = new Set();
 
         const NativeMobileBridge = {
             navigation: {
@@ -622,15 +617,15 @@ private let bridgeSource = """
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.push:${url}`);
                 },
                 subscribeToExternalPop: listener => {
-                    externalPopNavigationListeners.add(listener);
+                    navigationExternalPopListeners.add(listener);
                     return () => {
-                        externalPopNavigationListeners.delete(listener);
+                        navigationExternalPopListeners.delete(listener);
                     };
                 },
                 _callExternalPopListeners: (delta, urlString) => {
                     const url = new URL(urlString);
 
-                    for (const listener of externalPopNavigationListeners) {
+                    for (const listener of navigationExternalPopListeners) {
                         try {
                             listener(delta, url);
                         } catch (error) {
@@ -651,6 +646,11 @@ private let bridgeSource = """
                 },
                 replace: url => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage(`navigation.replace:${url}`);
+                },
+            },
+            navigationBar: {
+                runScrollDebounceTimeout: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
                 },
             },
         };
