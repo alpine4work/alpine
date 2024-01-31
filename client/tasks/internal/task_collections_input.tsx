@@ -110,6 +110,7 @@ function TaskCollectionsInput(
         onArrowLeftLeaveKeyDown,
         onReturnFocus,
         commitActionTransactionEvenIfGhost: _commitActionTransactionEvenIfGhost,
+        shouldAlignWithDetailViewInputsIfEmpty = false,
     }: {
         referencesSubscription: TaskClientQuery | TaskClientTaskSubscription;
         undoManager: TaskClientStoreUndoManager;
@@ -129,6 +130,7 @@ function TaskCollectionsInput(
             getActions: (taskId: TaskId) => Array<TaskAction>,
             options?: {referencedCollections?: ReadonlyArray<TaskCollectionModel>},
         ) => void;
+        shouldAlignWithDetailViewInputsIfEmpty?: boolean;
     },
     ref: Ref<TaskCollectionsInputRef>,
 ) {
@@ -768,7 +770,12 @@ function TaskCollectionsInput(
                                 zIndex="-10"
                                 display="flex"
                                 alignItems="center"
-                                gap="0.5"
+                                gap={
+                                    shouldAlignWithDetailViewInputsIfEmpty &&
+                                    displayCollections.length === 0
+                                        ? "1"
+                                        : "0.5"
+                                }
                                 pointerEvents="none"
                                 // This is accessible through `aria-placeholder` on the `<input>`.
                                 aria-hidden={true}
@@ -777,7 +784,16 @@ function TaskCollectionsInput(
                                     opacity: inputState.value.length === 0 ? 1 : 0,
                                 }}
                             >
-                                <Plus size={spacing["3"]} />
+                                <Box
+                                    paddingX={
+                                        shouldAlignWithDetailViewInputsIfEmpty &&
+                                        displayCollections.length === 0
+                                            ? "0.5"
+                                            : undefined
+                                    }
+                                >
+                                    <Plus size={spacing["3"]} />
+                                </Box>
                                 <Box>{inputPlaceholder}</Box>
                             </Box>
                             <Box
@@ -805,7 +821,10 @@ function TaskCollectionsInput(
                                     style={{
                                         paddingLeft:
                                             inputState.value.length === 0
-                                                ? addRemLengths(spacing["3"], spacing["0.5"])
+                                                ? shouldAlignWithDetailViewInputsIfEmpty &&
+                                                  displayCollections.length === 0
+                                                    ? spacing["5"]
+                                                    : addRemLengths(spacing["3"], spacing["0.5"])
                                                 : undefined,
                                     }}
                                     // By default `<input>` elements have a `min-width` determined by the `size`

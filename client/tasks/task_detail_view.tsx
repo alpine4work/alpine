@@ -1117,6 +1117,7 @@ function TaskDetailViewMain(
                                 task={task}
                                 aria-labelledby={ariaLabelledBy}
                                 isReadOnly={isReadOnly}
+                                shouldAlignWithDetailViewInputsIfEmpty={true}
                             />
                         )}
                     </TaskDetailViewDenseField>
