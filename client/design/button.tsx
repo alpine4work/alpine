@@ -19,7 +19,7 @@ import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {
     Sprinkles,
-    buttonPressedOverlayOpacity,
+    buttonStyles,
     colorSchemeVars,
     spinAnimationClassName,
     sprinkles,
@@ -430,7 +430,7 @@ function Button(
                             backgroundColor: "grey-dark",
                             pointerEvents: "none",
                         })}
-                        style={{opacity: buttonPressedOverlayOpacity}}
+                        style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
                     />
                 )}
                 {shouldShowPendingSpinner && !iconChild && (

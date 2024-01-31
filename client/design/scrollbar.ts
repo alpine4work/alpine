@@ -11,7 +11,9 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {
+import {scrollbarStyles, sprinkles} from "~/shared/styles/styles.js";
+
+const {
     nativeScrollbarClassName,
     scrollbarThumbClassName,
     scrollbarThumbDraggingClassName,
@@ -20,8 +22,7 @@ import {
     scrollbarThumbHitFadeOutClassName,
     scrollbarThumbHitHideClassName,
     scrollbarThumbHoveredClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
+} = scrollbarStyles;
 
 const scrollbarThumbMargin = "0.5";
 const scrollbarThumbInteractiveMargin = "1.5";

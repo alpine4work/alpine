@@ -30,7 +30,7 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {cast} from "~/shared/helpers/control/cast.js";
 import {
     Sprinkles,
-    buttonPressedOverlayOpacity,
+    buttonStyles,
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
@@ -438,7 +438,7 @@ function IconButton(
                                     pointerEvents: "none",
                                     borderRadius,
                                 })}
-                                style={{opacity: buttonPressedOverlayOpacity}}
+                                style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
                             />
                         )}
                         <IconContext.Provider

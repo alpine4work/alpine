@@ -2,7 +2,7 @@ import {Check} from "phosphor-react";
 import {addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {DefaultMap} from "~/shared/helpers/map/default_map.js";
-import {buttonPressedOverlayOpacity, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
+import {buttonStyles, colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 import {TaskDisplayStatus} from "~/shared/tasks/task_display_status.js";
 
 // NOTE(calebmer): You are not allowed to use the `<Box>` component in this
@@ -158,7 +158,7 @@ export function TaskDisplayStatusCircle({
                 // pressed down.
                 <div
                     className={closedPressedOverlayClassName}
-                    style={{opacity: buttonPressedOverlayOpacity}}
+                    style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
                 />
             )}
             {displayStatus === "Closed" && (
@@ -214,7 +214,7 @@ export function TaskDisplayStatusCircle({
                         <div
                             className={activePressedOverlayClassName}
                             style={{
-                                opacity: buttonPressedOverlayOpacity,
+                                opacity: buttonStyles.buttonPressedOverlayOpacity,
                                 width: spacing[size],
                                 height: spacing[size],
                             }}

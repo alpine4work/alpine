@@ -10,11 +10,7 @@ import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indica
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
-import {
-    buttonPressedOverlayOpacity,
-    spinAnimationClassName,
-    sprinkles,
-} from "~/shared/styles/styles.js";
+import {buttonStyles, spinAnimationClassName, sprinkles} from "~/shared/styles/styles.js";
 
 export function TaskCollectionComboBoxCreateCollectionOption<T>({
     comboBoxState,
@@ -94,7 +90,7 @@ export function TaskCollectionComboBoxCreateCollectionOption<T>({
                             backgroundColor: "grey-dark",
                             pointerEvents: "none",
                         })}
-                        style={{opacity: buttonPressedOverlayOpacity}}
+                        style={{opacity: buttonStyles.buttonPressedOverlayOpacity}}
                     />
                 )}
                 {shouldShowPendingSpinner ? (
