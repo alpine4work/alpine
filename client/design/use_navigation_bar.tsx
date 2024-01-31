@@ -360,10 +360,9 @@ function NavigationBar({
 
                     const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
 
-                    const isNavigationBarOpaque =
-                        scrollDirection === "Down" && !lastIsNavigationBarOpaque
-                            ? scrollOffset > navigationBarHeight
-                            : scrollOffset > 0;
+                    const isNavigationBarOpaque = lastIsNavigationBarOpaque
+                        ? scrollOffset > 0
+                        : scrollOffset > navigationBarHeight;
 
                     lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
 
