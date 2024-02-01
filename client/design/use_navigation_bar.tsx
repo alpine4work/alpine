@@ -1,8 +1,10 @@
 import {AnimationControls, timeline} from "motion";
+import {CaretLeft, DotsThree} from "phosphor-react";
 import {
     MutableRefObject,
     ReactNode,
     RefCallback,
+    RefObject,
     useCallback,
     useImperativeHandle,
     useRef,
@@ -10,6 +12,8 @@ import {
 } from "react";
 import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
+import {IconButton} from "~/client/design/icon_button.js";
+import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {scrollbarVisibleAfterScrollDurationMs} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
@@ -19,8 +23,10 @@ import {
 } from "~/client/helpers/use_resize_observer.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
+import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     RemLength,
+    addRemLengths,
     parseRemLengthNumber,
     remPxByPlatform,
     spacing,
@@ -31,7 +37,10 @@ import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
 import {navigationBarStyles, tasksStyles} from "~/shared/styles/styles.js";
 
-const {navigationBarFadeOutAnimationClassName} = navigationBarStyles;
+const {
+    navigationBarBackgroundFadeOutAnimationClassName,
+    navigationBarTitleFadeOutAnimationClassName,
+} = navigationBarStyles;
 const {pointerEventsNoneNotInheritedClassName} = tasksStyles;
 
 type ScrollDirectionState = {
@@ -49,7 +58,7 @@ const initialScrollDirectionState: ScrollDirectionState = {
 /**
  * The height of our navigation bar.
  */
-export const navigationBarHeight = "10";
+export const navigationBarHeight = "14";
 const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]);
 
 {
@@ -59,7 +68,7 @@ const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]
     // We have an assertion below to make sure this value always equals the
     // navigation bar's pixel height on mobile devices. After converting `Spacing`
     // to an actual value and applying the rem pixel count.
-    const mobileNavigationBarHeight = 50;
+    const mobileNavigationBarHeight = 70;
 
     assert(mobileNavigationBarHeight === navigationBarHeightRem * remPxByPlatform.mobile);
 }
@@ -83,7 +92,7 @@ const navigationBarTransitionDebounceScrollTimeoutMs = 1200;
  * hide the navigation bar. If more than this height of the navigation bar is
  * visible then we show it, otherwise we hide it.
  */
-const navigationBarVisibleHeightThresholdForReveal = "5";
+const navigationBarVisibleHeightThresholdForReveal = "6";
 const navigationBarVisibleHeightThresholdForRevealRem = parseRemLengthNumber(
     spacing[navigationBarVisibleHeightThresholdForReveal],
 );
@@ -96,7 +105,7 @@ const navigationBarVisibleHeightThresholdForRevealRem = parseRemLengthNumber(
     // We have an assertion below to make sure this value always equals the
     // navigation bar's pixel height on mobile devices. After converting `Spacing`
     // to an actual value and applying the rem pixel count.
-    const mobileNavigationBarVisibleHeightThresholdForReveal = 25;
+    const mobileNavigationBarVisibleHeightThresholdForReveal = 30;
 
     assert(
         mobileNavigationBarVisibleHeightThresholdForReveal ===
@@ -109,7 +118,10 @@ const navigationBarVisibleHeightThresholdForRevealRem = parseRemLengthNumber(
  * animation moves. The duration of the animation depends on how many pixels we
  * need to move the navigation bar.
  */
-const navigationBarRevealOrHideAnimationSpeed = 300;
+// IMPORTANT: If you change this value, you must also change
+// `navigationBarRevealOrHideAnimationDurationSeconds` in
+// `NavigationBarConstants.swift`.
+const navigationBarRevealOrHideAnimationDurationMs = 200;
 
 // Make sure if `scrollbarVisibleAfterScrollDurationMs` changes,
 // `navigationBarTransitionDebounceScrollTimeoutMs` also changes. We don't assign
@@ -157,13 +169,44 @@ assert(navigationBarTransitionDebounceScrollTimeoutMs === scrollbarVisibleAfterS
  * web code navigation bar. As the user scrolls down, the tab bar disappears.
  */
 export function useNavigationBar({
-    left = null,
-    center = null,
-    right = null,
+    title = null,
+    titleBoundaryRef,
+    menuActions = [],
+    desktopControls = null,
 }: {
-    left?: ReactNode;
-    center?: ReactNode;
-    right?: ReactNode;
+    /**
+     * The title to display in the navigation bar. It will be truncated based
+     * on how much room is in the navigation bar.
+     *
+     * The title will not be displayed when scrolled to the top of the view.
+     */
+    title?: ReactNode;
+
+    /**
+     * The title only displays once the user has scrolled past this element. When
+     * crossing this boundary the title animates in/out.
+     */
+    titleBoundaryRef?: RefObject<HTMLDivElement>;
+
+    /**
+     * Actions that are made available to the user in a menu button at the right of
+     * the navigation bar. These are secondary and tertiary actions where it
+     * doesn't make sense to give them their own screen space.
+     */
+    menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+
+    /**
+     * Only rendered on desktop (not mobile).
+     *
+     * Controls at the far left of the navigation bar that renders at the top of
+     * our content and moves with the navigation bar. The title goes to the right
+     * of these controls.
+     *
+     * For example, tasks use the status button as a desktop control. So the status
+     * button renders at the very top of the task and when the user scrolls it's
+     * also a part of the navigation bar.
+     */
+    desktopControls?: ReactNode;
 } = {}): {
     /**
      * (Required) Attach this ref to the scroll view the navigation bar renders
@@ -251,9 +294,10 @@ export function useNavigationBar({
         <NavigationBar
             scrollViewSize={scrollViewSize}
             handleScrollRef={handleScrollRef}
-            left={left}
-            center={center}
-            right={right}
+            title={title}
+            titleBoundaryRef={titleBoundaryRef}
+            menuActions={menuActions}
+            desktopControls={desktopControls}
         />
     );
 
@@ -267,21 +311,25 @@ export function useNavigationBar({
 function NavigationBar({
     scrollViewSize,
     handleScrollRef,
-    left,
-    center,
-    right,
+    title,
+    titleBoundaryRef,
+    menuActions,
+    desktopControls,
 }: {
     scrollViewSize: {width: number; height: number} | null;
     handleScrollRef: MutableRefObject<((element: HTMLElement) => void) | null>;
-    left: ReactNode;
-    center: ReactNode;
-    right: ReactNode;
+    title: ReactNode;
+    titleBoundaryRef: RefObject<HTMLDivElement> | undefined;
+    menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    desktopControls: ReactNode;
 }) {
     const isMobile = useIsMobile();
+    const navigate = useNavigate();
 
     const navigationBarRef = useRef<HTMLDivElement>(null);
     const navigationBarBackgroundRef = useRef<HTMLDivElement>(null);
     const navigationBarContentRef = useRef<HTMLDivElement>(null);
+    const navigationBarTitleRef = useRef<HTMLDivElement>(null);
 
     const [scrollDirectionState, setScrollDirectionState] = useState<ScrollDirectionState>(
         initialScrollDirectionState,
@@ -291,6 +339,7 @@ function NavigationBar({
     const lastScrollDirectionRef = useRef(scrollDirectionState.scrollDirection);
     const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
     const lastIsNavigationBarOpaqueRef = useRef(false);
+    const lastIsNavigationBarTitleVisibleRef = useRef(false);
 
     const animationControlsRef = useRef<Set<AnimationControls> | null>(null);
 
@@ -329,7 +378,8 @@ function NavigationBar({
                 const lastScrollOffset = lastScrollOffsetRef.current;
                 lastScrollOffsetRef.current = scrollOffset;
 
-                const navigationBarHeight = navigationBarHeightRem * getRemPxWithoutListening();
+                const remPx = getRemPxWithoutListening();
+                const navigationBarHeight = navigationBarHeightRem * remPx;
 
                 const scrollDirection = scrollOffset > lastScrollOffset ? "Down" : "Up";
                 const lastScrollDirection = lastScrollDirectionRef.current;
@@ -369,18 +419,63 @@ function NavigationBar({
                     const navigationBarContentElement = assertExists(
                         navigationBarContentRef.current,
                     );
+                    const navigationBarTitleElement = assertExists(navigationBarTitleRef.current);
 
                     const doesNavigationBarHaveSafeAreaInsetTop =
                         navigationBarBackgroundElement.clientHeight >
                         navigationBarContentElement.clientHeight;
 
                     const lastIsNavigationBarOpaque = lastIsNavigationBarOpaqueRef.current;
+                    const lastIsNavigationBarTitleVisible =
+                        lastIsNavigationBarTitleVisibleRef.current;
 
                     const isNavigationBarOpaque = lastIsNavigationBarOpaque
                         ? scrollOffset > 0
                         : scrollOffset > navigationBarHeight;
 
+                    // Compute the title boundary scroll offset...
+                    let titleBoundaryOffset: number | null = null;
+                    if (titleBoundaryRef?.current) {
+                        let titleBoundaryParentElement: HTMLElement = titleBoundaryRef?.current;
+
+                        titleBoundaryOffset =
+                            titleBoundaryParentElement.offsetTop +
+                            titleBoundaryParentElement.clientHeight;
+                        while (
+                            titleBoundaryParentElement.offsetParent instanceof HTMLElement &&
+                            titleBoundaryParentElement.offsetParent !== element
+                        ) {
+                            titleBoundaryParentElement = titleBoundaryParentElement.offsetParent;
+                            titleBoundaryOffset += titleBoundaryParentElement.offsetTop;
+                        }
+
+                        // If the title boundary element is not in our scroll view then consider our
+                        // boundary offset to be unset.
+                        if (titleBoundaryParentElement.offsetParent !== element) {
+                            titleBoundaryOffset = null;
+                        }
+
+                        if (titleBoundaryOffset !== null) {
+                            // If our scroll view has safe area then don't include the safe area in the
+                            // scroll offset. The scroll offset starts below our safe area.
+                            if (doesNavigationBarHaveSafeAreaInsetTop) {
+                                titleBoundaryOffset -=
+                                    navigationBarBackgroundElement.clientHeight -
+                                    navigationBarContentElement.clientHeight;
+                            }
+
+                            // Let a bit of the title boundary element show before hiding the title.
+                            titleBoundaryOffset -= 0.75 * remPx;
+                        }
+                    }
+
+                    const isNavigationBarTitleVisible =
+                        isNavigationBarOpaque &&
+                        (titleBoundaryOffset === null ||
+                            scrollOffset >= titleBoundaryOffset - navigationBarHeight);
+
                     lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
+                    lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
 
                     // If our navigation bar includes some safe area inset then as we scroll up we
                     // want to decrease the opacity of content in the navigation bar so it doesn't
@@ -394,13 +489,16 @@ function NavigationBar({
 
                         if (isNavigationBarOpaque) {
                             navigationBarBackgroundElement.style.opacity = "1";
+                            navigationBarBackgroundElement.style.pointerEvents = "auto";
                         } else {
                             navigationBarBackgroundElement.style.opacity = `${navigationBarScrollPercentage}`;
+                            navigationBarBackgroundElement.style.pointerEvents =
+                                navigationBarScrollPercentage === 0 ? "none" : "auto";
                         }
 
                         // If we have a fade out animation running, cancel it.
                         navigationBarBackgroundElement.classList.remove(
-                            navigationBarFadeOutAnimationClassName,
+                            navigationBarBackgroundFadeOutAnimationClassName,
                         );
 
                         navigationBarContentElement.style.opacity = `${
@@ -413,17 +511,37 @@ function NavigationBar({
                     if (lastIsNavigationBarOpaque !== isNavigationBarOpaque) {
                         if (!isNavigationBarOpaque) {
                             navigationBarBackgroundElement.style.opacity = "0";
+                            navigationBarBackgroundElement.style.pointerEvents = "none";
 
-                            // TODO(calebmer): For some reason `animate()` isn't working with opacity here
-                            // on iOS? So instead use a CSS animation.
                             navigationBarBackgroundElement.classList.add(
-                                navigationBarFadeOutAnimationClassName,
+                                navigationBarBackgroundFadeOutAnimationClassName,
                             );
                         } else {
                             navigationBarBackgroundElement.style.opacity = "1";
+                            navigationBarBackgroundElement.style.pointerEvents = "auto";
 
                             navigationBarBackgroundElement.classList.remove(
-                                navigationBarFadeOutAnimationClassName,
+                                navigationBarBackgroundFadeOutAnimationClassName,
+                            );
+                        }
+                    }
+
+                    // Handle the transition from a visible navigation bar title to a hidden
+                    // navigation bar title.
+                    if (lastIsNavigationBarTitleVisible !== isNavigationBarTitleVisible) {
+                        if (!isNavigationBarTitleVisible) {
+                            navigationBarTitleElement.style.opacity = "0";
+                            navigationBarTitleElement.style.pointerEvents = "none";
+
+                            navigationBarTitleElement.classList.add(
+                                navigationBarTitleFadeOutAnimationClassName,
+                            );
+                        } else {
+                            navigationBarTitleElement.style.opacity = "1";
+                            navigationBarTitleElement.style.pointerEvents = "auto";
+
+                            navigationBarTitleElement.classList.remove(
+                                navigationBarTitleFadeOutAnimationClassName,
                             );
                         }
                     }
@@ -481,7 +599,7 @@ function NavigationBar({
                 }
             };
         },
-        [],
+        [titleBoundaryRef],
     );
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
@@ -503,7 +621,7 @@ function NavigationBar({
             [
                 navigationBarElement,
                 {y: [-scrollDirectionState.animateNavigationBarTranslateY, 0]},
-                {easing: "linear"},
+                {easing: "ease-in-out"},
             ],
         ];
 
@@ -513,14 +631,12 @@ function NavigationBar({
                 {
                     opacity: scrollDirectionState.animateNavigationBarTranslateY > 0 ? 1 : 0,
                 },
-                {at: "<", easing: "linear"},
+                {at: "<", easing: "ease-in"},
             ]);
         }
 
         const animationControls = timeline(timelineDefinition, {
-            duration:
-                Math.abs(scrollDirectionState.animateNavigationBarTranslateY) /
-                navigationBarRevealOrHideAnimationSpeed,
+            duration: navigationBarRevealOrHideAnimationDurationMs / 1000,
         });
 
         animationControlsRef.current ??= new Set();
@@ -533,6 +649,16 @@ function NavigationBar({
             }
         });
     }, [scrollDirectionState]);
+
+    const gap = "3";
+    const edgeButtonSize = isMobile ? "7" : "6";
+
+    // Allocate enough space on the edge for two buttons.
+    const edgeButtonsWidth = addRemLengths(
+        spacing[edgeButtonSize],
+        spacing[gap],
+        spacing[edgeButtonSize],
+    );
 
     return (
         <div
@@ -599,6 +725,7 @@ function NavigationBar({
                             inset="0"
                             backgroundColor="grey-0"
                             borderBottom="grey-10"
+                            // Initial opacity is 0. Our code will update the opacity.
                             opacity="0"
                         />
                         <Box
@@ -608,44 +735,90 @@ function NavigationBar({
                             height={navigationBarHeight}
                             overflow="hidden"
                             display="flex"
-                            gap="3"
-                            paddingX={isMobile ? "3" : "1.5"}
+                            gap={gap}
+                            paddingLeft={isMobile ? gap : "5"}
+                            paddingRight={isMobile ? gap : "4"}
                         >
+                            {isMobile && (
+                                <Box
+                                    flexShrink="0"
+                                    height={navigationBarHeight}
+                                    style={{width: edgeButtonsWidth}}
+                                    display="flex"
+                                    justifyContent="flex-start"
+                                    alignItems="center"
+                                    gap={gap}
+                                    // Gives children `pointer-events: initial` so the user can interact with them.
+                                    className={pointerEventsNoneNotInheritedClassName}
+                                >
+                                    <IconButton
+                                        size="base"
+                                        description="Back"
+                                        withoutTooltip={true}
+                                        onPress={() => navigate(-1)}
+                                    >
+                                        <CaretLeft />
+                                    </IconButton>
+                                </Box>
+                            )}
                             <Box
                                 flexGrow="1"
                                 height={navigationBarHeight}
+                                overflow="hidden"
                                 display="flex"
-                                justifyContent="flex-start"
+                                justifyContent={isMobile ? "center" : "flex-start"}
                                 alignItems="center"
-                                gap="3"
-                                // Gives children `pointer-events: initial` so the user can interact with them.
-                                className={pointerEventsNoneNotInheritedClassName}
+                                gap={gap}
                             >
-                                {left}
+                                {!isMobile && desktopControls && (
+                                    <Box
+                                        // Gives children `pointer-events: initial` so the user can interact with them.
+                                        className={pointerEventsNoneNotInheritedClassName}
+                                    >
+                                        {desktopControls}
+                                    </Box>
+                                )}
+                                <Box
+                                    ref={navigationBarTitleRef}
+                                    // We have less space on mobile so use a smaller font size.
+                                    fontSize={isMobile ? "100" : "200"}
+                                    fontStyle="truncate-semi-bold"
+                                    userSelect={!isMobile ? "text" : undefined}
+                                    // Initial opacity is 0. Our code will update the opacity.
+                                    opacity="0"
+                                >
+                                    {title}
+                                </Box>
                             </Box>
                             <Box
-                                width="1/2"
+                                flexShrink="0"
                                 height={navigationBarHeight}
-                                display="flex"
-                                justifyContent="center"
-                                alignItems="center"
-                                gap="3"
-                                // Gives children `pointer-events: initial` so the user can interact with them.
-                                className={pointerEventsNoneNotInheritedClassName}
-                            >
-                                {center}
-                            </Box>
-                            <Box
-                                flexGrow="1"
-                                height={navigationBarHeight}
+                                style={{width: edgeButtonsWidth}}
                                 display="flex"
                                 justifyContent="flex-end"
                                 alignItems="center"
-                                gap="3"
+                                gap={gap}
                                 // Gives children `pointer-events: initial` so the user can interact with them.
                                 className={pointerEventsNoneNotInheritedClassName}
                             >
-                                {right}
+                                {menuActions.length > 0 && (
+                                    <MenuButton actions={menuActions}>
+                                        <IconButton
+                                            size={isMobile ? "base" : "md"}
+                                            description="More"
+                                            withoutTooltip={true}
+                                        >
+                                            <DotsThree
+                                            // Vertical dots create better visual balance on mobile because:
+                                            //
+                                            // 1. On mobile we have a back button on the left and we want this button to
+                                            //    look aligned with that
+                                            // 2. The title might be truncated with ellipsis which looks like horizontal
+                                            //    dots
+                                            />
+                                        </IconButton>
+                                    </MenuButton>
+                                )}
                             </Box>
                         </Box>
                     </Box>

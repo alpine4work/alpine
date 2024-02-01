@@ -1,10 +1,11 @@
 import {setInteractionModality} from "@react-aria/interactions";
-import {CaretLeft, CaretRight, DotsThree, IconContext, Lock, Trash} from "phosphor-react";
+import {CaretRight, IconContext, Lock, Trash} from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
 import {
     Memo,
     ReactNode,
     Ref,
+    RefObject,
     SetStateAction,
     forwardRef,
     memo,
@@ -20,8 +21,7 @@ import {Box} from "~/client/design/box.js";
 import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
-import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu_button.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
 import {navigationBarHeight, useNavigationBar} from "~/client/design/use_navigation_bar.js";
@@ -89,7 +89,11 @@ import {serializeProsemirrorFragmentToHtml} from "~/shared/prosemirror/serialize
 import {RpcContextModuleBase} from "~/shared/rpc/rpc_context_module_base.js";
 import {invertSelectionColorsClassName, sprinkles} from "~/shared/styles/styles.js";
 import {TaskModel} from "~/shared/tasks/model/task_model.js";
-import {emptyTaskTitleModel, taskFallbackTitle} from "~/shared/tasks/model/task_title_model.js";
+import {
+    addFallbackToTaskTitle,
+    emptyTaskTitleModel,
+    taskFallbackTitle,
+} from "~/shared/tasks/model/task_title_model.js";
 import {hasTaskCollectionAccessLevel} from "~/shared/tasks/task_collection_access_policy.js";
 import {TaskFilterableTime} from "~/shared/tasks/task_filterable_time.js";
 import {TaskGridViewExpansionState} from "~/shared/tasks/task_grid_view_expansion_state.js";
@@ -97,7 +101,6 @@ import {TaskNotesContentWithReferences} from "~/shared/tasks/task_notes_content_
 import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 
 export const taskDetailViewMaxWidth: Spacing = "160";
-const taskDetailViewPaddingTop: Spacing = "5";
 
 export function TaskDetailView({
     taskSubscription,
@@ -119,7 +122,6 @@ export function TaskDetailView({
     const navigate = useNavigate();
     const context = useAppContext();
     const {timeZone} = useClientInfo();
-    const isMobile = useIsMobile();
     const {
         space: {id: spaceId},
         currentAccount,
@@ -412,6 +414,9 @@ export function TaskDetailView({
         useMemo(() => taskEntryStore.map(({task}) => !!task?.getDueDate()), [taskEntryStore]),
     );
 
+    const statusButtonRef = useRef<HTMLElement>(null);
+    const titleInputRef = useRef<TaskDetailTitleInputRef>(null);
+    const titleInputElementRef = useRef<HTMLDivElement>(null);
     const priorityInputRef = useRef<HTMLDivElement>(null);
     const dueDateInputRef = useRef<HTMLDivElement>(null);
 
@@ -621,26 +626,19 @@ export function TaskDetailView({
     ]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
-        left: isMobile && (
-            <IconButton
-                size="base"
-                description="Back"
-                withoutTooltip={true}
-                onPress={() => navigate(-1)}
-            >
-                <CaretLeft />
-            </IconButton>
-        ),
-        right: (
-            <MenuButton actions={contextMenuActions}>
-                <IconButton
-                    size={isMobile ? "base" : "md"}
-                    description="More"
-                    withoutTooltip={true}
-                >
-                    <DotsThree />
-                </IconButton>
-            </MenuButton>
+        title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
+        titleBoundaryRef: titleInputElementRef,
+        menuActions: contextMenuActions,
+        desktopControls: (
+            <TaskDetailViewStatusButton
+                elementRef={statusButtonRef}
+                size="6"
+                taskSubscription={taskSubscription}
+                undoManager={undoManager}
+                affinityManager={affinityManager}
+                isReadOnly={isReadOnly}
+                contextMenuActions={contextMenuActions}
+            />
         ),
     });
 
@@ -700,6 +698,9 @@ export function TaskDetailView({
                                             pushUndoStackEntryFromRedo={pushUndoStackEntryFromRedo}
                                             pushRedoStackEntry={pushRedoStackEntry}
                                             contextMenuActions={contextMenuActions}
+                                            statusButtonRef={statusButtonRef}
+                                            titleInputRef={titleInputRef}
+                                            titleInputElementRef={titleInputElementRef}
                                             priorityInputRef={priorityInputRef}
                                             isPriorityInputVisible={priorityInputState.isVisible}
                                             setPriorityInputState={setPriorityInputState}
@@ -811,6 +812,9 @@ function TaskDetailViewMain(
         pushUndoStackEntryFromRedo,
         pushRedoStackEntry,
         contextMenuActions,
+        statusButtonRef,
+        titleInputRef,
+        titleInputElementRef,
         priorityInputRef,
         isPriorityInputVisible,
         setPriorityInputState,
@@ -832,6 +836,9 @@ function TaskDetailViewMain(
         pushUndoStackEntryFromRedo: Memo<(entry: TaskUndoStackEntry) => void>;
         pushRedoStackEntry: Memo<(entry: TaskUndoStackEntry) => void>;
         contextMenuActions: Memo<ReadonlyArray<ReadonlyArray<MenuAction>>>;
+        statusButtonRef: RefObject<HTMLElement>;
+        titleInputRef: RefObject<TaskDetailTitleInputRef>;
+        titleInputElementRef: RefObject<HTMLDivElement>;
         priorityInputRef: Ref<HTMLDivElement>;
         isPriorityInputVisible: boolean;
         setPriorityInputState: (action: SetStateAction<TaskDetailViewInputState>) => void;
@@ -931,8 +938,6 @@ function TaskDetailViewMain(
 
     // Naming nit: An "input" is some editable component without a label. A "field"
     // is the combination of both a label and an input.
-    const statusButtonRef = useRef<HTMLElement>(null);
-    const titleInputRef = useRef<TaskDetailTitleInputRef>(null);
     const assigneeInputRef = useRef<TaskAssigneeInputRef>(null);
     const collectionsInputRef = useRef<TaskCollectionsInputRef>(null);
     const notesFieldRef = useRef<TaskDetailNotesFieldRef>(null);
@@ -967,7 +972,7 @@ function TaskDetailViewMain(
                 }
             },
         }),
-        [focusDueDateInput, focusPriorityInput],
+        [focusDueDateInput, focusPriorityInput, statusButtonRef, titleInputRef],
     );
 
     return (
@@ -1010,74 +1015,63 @@ function TaskDetailViewMain(
                     <Spacer space={navigationBarHeight} />
                 )}
                 <ContextMenuActions actions={contextMenuActions}>
-                    <Box
-                        paddingTop={taskDetailViewPaddingTop}
-                        paddingBottom="8"
-                        paddingX={paddingX}
-                        display="flex"
-                        flexDirection="column"
-                        gap="3"
-                    >
-                        {task ? (
-                            <TaskStatusButton
-                                ref={statusButtonRef}
-                                size={isMobile ? "7" : "5"}
-                                store={store}
-                                undoManager={undoManager}
-                                affinityManager={affinityManager}
-                                task={task}
-                                isDisabled={isReadOnly}
-                            />
-                        ) : (
-                            <Box
-                                ref={statusButtonRef as Ref<HTMLDivElement>}
-                                width={isMobile ? "7" : "5"}
-                                height={isMobile ? "7" : "5"}
-                                borderRadius="full"
-                                border="grey-10"
-                                pointerEvents="none"
-                            />
-                        )}
-                        <Box>
-                            <TaskDetailViewParentBreadcrumbs
-                                task={task}
-                                taskSubscription={taskSubscription}
-                            />
-                            <TaskDetailTitleInput
-                                ref={titleInputRef}
-                                isReadOnly={isReadOnly}
-                                title={task?.getTitle() ?? emptyTaskTitleModel.get()}
-                                onTitleChange={onTitleChange}
-                                placeholder={taskFallbackTitle}
-                                pushUndoStackYDocEntry={entry => {
-                                    pushUndoStackEntry({
-                                        type: "YDoc",
-                                        rootParentTaskId: taskId,
-                                        taskId,
-                                        yUndoManager: entry.yUndoManager,
-                                        release: entry.release,
-                                    });
-                                }}
-                                pushUndoStackYDocEntryFromRedo={entry => {
-                                    pushUndoStackEntryFromRedo({
-                                        type: "YDoc",
-                                        rootParentTaskId: taskId,
-                                        taskId,
-                                        yUndoManager: entry.yUndoManager,
-                                        release: entry.release,
-                                    });
-                                }}
-                                pushRedoStackYDocEntry={entry => {
-                                    pushRedoStackEntry({
-                                        type: "YDoc",
-                                        rootParentTaskId: taskId,
-                                        taskId,
-                                        yUndoManager: entry.yUndoManager,
-                                        release: entry.release,
-                                    });
-                                }}
-                            />
+                    <Box paddingBottom="10" paddingX={paddingX}>
+                        <Box
+                            height={navigationBarHeight}
+                            display="flex"
+                            alignItems="center"
+                            marginBottom="-1"
+                        >
+                            {isMobile && (
+                                <TaskDetailViewStatusButton
+                                    elementRef={statusButtonRef}
+                                    size="7"
+                                    taskSubscription={taskSubscription}
+                                    undoManager={undoManager}
+                                    affinityManager={affinityManager}
+                                    isReadOnly={isReadOnly}
+                                />
+                            )}
                         </Box>
+                        <TaskDetailViewParentBreadcrumbs
+                            task={task}
+                            taskSubscription={taskSubscription}
+                        />
+                        <TaskDetailTitleInput
+                            ref={titleInputRef}
+                            elementRef={titleInputElementRef}
+                            isReadOnly={isReadOnly}
+                            title={task?.getTitle() ?? emptyTaskTitleModel.get()}
+                            onTitleChange={onTitleChange}
+                            placeholder={taskFallbackTitle}
+                            pushUndoStackYDocEntry={entry => {
+                                pushUndoStackEntry({
+                                    type: "YDoc",
+                                    rootParentTaskId: taskId,
+                                    taskId,
+                                    yUndoManager: entry.yUndoManager,
+                                    release: entry.release,
+                                });
+                            }}
+                            pushUndoStackYDocEntryFromRedo={entry => {
+                                pushUndoStackEntryFromRedo({
+                                    type: "YDoc",
+                                    rootParentTaskId: taskId,
+                                    taskId,
+                                    yUndoManager: entry.yUndoManager,
+                                    release: entry.release,
+                                });
+                            }}
+                            pushRedoStackYDocEntry={entry => {
+                                pushRedoStackEntry({
+                                    type: "YDoc",
+                                    rootParentTaskId: taskId,
+                                    taskId,
+                                    yUndoManager: entry.yUndoManager,
+                                    release: entry.release,
+                                });
+                            }}
+                        />
                     </Box>
                 </ContextMenuActions>
                 <Box
@@ -1272,7 +1266,7 @@ function TaskDetailViewMain(
                         </TaskDetailViewDenseField>
                     )}
                 </Box>
-                <Spacer space="8" />
+                <Spacer space="10" />
                 <TaskDetailNotesField
                     ref={notesFieldRef}
                     taskId={taskId}
@@ -1286,7 +1280,7 @@ function TaskDetailViewMain(
                 />
                 {showSubtasks ? (
                     <>
-                        <Spacer space="8" />
+                        <Spacer space="10" />
                         <Box>
                             <span
                                 className={sprinkles({
@@ -1498,4 +1492,65 @@ function TaskDetailViewParentBreadcrumbs({
     }, [currentAccount.id, navigate, task, taskSubscription]);
 
     return useStore(nodeStore);
+}
+
+function TaskDetailViewNavigationBarTitle({
+    taskSubscription,
+}: {
+    taskSubscription: TaskClientTaskSubscription;
+}) {
+    const taskEntry = useStore(taskSubscription.taskEntryStore);
+    const {task} = taskEntry;
+    const titleText = addFallbackToTaskTitle(task?.getTitle().getText() ?? "");
+
+    return <>{titleText}</>;
+}
+
+function TaskDetailViewStatusButton({
+    size,
+    taskSubscription,
+    undoManager,
+    affinityManager,
+    isReadOnly,
+    elementRef,
+    contextMenuActions,
+}: {
+    size: "6" | "7";
+    taskSubscription: TaskClientTaskSubscription;
+    undoManager: TaskClientStoreUndoManager;
+    affinityManager: TaskClientStoreSearchEntityAffinityManager;
+    isReadOnly: boolean;
+    elementRef: RefObject<HTMLElement>;
+    contextMenuActions?: ReadonlyArray<ReadonlyArray<MenuAction>>;
+}) {
+    const {store} = taskSubscription;
+    const taskEntry = useStore(taskSubscription.taskEntryStore);
+    const {task} = taskEntry;
+
+    let node = task ? (
+        <TaskStatusButton
+            ref={elementRef}
+            size={size}
+            store={store}
+            undoManager={undoManager}
+            affinityManager={affinityManager}
+            task={task}
+            isDisabled={isReadOnly}
+        />
+    ) : (
+        <Box
+            ref={elementRef as Ref<HTMLDivElement>}
+            width={size}
+            height={size}
+            borderRadius="full"
+            border="grey-10"
+            pointerEvents="none"
+        />
+    );
+
+    if (contextMenuActions) {
+        node = <ContextMenuActions actions={contextMenuActions}>{node}</ContextMenuActions>;
+    }
+
+    return node;
 }

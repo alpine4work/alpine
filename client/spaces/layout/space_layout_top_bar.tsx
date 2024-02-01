@@ -4,7 +4,6 @@ import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/layout/internal/space_layout_top_bar_create_button.js";
 import {SpaceLayoutTopBarInboxButton} from "~/client/spaces/layout/internal/space_layout_top_bar_inbox_button.js";
@@ -25,8 +24,6 @@ export function SpaceLayoutTopBar({
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
     onSearchInputPress: () => void;
 }) {
-    const isMobile = useIsMobile();
-
     return (
         <Box
             flexShrink="0"
@@ -68,11 +65,7 @@ export function SpaceLayoutTopBar({
                     {space.name}
                 </Box>
             </Box>
-            {!isMobile && (
-                // NOTE(calebmer): For now the search bar looks whack on mobile. Since it's not
-                // even implemented and only used to frame the design, hide it for now.
-                <SpaceLayoutTopBarSearchInput space={space} onPress={onSearchInputPress} />
-            )}
+            <SpaceLayoutTopBarSearchInput space={space} onPress={onSearchInputPress} />
             <Box
                 width="48"
                 display="flex"

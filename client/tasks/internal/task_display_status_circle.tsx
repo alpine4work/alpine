@@ -21,6 +21,8 @@ const Box = null;
 
 const computeCircleClassName = (displayStatus: TaskDisplayStatus, isPressed: boolean) =>
     sprinkles({
+        // In case the circle is in a flexbox container, don't let it shrink.
+        flexShrink: "0",
         position: "relative",
         zIndex: "0",
         borderRadius: "full",

@@ -38,8 +38,10 @@ const Box = null;
 const TaskStatusButtonForwardRef = forwardRef(TaskStatusButton);
 export {TaskStatusButtonForwardRef as TaskStatusButton};
 
-const mobileClassNameBySize = createObjectFromKeys(["4", "5", "7"], size =>
+const mobileClassNameBySize = createObjectFromKeys(["4", "5", "6", "7"], size =>
     sprinkles({
+        // In case the circle is in a flexbox container, don't let it shrink.
+        flexShrink: "0",
         display: "flex",
         width: mobileTouchSlopBySpacing[size].sizeWithSlop,
         height: mobileTouchSlopBySpacing[size].sizeWithSlop,
@@ -49,12 +51,14 @@ const mobileClassNameBySize = createObjectFromKeys(["4", "5", "7"], size =>
     }),
 );
 
-const desktopClassNameBySize = createObjectFromKeys(["4", "5", "7"], size =>
+const desktopClassNameBySize = createObjectFromKeys(["4", "5", "6", "7"], size =>
     sprinkles({
+        // In case the circle is in a flexbox container, don't let it shrink.
+        flexShrink: "0",
         display: "flex",
         width: desktopTouchSlopBySpacing[size].sizeWithSlop,
         height: desktopTouchSlopBySpacing[size].sizeWithSlop,
-        padding: mobileTouchSlopBySpacing[size].slop,
+        padding: desktopTouchSlopBySpacing[size].slop,
         margin: `-${desktopTouchSlopBySpacing[size].slop}`,
         borderRadius: "full",
     }),
@@ -78,7 +82,7 @@ function TaskStatusButton(
         undoManager: TaskClientStoreUndoManager;
         affinityManager: TaskClientStoreSearchEntityAffinityManager;
         task: TaskModel;
-        size?: "4" | "5" | "7";
+        size?: "4" | "5" | "6" | "7";
         isDisabled?: boolean;
         isFocusable?: boolean;
         isTabbable?: boolean;

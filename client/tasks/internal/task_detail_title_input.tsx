@@ -39,6 +39,7 @@ function TaskDetailTitleInput(
         pushUndoStackYDocEntry,
         pushUndoStackYDocEntryFromRedo,
         pushRedoStackYDocEntry,
+        elementRef,
     }: {
         title: TaskTitleModel;
         onTitleChange: (titleUpdate: TaskTitleUpdate) => void;
@@ -50,6 +51,7 @@ function TaskDetailTitleInput(
             release: () => void;
         }) => void;
         pushRedoStackYDocEntry: (entry: {yUndoManager: Y.UndoManager; release: () => void}) => void;
+        elementRef: Ref<HTMLDivElement>;
     },
     ref: Ref<TaskDetailTitleInputRef>,
 ) {
@@ -240,7 +242,7 @@ function TaskDetailTitleInput(
     );
 
     return (
-        <div>
+        <div ref={elementRef}>
             <FocusRing isVisibleWhenFocusWithin>
                 <div
                     className={sprinkles({

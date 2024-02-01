@@ -232,19 +232,21 @@ export default function SpaceLayoutRoute() {
     if (!nativeMobileRouterState) {
         nodes.push(
             <div key={nodeKey++} className={outletContainerClassName} style={outletContainerStyle}>
-                <SpaceLayoutTopBar
-                    space={space}
-                    initialInbox={inbox}
-                    onSearchInputPress={() => {
-                        // Don't open the search modal on mobile.
-                        if (isMobile) return;
+                {!isMobile && (
+                    <SpaceLayoutTopBar
+                        space={space}
+                        initialInbox={inbox}
+                        onSearchInputPress={() => {
+                            // Don't open the search modal on mobile.
+                            if (isMobile) return;
 
-                        setSearchState(searchState => {
-                            if (searchState) return searchState;
-                            return {initialQueryText: ""};
-                        });
-                    }}
-                />
+                            setSearchState(searchState => {
+                                if (searchState) return searchState;
+                                return {initialQueryText: ""};
+                            });
+                        }}
+                    />
+                )}
                 {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
             </div>,
         );

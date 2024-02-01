@@ -239,8 +239,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 let lastNavigationBarTopOffset = self.lastNavigationBarTopOffset
                 self.lastNavigationBarTopOffset = navigationBarTopOffset
 
-                let animateNavigationBarTranslateY =
-                    navigationBarTopOffset - lastNavigationBarTopOffset
+                let _ = lastNavigationBarTopOffset
 
                 // The following is only in native code: Actually animate the tab bar into
                 // position after our timeout has fired. Web code needs to wait for a React
@@ -260,10 +259,9 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                         (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
 
                     UIView.animate(
-                        withDuration: abs(animateNavigationBarTranslateY)
-                            / navigationBarRevealOrHideAnimationSpeed,
+                        withDuration: navigationBarRevealOrHideAnimationDurationSeconds,
                         delay: 0,
-                        options: .curveLinear,
+                        options: .curveEaseIn,
                         animations: { [self] in tabBar.frame.origin.y = tabBarFrameOriginY },
                         completion: { [self] (finished) in
                             // Make sure even if the animation was cancelled we set the correct

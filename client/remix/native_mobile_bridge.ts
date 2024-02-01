@@ -8,6 +8,19 @@
 // of our app whereas `client/helpers` should be more generic.
 export const NativeMobileBridge: {
     /**
+     * Get our native mobile app safe area insets from JavaScript. You may also
+     * access these insets from CSS with the variables `--safe-area-inset-*`.
+     */
+    readonly safeArea: {
+        getInset(): {
+            readonly top: number;
+            readonly bottom: number;
+            readonly left: number;
+            readonly right: number;
+        };
+    };
+
+    /**
      * Properly managing navigation for our native mobile apps is a challenging
      * problem. Since navigation responsibilities are shared between web code and
      * native code. Native code is responsible for animating between routes and

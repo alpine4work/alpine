@@ -342,6 +342,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     styleElement.innerHTML = styleString;
                     document.head.appendChild(styleElement);
                 }
+
+                window.__NativeMobileBridge.safeArea._inset = {
+                    top: \(safeAreaInsets.top),
+                    bottom: \(safeAreaInsets.bottom),
+                    left: \(safeAreaInsets.left),
+                    right: \(safeAreaInsets.right),
+                };
             }
             """
 
@@ -624,6 +631,12 @@ private let bridgeSource = """
         const navigationExternalPopListeners = new Set();
 
         const NativeMobileBridge = {
+            safeArea: {
+                _inset: {top: 0, bottom: 0, left: 0, right: 0},
+                getInset: () => {
+                    return NativeMobileBridge.safeArea._inset;
+                },
+            },
             navigation: {
                 preparePush: () => {
                     prompt("%%%navigation.preparePush");
