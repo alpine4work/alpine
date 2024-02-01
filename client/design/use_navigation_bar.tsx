@@ -49,7 +49,7 @@ const initialScrollDirectionState: ScrollDirectionState = {
 /**
  * The height of our navigation bar.
  */
-export const navigationBarHeight = "9";
+export const navigationBarHeight = "10";
 const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]);
 
 {
@@ -59,7 +59,7 @@ const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]
     // We have an assertion below to make sure this value always equals the
     // navigation bar's pixel height on mobile devices. After converting `Spacing`
     // to an actual value and applying the rem pixel count.
-    const mobileNavigationBarHeight = 45;
+    const mobileNavigationBarHeight = 50;
 
     assert(mobileNavigationBarHeight === navigationBarHeightRem * remPxByPlatform.mobile);
 }
