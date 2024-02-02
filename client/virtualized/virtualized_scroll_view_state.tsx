@@ -1120,6 +1120,15 @@ export class VirtualizedScrollViewState {
                 }
             }
 
+            // Optimization: If rendered range didn't change, don't create a new
+            // state object.
+            if (
+                newRenderedRangeStartOrderKey === state._renderedRange?.startOrderKey &&
+                newRenderedRangeEndOrderKey === state._renderedRange.endOrderKey
+            ) {
+                return state;
+            }
+
             return new VirtualizedScrollViewState({
                 viewHeight: state._viewHeight,
                 bufferedItemHeight: state._bufferedItemHeight,
