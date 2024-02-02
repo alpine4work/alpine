@@ -15,5 +15,5 @@ const navigationBarTitleFadeOutKeyframes = keyframes({
 });
 
 export const navigationBarTitleFadeOutAnimationClassName = style({
-    animation: `${navigationBarTitleFadeOutKeyframes} 200ms ease-out forwards`,
+    animation: `${navigationBarTitleFadeOutKeyframes} 200ms ease-in forwards`,
 });
