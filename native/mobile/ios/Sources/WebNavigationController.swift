@@ -94,7 +94,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // NOCOMMIT: Stop navigation out of `/sign-in` routes.
 
-        webView = WKWebView(frame: view.bounds, configuration: webConfiguration)
+        let webView = WKWebView(frame: view.bounds, configuration: webConfiguration)
+        self.webView = webView
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         webView.navigationDelegate = self
         webView.uiDelegate = self
@@ -102,6 +103,44 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Remove the accessory view with arrow up/down and "done" buttons. While
         // useful for web forms, users don't expect this in a native mobile app.
         swizzleWebViewInputAccessoryView(webView)
+
+        // Completely disable iOS WebKit's software keyboard handling. It's a mess. See
+        // `useMobileWebKitKeyboardSupport()` in `s.$spaceId.tsx` for how we make it
+        // work in the Safari browser which we don't control. However, in our native
+        // mobile app we have pretty broad control. We'll manually implement keyboard
+        // support from here.
+        //
+        // I got the idea from this StackOverflow question:
+        // https://stackoverflow.com/a/63136483/1568890
+        //
+        // Then I looked at the WebKit source code to get a comprehensive list of
+        // keyboard notifications WebKit observes:
+        // https://github.com/WebKit/WebKit/blob/39f36da26b7671d55bc256f852cc652255d1328b/Source/WebKit/UIProcess/API/ios/WKWebViewIOS.mm#L212-L216
+        NotificationCenter.default.removeObserver(
+            webView,
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            webView,
+            name: UIResponder.keyboardDidChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            webView,
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            webView,
+            name: UIResponder.keyboardDidShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            webView,
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
 
         // Enable developer tool usage in development environments.
         #if DBG_COMPILATION_MODE || DEVELOPMENT_RUN_ENVIRONMENT

@@ -26,6 +26,7 @@ import {useLocalStorage} from "~/client/helpers/use_local_storage.js";
 import {PeekStackContextProvider, PeekStackContextProviderRef} from "~/client/peek/peek_stack.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {getLoaderDataWithSchema} from "~/client/remix/get_loader_data_with_schema.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
@@ -573,6 +574,14 @@ function useMobileWebKitKeyboardSupport() {
 
     useEffect(() => {
         if (!isMobileWebKit) return;
+
+        // Don't install WebKit keyboard support in our native mobile app since we
+        // completely disable WebKit's keyboard behavior there. Opting to implement our
+        // own keyboard support for native mobile apps.
+        //
+        // Notably we'd like to avoid a `touchmove` handler with `{ passive: false }`
+        // to improve touch interaction performance.
+        if (NativeMobileBridge) return;
 
         const handleResize = () => {
             // iOS will scroll the `html` element when the software keyboard opens even
