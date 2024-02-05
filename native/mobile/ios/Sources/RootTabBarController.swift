@@ -50,7 +50,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         webNavigationController = WebNavigationController(
             // NOCOMMIT: Proper initial path. Just for debugging
             // initialPath: "/s/\(spaceId)/tasks/wstgc96gen6yp2zfetsksmg4t0",
-            initialPath: "/s/\(spaceId)/tasks/aqz6s9yy1c8vwzpqvf8ngxjma0",
+            // initialPath: "/s/\(spaceId)/tasks/aqz6s9yy1c8vwzpqvf8ngxjma0",
+            initialPath: "/s/\(spaceId)/chat/with/2wf86qqvavtzkgatx9czwbtcb8",
             websiteDataStore: websiteDataStore
         )
 

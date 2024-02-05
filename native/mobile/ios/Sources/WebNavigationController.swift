@@ -256,18 +256,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 delegate: self
             )
 
-            let safeAreaInsets = getSafeAreaInsets()
-
-            // Whenever a new scroll view is added to our web view, set the current scroll
-            // indicator insets.
-            scrollView.automaticallyAdjustsScrollIndicatorInsets = false
-            scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
-                top: safeAreaInsets.top + navigationBarHeight,
-                left: safeAreaInsets.left,
-                bottom: safeAreaInsets.bottom,
-                right: safeAreaInsets.right
-            )
-
+            setWebScrollViewScrollIndicatorInsets(scrollView)
         }
     }
 
@@ -310,21 +299,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
         self.windowSafeAreaInsets = windowSafeAreaInsets
 
-        let safeAreaInsets = getSafeAreaInsets()
-
         // Whenever the safe area changes, update the scroll indicator inset for the
         // scroll views that are currently mounted.
-        for scrollView in webScrollViews.keys {
-            scrollView.automaticallyAdjustsScrollIndicatorInsets = false
-            scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
-                top: safeAreaInsets.top + navigationBarHeight,
-                left: safeAreaInsets.left,
-                bottom: safeAreaInsets.bottom,
-                right: safeAreaInsets.right
-            )
-        }
+        for scrollView in webScrollViews.keys { setWebScrollViewScrollIndicatorInsets(scrollView) }
 
         if !hasInitialWebViewNavigationCommit { return }
+
+        let safeAreaInsets = getSafeAreaInsets()
 
         let styleString =
             ":root { --safe-area-inset-top: \(safeAreaInsets.top)px; --safe-area-inset-bottom: \(safeAreaInsets.bottom)px; --safe-area-inset-left: \(safeAreaInsets.left)px; --safe-area-inset-right: \(safeAreaInsets.right)px }"
@@ -353,6 +334,54 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             """
 
         webView.evaluateJavaScript(source)
+    }
+
+    private func setWebScrollViewScrollIndicatorInsets(_ scrollView: UIScrollView) {
+        actuallySetWebScrollViewScrollIndicatorInsets(scrollView)
+
+        // When this function is called with a `scrollView`, WebKit may not have
+        // finished laying everything out. However, to correctly set insets we need the
+        // view's frame size. Effectively, what I want here is the equivalent of
+        // `scheduleMicrotask()` in JavaScript. I want to call a function at the end of
+        // the current call stack. (Assuming layout happens during this callstack.) The
+        // best option I found after a bit of research is using [GCD][1].
+        //
+        // [1]: https://developer.apple.com/documentation/DISPATCH
+        DispatchQueue.main.async { [self] in
+            actuallySetWebScrollViewScrollIndicatorInsets(scrollView)
+        }
+    }
+
+    private func actuallySetWebScrollViewScrollIndicatorInsets(_ scrollView: UIScrollView) {
+        let safeAreaInsets = getSafeAreaInsets()
+
+        // Calculate the insets of the scroll view. We shouldn't apply safe area insets
+        // further than how much we're already inset.
+        var top = 0.0
+        var bottom = 0.0
+
+        var currentViewState: UIView? = scrollView
+        while let currentView = currentViewState {
+            if let currentSuperview = currentView.superview {
+                top += currentView.frame.origin.y
+
+                let currentBottom =
+                    currentSuperview.frame.origin.y + currentSuperview.frame.height
+                    - (currentView.frame.origin.y + currentView.frame.height)
+
+                bottom += currentBottom
+            }
+
+            currentViewState = currentView.superview
+        }
+
+        scrollView.automaticallyAdjustsScrollIndicatorInsets = false
+        scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
+            top: max(0, safeAreaInsets.top + navigationBarHeight - top),
+            left: safeAreaInsets.left,
+            bottom: max(0, safeAreaInsets.bottom - bottom),
+            right: safeAreaInsets.right
+        )
     }
 
     override func pushViewController(_ viewController: UIViewController, animated: Bool) {
