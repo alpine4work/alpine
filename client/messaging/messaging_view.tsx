@@ -370,7 +370,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
     const context = useAppContext();
     const viewRef = useRef<VirtualizedScrollViewRef>(null);
 
-    const paddingX: Spacing = isMobile ? "3" : "5";
+    const paddingX: Spacing = isMobile ? "4" : "5";
 
     const [messagesWithoutHeader, setMessages] = useState(() => {
         const messages = MessageList.new<Message>({
