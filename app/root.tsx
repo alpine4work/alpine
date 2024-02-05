@@ -219,7 +219,9 @@ export default function Root() {
         document.title = title;
     }, []);
 
-    const outletContainerStyle = {minHeight: "100vh"};
+    const outletContainerStyle = {
+        // minHeight: "100svh",
+    };
 
     if (!nativeMobileRouterState) {
         nodes.push(

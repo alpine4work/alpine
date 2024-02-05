@@ -26,10 +26,11 @@ export function useResizeObserver(): [
     const ref = useLifecycleRef<HTMLElement>(
         useCallback(element => {
             const listener = () => {
-                const newContentRect = {
-                    height: element.offsetHeight,
-                    width: element.offsetWidth,
-                };
+                // We must use `getBoundingClientRect()` so we get sub-pixel sizes.
+                // `offsetHeight` is rounded to an integer.
+                const {height, width} = element.getBoundingClientRect();
+
+                const newContentRect = {height, width};
                 setContentRect(contentRect => {
                     return newContentRect.height !== contentRect?.height ||
                         newContentRect.width !== contentRect.width
@@ -104,6 +105,12 @@ function createResizeObserver() {
             )
         ) {
             event.preventDefault();
+        } else if (process.env.NODE_ENV !== "production") {
+            // eslint-disable-next-line no-console
+            console.error(
+                "Resized element(s) that generated the below ResizeObserver error:",
+                Array.from(lastEntryTargets),
+            );
         }
     };
 

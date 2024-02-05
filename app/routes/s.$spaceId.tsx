@@ -1,6 +1,7 @@
 import {Outlet, ShouldRevalidateFunction} from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
-import {Component, ReactNode, useContext, useEffect, useMemo, useRef} from "react";
+import {Component, ReactNode, useContext, useEffect, useMemo, useRef, useState} from "react";
+import {flushSync} from "react-dom";
 import {
     UNSAFE_DataRouterStateContext as DataRouterStateContext,
     useLocation,
@@ -16,6 +17,7 @@ import {
     attachDevConsoleForAccountInProduction,
     useDevConsoleTool,
 } from "~/client/dev/dev_console.js";
+import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
@@ -49,7 +51,7 @@ import {
     standardSearchOptions,
 } from "~/shared/search/search_options.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
-import {sprinkles} from "~/shared/styles/styles.js";
+import {colorSchemeVars, sprinkles} from "~/shared/styles/styles.js";
 import {TracerEventData} from "~/shared/tracer/types/tracer_event_data.js";
 
 export const LoaderSchema = Schema.object({
@@ -60,10 +62,22 @@ export const LoaderSchema = Schema.object({
 
 export function links(): Array<LinkDescriptor> {
     return [
-        // Turn off scrolling on `body` when in a space which comes with a top bar.
-        // This prevents over-scrolling up and down when at the top or bottom of a
-        // nested scroll view.
-        {rel: "stylesheet", href: `data:text/css,${encodeURIComponent("body {overflow: hidden}")}`},
+        // Rationale for the styles here:
+        //
+        // - `overflow: hidden`: Turn off scrolling on `body` when in a space which
+        //   comes with a top bar. This prevents over-scrolling up and down when at the
+        //   top or bottom of a nested scroll view.
+        //
+        // - `background-color: ${colorSchemeVars["grey-0"]} !important`: Override
+        //   the default `grey-wash` background color with `grey-0` so when
+        //   overscrolling you get the same color as the navigation bar and tab bar.
+        //   We set the `grey-wash` background color on our outlet container.
+        {
+            rel: "stylesheet",
+            href: `data:text/css,${encodeURIComponent(
+                `html, body {overflow: hidden; background-color: ${colorSchemeVars["grey-0"]} !important}`,
+            )}`,
+        },
     ];
 }
 
@@ -152,6 +166,8 @@ export default function SpaceLayoutRoute() {
         attachDevConsoleForAccountInProduction(currentAccount);
     }, [currentAccount]);
 
+    const {resizedWindowHeightForMobileWebKit} = useMobileWebKitKeyboardSupport();
+
     const [searchState, setSearchState] = useStateWithDependencies<
         {initialQueryText: string} | null,
         [string, boolean]
@@ -225,9 +241,19 @@ export default function SpaceLayoutRoute() {
         overflow: "hidden",
         position: "relative",
         zIndex: "0",
+        backgroundColor: "grey-wash",
     });
 
-    const outletContainerStyle = {height: "100vh"};
+    // `height` is not a typo here. Even though all our containers (e.g. `html` and
+    // `body`) use `minHeight`. For space content, we use nested scroll views when
+    // we need to scroll instead of body scrolling. See how body scrolling is
+    // disabled with `body {overflow: hidden}` in the `links()` function above.
+    //
+    // 100svh is the default so our content isn't occluded by browser navigation
+    // elements on mobile devices. (Like the URL bar.)
+    const outletContainerStyle = {
+        height: resizedWindowHeightForMobileWebKit ?? "100svh",
+    };
 
     if (!nativeMobileRouterState) {
         nodes.push(
@@ -455,4 +481,172 @@ class SearchModalErrorBoundary extends Component<{children: ReactNode}> {
     public override render() {
         return this.props.children;
     }
+}
+
+/**
+ * The iOS Safari support for the software keyboard is frustrating. It forces
+ * the web page into a state which breaks our assumptions of how a web browser
+ * should work, it's observable through (at times) inconsistent means, and
+ * lacks any customization.
+ *
+ * Proper keyboard support for our product requires a couple arcane tricks.
+ *
+ * Two excellent blog posts document the issues with the iOS Safari keyboard.
+ * “[The Eccentric Ways of iOS Safari with the Keyboard][1]” and “[Fixing the
+ * Safari Mobile Resizing Bug: A Developer’s Guide][2]”. It is easy reading
+ * these posts then working with our code to feel hopeless, but don't feel
+ * broken dear developer! You are a software engineer, you are a master of
+ * your programming environment. Anything you dream can happen on a screen you
+ * can make happen with enough time. This is a battle with Apple's willful
+ * ignorance of advanced web programming. There's no rule that says we can't
+ * make this work, so let's make it work.
+ *
+ * Now, at the core of the problem is how iOS Safari chooses to accommodate the
+ * software keyboard with websites. Most websites are not designed with the iOS
+ * software keyboard in mind. So Apple needed to choose behavior for their
+ * keyboard that would work good enough with all the websites out there. The
+ * method they chose is to have the keyboard push the web view up instead of
+ * shrinking the web view when the keyboard opens. They also scroll the
+ * web view to make sure they didn't push the content the user tapped
+ * offscreen.
+ *
+ * This is good for fluid animation performance. Slow JavaScript code
+ * responding to window resizing may make the website feel broken. However,
+ * this leads to the weird experience of the website's sticky navigation
+ * headers being moved offscreen. Which doesn't happen in native apps.
+ *
+ * Since part of the website is offscreen, iOS needs to let the user scroll to
+ * see it so Safari OVERRIDES any `body { overflow: hidden }` CSS. Given Alpine
+ * completely disables body scrolling in a space, instead adding scroll
+ * sub-views this is a problem. There are two competing scroll bars! One for the
+ * main content, one for the `html` element.
+ *
+ * So, in short what we need to do is:
+ *
+ * 1. Detect the actual displayed size of the web view and render our content
+ *    in that space (instead of the full shifted web view space)
+ *
+ * 2. Enforce our `body { overflow: hidden }` and stop the user from scrolling
+ *    the `html` element.
+ *
+ * To accomplish these two goals our implementation:
+ *
+ * 1. Can't rely on `height: 100svh` or `height: 100%` to get the height.
+ *    However, `window.visualViewport.height` and `window.innerHeight` appear
+ *    to have the right value. (Though the blog posts we link claim
+ *    `window.innerHeight` has different behavior in different versions of
+ *    iOS.)
+ *
+ *    We can observe changes to height with a `resize` listener on
+ *    `window.visualViewport` but a resize listener on `window` doesn't fire,
+ *    frustratingly. We put the correct height in React state and render our
+ *    container element with that height (instead of 100svh).
+ *
+ * 2. Adds a non-passive `touchmove` event handler that calls
+ *    `event.preventDefault()` if the user moves their touch in a
+ *    non-scrollable element. Since the scroll event would bubble to the `html`
+ *    element otherwise.
+ *
+ *    We allow `touchmove` events in scrollable elements. However, then
+ *    overscroll is a problem! If the user reaches the end of a scrollable
+ *    element then they start scrolling a parent element. This is fixed by
+ *    [`overscroll-behavior: contain`][3] which means we need to set
+ *    `overscroll-behavior: contain` on _every scrollable element_. We make
+ *    this happen with our Sprinkles CSS framework. `overflowY: "auto"` also
+ *    adds `overscrollBehavior: "contain"`.
+ *
+ * This leads to the behavior we want when the keyboard is opened/closed but
+ * the keyboard open/close animation looks terrible. The keyboard opens and
+ * sometime before/during/after the animation content jumps into the right
+ * position.
+ *
+ * [1]: https://blog.opendigerati.com/the-eccentric-ways-of-ios-safari-with-the-keyboard-b5aa3f34228d
+ * [2]: https://medium.com/@krutilin.sergey.ks/fixing-the-safari-mobile-resizing-bug-a-developers-guide-6568f933cde0
+ * [3]: https://developer.mozilla.org/en-US/docs/Web/CSS/overscroll-behavior
+ */
+// NOCOMMIT: Native should support fluid keyboard opening animations. Document
+// how we made that work.
+function useMobileWebKitKeyboardSupport() {
+    const [resizedWindowHeightForMobileWebKit, setResizedWindowHeightForMobileWebKit] = useState<
+        number | null
+    >(null);
+
+    useEffect(() => {
+        if (!isMobileWebKit) return;
+
+        const handleResize = () => {
+            // iOS will scroll the `html` element when the software keyboard opens even
+            // though we have `html, body { overflow: hidden }` set. Immediately unset the
+            // scroll.
+            document.documentElement.scrollTop = 0;
+
+            // Since the resize may be a part of an animation, immediately update the
+            // view height.
+            flushSync(() => {
+                setResizedWindowHeightForMobileWebKit(
+                    window.visualViewport?.height ?? window.innerHeight,
+                );
+            });
+        };
+
+        const handleTouchMove = (event: TouchEvent) => {
+            if (!(event.target instanceof Node)) {
+                event.preventDefault();
+                return;
+            }
+
+            // We cache the `overflow-y` parent for the event target because this handler
+            // needs to run very fast given `{passive: false}` is set. Otherwise
+            // interaction performance (e.g. scroll performance) will be hurt.
+            let overflowYParent = overflowYParentCache.get(event.target);
+            if (overflowYParent === undefined) {
+                overflowYParent = getOverflowYParent(event.target);
+                overflowYParentCache.set(event.target, overflowYParent);
+            }
+
+            const hasScrollableOverflowYParent =
+                !!overflowYParent &&
+                (overflowYParent.overflowY !== "auto" ||
+                    overflowYParent.element.scrollHeight > overflowYParent.element.clientHeight);
+
+            if (!hasScrollableOverflowYParent) {
+                event.preventDefault();
+                return;
+            }
+        };
+
+        // NOCOMMIT: Should scroll up chat when opened
+
+        const overflowYParentCache = new WeakMap<
+            Node,
+            {element: HTMLElement; overflowY: "scroll" | "auto"} | null
+        >();
+
+        const getOverflowYParent = (
+            node: Node,
+        ): {element: HTMLElement; overflowY: "scroll" | "auto"} | null => {
+            let element = node instanceof HTMLElement ? node : node.parentElement;
+
+            while (element) {
+                const {overflowY} = getComputedStyle(element);
+
+                if (overflowY === "scroll" || overflowY === "auto") {
+                    return {element, overflowY};
+                }
+
+                element = element.parentElement;
+            }
+
+            return null;
+        };
+
+        (window.visualViewport ?? window).addEventListener("resize", handleResize);
+        document.addEventListener("touchmove", handleTouchMove, {passive: false});
+        return () => {
+            (window.visualViewport ?? window).removeEventListener("resize", handleResize);
+            document.removeEventListener("touchmove", handleTouchMove);
+        };
+    }, []);
+
+    return {resizedWindowHeightForMobileWebKit};
 }

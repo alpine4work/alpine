@@ -7,6 +7,10 @@ import {unstable_ImmediatePriority, unstable_runWithPriority} from "scheduler";
  *
  * Use this instead of manually calling `unstable_runWithPriority()` from
  * `scheduler` since it handles some React quirks.
+ *
+ * @deprecated Didn't realize React has a `flushSync()` function. Use that.
+ * Can't replace existing calls until we confirm `flushSync()` has the same
+ * behavior as this function.
  */
 // TODO(calebmer, 2023-01-18): Wow, I just noticed React has a [`flushSync()`
 // API][1]. This is probably an exact replacement for this function. Explore

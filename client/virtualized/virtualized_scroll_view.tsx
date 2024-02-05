@@ -1388,8 +1388,16 @@ function VirtualizedScrollView(
             });
         };
 
+        // If the scroll element height changes we immediately re-render our
+        // virtualized scroll view with the new height which may change the layout of
+        // any number of elements (e.g. the virtualization window changes so we render
+        // new items with new heights).
+        addSuppressResizeLoopErrorNotificationForElement(scrollElement);
+
         addResizeListenerForElement(scrollElement, handleResize);
+
         return () => {
+            removeSuppressResizeLoopErrorNotificationForElement(scrollElement);
             removeResizeListenerForElement(scrollElement, handleResize);
         };
     });

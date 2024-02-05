@@ -112,7 +112,7 @@ export default function SignInPage() {
                 paddingRight: "var(--safe-area-inset-right, 0px)",
                 // Fill the entire viewport height. `minHeight: 100%` only fills the area that
                 // doesn't conflict with the safe area inset.
-                minHeight: "100vh",
+                minHeight: "100lvh",
             }}
         >
             <main

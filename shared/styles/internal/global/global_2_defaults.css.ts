@@ -53,7 +53,9 @@ globalStyle("body", {
 });
 
 globalStyle("html, body", {
-    minHeight: "100vh",
+    // Use svh so our content fits even when there's content like a URL bar on
+    // iOS Safari.
+    minHeight: "100svh",
 });
 
 globalStyle("*", {

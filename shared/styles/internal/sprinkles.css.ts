@@ -38,9 +38,33 @@ import {fontSizes, fontStyles} from "~/shared/styles/internal/fonts.css.js";
 
 const properties = defineProperties({
     properties: {
-        overflow: {auto: "auto", hidden: "hidden", visible: "visible", scroll: "scroll"},
-        overflowX: {auto: "auto", hidden: "hidden", visible: "visible", scroll: "scroll"},
-        overflowY: {auto: "auto", hidden: "hidden", visible: "visible", scroll: "scroll"},
+        // Wherever we have `overflow: "auto"` or `overflow: "scroll"` also add
+        // `overscrollBehavior: "contain"` to prevent scroll chaining. This is
+        // generally a better user experience for elements like drop down menus and
+        // modals which is why we make it the default.
+        //
+        // It's especially important, however, on iOS Safari when the keyboard is open.
+        // iOS Safari is annoying and makes the `html` element unconditionally
+        // scrollable when the keyboard is open. So if the user scrolls a scrollable
+        // element we can't let overscroll affect the newly scrollable `html` element.
+        overflow: {
+            auto: {overflow: "auto", overscrollBehavior: "contain"},
+            hidden: "hidden",
+            visible: "visible",
+            scroll: {overflow: "scroll", overscrollBehavior: "contain"},
+        },
+        overflowX: {
+            auto: {overflowX: "auto", overscrollBehavior: "contain"},
+            hidden: "hidden",
+            visible: "visible",
+            scroll: {overflowX: "scroll", overscrollBehavior: "contain"},
+        },
+        overflowY: {
+            auto: {overflowY: "auto", overscrollBehavior: "contain"},
+            hidden: "hidden",
+            visible: "visible",
+            scroll: {overflowY: "scroll", overscrollBehavior: "contain"},
+        },
         position: {
             static: "static",
             relative: "relative",

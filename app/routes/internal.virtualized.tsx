@@ -27,7 +27,7 @@ export default function VirtualizedScrollViewDesignPlaygroundPage() {
                 flexDirection: "column",
                 position: "relative",
             })}
-            style={{height: "100vh"}}
+            style={{height: "100svh"}}
         >
             <Box
                 flexShrink="0"
