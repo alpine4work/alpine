@@ -49,10 +49,12 @@ import {MutexValue} from "~/shared/helpers/async/mutex_value.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
 import {runAllPromises} from "~/shared/helpers/async/run_all_promises.js";
 import {runPromiseWithoutAwaiting} from "~/shared/helpers/async/run_promise_without_awaiting.js";
+import {scheduleMacrotask} from "~/shared/helpers/async/schedule_macrotask.js";
 import {scheduleUncaughtError} from "~/shared/helpers/async/schedule_uncaught_error.js";
 import {wait} from "~/shared/helpers/async/wait.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {flatMapIterable} from "~/shared/helpers/iterable/flat_map_iterable.js";
 import {getOrSetDefaultMapValue} from "~/shared/helpers/map/get_or_set_default_map_value.js";
 import {quote} from "~/shared/helpers/string/quote.js";
 import {Id} from "~/shared/id/id.js";
@@ -640,6 +642,8 @@ async function pauseFileUpdates<Value>(action: () => Promise<Value>): Promise<Va
     }
 }
 
+let scheduledProcessFileUpdatePaths: Set<string> | null = null;
+
 /**
  * Whenever a file updates, rebuild any packages that depend on the file.
  *
@@ -652,33 +656,56 @@ function processFileUpdate(path: string) {
         return;
     }
 
-    const bazelPackage = getBazelPackageByAbsoluteFilePath(path);
+    if (scheduledProcessFileUpdatePaths === null) {
+        scheduledProcessFileUpdatePaths = new Set();
+        scheduleMacrotask(() => {
+            assert(scheduledProcessFileUpdatePaths !== null);
+
+            const paths = scheduledProcessFileUpdatePaths;
+            scheduledProcessFileUpdatePaths = null;
+            actuallyProcessFileUpdates(paths);
+        });
+    }
+
+    // If many files updated at once (e.g. because of a `git checkout`), we want to
+    // process them in a batch. Not individually.
+    scheduledProcessFileUpdatePaths.add(path);
+}
+
+function actuallyProcessFileUpdates(paths: Set<string>) {
+    const artifacts = new Set(
+        flatMapIterable(paths, path =>
+            getBazelPackageByAbsoluteFilePath(path).dependentArtifactByBazelTarget.values(),
+        ),
+    );
 
     // Rebuild all targets that depend on this package...
     runPromiseWithoutAwaiting(async () => {
-        await runAllPromises(
-            Array.from(bazelPackage.dependentArtifactByBazelTarget.values(), rebuildArtifact),
-        );
+        await runAllPromises(Array.from(artifacts, rebuildArtifact));
     });
 
-    const pathName = basename(path);
+    for (const path of paths) {
+        const pathName = basename(path);
 
-    // If some build file changed then not only do we need to rebuild dependent
-    // targets, but we also may need to update the dependent target's dependencies
-    // since a build file change may add or remove dependencies.
-    if (pathName === "BUILD.bazel" || pathName === "BUILD") {
-        // If the build file was deleted, remove it from our `bazelPackageByPath` map.
-        if (!fs.existsSync(path)) {
-            bazelPackageByPath.set(bazelPackage.path, null);
+        // If some build file changed then not only do we need to rebuild dependent
+        // targets, but we also may need to update the dependent target's dependencies
+        // since a build file change may add or remove dependencies.
+        if (pathName === "BUILD.bazel" || pathName === "BUILD") {
+            const bazelPackage = getBazelPackageByAbsoluteFilePath(path);
+
+            // If the build file was deleted, remove it from our `bazelPackageByPath` map.
+            if (!fs.existsSync(path)) {
+                bazelPackageByPath.set(bazelPackage.path, null);
+            }
+
+            runPromiseWithoutAwaiting(async () => {
+                await runAllPromises(
+                    Array.from(
+                        bazelPackage.dependentArtifactByBazelTarget.values(),
+                        updateArtifactDependencyBazelPackagePaths,
+                    ),
+                );
+            });
         }
-
-        runPromiseWithoutAwaiting(async () => {
-            await runAllPromises(
-                Array.from(
-                    bazelPackage.dependentArtifactByBazelTarget.values(),
-                    updateArtifactDependencyBazelPackagePaths,
-                ),
-            );
-        });
     }
 }
