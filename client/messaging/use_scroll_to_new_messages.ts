@@ -82,12 +82,6 @@ export function useScrollToNewMessages<Message extends MessageModel>({
                 if (item.type === "TypingIndicators") newTypingIndicatorsHeight += position.height;
             }
 
-            // If this render removed our typing indicator then we want to scroll the
-            // difference of the old typing indicator height and the new message replacing
-            // the typing indicator.
-            if (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem)
-                newItemsHeight -= lastTypingIndicatorsHeight;
-
             lastTypingIndicatorsHeightRef.current = newTypingIndicatorsHeight;
 
             // No new comments were found.
@@ -105,6 +99,12 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             const maybeNewScrollOffset =
                 view.getScrollOffset() +
                 newItemsHeight -
+                // If this render removed our typing indicator then we want to scroll the
+                // difference of the old typing indicator height and the new message replacing
+                // the typing indicator.
+                (lastHasTypingIndicatorsItem && !hasTypingIndicatorsItem
+                    ? lastTypingIndicatorsHeight
+                    : 0) -
                 // When a new message is added we also remove some margin from the previous
                 // message. Adjust our new scroll height so we don't overshoot and consider the
                 // fact that some margin is lost.
@@ -121,6 +121,7 @@ export function useScrollToNewMessages<Message extends MessageModel>({
             // posts which have a sticky comment input that occludes comments in the view.
             const viewHeightWithoutStickyInput =
                 view.getHeight() - convertRemLengthToPx(stickyInputHeight, remPx);
+
             if (
                 // If the new messages are completely visible with our existing scroll offset
                 // then don't perform an adjustment.

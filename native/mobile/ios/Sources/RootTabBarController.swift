@@ -216,8 +216,6 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // in web code but fractional in native code.
         let scrollOffset = max(0, round(scrollView.contentOffset.y))
 
-        // NOCOMMIT: Scroll view not moving down when there's a new chat message
-
         // Sometimes native code sends us a scroll event twice for the same scroll
         // offset. Since scroll offsets may not be integers (e.g. 574.3333) this may be
         // the fractional part changing but when rounded there's no change. Whatever
