@@ -4,11 +4,15 @@ import WebKit
 @objc protocol WebNavigationControllerDelegate {
     @objc optional func webNavigationController(
         _ navigationController: WebNavigationController,
-        didAddScrollView webScrollView: UIScrollView
+        didAddWebScrollView webScrollView: UIScrollView
     )
     @objc optional func webNavigationController(
         _ navigationController: WebNavigationController,
-        didScroll webScrollView: UIScrollView
+        didScrollWebScrollView webScrollView: UIScrollView
+    )
+    @objc optional func webNavigationController(
+        _ navigationController: WebNavigationController,
+        didWebScrollViewContentSizeChange webScrollView: UIScrollView
     )
     @objc optional func webNavigationController(
         runScrollDebounceTimeout navigationController: WebNavigationController
@@ -200,11 +204,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     required init(coder: NSCoder) { fatalError("Unimplemented") }
 
-    /// Is the provided scroll view the root document scroll view?
-    func isRootWebScrollView(_ webScrollView: UIScrollView) -> Bool {
-        return webView.scrollView === webScrollView
-    }
-
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async
         -> WKNavigationActionPolicy
     {
@@ -355,15 +354,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             DispatchQueue.main.async(execute: execute)
         }
 
-        if let webScrollView = webSubview as? UIScrollView {
+        // Don't include `webView.scrollView` in `webScrollViews`.
+        if let webScrollView = webSubview as? UIScrollView, webScrollView !== webView.scrollView {
             webScrollViews[webScrollView] = UIScrollViewDelegateForwarder(
                 scrollView: webScrollView,
                 delegate: self
             )
 
+            webScrollView.addObserver(self, forKeyPath: "contentSize", options: [], context: nil)
+
             schedule { [self] in
                 setWebScrollViewScrollIndicatorInsets(webScrollView)
-                webDelegate?.webNavigationController?(self, didAddScrollView: webScrollView)
+                webDelegate?.webNavigationController?(self, didAddWebScrollView: webScrollView)
             }
         }
 
@@ -419,7 +421,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             DispatchQueue.main.async(execute: execute)
         }
 
-        if let webScrollView = webSubview as? UIScrollView {
+        if let webScrollView = webSubview as? UIScrollView, webScrollView !== webView.scrollView {
+            webScrollView.removeObserver(self, forKeyPath: "contentSize", context: nil)
             webScrollViews.removeValue(forKey: webScrollView)
         }
 
@@ -437,11 +440,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        webDelegate?.webNavigationController?(self, didScroll: scrollView)
+        webDelegate?.webNavigationController?(self, didScrollWebScrollView: scrollView)
     }
 
-    // NOCOMMIT: Typing indicator doesn't move with keyboard. Can we manually
-    // re-render the typing indicator?
+    // NOCOMMIT: Cursor doesn't move with keyboard. Can we manually re-render the
+    // cursor?
     //
     // NOCOMMIT: Tapping on the editable text closes the keyboard?
     @objc private func keyboardWillShow(notification: NSNotification) {
@@ -474,6 +477,20 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // fine mutating the translation from native code as long as web code doesn't
         // touch it overriding our change.
         updateAllWebBottomBarFrames()
+    }
+
+    override func observeValue(
+        forKeyPath keyPath: String?,
+        of object: Any?,
+        change: [NSKeyValueChangeKey: Any]?,
+        context: UnsafeMutableRawPointer?
+    ) {
+        if keyPath == "contentSize" {
+            webDelegate?.webNavigationController?(
+                self,
+                didWebScrollViewContentSizeChange: object as! UIScrollView
+            )
+        }
     }
 
     private func getSafeAreaInsets() -> UIEdgeInsets {
@@ -555,6 +572,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func setAllWebScrollViewScrollIndicatorInsets() {
+        setWebScrollViewScrollIndicatorInsets(webView.scrollView)
+
         for webScrollView in webScrollViews.keys {
             setWebScrollViewScrollIndicatorInsets(webScrollView)
         }
