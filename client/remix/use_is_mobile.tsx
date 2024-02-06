@@ -50,24 +50,5 @@ export function IsMobileContextProvider({children}: {children?: ReactNode}) {
         };
     }, [isNativeMobile]);
 
-    return (
-        <IsMobileContext.Provider value={isMobile}>
-            {children}
-            {/* {isNativeMobile && (
-                // NOCOMMIT: WIP
-                <Box
-                    position="absolute"
-                    top="0"
-                    left="0"
-                    right="0"
-                    display="flex"
-                    flexDirection="column"
-                    backgroundColor="grey-0"
-                    style={{height: "var(--safe-area-inset-top)"}}
-                    // Render over everything, including blocking overlays.
-                    zIndex="80"
-                />
-            )} */}
-        </IsMobileContext.Provider>
-    );
+    return <IsMobileContext.Provider value={isMobile}>{children}</IsMobileContext.Provider>;
 }
