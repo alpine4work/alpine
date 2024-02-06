@@ -9,6 +9,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
     private weak var mainScrollView: UIScrollView?
     private var lastScrollOffset = 0.0
+    private var lastScrollHeight = 0.0
     private var lastScrollDirection = ScrollDirection.down
     private var lastNavigationBarTopOffset = 0.0
     private var scrollDebounceTimeout: Timer?
@@ -142,7 +143,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
     func webNavigationController(
         _ navigationController: WebNavigationController,
-        didAddScrollView scrollView: UIScrollView
+        didAddWebScrollView scrollView: UIScrollView
     ) {
         // There may be other scroll views on our web page but we need to decide what
         // the "main" scroll view is so that as it scrolls we can show/hide the tab bar.
@@ -155,8 +156,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         //
         // We also exclude the root scroll view since the root scroll view shouldn't be
         // scrollable.
-        if webNavigationController.isRootWebScrollView(scrollView)
-            || scrollView.frame.width < view.frame.width * 0.5
+        if scrollView.frame.width < view.frame.width * 0.5
             || scrollView.frame.height < view.frame.height * 0.5
         {
             return
@@ -166,8 +166,10 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // `webNavigationController(didScroll:)` for more information on why we call
         // `max()` and `round()`.
         let scrollOffset = max(0, round(scrollView.contentOffset.y))
+        let scrollHeight = round(scrollView.contentSize.height)
 
         lastScrollOffset = scrollOffset
+        lastScrollHeight = scrollHeight
         lastScrollDirection = .down
         lastNavigationBarTopOffset = scrollOffset
 
@@ -176,14 +178,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
         webNavigationController.setTabBarScrollOffset(0)
 
-        self.mainScrollView = scrollView
+        mainScrollView = scrollView
     }
 
     func webNavigationController(
         _ navigationController: WebNavigationController,
-        didScroll scrollView: UIScrollView
+        didScrollWebScrollView scrollView: UIScrollView
     ) {
-        if self.mainScrollView !== scrollView { return }
+        guard self.mainScrollView === scrollView else { return }
 
         // We implement the same logic here as in `use_navigation_bar.tsx` for
         // revealing/hiding our tab bar as the user scrolls. By implementing identical
@@ -214,13 +216,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // in web code but fractional in native code.
         let scrollOffset = max(0, round(scrollView.contentOffset.y))
 
-        // NOCOMMIT: There's this bug where if you go:
-        //
-        // - typing indicator appear
-        // - typing indicator disappear
-        // - typing indicator appear
-        //
-        // The tab bar goes away! This shouldn't happen, fix it.
+        // NOCOMMIT: Scroll view not moving down when there's a new chat message
 
         // Sometimes native code sends us a scroll event twice for the same scroll
         // offset. Since scroll offsets may not be integers (e.g. 574.3333) this may be
@@ -228,11 +224,42 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // the reason, ignore scroll events that repeat a scroll offset.
         if scrollOffset == self.lastScrollOffset { return }
 
+        let scrollHeight = round(scrollView.contentSize.height)
+
         // Immediately finish any animations when scrolling begins.
         tabBar.layer.removeAllAnimations()
 
         let lastScrollOffset = self.lastScrollOffset
         self.lastScrollOffset = scrollOffset
+
+        let lastScrollHeight = self.lastScrollHeight
+        self.lastScrollHeight = scrollHeight
+
+        // Edge case: If we resized and scrolled down at the same time (and scrolled
+        // the same amount we resized) then we don't want our navigation bar's scroll
+        // offset to change.
+        //
+        // This happens when the typing indicator appears then disappears. Try going to
+        // a chat then typing in another tab to show the typing indicator, wait for it
+        // to disappear, then type again. Do this a couple times. When the typing
+        // indicator appears the view scrolls down to show it. We don't want that
+        // scroll down to hide our tab bar.
+        //
+        // Ideally this logic would run only after a resize and before the resize
+        // paints to the screen, but web code doesn't have a good way to listen for
+        // scroll view content resize. (Whereas in iOS native code we can use KVO to
+        // listen to `contentSize` on `UIScrollView`.)
+        if scrollOffset > lastScrollOffset
+            && scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
+        {
+            let lastNavigationBarScrollOffset = max(
+                0,
+                min(lastScrollOffset - self.lastNavigationBarTopOffset, navigationBarHeight)
+            )
+
+            let navigationBarTopOffset = scrollOffset - lastNavigationBarScrollOffset
+            self.lastNavigationBarTopOffset = navigationBarTopOffset
+        }
 
         let scrollDirection: ScrollDirection = scrollOffset > lastScrollOffset ? .down : .up
         let lastScrollDirection = self.lastScrollDirection

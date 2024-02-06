@@ -344,6 +344,7 @@ function NavigationBar({
     );
 
     const lastScrollOffsetRef = useRef(0);
+    const lastScrollHeightRef = useRef(0);
     const lastScrollDirectionRef = useRef(scrollDirectionState.scrollDirection);
     const lastNavigationBarTopOffsetRef = useRef(scrollDirectionState.navigationBarTopOffset);
     const lastIsNavigationBarOpaqueRef = useRef(false);
@@ -361,6 +362,7 @@ function NavigationBar({
                     const scrollOffset = Math.max(0, element.scrollTop);
 
                     lastScrollOffsetRef.current = scrollOffset;
+                    lastScrollHeightRef.current = element.scrollHeight;
                     lastScrollDirectionRef.current = "Down";
                     lastNavigationBarTopOffsetRef.current = scrollOffset;
 
@@ -384,6 +386,8 @@ function NavigationBar({
                     // the reason, ignore scroll events that repeat a scroll offset.
                     if (scrollOffset === lastScrollOffsetRef.current) return;
 
+                    const scrollHeight = element.scrollHeight;
+
                     // Immediately finish any animations when scrolling begins.
                     if (animationControlsRef.current) {
                         const animationControls = animationControlsRef.current;
@@ -394,11 +398,55 @@ function NavigationBar({
                         }
                     }
 
+                    const remPx = getRemPxWithoutListening();
+                    const navigationBarHeight = navigationBarHeightRem * remPx;
+
                     const lastScrollOffset = lastScrollOffsetRef.current;
                     lastScrollOffsetRef.current = scrollOffset;
 
-                    const remPx = getRemPxWithoutListening();
-                    const navigationBarHeight = navigationBarHeightRem * remPx;
+                    const lastScrollHeight = lastScrollHeightRef.current;
+                    lastScrollHeightRef.current = scrollHeight;
+
+                    // Edge case: If we resized and scrolled down at the same time (and scrolled
+                    // the same amount we resized) then we don't want our navigation bar's scroll
+                    // offset to change.
+                    //
+                    // This happens when the typing indicator appears then disappears. Try going to
+                    // a chat then typing in another tab to show the typing indicator, wait for it
+                    // to disappear, then type again. Do this a couple times. When the typing
+                    // indicator appears the view scrolls down to show it. We don't want that
+                    // scroll down to hide our tab bar.
+                    //
+                    // Ideally this logic would run only after a resize and before the resize
+                    // paints to the screen, but web code doesn't have a good way to listen for
+                    // scroll view content resize. (Whereas in iOS native code we can use KVO to
+                    // listen to `contentSize` on `UIScrollView`.)
+                    //
+                    // NOCOMMIT: Test that this actually works. We may need a `flushSync()` in a
+                    // resize observer to make sure this update occurs in the same paint as the
+                    // resize. See code d7bd291ec6a9941fadc9c01c279b9da2ca347f1f for a version that
+                    // uses `ResizeObserver`.
+                    if (
+                        scrollOffset > lastScrollOffset &&
+                        scrollOffset - lastScrollOffset == scrollHeight - lastScrollHeight
+                    ) {
+                        const lastNavigationBarScrollOffset = Math.max(
+                            0,
+                            Math.min(
+                                lastScrollOffset - lastNavigationBarTopOffsetRef.current,
+                                navigationBarHeight,
+                            ),
+                        );
+
+                        const navigationBarTopOffset = scrollOffset - lastNavigationBarScrollOffset;
+                        lastNavigationBarTopOffsetRef.current = navigationBarTopOffset;
+
+                        setScrollDirectionState({
+                            scrollDirection: lastScrollDirectionRef.current,
+                            navigationBarTopOffset,
+                            animateNavigationBarTranslateY: 0,
+                        });
+                    }
 
                     const scrollDirection = scrollOffset > lastScrollOffset ? "Down" : "Up";
                     const lastScrollDirection = lastScrollDirectionRef.current;
