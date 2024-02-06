@@ -147,6 +147,7 @@ export default function NewChatRoute({withMobileLayout = false}: {withMobileLayo
                 maxWidth="160"
                 width="full"
                 height="full"
+                overflow="hidden"
                 backgroundColor="grey-0"
                 borderRadius={!withMobileLayout ? {desktop: "md"} : undefined}
                 boxShadow="elevation-5"

@@ -302,11 +302,11 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 // Remove one pixel so that our layout of the input without the border top is
                 // the same side-by-side with the layout of an input with the border top.
                 minHeight: withoutBorderTop
-                    ? `calc(${messageInputMinHeight} - 1px)`
-                    : messageInputMinHeight,
+                    ? `calc(${messageInputMinHeight} - 1px + var(--safe-area-inset-bottom-without-tab-bar, 0px))`
+                    : `calc(${messageInputMinHeight} + var(--safe-area-inset-bottom-without-tab-bar, 0px))`,
                 // Remove one pixel from top to make space for a border.
                 paddingTop: `calc(${spacing["3"]} - 1px)`,
-                paddingBottom: spacing["3"],
+                paddingBottom: `calc(${spacing["3"]} + var(--safe-area-inset-bottom-without-tab-bar, 0px))`,
                 // Our native mobile wrapper looks for compositing layers created from an
                 // element with an ID that starts with `NativeMobileBottomBar-` and ties their
                 // position to the tab bar and software keyboard. So we get smooth animations

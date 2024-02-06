@@ -39,7 +39,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
     private var webScrollViews = [UIScrollView: UIScrollViewDelegateForwarder]()
-    private var webBottomBarViews = Set<UIView>()
+    private var initialOffsetYByWebBottomBarView = [UIView: Double]()
+
+    private var tabBarScrollOffset = 0.0
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
@@ -198,6 +200,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     required init(coder: NSCoder) { fatalError("Unimplemented") }
 
+    /// Is the provided scroll view the root document scroll view?
+    func isRootWebScrollView(_ webScrollView: UIScrollView) -> Bool {
+        return webView.scrollView === webScrollView
+    }
+
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async
         -> WKNavigationActionPolicy
     {
@@ -217,9 +224,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         hasInitialWebViewNavigationCommit = true
 
-        // We need to update safe area insets after the document `<head>` has been
-        // downloaded to the client.
-        setWindowSafeAreaInsets(windowSafeAreaInsets)
+        // We need to execute the JavaScript to set the CSS safe area inset variables
+        // but we don't need to call `setAllWebScrollViewScrollIndicatorInsets()`
+        // again.
+        actuallySetWindowSafeAreaInsets(windowSafeAreaInsets)
     }
 
     func webView(
@@ -391,7 +399,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         if webSubview.description.hasPrefix("<WKCompositingView") {
             schedule { [self] in
                 if (webSubview.layer.name ?? "").contains(" id='NativeMobileBottomBar-") {
-                    webBottomBarViews.insert(webSubview)
+                    let initialOffsetY = webSubview.frame.origin.y
+                    initialOffsetYByWebBottomBarView[webSubview] = initialOffsetY
+
+                    updateWebBottomBarFrame(
+                        webBottomBarView: webSubview,
+                        initialOffsetY: initialOffsetY
+                    )
+
+                    setAllWebScrollViewScrollIndicatorInsets()
                 }
             }
         }
@@ -414,7 +430,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         if webSubview.description.hasPrefix("<WKCompositingView") {
             schedule { [self] in
                 if (webSubview.layer.name ?? "").contains(" id='NativeMobileBottomBar-") {
-                    webBottomBarViews.remove(webSubview)
+                    initialOffsetYByWebBottomBarView.removeValue(forKey: webSubview)
                 }
             }
         }
@@ -429,11 +445,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     //
     // NOCOMMIT: Tapping on the editable text closes the keyboard?
     @objc private func keyboardWillShow(notification: NSNotification) {
-        let beginFrame =
-            (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
-            .cgRectValue
         let endFrame = (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
+
+        // NOCOMMIT: Reimplement keyboarding
+        let _ = endFrame
 
         // We don't need to do any `UIView.animate()` business since it seems like
         // this function is called in the context of an animation.
@@ -441,17 +457,15 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // This changes the translation of a `CALayer` owned by WebKit! It should be
         // fine mutating the translation from native code as long as web code doesn't
         // touch it overriding our change.
-        for webBottomBarView in webBottomBarViews {
-            webBottomBarView.frame.origin.y += endFrame.origin.y - beginFrame.origin.y
-        }
+        updateAllWebBottomBarFrames()
     }
 
     @objc private func keyboardWillHide(notification: NSNotification) {
-        let beginFrame =
-            (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
-            .cgRectValue
         let endFrame = (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
+
+        // NOCOMMIT
+        let _ = endFrame
 
         // We don't need to do any `UIView.animate()` business since it seems like
         // this function is called in the context of an animation.
@@ -459,9 +473,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // This changes the translation of a `CALayer` owned by WebKit! It should be
         // fine mutating the translation from native code as long as web code doesn't
         // touch it overriding our change.
-        for webBottomBarView in webBottomBarViews {
-            webBottomBarView.frame.origin.y += endFrame.origin.y - beginFrame.origin.y
-        }
+        updateAllWebBottomBarFrames()
     }
 
     private func getSafeAreaInsets() -> UIEdgeInsets {
@@ -484,6 +496,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
     }
 
+    /// Could also call `setTabBarHeightAndWindowSafeAreaInsets()` if you want to
+    /// update tab bar height at the same time.
+    func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
+        actuallySetWindowSafeAreaInsets(windowSafeAreaInsets)
+        setAllWebScrollViewScrollIndicatorInsets()
+    }
+
     // We set safe area insets as CSS variables. Then we use these CSS
     // variables to apply padding.
     //
@@ -492,25 +511,26 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     // a flash of incorrectly styled content as it moves to the correct location.
     //
     // [1]: https://bugs.webkit.org/show_bug.cgi?id=191872
-    func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
+    private func actuallySetWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets) {
         self.windowSafeAreaInsets = windowSafeAreaInsets
-
-        // Whenever the safe area changes, update the scroll indicator inset for the
-        // scroll views that are currently mounted.
-        for webScrollView in webScrollViews.keys {
-            setWebScrollViewScrollIndicatorInsets(webScrollView)
-        }
 
         if !hasInitialWebViewNavigationCommit { return }
 
         let safeAreaInsets = getSafeAreaInsets()
 
-        let styleString =
-            ":root { --safe-area-inset-top: \(safeAreaInsets.top)px; --safe-area-inset-bottom: \(safeAreaInsets.bottom)px; --safe-area-inset-left: \(safeAreaInsets.left)px; --safe-area-inset-right: \(safeAreaInsets.right)px }"
+        let styleString = """
+            :root {
+                --safe-area-inset-top: \(safeAreaInsets.top)px;
+                --safe-area-inset-bottom: \(safeAreaInsets.bottom)px;
+                --safe-area-inset-left: \(safeAreaInsets.left)px;
+                --safe-area-inset-right: \(safeAreaInsets.right)px;
+                --safe-area-inset-bottom-without-tab-bar: \(windowSafeAreaInsets.bottom)px;
+            }
+            """
 
         let source = """
             {
-                const styleString = "\(styleString)";
+                const styleString = `\(styleString)`;
                 const styleElementId = "safe-area-inset-style";
                 let styleElement = document.getElementById(styleElementId);
                 if (styleElement) {
@@ -534,36 +554,73 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.evaluateJavaScript(source)
     }
 
+    private func setAllWebScrollViewScrollIndicatorInsets() {
+        for webScrollView in webScrollViews.keys {
+            setWebScrollViewScrollIndicatorInsets(webScrollView)
+        }
+    }
+
     private func setWebScrollViewScrollIndicatorInsets(_ webScrollView: UIScrollView) {
         let safeAreaInsets = getSafeAreaInsets()
 
         // Calculate the insets of the scroll view. We shouldn't apply safe area insets
         // further than how much we're already inset.
-        var top = 0.0
-        var bottom = 0.0
+        var webScrollViewTop = 0.0
+        var webScrollViewBottom = 0.0
 
-        var currentViewState: UIView? = webScrollView
-        while let currentView = currentViewState {
-            if let currentSuperview = currentView.superview {
-                top += currentView.frame.origin.y
+        do {
+            var currentViewState: UIView? = webScrollView
+            while let currentView = currentViewState {
+                if let currentSuperview = currentView.superview {
+                    webScrollViewTop += currentView.frame.origin.y
 
-                let currentBottom =
-                    currentSuperview.frame.origin.y + currentSuperview.frame.height
-                    - (currentView.frame.origin.y + currentView.frame.height)
+                    let currentBottom =
+                        currentSuperview.frame.height
+                        - (currentView.frame.origin.y + currentView.frame.height)
 
-                bottom += currentBottom
+                    webScrollViewBottom += currentBottom
+                }
+
+                currentViewState = currentView.superview
+            }
+        }
+
+        var verticalScrollIndicatorInsets = UIEdgeInsets(
+            top: max(0, safeAreaInsets.top + navigationBarHeight - webScrollViewTop),
+            left: safeAreaInsets.left,
+            bottom: max(0, safeAreaInsets.bottom - webScrollViewBottom),
+            right: safeAreaInsets.right
+        )
+
+        // Make sure vertical scroll indicators make space for bottom bars:
+        for (webBottomBarView, initialOffsetY) in initialOffsetYByWebBottomBarView {
+            let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
+            var webBottomBarViewBottom = 0.0
+
+            var currentViewState: UIView? = webBottomBarView
+            while let currentView = currentViewState {
+                if let currentSuperview = currentView.superview {
+                    let currentBottom =
+                        currentSuperview.frame.height
+                        - ((currentView === webBottomBarView
+                            ? initialOffsetY : currentView.frame.origin.y)
+                            + currentView.frame.height)
+
+                    webBottomBarViewBottom += currentBottom
+                }
+
+                currentViewState = currentView.superview
             }
 
-            currentViewState = currentView.superview
+            verticalScrollIndicatorInsets.bottom = max(
+                verticalScrollIndicatorInsets.bottom,
+                webBottomBarView.frame.height + max(0, tabBarHeight - windowSafeAreaInsets.bottom)
+                    + webBottomBarViewBottom - webScrollViewBottom
+            )
         }
 
         webScrollView.automaticallyAdjustsScrollIndicatorInsets = false
-        webScrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
-            top: max(0, safeAreaInsets.top + navigationBarHeight - top),
-            left: safeAreaInsets.left,
-            bottom: max(0, safeAreaInsets.bottom - bottom),
-            right: safeAreaInsets.right
-        )
+        webScrollView.verticalScrollIndicatorInsets = verticalScrollIndicatorInsets
     }
 
     override func pushViewController(_ viewController: UIViewController, animated: Bool) {
@@ -667,6 +724,36 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.evaluateJavaScript(
             #"window.__NativeMobileBridge.navigation._callExternalPopListeners(\#(delta), \#(jsonString))"#
         )
+    }
+
+    func setTabBarScrollOffset(_ tabBarScrollOffset: Double) {
+        let lastTabBarScrollOffset = self.tabBarScrollOffset
+        self.tabBarScrollOffset = tabBarScrollOffset
+
+        // Optimization: If tab bar scroll offset didn't change then don't update our
+        // bottom frames.
+        if lastTabBarScrollOffset != tabBarScrollOffset {
+            // This may be called in the context of a `UIView.animate()` which will cause
+            // our frame change to update as well.
+            updateAllWebBottomBarFrames()
+        }
+    }
+
+    private func updateAllWebBottomBarFrames() {
+        for (webBottomBarView, initialOffsetY) in initialOffsetYByWebBottomBarView {
+            updateWebBottomBarFrame(
+                webBottomBarView: webBottomBarView,
+                initialOffsetY: initialOffsetY
+            )
+        }
+    }
+
+    private func updateWebBottomBarFrame(webBottomBarView: UIView, initialOffsetY: Double) {
+        let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
+
+        webBottomBarView.frame.origin.y =
+            initialOffsetY
+            - max(0, (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom)
     }
 }
 

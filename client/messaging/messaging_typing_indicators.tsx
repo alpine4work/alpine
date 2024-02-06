@@ -9,6 +9,7 @@ import {
     getMessageBubbleMarginLeft,
     messageViewMarginY,
 } from "~/client/messaging/message_view.js";
+import {messagingViewMarginBottom} from "~/client/messaging/messaging_view.js";
 import {AccountModel} from "~/shared/accounts/account_model.js";
 import {easeInOutSin} from "~/shared/design/easing.js";
 import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
@@ -23,9 +24,13 @@ export const messagingTypingIndicatorsMinHeight = "3.875rem";
 export function MessagingTypingIndicators({
     typingStateByConnectionId,
     marginX = defaultMessageViewMarginX,
+    shouldAddMarginTop = false,
+    shouldAddMarginBottom = false,
 }: {
     typingStateByConnectionId: ImmutableMap<WebSocketConnectionId, MessagingTypingState>;
     marginX?: Spacing;
+    shouldAddMarginTop?: boolean;
+    shouldAddMarginBottom?: boolean;
 }) {
     // Only select one typing state per account and sort typing states by their
     // start time so they appear in the order users started typing.
@@ -46,7 +51,13 @@ export function MessagingTypingIndicators({
     }, [typingStateByConnectionId]);
 
     return (
-        <Box style={{minHeight: messagingTypingIndicatorsMinHeight}}>
+        <Box
+            style={{
+                minHeight: messagingTypingIndicatorsMinHeight,
+                paddingTop: shouldAddMarginTop ? messageViewMarginY : undefined,
+                paddingBottom: shouldAddMarginBottom ? messagingViewMarginBottom : undefined,
+            }}
+        >
             {typingStates.map(typingState => (
                 <MessagingTypingIndicator
                     key={typingState.account.id}

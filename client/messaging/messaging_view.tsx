@@ -63,6 +63,9 @@ import {messageViewMinHeight} from "~/shared/messaging/messaging_shared_styles.j
 import {ClientInfo} from "~/shared/remix/client_info.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
+export const messagingViewMarginBottom =
+    "calc(var(--safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom-without-tab-bar, 0px))";
+
 /**
  * Get the initial number of messages to load.
  */
@@ -587,6 +590,7 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
                         getMessageUrl,
                         roomDisplayedCreatedTime,
                         shouldAddMarginTop: index === 0,
+                        shouldAddMarginBottom: index === state.getItemCount() - 1,
                         marginX: paddingX,
                     });
                 }
@@ -696,6 +700,7 @@ export function renderMessageListItem<
     getMessageUrl,
     roomDisplayedCreatedTime,
     shouldAddMarginTop = index === 0,
+    shouldAddMarginBottom = false,
     marginX,
     render: customRender,
 }: {
@@ -714,6 +719,7 @@ export function renderMessageListItem<
     getMessageUrl: (messageIndex: number) => URL;
     roomDisplayedCreatedTime?: Date | undefined;
     shouldAddMarginTop?: boolean;
+    shouldAddMarginBottom?: boolean;
     marginX?: Spacing;
     render?: (node: ReactNode) => ReactElement;
 }): VirtualizedScrollViewItem {
@@ -829,6 +835,9 @@ export function renderMessageListItem<
                             >
                                 {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
                                 {render(isScrolling)}
+                                {shouldAddMarginBottom && (
+                                    <div style={{height: messagingViewMarginBottom}} />
+                                )}
                             </div>
                         );
                     } else {
@@ -836,6 +845,9 @@ export function renderMessageListItem<
                             <>
                                 {shouldAddMarginTop && <Spacer space={messageViewMarginY} />}
                                 {render(isScrolling)}
+                                {shouldAddMarginBottom && (
+                                    <div style={{height: messagingViewMarginBottom}} />
+                                )}
                             </>,
                         );
 
@@ -863,6 +875,8 @@ export function renderMessageListItem<
                 <MessagingTypingIndicators
                     typingStateByConnectionId={item.typingStateByConnectionId}
                     marginX={marginX}
+                    shouldAddMarginTop={shouldAddMarginTop}
+                    shouldAddMarginBottom={shouldAddMarginBottom}
                 />
             );
 

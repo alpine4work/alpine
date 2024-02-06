@@ -7,6 +7,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     let spaceId: String
     let webNavigationController: WebNavigationController
 
+    private weak var mainScrollView: UIScrollView?
     private var lastScrollOffset = 0.0
     private var lastScrollDirection = ScrollDirection.down
     private var lastNavigationBarTopOffset = 0.0
@@ -141,8 +142,49 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
     func webNavigationController(
         _ navigationController: WebNavigationController,
+        didAddScrollView scrollView: UIScrollView
+    ) {
+        // There may be other scroll views on our web page but we need to decide what
+        // the "main" scroll view is so that as it scrolls we can show/hide the tab bar.
+        // If a non-main scroll view scrolls we want to ignore those events.
+        //
+        // So we use a simple "is this scroll view big enough?" heuristic. For instance
+        // in chat the main messaging section is big enough to be the main scroll view
+        // but not the message input. This may not work in general but is practical
+        // for our purposes.
+        //
+        // We also exclude the root scroll view since the root scroll view shouldn't be
+        // scrollable.
+        if webNavigationController.isRootWebScrollView(scrollView)
+            || scrollView.frame.width < view.frame.width * 0.5
+            || scrollView.frame.height < view.frame.height * 0.5
+        {
+            return
+        }
+
+        // See the comment on the same statement in
+        // `webNavigationController(didScroll:)` for more information on why we call
+        // `max()` and `round()`.
+        let scrollOffset = max(0, round(scrollView.contentOffset.y))
+
+        lastScrollOffset = scrollOffset
+        lastScrollDirection = .down
+        lastNavigationBarTopOffset = scrollOffset
+
+        scrollDebounceTimeout?.invalidate()
+        scrollDebounceTimeout = nil
+
+        webNavigationController.setTabBarScrollOffset(0)
+
+        self.mainScrollView = scrollView
+    }
+
+    func webNavigationController(
+        _ navigationController: WebNavigationController,
         didScroll scrollView: UIScrollView
     ) {
+        if self.mainScrollView !== scrollView { return }
+
         // We implement the same logic here as in `use_navigation_bar.tsx` for
         // revealing/hiding our tab bar as the user scrolls. By implementing identical
         // logic to `use_navigation_bar.tsx` the app feels cohesive.
@@ -171,6 +213,14 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         // Native code only: We need to round the content offset since it's an integer
         // in web code but fractional in native code.
         let scrollOffset = max(0, round(scrollView.contentOffset.y))
+
+        // NOCOMMIT: There's this bug where if you go:
+        //
+        // - typing indicator appear
+        // - typing indicator disappear
+        // - typing indicator appear
+        //
+        // The tab bar goes away! This shouldn't happen, fix it.
 
         // Sometimes native code sends us a scroll event twice for the same scroll
         // offset. Since scroll offsets may not be integers (e.g. 574.3333) this may be
@@ -209,6 +259,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                 ((tabBar.frame.height / navigationBarHeight) * navigationBarScrollOffset)
 
             tabBar.frame.origin.y = (view.frame.height - tabBar.frame.height) + tabBarScrollOffset
+            webNavigationController.setTabBarScrollOffset(tabBarScrollOffset)
 
             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
             tabBar.isHidden = navigationBarScrollOffset >= navigationBarHeight
@@ -263,11 +314,17 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
                         withDuration: navigationBarRevealOrHideAnimationDurationSeconds,
                         delay: 0,
                         options: .curveEaseIn,
-                        animations: { [self] in tabBar.frame.origin.y = tabBarFrameOriginY },
+                        animations: { [self] in
+                            tabBar.frame.origin.y = tabBarFrameOriginY
+                            webNavigationController.setTabBarScrollOffset(tabBarScrollOffset)
+                        },
                         completion: { [self] (finished) in
                             // Make sure even if the animation was cancelled we set the correct
                             // position.
-                            if !finished { tabBar.frame.origin.y = tabBarFrameOriginY }
+                            if !finished {
+                                tabBar.frame.origin.y = tabBarFrameOriginY
+                                webNavigationController.setTabBarScrollOffset(tabBarScrollOffset)
+                            }
 
                             // Mark the tab bar as hidden if the navigation bar is fully scrolled.
                             tabBar.isHidden = navigationBarScrollOffset >= navigationBarHeight
