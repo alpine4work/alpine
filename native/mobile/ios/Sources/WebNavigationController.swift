@@ -42,6 +42,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var initialOffsetYByWebBottomBarView = [UIView: Double]()
 
     private var tabBarScrollOffset = 0.0
+    private var keyboardOffset = 0.0
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
@@ -441,11 +442,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     //
     // NOCOMMIT: Tapping on the editable text closes the keyboard?
     @objc private func keyboardWillShow(notification: NSNotification) {
-        let endFrame = (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
+        let screen = notification.object as! UIScreen
+        let endScreenFrame =
+            (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
+        let endFrame = screen.coordinateSpace.convert(endScreenFrame, to: view)
 
-        // NOCOMMIT: Reimplement keyboarding
-        let _ = endFrame
+        keyboardOffset = view.frame.height - endFrame.origin.y
 
         // We don't need to do any `UIView.animate()` business since it seems like
         // this function is called in the context of an animation.
@@ -457,11 +460,13 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     @objc private func keyboardWillHide(notification: NSNotification) {
-        let endFrame = (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
+        let screen = notification.object as! UIScreen
+        let endScreenFrame =
+            (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
+        let endFrame = screen.coordinateSpace.convert(endScreenFrame, to: view)
 
-        // NOCOMMIT
-        let _ = endFrame
+        keyboardOffset = view.frame.height - endFrame.origin.y
 
         // We don't need to do any `UIView.animate()` business since it seems like
         // this function is called in the context of an animation.
@@ -751,7 +756,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webBottomBarView.frame.origin.y =
             initialOffsetY
-            - max(0, (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom)
+            - max(
+                0,
+                (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
+                keyboardOffset - windowSafeAreaInsets.bottom
+            )
     }
 }
 
