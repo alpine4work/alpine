@@ -224,17 +224,25 @@ export function useIsFocusRingVisible({
                 // If there is an element focused...
                 if (!focusedElement) return false;
 
-                // And there is not another element with a focus ring. This may happen when
-                // `isVisibleWhenFocusWithin` is true and we have a child with a `<FocusRing>`.
-                if (currentActiveElement && currentActiveElement !== targetElement) return false;
+                // And we don't have a child element with a focus ring...
+                if (
+                    currentActiveElement &&
+                    targetElement !== currentActiveElement &&
+                    targetElement.contains(currentActiveElement)
+                ) {
+                    return false;
+                }
 
                 // Either:
                 //
                 // 1. We are the focused element
-                // 2. A child is focused and `isVisibleWhenFocusWithin` is true.
+                // 2. A child is focused (but doesn't have a focus ring) and
+                //    `isVisibleWhenFocusWithin` is true
                 const isFocused =
                     focusedElement === targetElement ||
-                    (isVisibleWhenFocusWithin && targetElement.contains(focusedElement));
+                    (isVisibleWhenFocusWithin &&
+                        targetElement.contains(focusedElement) &&
+                        (!currentActiveElement || currentActiveElement === targetElement));
 
                 if (!isFocused) return false;
 
@@ -249,9 +257,10 @@ export function useIsFocusRingVisible({
                 // If we are initially mounting, don't consider the element to be focused so
                 // `update()` actually updates our state.
                 hasInitiallyMountedRef.current &&
-                (isVisibleWhenFocusWithin
-                    ? targetElement.contains(document.activeElement)
-                    : document.activeElement === targetElement);
+                (document.activeElement === targetElement ||
+                    (isVisibleWhenFocusWithin &&
+                        targetElement.contains(document.activeElement) &&
+                        (!currentActiveElement || currentActiveElement === targetElement)));
 
             const update = (event?: FocusEvent) => {
                 const focusedElement =
@@ -259,9 +268,15 @@ export function useIsFocusRingVisible({
                         ? (event.relatedTarget as Element | null)
                         : document.activeElement;
 
-                const nextIsFocused = isVisibleWhenFocusWithin
-                    ? targetElement.contains(focusedElement)
-                    : focusedElement === targetElement;
+                const nextIsFocused =
+                    focusedElement === targetElement ||
+                    (isVisibleWhenFocusWithin &&
+                        targetElement.contains(focusedElement) &&
+                        // Don't consider ourselves focused if a child element has the focus ring.
+                        //
+                        // This way the focus ring moves properly in inputs like our chat account
+                        // picker work when tabbing between the text input and selected accounts.
+                        (!currentActiveElement || currentActiveElement === targetElement));
 
                 // Only update our active state if focus is moving in or out of the target
                 // element. Not if focus is moving within sub-elements of the target element.
