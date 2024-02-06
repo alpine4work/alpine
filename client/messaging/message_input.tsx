@@ -1,6 +1,6 @@
 import {setInteractionModality, useInteractionModality} from "@react-aria/interactions";
 import {ArrowArcLeft, ArrowUp, X} from "phosphor-react";
-import {MutableRefObject, useEffect, useMemo, useRef, useState} from "react";
+import {MutableRefObject, useEffect, useId, useMemo, useRef, useState} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -24,6 +24,7 @@ import {
     messageViewReplyPreviewBubbleOpacity,
     messageViewReplyPreviewOpacity,
 } from "~/client/messaging/message_view.js";
+import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {isContentEmpty} from "~/shared/content/is_content_empty.js";
 import {
@@ -101,6 +102,7 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     } | null>;
     marginX?: Spacing;
 }) {
+    const clientInfo = useClientInfo();
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
     const inboxPeekContext = useInboxPeekContext();
@@ -287,10 +289,14 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
         };
     }, [hideTypingIndicator]);
 
+    const id = useId();
+
     return (
         <Box
             data-testid={dataTestId}
+            id={clientInfo.isNativeMobile ? `NativeMobileBottomBar-${id}` : id}
             flexShrink="0"
+            backgroundColor="grey-0"
             borderTop={!withoutBorderTop ? "grey-10" : undefined}
             style={{
                 // Remove one pixel so that our layout of the input without the border top is
@@ -301,6 +307,21 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 // Remove one pixel from top to make space for a border.
                 paddingTop: `calc(${spacing["3"]} - 1px)`,
                 paddingBottom: spacing["3"],
+                // Our native mobile wrapper looks for compositing layers created from an
+                // element with an ID that starts with `NativeMobileBottomBar-` and ties their
+                // position to the tab bar and software keyboard. So we get smooth animations
+                // while the keyboard opens or the tab bar shifts offscreen. To create a
+                // compositing layer we need to set `will-change: transform`. It's not
+                // specified that `will-change: transform` MUST create a compositing layer,
+                // instead some browser engines implement this hint themselves as an
+                // optimization.
+                //
+                // It so happens that WebKit is one of those browsers. Here's the code in
+                // WebKit that does this: [part 1][1], [part 2][2].
+                //
+                // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
+                // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
+                willChange: clientInfo.isNativeMobile ? "transform" : undefined,
             }}
         >
             {replyingToMessage &&

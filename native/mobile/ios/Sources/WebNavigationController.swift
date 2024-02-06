@@ -4,7 +4,11 @@ import WebKit
 @objc protocol WebNavigationControllerDelegate {
     @objc optional func webNavigationController(
         _ navigationController: WebNavigationController,
-        didScroll scrollView: UIScrollView
+        didAddScrollView webScrollView: UIScrollView
+    )
+    @objc optional func webNavigationController(
+        _ navigationController: WebNavigationController,
+        didScroll webScrollView: UIScrollView
     )
     @objc optional func webNavigationController(
         runScrollDebounceTimeout navigationController: WebNavigationController
@@ -35,6 +39,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
     private var webScrollViews = [UIScrollView: UIScrollViewDelegateForwarder]()
+    private var webBottomBarViews = Set<UIView>()
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
@@ -149,12 +154,46 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webViewTreeObserver = UIViewTreeObserver(delegate: self, rootView: webView)
 
+        // Tested this with:
+        //
+        // - Showing the keyboard
+        // - Hiding the keyboard
+        // - Switching the keyboard to emoji keyboard (different height)
+        //
+        // May still need to handle `keyboardWillChangeFrameNotification` but at the
+        // moment it seems duplicative.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShow(notification:)),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide(notification:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+
         let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
         let request = URLRequest(url: url)
         webView.load(request)
 
         let rootViewController = WebNavigationEntryController(url: url, webView: webView)
         viewControllers = [rootViewController]
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
     }
 
     required init(coder: NSCoder) { fatalError("Unimplemented") }
@@ -288,23 +327,141 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         }
     }
 
-    func viewTreeObserver(_ viewTreeObserver: UIViewTreeObserver, didAdd view: UIView) {
-        if let scrollView = view as? UIScrollView {
-            webScrollViews[scrollView] = UIScrollViewDelegateForwarder(
-                scrollView: scrollView,
+    func viewTreeObserver(_ viewTreeObserver: UIViewTreeObserver, didAdd webSubview: UIView) {
+        // When this function is called with a `webSubview`, WebKit may not have
+        // finished initializing everything. So properties like `view.frame` and
+        // `view.layer.name` haven't been set.
+        //
+        // However, for some work we do (e.g. setting scroll indicator insets needs
+        // `view.frame`) we need all properties to be initialized. Wait until the
+        // current call stack is finished so everything is initialized. (Assuming
+        // initialization finishes in this callstack.)
+        //
+        // NOTE(calebmer): Effectively, what I want here is the equivalent of
+        // `scheduleMicrotask()` in JavaScript. The best option I found after a bit of
+        // research is using [GCD][1]. The main dispatch queue is a serial FIFO queue
+        // and we should currently be running on the main thread.
+        //
+        // [1]: https://developer.apple.com/documentation/DISPATCH
+        let schedule = { (execute: @escaping () -> Void) in
+            DispatchQueue.main.async(execute: execute)
+        }
+
+        if let webScrollView = webSubview as? UIScrollView {
+            webScrollViews[webScrollView] = UIScrollViewDelegateForwarder(
+                scrollView: webScrollView,
                 delegate: self
             )
 
-            setWebScrollViewScrollIndicatorInsets(scrollView)
+            schedule { [self] in
+                setWebScrollViewScrollIndicatorInsets(webScrollView)
+                webDelegate?.webNavigationController?(self, didAddScrollView: webScrollView)
+            }
+        }
+
+        // We want to find compositing layers with an ID prefix of
+        // `NativeMobileBottomBar-`. We will animate these `UIView`s with the software
+        // keyboard and tab bar to make sure we see smooth animations. We can find the
+        // element ID that created the compositing layer in the layer name. An example
+        // layer name:
+        //
+        // ```
+        // RenderBlock 0x136339300 DIV 0x10dff9d50 id='NativeMobileBottomBar-:Raml6:' class='sprinkles_flexShri...
+        // ```
+        //
+        // ([The layer name is also appended to the view description][1].)
+        //
+        // The code that builds the name starts in the WebKit source code with
+        // [`appendAttributes()` in `Element.cpp`][2]. `Element` inherits from
+        // `ContainerNode` which inherits from `Node`. [`RenderObject.cpp` then calls
+        // `node()->description()`][3]. This string ends up being set to the
+        // `CALayer`'s `name` property.
+        //
+        // `name` isn't initialized until after this callstack so we need to call
+        // `schedule`.
+        //
+        // In order for web code to force the creation of a compositing layer, web code
+        // can add the CSS property `will-change: transform`. However,
+        // `will-change: transform` should be used sparingly! Or else the cost of
+        // rendering the web page will increase.
+        //
+        // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebKit/UIProcess/RemoteLayerTree/ios/RemoteLayerTreeViews.mm#L334-L337
+        // [2]: https://github.com/WebKit/WebKit/blob/6c1979d64380ab4eedf703a4dd4f92eca1e61515/Source/WebCore/dom/Element.cpp#L3173-L3217
+        // [3]: https://github.com/WebKit/WebKit/blob/6c1979d64380ab4eedf703a4dd4f92eca1e61515/Source/WebCore/rendering/RenderObject.cpp#L2706-L2715
+        if webSubview.description.hasPrefix("<WKCompositingView") {
+            schedule { [self] in
+                if (webSubview.layer.name ?? "").contains(" id='NativeMobileBottomBar-") {
+                    webBottomBarViews.insert(webSubview)
+                }
+            }
         }
     }
 
-    func viewTreeObserver(_ viewTreeObserver: UIViewTreeObserver, didRemove view: UIView) {
-        if let scrollView = view as? UIScrollView { webScrollViews.removeValue(forKey: scrollView) }
+    func viewTreeObserver(_ viewTreeObserver: UIViewTreeObserver, didRemove webSubview: UIView) {
+        // We may need this to match the timing of tasks queued by `viewTreeObserver(didAdd:)`.
+        let schedule = { (execute: @escaping () -> Void) in
+            DispatchQueue.main.async(execute: execute)
+        }
+
+        if let webScrollView = webSubview as? UIScrollView {
+            webScrollViews.removeValue(forKey: webScrollView)
+        }
+
+        // Remove with `schedule` to prevent race conditions. If
+        // `viewTreeObserver(didAdd:)` is called then `viewTreeObserver(didRemove:)` is
+        // called immediately after, the scheduled block from
+        // `viewTreeObserver(didAdd:)` may not have been run.
+        if webSubview.description.hasPrefix("<WKCompositingView") {
+            schedule { [self] in
+                if (webSubview.layer.name ?? "").contains(" id='NativeMobileBottomBar-") {
+                    webBottomBarViews.remove(webSubview)
+                }
+            }
+        }
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         webDelegate?.webNavigationController?(self, didScroll: scrollView)
+    }
+
+    // NOCOMMIT: Typing indicator doesn't move with keyboard. Can we manually
+    // re-render the typing indicator?
+    //
+    // NOCOMMIT: Tapping on the editable text closes the keyboard?
+    @objc private func keyboardWillShow(notification: NSNotification) {
+        let beginFrame =
+            (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
+            .cgRectValue
+        let endFrame = (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
+            .cgRectValue
+
+        // We don't need to do any `UIView.animate()` business since it seems like
+        // this function is called in the context of an animation.
+        //
+        // This changes the translation of a `CALayer` owned by WebKit! It should be
+        // fine mutating the translation from native code as long as web code doesn't
+        // touch it overriding our change.
+        for webBottomBarView in webBottomBarViews {
+            webBottomBarView.frame.origin.y += endFrame.origin.y - beginFrame.origin.y
+        }
+    }
+
+    @objc private func keyboardWillHide(notification: NSNotification) {
+        let beginFrame =
+            (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
+            .cgRectValue
+        let endFrame = (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
+            .cgRectValue
+
+        // We don't need to do any `UIView.animate()` business since it seems like
+        // this function is called in the context of an animation.
+        //
+        // This changes the translation of a `CALayer` owned by WebKit! It should be
+        // fine mutating the translation from native code as long as web code doesn't
+        // touch it overriding our change.
+        for webBottomBarView in webBottomBarViews {
+            webBottomBarView.frame.origin.y += endFrame.origin.y - beginFrame.origin.y
+        }
     }
 
     private func getSafeAreaInsets() -> UIEdgeInsets {
@@ -340,7 +497,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         // Whenever the safe area changes, update the scroll indicator inset for the
         // scroll views that are currently mounted.
-        for scrollView in webScrollViews.keys { setWebScrollViewScrollIndicatorInsets(scrollView) }
+        for webScrollView in webScrollViews.keys {
+            setWebScrollViewScrollIndicatorInsets(webScrollView)
+        }
 
         if !hasInitialWebViewNavigationCommit { return }
 
@@ -375,23 +534,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.evaluateJavaScript(source)
     }
 
-    private func setWebScrollViewScrollIndicatorInsets(_ scrollView: UIScrollView) {
-        actuallySetWebScrollViewScrollIndicatorInsets(scrollView)
-
-        // When this function is called with a `scrollView`, WebKit may not have
-        // finished laying everything out. However, to correctly set insets we need the
-        // view's frame size. Effectively, what I want here is the equivalent of
-        // `scheduleMicrotask()` in JavaScript. I want to call a function at the end of
-        // the current call stack. (Assuming layout happens during this callstack.) The
-        // best option I found after a bit of research is using [GCD][1].
-        //
-        // [1]: https://developer.apple.com/documentation/DISPATCH
-        DispatchQueue.main.async { [self] in
-            actuallySetWebScrollViewScrollIndicatorInsets(scrollView)
-        }
-    }
-
-    private func actuallySetWebScrollViewScrollIndicatorInsets(_ scrollView: UIScrollView) {
+    private func setWebScrollViewScrollIndicatorInsets(_ webScrollView: UIScrollView) {
         let safeAreaInsets = getSafeAreaInsets()
 
         // Calculate the insets of the scroll view. We shouldn't apply safe area insets
@@ -399,7 +542,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         var top = 0.0
         var bottom = 0.0
 
-        var currentViewState: UIView? = scrollView
+        var currentViewState: UIView? = webScrollView
         while let currentView = currentViewState {
             if let currentSuperview = currentView.superview {
                 top += currentView.frame.origin.y
@@ -414,8 +557,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             currentViewState = currentView.superview
         }
 
-        scrollView.automaticallyAdjustsScrollIndicatorInsets = false
-        scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
+        webScrollView.automaticallyAdjustsScrollIndicatorInsets = false
+        webScrollView.verticalScrollIndicatorInsets = UIEdgeInsets(
             top: max(0, safeAreaInsets.top + navigationBarHeight - top),
             left: safeAreaInsets.left,
             bottom: max(0, safeAreaInsets.bottom - bottom),
