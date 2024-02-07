@@ -227,7 +227,7 @@ export type VirtualizedScrollViewRef = {
     /**
      * Set the scroll offset to a new value.
      */
-    setScrollOffset(scrollOffset: number): void;
+    setScrollOffset(scrollOffset: number, options: {behavior?: "instant" | "smooth"}): void;
 
     /**
      * Returns the key at the provided index if we've rendered that index before.
@@ -1544,9 +1544,14 @@ function VirtualizedScrollView(
                     const scrollElement = assertExists(scrollRef.current);
                     return scrollElement.scrollTop;
                 },
-                setScrollOffset: scrollOffset => {
+                setScrollOffset: (scrollOffset, {behavior = "instant"}) => {
                     const scrollElement = assertExists(scrollRef.current);
-                    scrollElement.scrollTop = scrollOffset;
+
+                    if (behavior === "smooth") {
+                        scrollElement.scrollTo({top: scrollOffset, behavior: "smooth"});
+                    } else {
+                        scrollElement.scrollTop = scrollOffset;
+                    }
                 },
                 getKeyByIndexIfExists: index => {
                     const state = stateRef.current.state;

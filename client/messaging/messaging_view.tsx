@@ -34,6 +34,7 @@ import {
 import {tryLoadingMessages} from "~/client/messaging/try_loading_messages.js";
 import {useMessagingRealtime} from "~/client/messaging/use_messaging_realtime.js";
 import {useScrollToNewMessages} from "~/client/messaging/use_scroll_to_new_messages.js";
+import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {
     VirtualizedScrollView,
@@ -64,7 +65,7 @@ import {ClientInfo} from "~/shared/remix/client_info.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
 export const messagingViewMarginBottom =
-    "calc(var(--safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom-without-tab-bar, 0px))";
+    "calc(var(--safe-area-inset-bottom, 0px) - var(--window-safe-area-inset-bottom, 0px))";
 
 /**
  * Get the initial number of messages to load.
@@ -552,6 +553,19 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
             [],
         ),
     });
+
+    // NOCOMMIT: Sending a message doesn't scroll to the bottom
+    useEffect(() => {
+        if (!NativeMobileBridge) return;
+
+        return NativeMobileBridge.keyboard.subscribeToScrollMainContent(scrollOffsetDelta => {
+            const view = assertExists(viewRef.current);
+
+            view.setScrollOffset(view.getScrollOffset() + scrollOffsetDelta, {
+                behavior: "smooth",
+            });
+        });
+    }, []);
 
     const renderItem: VirtualizedScrollViewRenderItem = useCallback(
         index => {

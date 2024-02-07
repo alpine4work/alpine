@@ -228,6 +228,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             name: UIResponder.keyboardWillHideNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardDidHide(notification:)),
+            name: UIResponder.keyboardDidHideNotification,
+            object: nil
+        )
 
         let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
         let request = URLRequest(url: url)
@@ -496,10 +502,11 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webDelegate?.webNavigationController?(self, didScrollWebScrollView: scrollView)
     }
 
-    // NOCOMMIT: Cursor doesn't move with keyboard. Can we manually re-render the
-    // cursor?
     @objc private func keyboardWillShow(notification: NSNotification) {
         let screen = notification.object as! UIScreen
+        let beginScreenFrame =
+            (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
+            .cgRectValue
         let endScreenFrame =
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
@@ -514,10 +521,40 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // fine mutating the translation from native code as long as web code doesn't
         // touch it overriding our change.
         updateAllWebBottomBarFrames()
+
+        // Don't include tab bar height in scroll offset delta since the tab bar is
+        // already "dead space". The newly covered content is the extra space added by
+        // the keyboard.
+        let scrollOffsetDelta =
+            max(
+                0,
+                (screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y)
+                    - (tabBarController?.tabBar.frame.height ?? 0)
+            )
+            - max(
+                0,
+                (screen.coordinateSpace.bounds.height - endScreenFrame.origin.y)
+                    - (tabBarController?.tabBar.frame.height ?? 0)
+            )
+
+        // While the keyboard is opening:
+        //
+        // 1. Add extra bottom safe area inset
+        // 2. Scroll the content to continue showing whatever was underneath the
+        //    keyboard
+        //
+        // The scroll animation will not be perfectly synced with the keyboard
+        // animation. This is fine. It will appear as if the content is "reacting" to
+        // the keyboard (e.g. the keyboard is pushing the content up). The iMessage
+        // keyboard open animation is like this.
+        updateWebViewSafeAreaInsets(alsoScrollMainContent: -scrollOffsetDelta)
     }
 
     @objc private func keyboardWillHide(notification: NSNotification) {
         let screen = notification.object as! UIScreen
+        let beginScreenFrame =
+            (notification.userInfo![UIResponder.keyboardFrameBeginUserInfoKey] as! NSValue)
+            .cgRectValue
         let endScreenFrame =
             (notification.userInfo![UIResponder.keyboardFrameEndUserInfoKey] as! NSValue)
             .cgRectValue
@@ -532,6 +569,33 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // fine mutating the translation from native code as long as web code doesn't
         // touch it overriding our change.
         updateAllWebBottomBarFrames()
+
+        // Don't include tab bar height in scroll offset delta since the tab bar is
+        // already "dead space". The newly covered content is the extra space added by
+        // the keyboard.
+        let scrollOffsetDelta =
+            max(
+                0,
+                (screen.coordinateSpace.bounds.height - beginScreenFrame.origin.y)
+                    - (tabBarController?.tabBar.frame.height ?? 0)
+            )
+            - max(
+                0,
+                (screen.coordinateSpace.bounds.height - endScreenFrame.origin.y)
+                    - (tabBarController?.tabBar.frame.height ?? 0)
+            )
+
+        // Start animating the main content down but don't remove safe area insets
+        // until the keyboard is fully hidden.
+        webView.evaluateJavaScript(
+            "window.__NativeMobileBridge.keyboard._callScrollMainContentListeners(\(-scrollOffsetDelta))"
+        )
+    }
+
+    @objc private func keyboardDidHide(notification: NSNotification) {
+        // Once the keyboard is fully hidden, now we update safe area insets so they
+        // don't include space for the keyboard anymore.
+        updateWebViewSafeAreaInsets()
     }
 
     private func getSafeAreaInsets() -> UIEdgeInsets {
@@ -574,15 +638,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         if !hasInitialWebViewNavigationCommit { return }
 
+        updateWebViewSafeAreaInsets()
+    }
+
+    private func updateWebViewSafeAreaInsets(alsoScrollMainContent: Double = 0) {
         let safeAreaInsets = getSafeAreaInsets()
 
         let styleString = """
             :root {
                 --safe-area-inset-top: \(safeAreaInsets.top)px;
-                --safe-area-inset-bottom: \(safeAreaInsets.bottom)px;
+                --safe-area-inset-bottom: \(max(safeAreaInsets.bottom, keyboardOffset))px;
                 --safe-area-inset-left: \(safeAreaInsets.left)px;
                 --safe-area-inset-right: \(safeAreaInsets.right)px;
-                --safe-area-inset-bottom-without-tab-bar: \(windowSafeAreaInsets.bottom)px;
+                --window-safe-area-inset-bottom: \(windowSafeAreaInsets.bottom)px;
             }
             """
 
@@ -599,14 +667,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     styleElement.innerHTML = styleString;
                     document.head.appendChild(styleElement);
                 }
-
-                window.__NativeMobileBridge.safeArea._inset = {
-                    top: \(safeAreaInsets.top),
-                    bottom: \(safeAreaInsets.bottom),
-                    left: \(safeAreaInsets.left),
-                    right: \(safeAreaInsets.right),
-                };
-            }
+            \(alsoScrollMainContent != 0 ? "\n    window.__NativeMobileBridge.keyboard._callScrollMainContentListeners(\(alsoScrollMainContent));\n" : "")}
             """
 
         webView.evaluateJavaScript(source)
@@ -839,6 +900,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // update `layer.transform`.
             webBottomBarViewState.withLock { [self] (completionHandler) in
                 webView.evaluateJavaScript(
+                    // NOCOMMIT: Wait until after React hydrate. This is confusing the server-side
+                    // renderer.
                     #"document.getElementById("\#(webBottomBarViewState.id)").style.transform = "translateY(\#(translateY)px)""#,
                     completionHandler: { (_, _) in completionHandler() }
                 )
@@ -1029,14 +1092,9 @@ private class WebNavigationEntryController: UIViewController {
 private let bridgeSource = """
     {
         const navigationExternalPopListeners = new Set();
+        const keyboardScrollMainContentListeners = new Set();
 
         const NativeMobileBridge = {
-            safeArea: {
-                _inset: {top: 0, bottom: 0, left: 0, right: 0},
-                getInset: () => {
-                    return NativeMobileBridge.safeArea._inset;
-                },
-            },
             navigation: {
                 preparePush: () => {
                     prompt("%%%navigation.preparePush");
@@ -1079,6 +1137,25 @@ private let bridgeSource = """
             navigationBar: {
                 runScrollDebounceTimeout: () => {
                     window.webkit.messageHandlers.NativeMobileBridge.postMessage("navigationBar.runScrollDebounceTimeout");
+                },
+            },
+            keyboard: {
+                subscribeToScrollMainContent: listener => {
+                    keyboardScrollMainContentListeners.add(listener);
+                    return () => {
+                        keyboardScrollMainContentListeners.delete(listener);
+                    };
+                },
+                _callScrollMainContentListeners: scrollOffsetDelta => {
+                    for (const listener of keyboardScrollMainContentListeners) {
+                        try {
+                            listener(scrollOffsetDelta);
+                        } catch (error) {
+                            setTimeout(() => {
+                                throw error;
+                            }, 0);
+                        }
+                    }
                 },
             },
         };

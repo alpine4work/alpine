@@ -8,19 +8,6 @@
 // of our app whereas `client/helpers` should be more generic.
 export const NativeMobileBridge: {
     /**
-     * Get our native mobile app safe area insets from JavaScript. You may also
-     * access these insets from CSS with the variables `--safe-area-inset-*`.
-     */
-    readonly safeArea: {
-        getInset(): {
-            readonly top: number;
-            readonly bottom: number;
-            readonly left: number;
-            readonly right: number;
-        };
-    };
-
-    /**
      * Properly managing navigation for our native mobile apps is a challenging
      * problem. Since navigation responsibilities are shared between web code and
      * native code. Native code is responsible for animating between routes and
@@ -250,5 +237,21 @@ export const NativeMobileBridge: {
          * bar. So reduce cross process chatter by only having web call native.
          */
         runScrollDebounceTimeout(): void;
+    };
+
+    /**
+     * Functions for dealing with the software keyboard on mobile devices that
+     * occludes content on our screen.
+     */
+    readonly keyboard: {
+        /**
+         * When the keyboard opens/closes we call subscribed listener functions. The
+         * listener may then scroll content to make sure it's still in view now that
+         * the keyboard is open. For example, in chat we scroll so that messages at the
+         * bottom of the screen are still at the bottom of the screen. Whereas for
+         * documents we want to scroll such that the cursor is visible and not occluded
+         * by the keyboard.
+         */
+        subscribeToScrollMainContent(listener: (scrollOffsetDelta: number) => void): void;
     };
 } | null = typeof window !== "undefined" ? (window as any).__NativeMobileBridge ?? null : null;
