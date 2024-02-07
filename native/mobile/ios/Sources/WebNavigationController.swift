@@ -27,6 +27,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     static private var baseUrlAbsoluteStringWithTrailingSlash = baseUrl.absoluteString + "/"
 
+    static private let bottomBarRegex = try! Regex<(Substring, Substring)>(
+        " id='(NativeMobileBottomBar-[^']*)'"
+    )
+
     private let initialPath: String
     private let webConfiguration: WKWebViewConfiguration
 
@@ -41,7 +45,48 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var webScrollViews = [UIScrollView: UIScrollViewDelegateForwarder]()
     private var webBottomBarViews = [UIView: WebBottomBarViewState]()
 
-    private struct WebBottomBarViewState { let initialOffsetY: Double }
+    private class WebBottomBarViewState {
+        let id: String
+        var reconcileTimer: Timer?
+
+        private var isAwaiting = false
+        private var actionQueue = [() -> Void]()
+
+        init(id: String, reconcileTimer: Timer?) {
+            self.id = id
+            self.reconcileTimer = reconcileTimer
+        }
+
+        // This is not thread safe but since it's always called from the main thread we
+        // should be fine.
+        func withLock(_ action: @escaping () -> Void) {
+            if isAwaiting { actionQueue.append(action) } else { action() }
+        }
+
+        func withLock(_ action: @escaping (_ completionHandler: @escaping () -> Void) -> Void) {
+            let actualAction = { [self] in
+                isAwaiting = true
+
+                action { [self] in
+                    guard isAwaiting else { return }
+                    isAwaiting = false
+
+                    while actionQueue.count > 0 {
+                        let action = actionQueue.removeFirst()
+
+                        action()
+
+                        // If `action()` moved us back into an awaiting state then we need to wait for
+                        // the action to call its completion handler.
+                        if isAwaiting { return }
+                    }
+                }
+
+            }
+
+            withLock(actualAction)
+        }
+    }
 
     private var tabBarScrollOffset = 0.0
     private var keyboardOffset = 0.0
@@ -403,11 +448,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             let webBottomBarView = webSubview
 
             schedule { [self] in
-                if (webBottomBarView.layer.name ?? "").contains(" id='NativeMobileBottomBar-") {
-                    let initialOffsetY = webBottomBarView.frame.origin.y
-
+                if let match = try! WebNavigationController.bottomBarRegex.firstMatch(
+                    in: (webSubview.layer.name ?? "")
+                ) {
                     let webBottomBarViewState = WebBottomBarViewState(
-                        initialOffsetY: initialOffsetY
+                        id: String(match.1),
+                        reconcileTimer: nil
                     )
 
                     webBottomBarViews[webBottomBarView] = webBottomBarViewState
@@ -435,8 +481,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `viewTreeObserver(didAdd:)` may not have been run.
         if type(of: webSubview).description() == "WKCompositingView" {
             schedule { [self] in
-                if (webSubview.layer.name ?? "").contains(" id='NativeMobileBottomBar-") {
-                    webBottomBarViews.removeValue(forKey: webSubview)
+                if let _ = try! WebNavigationController.bottomBarRegex.firstMatch(
+                    in: (webSubview.layer.name ?? "")
+                ) {
+                    let webBottomBarViewState = webBottomBarViews.removeValue(forKey: webSubview)
+                    webBottomBarViewState?.reconcileTimer?.invalidate()
+                    webBottomBarViewState?.reconcileTimer = nil
                 }
             }
         }
@@ -448,8 +498,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     // NOCOMMIT: Cursor doesn't move with keyboard. Can we manually re-render the
     // cursor?
-    //
-    // NOCOMMIT: Tapping on the editable text closes the keyboard?
     @objc private func keyboardWillShow(notification: NSNotification) {
         let screen = notification.object as! UIScreen
         let endScreenFrame =
@@ -588,25 +636,34 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
 
         // Make sure vertical scroll indicators make space for bottom bars:
-        for (webBottomBarView, webBottomBarViewState) in webBottomBarViews {
+        for webBottomBarView in webBottomBarViews.keys {
             let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
 
-            let webBottomBarViewFrame = webBottomBarView.superview!
+            let webBottomBarViewOriginYPlusHeight = webBottomBarView.superview!
                 .convert(
-                    webBottomBarView.frame.offsetBy(
-                        dx: 0,
-                        dy: webBottomBarViewState.initialOffsetY - webBottomBarView.frame.origin.y
+                    CGPoint(
+                        x: 0,
+                        // `view.layer.position`, `view.layer.anchorPoint`, and `view.layer.bounds`
+                        // gives us layer sizing before `view.layer.transform` is applied. [The
+                        // documentation tells us][1] to not use `view.frame` if there's a transform
+                        // so instead we use `view.layer` properties.
+                        //
+                        // [1]: https://developer.apple.com/documentation/uikit/uiview/1622621-frame
+                        y: webBottomBarView.layer.position.y
+                            + ((1 - webBottomBarView.layer.anchorPoint.y)
+                                * webBottomBarView.layer.bounds.height)
                     ),
                     to: view
                 )
+                .y
 
-            let webBottomBarViewBottom =
-                view.frame.height - (webBottomBarViewFrame.origin.y + webBottomBarViewFrame.height)
+            let webBottomBarViewBottom = view.frame.height - webBottomBarViewOriginYPlusHeight
 
             verticalScrollIndicatorInsets.bottom = max(
                 verticalScrollIndicatorInsets.bottom,
-                webBottomBarView.frame.height + max(0, tabBarHeight - windowSafeAreaInsets.bottom)
-                    + webBottomBarViewBottom - webScrollViewBottom
+                webBottomBarView.layer.bounds.height
+                    + max(0, tabBarHeight - windowSafeAreaInsets.bottom) + webBottomBarViewBottom
+                    - webScrollViewBottom
             )
         }
 
@@ -742,13 +799,63 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     ) {
         let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
 
-        webBottomBarView.frame.origin.y =
-            webBottomBarViewState.initialOffsetY
-            - max(
-                0,
-                (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
-                keyboardOffset - windowSafeAreaInsets.bottom
+        let translateY = -max(
+            0,
+            (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
+            keyboardOffset - windowSafeAreaInsets.bottom
+        )
+
+        webBottomBarViewState.withLock {
+            webBottomBarView.layer.transform = CATransform3DMakeAffineTransform(
+                CGAffineTransform(translationX: 0, y: translateY)
             )
+        }
+
+        webBottomBarViewState.reconcileTimer?.invalidate()
+
+        // We update `layer.transform` in native code optimistically to make sure it's
+        // in sync with native code animations (like the keyboard opening animation).
+        // However, we also need to apply this transformation in web code so WebKit hit
+        // testing still works. The way we do this is by evaluating some JavaScript to
+        // update the `transform` CSS on our bottom bar element after a debounce.
+        //
+        // Transforms on WebKit layers are [eventually written as transforms][1] on
+        // UIKit's native `CALayer`s.
+        //
+        // [1]: https://github.com/WebKit/WebKit/blob/8c986e80a9f1cb83e4a58ed27f9ba14e2848d631/Source/WebKit/Shared/RemoteLayerTree/RemoteLayerTreePropertyApplier.mm#L165-L166
+        let reconcileTimer = Timer(
+            // If we are in a `UIView.animate` block (e.g. when the keyboard is
+            // opening/closing) then `UIView.inheritedAnimationDuration` will be the
+            // duration of that animation block. We shouldn't reconcile until the end of
+            // the animation block.
+            //
+            // If we are not in a `UIView.animate` block then
+            // `UIView.inheritedAnimationDuration` will be 0. In that case we want to
+            // debounce with a duration of 100ms.
+            timeInterval: max(0.1, UIView.inheritedAnimationDuration),
+            repeats: false
+        ) { [self] (_) in
+            // To avoid race conditions, if JavaScript hasn't returned yet we don't want to
+            // update `layer.transform`.
+            webBottomBarViewState.withLock { [self] (completionHandler) in
+                webView.evaluateJavaScript(
+                    #"document.getElementById("\#(webBottomBarViewState.id)").style.transform = "translateY(\#(translateY)px)""#,
+                    completionHandler: { (_, _) in completionHandler() }
+                )
+            }
+        }
+
+        // Add some tolerance to reduce timer energy impact.
+        reconcileTimer.tolerance = 0.05
+
+        // We need to add our timer to the common run loop mode so it can execute
+        // even while a gesture is occuring.
+        //
+        // For more information about run loops:
+        // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
+        RunLoop.current.add(reconcileTimer, forMode: .common)
+
+        webBottomBarViewState.reconcileTimer = reconcileTimer
     }
 }
 
@@ -904,7 +1011,7 @@ private class WebNavigationEntryController: UIViewController {
         imageView.tintColor = UIColor(named: "grey-70")!
 
         view.addSubview(imageView)
-        // NOCOMMIT: Should center with auto-layout?
+        // NOCOMMIT: Center should change if frame size changes
         imageView.center = view.center
 
         let rotationAnimation = CABasicAnimation(keyPath: "transform.rotation")

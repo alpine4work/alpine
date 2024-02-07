@@ -360,8 +360,8 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
 
             self.scrollDebounceTimeout = scrollDebounceTimeout
 
-            // We need to add our timeout to the common run loop mode so it can execute
-            // even while a drag is occuring.
+            // We need to add our timer to the common run loop mode so it can execute
+            // even while a gesture is occuring.
             //
             // For more information about run loops:
             // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
