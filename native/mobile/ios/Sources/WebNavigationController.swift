@@ -39,7 +39,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
     private var webScrollViews = [UIScrollView: UIScrollViewDelegateForwarder]()
-    private var initialOffsetYByWebBottomBarView = [UIView: Double]()
+    private var webBottomBarViews = [UIView: WebBottomBarViewState]()
+
+    private struct WebBottomBarViewState { let initialOffsetY: Double }
 
     private var tabBarScrollOffset = 0.0
     private var keyboardOffset = 0.0
@@ -107,6 +109,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         webView.navigationDelegate = self
         webView.uiDelegate = self
+
+        // Don't allow zooming.
+        webView.scrollView.minimumZoomScale = 1
+        webView.scrollView.maximumZoomScale = 1
 
         // Remove the accessory view with arrow up/down and "done" buttons. While
         // useful for web forms, users don't expect this in a native mobile app.
@@ -186,6 +192,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         viewControllers = [rootViewController]
     }
 
+    required init(coder: NSCoder) { fatalError("Unimplemented") }
+
     deinit {
         NotificationCenter.default.removeObserver(
             self,
@@ -198,8 +206,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             object: nil
         )
     }
-
-    required init(coder: NSCoder) { fatalError("Unimplemented") }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async
         -> WKNavigationActionPolicy
@@ -288,7 +294,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 super.pushViewController(viewController, animated: true)
             } else if messageBody == "navigation.finishExternalPop" {
                 (topViewController! as! WebNavigationEntryController)
-                    .replaceSubviewsWithWebView(webView: webView)
+                    .replaceSubviewsWithWebView(webView)
             } else if messageBody.starts(with: "navigation.pop:") {
                 let urlString = messageBody.suffix(
                     from: messageBody.index(messageBody.startIndex, offsetBy: 15)
@@ -302,7 +308,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
                 if let viewController = viewController {
                     (viewController as! WebNavigationEntryController)
-                        .replaceSubviewsWithWebView(webView: webView)
+                        .replaceSubviewsWithWebView(webView)
 
                     // Important to call `super.popToViewController()` since we don't want our
                     // class's override to start an external pop.
@@ -316,7 +322,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     // branch is executed then reconsider this behavior.
                     (topViewController! as! WebNavigationEntryController).url = url
                     (topViewController! as! WebNavigationEntryController)
-                        .replaceSubviewsWithWebView(webView: webView)
+                        .replaceSubviewsWithWebView(webView)
                 }
             } else if messageBody.starts(with: "navigation.replace:") {
                 let urlString = messageBody.suffix(
@@ -393,17 +399,20 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebKit/UIProcess/RemoteLayerTree/ios/RemoteLayerTreeViews.mm#L334-L337
         // [2]: https://github.com/WebKit/WebKit/blob/6c1979d64380ab4eedf703a4dd4f92eca1e61515/Source/WebCore/dom/Element.cpp#L3173-L3217
         // [3]: https://github.com/WebKit/WebKit/blob/6c1979d64380ab4eedf703a4dd4f92eca1e61515/Source/WebCore/rendering/RenderObject.cpp#L2706-L2715
-        if webSubview.description.hasPrefix("<WKCompositingView") {
-            schedule { [self] in
-                if (webSubview.layer.name ?? "").contains(" id='NativeMobileBottomBar-") {
-                    let initialOffsetY = webSubview.frame.origin.y
-                    initialOffsetYByWebBottomBarView[webSubview] = initialOffsetY
+        if type(of: webSubview).description() == "WKCompositingView" {
+            let webBottomBarView = webSubview
 
-                    updateWebBottomBarFrame(
-                        webBottomBarView: webSubview,
+            schedule { [self] in
+                if (webBottomBarView.layer.name ?? "").contains(" id='NativeMobileBottomBar-") {
+                    let initialOffsetY = webBottomBarView.frame.origin.y
+
+                    let webBottomBarViewState = WebBottomBarViewState(
                         initialOffsetY: initialOffsetY
                     )
 
+                    webBottomBarViews[webBottomBarView] = webBottomBarViewState
+
+                    updateWebBottomBarFrame(webBottomBarView, webBottomBarViewState)
                     setAllWebScrollViewScrollIndicatorInsets()
                 }
             }
@@ -424,10 +433,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `viewTreeObserver(didAdd:)` is called then `viewTreeObserver(didRemove:)` is
         // called immediately after, the scheduled block from
         // `viewTreeObserver(didAdd:)` may not have been run.
-        if webSubview.description.hasPrefix("<WKCompositingView") {
+        if type(of: webSubview).description() == "WKCompositingView" {
             schedule { [self] in
                 if (webSubview.layer.name ?? "").contains(" id='NativeMobileBottomBar-") {
-                    initialOffsetYByWebBottomBarView.removeValue(forKey: webSubview)
+                    webBottomBarViews.removeValue(forKey: webSubview)
                 }
             }
         }
@@ -579,14 +588,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
 
         // Make sure vertical scroll indicators make space for bottom bars:
-        for (webBottomBarView, initialOffsetY) in initialOffsetYByWebBottomBarView {
+        for (webBottomBarView, webBottomBarViewState) in webBottomBarViews {
             let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
 
             let webBottomBarViewFrame = webBottomBarView.superview!
                 .convert(
                     webBottomBarView.frame.offsetBy(
                         dx: 0,
-                        dy: initialOffsetY - webBottomBarView.frame.origin.y
+                        dy: webBottomBarViewState.initialOffsetY - webBottomBarView.frame.origin.y
                     ),
                     to: view
                 )
@@ -687,7 +696,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     // navigation happened.)
                     if context.isCancelled {
                         if webView.superview == nil {
-                            lastTopViewController.replaceSubviewsWithWebView(webView: webView)
+                            lastTopViewController.replaceSubviewsWithWebView(webView)
                         }
                     } else {
                         callNavigationExternalPopListeners(delta: delta, url: url)
@@ -722,19 +731,19 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 
     private func updateAllWebBottomBarFrames() {
-        for (webBottomBarView, initialOffsetY) in initialOffsetYByWebBottomBarView {
-            updateWebBottomBarFrame(
-                webBottomBarView: webBottomBarView,
-                initialOffsetY: initialOffsetY
-            )
+        for (webBottomBarView, webBottomBarViewState) in webBottomBarViews {
+            updateWebBottomBarFrame(webBottomBarView, webBottomBarViewState)
         }
     }
 
-    private func updateWebBottomBarFrame(webBottomBarView: UIView, initialOffsetY: Double) {
+    private func updateWebBottomBarFrame(
+        _ webBottomBarView: UIView,
+        _ webBottomBarViewState: WebBottomBarViewState
+    ) {
         let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
 
         webBottomBarView.frame.origin.y =
-            initialOffsetY
+            webBottomBarViewState.initialOffsetY
             - max(
                 0,
                 (tabBarHeight - tabBarScrollOffset) - windowSafeAreaInsets.bottom,
@@ -758,7 +767,7 @@ private class WebNavigationEntryController: UIViewController {
         // isn't hidden by opaque bars in web code.
         extendedLayoutIncludesOpaqueBars = true
 
-        replaceSubviewsWithWebView(webView: webView)
+        replaceSubviewsWithWebView(webView)
     }
 
     required init(coder: NSCoder) { fatalError("Unimplemented") }
@@ -772,7 +781,7 @@ private class WebNavigationEntryController: UIViewController {
         resetLoadingIndicatorTimer()
     }
 
-    func replaceSubviewsWithWebView(webView: WKWebView) {
+    func replaceSubviewsWithWebView(_ webView: WKWebView) {
         // If we are initializing with a web view, the web view should have already
         // been removed from its super view, but just in case perform the remove again.
         webView.removeFromSuperview()

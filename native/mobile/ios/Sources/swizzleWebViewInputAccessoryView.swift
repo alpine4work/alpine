@@ -12,7 +12,7 @@ func swizzleWebViewInputAccessoryView(_ webView: WKWebView) {
     var targetView: UIView?
 
     for view in webView.scrollView.subviews {
-        if type(of: view).description().hasPrefix("WKContent") { targetView = view }
+        if type(of: view).description() == "WKContentView" { targetView = view }
     }
 
     guard let targetView = targetView else { return }
