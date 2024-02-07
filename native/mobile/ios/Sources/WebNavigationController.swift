@@ -566,27 +566,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private func setWebScrollViewScrollIndicatorInsets(_ webScrollView: UIScrollView) {
         let safeAreaInsets = getSafeAreaInsets()
 
-        // Calculate the insets of the scroll view. We shouldn't apply safe area insets
-        // further than how much we're already inset.
-        var webScrollViewTop = 0.0
-        var webScrollViewBottom = 0.0
-
-        do {
-            var currentViewState: UIView? = webScrollView
-            while let currentView = currentViewState {
-                if let currentSuperview = currentView.superview {
-                    webScrollViewTop += currentView.frame.origin.y
-
-                    let currentBottom =
-                        currentSuperview.frame.height
-                        - (currentView.frame.origin.y + currentView.frame.height)
-
-                    webScrollViewBottom += currentBottom
-                }
-
-                currentViewState = currentView.superview
-            }
-        }
+        let webScrollViewFrame = webScrollView.superview!.convert(webScrollView.frame, to: view)
+        let webScrollViewTop = webScrollViewFrame.origin.y
+        let webScrollViewBottom =
+            view.frame.height - (webScrollViewFrame.origin.y + webScrollViewFrame.height)
 
         var verticalScrollIndicatorInsets = UIEdgeInsets(
             top: max(0, safeAreaInsets.top + navigationBarHeight - webScrollViewTop),
@@ -598,22 +581,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // Make sure vertical scroll indicators make space for bottom bars:
         for (webBottomBarView, initialOffsetY) in initialOffsetYByWebBottomBarView {
             let tabBarHeight = tabBarController?.tabBar.frame.height ?? 0
-            var webBottomBarViewBottom = 0.0
 
-            var currentViewState: UIView? = webBottomBarView
-            while let currentView = currentViewState {
-                if let currentSuperview = currentView.superview {
-                    let currentBottom =
-                        currentSuperview.frame.height
-                        - ((currentView === webBottomBarView
-                            ? initialOffsetY : currentView.frame.origin.y)
-                            + currentView.frame.height)
+            let webBottomBarViewFrame = webBottomBarView.superview!
+                .convert(
+                    webBottomBarView.frame.offsetBy(
+                        dx: 0,
+                        dy: initialOffsetY - webBottomBarView.frame.origin.y
+                    ),
+                    to: view
+                )
 
-                    webBottomBarViewBottom += currentBottom
-                }
-
-                currentViewState = currentView.superview
-            }
+            let webBottomBarViewBottom =
+                view.frame.height - (webBottomBarViewFrame.origin.y + webBottomBarViewFrame.height)
 
             verticalScrollIndicatorInsets.bottom = max(
                 verticalScrollIndicatorInsets.bottom,
