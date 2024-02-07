@@ -6,7 +6,7 @@ protocol SceneDelegateRootController: UIViewController {
     func setWindowSafeAreaInsets(_ windowSafeAreaInsets: UIEdgeInsets)
 }
 
-class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+class SceneDelegate: NSObject, UIWindowSceneDelegate {
     private struct State {
         let window: UIWindow
         let rootController: SceneDelegateRootController
