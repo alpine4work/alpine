@@ -48,6 +48,7 @@ esbuild(
         "//:node_modules/autoprefixer",
         "//:node_modules/color",
         "//:node_modules/postcss",
+        "//:node_modules/prosemirror-view",
         "//shared/design",
         "//shared/error",
         "//shared/helpers",

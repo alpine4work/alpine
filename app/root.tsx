@@ -9,7 +9,6 @@ import {
 } from "@remix-run/react";
 import {LinkDescriptor} from "@remix-run/server-runtime";
 import {IconContext} from "phosphor-react";
-import prosemirrorStylesHref from "prosemirror-view/style/prosemirror.css";
 import {ReactNode, useCallback, useContext, useEffect, useMemo} from "react";
 import {
     UNSAFE_DataRouterContext as DataRouterContext,
@@ -66,10 +65,18 @@ export function meta() {
 
 export function links(): Array<LinkDescriptor> {
     return [
+        // Preload our primary font Inter from our shared styles in parallel with CSS
+        // to try and avoid flashes of unstyled text.
+        //
+        // https://web.dev/articles/codelab-preload-web-fonts
+        {
+            rel: "preload",
+            href: "/fonts/inter.woff2",
+            as: "font",
+            type: "font/woff2",
+            crossOrigin: "anonymous",
+        },
         {rel: "stylesheet", href: sharedStylesHref},
-        // ProseMirror includes some lightweight styling that's required for it to
-        // work correctly.
-        {rel: "stylesheet", href: prosemirrorStylesHref},
         // Recommend the SVG favicon so it can render in light and dark mode.
         {rel: "icon", href: "/favicon.svg"},
     ];

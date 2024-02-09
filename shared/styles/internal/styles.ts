@@ -8,6 +8,10 @@
 // have a `~/shared/styles/styles.d.ts` file that re-exports this file for
 // TypeScript.
 
+// ProseMirror includes some lightweight styling that's required for the editor
+// to work correctly.
+import "prosemirror-view/style/prosemirror.css";
+
 import "~/shared/styles/internal/global/global_1_reset.css.js";
 import "~/shared/styles/internal/global/global_2_defaults.css.js";
 
