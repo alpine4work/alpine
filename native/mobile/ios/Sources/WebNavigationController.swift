@@ -1033,6 +1033,12 @@ private class WebNavigationEntryController: UIViewController {
     }
 
     private func resetLoadingIndicatorTimer() {
+        let hasLoadingIndicator =
+            view.subviews.first(where: { (view) in view.tag == loadingIndicatorViewTag }) != nil
+
+        // We're already showing the loading indicator.
+        if hasLoadingIndicator { return }
+
         let hasWebView = view.subviews.first(where: { (view) in view is WKWebView }) != nil
 
         loadingIndicatorTimer?.invalidate()
@@ -1084,14 +1090,24 @@ private class WebNavigationEntryController: UIViewController {
     /// The loading indicator blurs the snapshot and adds an animated loading
     /// spinner in the center.
     private func addLoadingIndicatorSubviews() {
-        let blurEffectView = UIVisualEffectView()
-        blurEffectView.tag = blurEffectViewTag
-        blurEffectView.frame = view.bounds
-        blurEffectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        view.addSubview(blurEffectView)
+        let hasLoadingIndicator =
+            view.subviews.first(where: { (view) in view.tag == loadingIndicatorViewTag }) != nil
 
-        UIView.animate(withDuration: 0.2) {
-            blurEffectView.effect = UIBlurEffect(style: .systemUltraThinMaterial)
+        // We're already showing the loading indicator.
+        if hasLoadingIndicator { return }
+
+        // Blur only if we have a web subview or snapshot subview. If there's nothing
+        // underneath don't blur since it'll change the background color.
+        if view.subviews.count > 0 {
+            let blurEffectView = UIVisualEffectView()
+            blurEffectView.tag = blurEffectViewTag
+            blurEffectView.frame = view.bounds
+            blurEffectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            view.addSubview(blurEffectView)
+
+            UIView.animate(withDuration: 0.2) {
+                blurEffectView.effect = UIBlurEffect(style: .systemUltraThinMaterial)
+            }
         }
 
         let loadingIndicatorView = UIImageView(
