@@ -568,6 +568,14 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                             description={`Send ${messageNoun}`}
                             isDisabled={isSendButtonDisabled}
                             onPress={submitMessage}
+                            // The send icon button is not focusable. That's because we don't want to
+                            // remove focus from the message input when the send button is pressed. That
+                            // way on mobile you can keep typing and sending messages because the software
+                            // keyboard doesn't disappear.
+                            //
+                            // On desktop, hitting enter in the message input is sufficient for keyboard
+                            // control of the message input.
+                            isFocusable={false}
                         >
                             <ArrowUp
                                 size={spacing["4"]}

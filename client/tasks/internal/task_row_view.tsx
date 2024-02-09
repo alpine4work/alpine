@@ -406,7 +406,7 @@ function TaskRowView(
         handleCommitPromise(commitPromise);
     };
 
-    const expandButtonRef = useRef<HTMLButtonElement>(null);
+    const expandButtonRef = useRef<HTMLElement>(null);
     const statusButtonRef = useRef<HTMLElement>(null);
     const titleCellRef = useRef<HTMLDivElement>(null);
     const titleInputRef = useRef<TaskRowTitleInputRef>(null);

@@ -54,7 +54,6 @@ export function SpaceLayoutTopBarInboxButton({
     const {space} = useSpaceContext();
     const remPx = useRemPx();
     const navigate = useNavigate();
-    const buttonRef = useRef<HTMLButtonElement>(null);
     const overlayRef = useRef<HTMLDivElement>(null);
     const {isConnected, subscribeToEvents} = useMyAccountWebSocket();
 
@@ -387,7 +386,6 @@ export function SpaceLayoutTopBarInboxButton({
                 }
             >
                 <IconButton
-                    ref={buttonRef}
                     size="md"
                     description="Notifications"
                     // When you hover over the notification bell we open a notification preview.

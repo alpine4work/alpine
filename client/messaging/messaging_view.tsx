@@ -554,7 +554,6 @@ function MessagingView<RoomKey extends string, Message extends MessageModel<Room
         ),
     });
 
-    // NOCOMMIT: Sending a message doesn't scroll to the bottom
     useEffect(() => {
         if (!NativeMobileBridge) return;
 

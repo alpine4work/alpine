@@ -1419,7 +1419,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
     ref: Ref<PeekOverlayContentRef>,
 ) {
     const contentRef = useRef<HTMLDivElement>(null);
-    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const closeButtonRef = useRef<HTMLElement>(null);
     const navigate = useNavigate();
 
     useImperativeHandle(

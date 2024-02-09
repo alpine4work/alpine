@@ -153,7 +153,6 @@ function ContentEditorCommentInput({
     const showToast = useShowToast();
     const {currentAccount} = useSpaceContext();
 
-    const sendButtonRef = useRef<HTMLButtonElement>(null);
     const [commentState, setCommentState] = useState(() =>
         ContentEditorState.create(emptyMessageContentWithReferences),
     );
@@ -342,7 +341,6 @@ function ContentEditorCommentInput({
                         }}
                     >
                         <IconButton
-                            ref={sendButtonRef}
                             variant="accent"
                             description="Save comment"
                             isDisabled={isSendButtonDisabled}

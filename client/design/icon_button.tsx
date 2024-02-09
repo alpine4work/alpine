@@ -1,11 +1,11 @@
 import {PressEvent} from "@react-types/shared";
 import {IconContext, SpinnerGap} from "phosphor-react";
 import {
-    ButtonHTMLAttributes,
     KeyboardEvent,
     PointerEvent,
     ReactNode,
     Ref,
+    createElement,
     forwardRef,
     useRef,
     useState,
@@ -27,7 +27,6 @@ import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
-import {cast} from "~/shared/helpers/control/cast.js";
 import {
     Sprinkles,
     buttonStyles,
@@ -157,6 +156,16 @@ function IconButton(
         isTabbable?: boolean;
 
         /**
+         * Disables the ability to focus this button. Turns the element into a `<div>`
+         * and doesn't set `tabindex` on the element. The element isn't even focusable
+         * programmatically. Useful if you don't want focus to move when the button is
+         * pressed.
+         *
+         * Defaults to `true`.
+         */
+        isFocusable?: boolean;
+
+        /**
          * Called when we start hovering the button.
          */
         onHoverStart?: () => void;
@@ -179,7 +188,7 @@ function IconButton(
          */
         onKeyDownCapture?: (event: KeyboardEvent) => void;
     },
-    foreignRef: Ref<HTMLButtonElement>,
+    foreignRef: Ref<HTMLElement>,
 ) {
     const {
         description,
@@ -198,12 +207,13 @@ function IconButton(
         tooltipContentOverride,
         isTooltipVisibleWhenFocused = true,
         isTabbable = true,
+        isFocusable = true,
         onHoverStart,
         onHoverEnd,
         onPointerLeave,
         onKeyDownCapture,
     } = props;
-    const localRef = useRef<HTMLButtonElement>(null);
+    const localRef = useRef<HTMLElement>(null);
     const showToast = useShowToast();
 
     const [isPendingFromPress, setIsPendingFromPress] = useState(false);
@@ -212,6 +222,7 @@ function IconButton(
     const {buttonProps, isPressed} = useButton(
         {
             ...props,
+            elementType: isFocusable ? "button" : "div",
             isDisabled: isDisabled || isPending,
             "aria-label": description,
             onPress: event => {
@@ -372,35 +383,36 @@ function IconButton(
             isVisibleWhenFocused={isTooltipVisibleWhenFocused}
         >
             <FocusRing>
-                <button
-                    {...mergeProps(
-                        buttonProps,
-                        hoverProps,
-                        // Only override `tabIndex` if `isTabbable` is set. Otherwise let
-                        // `react-aria` control `tabIndex`.
-                        cast<ButtonHTMLAttributes<HTMLButtonElement>>(
-                            !isTabbable ? {tabIndex: -1} : {},
-                        ),
-                        {onPointerLeave, onKeyDownCapture},
-                    )}
-                    ref={useMergedRefs(foreignRef, localRef)}
-                    className={sprinkles({
-                        display: "flex",
-                        width: touchSlop.sizeWithSlop,
-                        height: touchSlop.sizeWithSlop,
-                        padding: touchSlop.slop,
-                        margin: `-${touchSlop.slop}`,
-                        borderRadius,
-                        // If this button is in a `display: flex` element, don't shrink the button based
-                        // on other contents.
-                        flexShrink: "0",
-                    })}
-                    // Allow the button to maintain focus when pending. This way if a button is
-                    // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
-                    // `<DocumentContentEditor>`) and it enters a pending state we don't think the
-                    // parent element has lost focus.
-                    disabled={isPending && !isDisabled ? undefined : buttonProps.disabled}
-                >
+                {createElement(
+                    isFocusable ? "button" : "div",
+                    {
+                        ...mergeProps(buttonProps, hoverProps, {onPointerLeave, onKeyDownCapture}),
+                        ref: useMergedRefs(foreignRef, localRef),
+                        className: sprinkles({
+                            display: "flex",
+                            width: touchSlop.sizeWithSlop,
+                            height: touchSlop.sizeWithSlop,
+                            padding: touchSlop.slop,
+                            margin: `-${touchSlop.slop}`,
+                            borderRadius,
+                            // If this button is in a `display: flex` element, don't shrink the button based
+                            // on other contents.
+                            flexShrink: "0",
+                        }),
+                        tabIndex: isFocusable
+                            ? !isTabbable
+                                ? -1
+                                : buttonProps.tabIndex
+                            : undefined,
+                        // Allow the button to maintain focus when pending. This way if a button is
+                        // used in a `useConfirmSaveAfterLosingFocus()` hook (like comment inputs in
+                        // `<DocumentContentEditor>`) and it enters a pending state we don't think the
+                        // parent element has lost focus.
+                        disabled:
+                            isPending && !isDisabled
+                                ? undefined
+                                : (buttonProps as {disabled?: boolean}).disabled,
+                    },
                     <span
                         className={sprinkles({
                             display: "flex",
@@ -453,8 +465,8 @@ function IconButton(
                                 children
                             )}
                         </IconContext.Provider>
-                    </span>
-                </button>
+                    </span>,
+                )}
             </FocusRing>
         </Tooltip>
     );

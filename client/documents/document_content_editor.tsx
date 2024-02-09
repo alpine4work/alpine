@@ -79,7 +79,6 @@ import {
     colorSchemeVars,
     contentSchemaStyles,
     spinAnimationClassName,
-    sprinkles,
 } from "~/shared/styles/styles.js";
 
 export const documentContentEditorSidebarWidth = spacing["96"];
@@ -1025,8 +1024,8 @@ function DocumentContentEditorSidebar({
 }) {
     const {isAppleDevice} = useClientInfo();
 
-    const previousCommentThreadButtonRef = useRef<HTMLButtonElement>(null);
-    const nextCommentThreadButtonRef = useRef<HTMLButtonElement>(null);
+    const previousCommentThreadButtonRef = useRef<HTMLElement>(null);
+    const nextCommentThreadButtonRef = useRef<HTMLElement>(null);
 
     const initialDataResult = usePromise(initialDataPromise);
 
