@@ -153,6 +153,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         webView.navigationDelegate = self
         webView.uiDelegate = self
 
+        // Don't show white background color while content is loading.
+        // https://stackoverflow.com/questions/27655930/how-can-i-give-wkwebview-a-colored-background
+        webView.isOpaque = false
+
         // Don't allow zooming.
         webView.scrollView.minimumZoomScale = 1
         webView.scrollView.maximumZoomScale = 1
@@ -930,6 +934,9 @@ private class WebNavigationEntryController: UIViewController {
         self.url = url
 
         super.init(nibName: nil, bundle: nil)
+
+        // While the web view isn't mounted, show our primary background color.
+        view.backgroundColor = UIColor(named: "grey-0")!
 
         // Render content underneath opaque bars like the tab bar. We make sure content
         // isn't hidden by opaque bars in web code.
