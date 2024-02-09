@@ -319,12 +319,12 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 // It so happens that WebKit is one of those browsers. Here's the code in
                 // WebKit that does this: [part 1][1], [part 2][2].
                 //
-                // We can't set `transform` on a native mobile bottom bar element since native
-                // code will be setting the `transform` property as the bottom bar moves.
-                //
                 // [1]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/RenderLayerCompositor.cpp#L2831
                 // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                 willChange: clientInfo.isNativeMobile ? "transform" : undefined,
+                // Set `transform` to its initial value assuming the tab bar is up.
+                transform:
+                    "translateY(calc(var(--window-safe-area-inset-bottom, 0px) - var(--safe-area-inset-bottom, 0px)))",
             }}
             // Suppress React hydration warnings in our native mobile app. The native
             // mobile app sets the `transform` property on this element. Sometimes before

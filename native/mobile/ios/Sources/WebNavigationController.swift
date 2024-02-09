@@ -49,11 +49,18 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     /// animations. For an HTML element to be a bottom bar it must:
     ///
     /// 1. Set an `id` that starts with `NativeMobileBottomBar-`.
+    ///
     /// 2. Set the CSS `will-change: transform` property. (This creates a new
     ///    browser compositing layer which is necessary for our native code to
     ///    separate out the bottom bar element.)
+    ///
     /// 3. NOT set the CSS `transform` property since native code will set that
-    ///    property.
+    ///    property. Or set the CSS `transform` property to an initial value that
+    ///    assumes the tab bar is up. Native code will override this value. While
+    ///    setting an initial CSS transform property is optional we've found it
+    ///    fixes a bug where the bottom bar sometimes flashes in on application
+    ///    start.
+    ///
     /// 4. Set the React `suppressHydrationWarning={true}` prop since our native
     ///    code may update the `transform` property before React hydration
     ///    finishes.
