@@ -991,6 +991,25 @@ private class WebNavigationEntryController: UIViewController {
         resetLoadingIndicatorTimer()
     }
 
+    override func viewWillLayoutSubviews() {
+        for subview in view.subviews {
+            // Web view should always be size of view controller.
+            if subview is WKWebView {
+                subview.frame = view.bounds
+            }
+            // Blur effect from `addLoadingIndicatorSubviews()` should always be size of
+            // view controller.
+            else if subview is UIVisualEffectView {
+                subview.frame = view.bounds
+            }
+            // Loading indicator from `addLoadingIndicatorSubviews()` should always be in
+            // the center of view controller.
+            else if subview is UIImageView {
+                subview.center = view.center
+            }
+        }
+    }
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         hasViewAppeared = true
@@ -1079,7 +1098,6 @@ private class WebNavigationEntryController: UIViewController {
         imageView.tintColor = UIColor(named: "grey-70")!
 
         view.addSubview(imageView)
-        // NOCOMMIT: Center should change if frame size changes
         imageView.center = view.center
 
         let rotationAnimation = CABasicAnimation(keyPath: "transform.rotation")
