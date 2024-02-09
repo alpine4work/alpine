@@ -930,6 +930,10 @@ private class WebNavigationEntryController: UIViewController {
     private var loadingIndicatorTimerGeneration: Int = 0
     private var hasViewAppeared: Bool = false
 
+    private let snapshotViewTag = 1
+    private let blurEffectViewTag = 2
+    private let loadingIndicatorViewTag = 3
+
     init(url: URL, webView: WKWebView) {
         self.url = url
 
@@ -949,6 +953,7 @@ private class WebNavigationEntryController: UIViewController {
 
     func replaceSubviewsWithSnapshotView() {
         let snapshotView = view.snapshotView(afterScreenUpdates: false)!
+        snapshotView.tag = snapshotViewTag
 
         for subview in view.subviews { subview.removeFromSuperview() }
         view.addSubview(snapshotView)
@@ -999,13 +1004,18 @@ private class WebNavigationEntryController: UIViewController {
             }
             // Blur effect from `addLoadingIndicatorSubviews()` should always be size of
             // view controller.
-            else if subview is UIVisualEffectView {
+            else if subview.tag == blurEffectViewTag {
                 subview.frame = view.bounds
             }
             // Loading indicator from `addLoadingIndicatorSubviews()` should always be in
             // the center of view controller.
-            else if subview is UIImageView {
+            else if subview.tag == loadingIndicatorViewTag {
                 subview.center = view.center
+            }
+            // We don't currently resize snapshot views. It would likely look quite odd.
+            // Better to leave snapshots at the origin.
+            else if subview.tag == snapshotViewTag {
+                // Noop
             }
         }
     }
@@ -1075,6 +1085,7 @@ private class WebNavigationEntryController: UIViewController {
     /// spinner in the center.
     private func addLoadingIndicatorSubviews() {
         let blurEffectView = UIVisualEffectView()
+        blurEffectView.tag = blurEffectViewTag
         blurEffectView.frame = view.bounds
         blurEffectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(blurEffectView)
@@ -1083,22 +1094,23 @@ private class WebNavigationEntryController: UIViewController {
             blurEffectView.effect = UIBlurEffect(style: .systemUltraThinMaterial)
         }
 
-        let imageView = UIImageView(
+        let loadingIndicatorView = UIImageView(
             image: UIImage(named: "SpinnerGapIcon")!
                 // Must use template rendering mode for `tintColor` to have any effect.
                 .withRenderingMode(.alwaysTemplate)
         )
+        loadingIndicatorView.tag = loadingIndicatorViewTag
 
         // The equivalent of size `spacing["6"]` which is used for peek loading
         // indicators. `spacing["6"]` is 1.5rem and the mobile rem size is 20px.
         // So 1.5 * 20 = 30.
-        imageView.frame.size.width = 30
-        imageView.frame.size.height = 30
+        loadingIndicatorView.frame.size.width = 30
+        loadingIndicatorView.frame.size.height = 30
 
-        imageView.tintColor = UIColor(named: "grey-70")!
+        loadingIndicatorView.tintColor = UIColor(named: "grey-70")!
 
-        view.addSubview(imageView)
-        imageView.center = view.center
+        view.addSubview(loadingIndicatorView)
+        loadingIndicatorView.center = view.center
 
         let rotationAnimation = CABasicAnimation(keyPath: "transform.rotation")
 
@@ -1108,7 +1120,7 @@ private class WebNavigationEntryController: UIViewController {
         rotationAnimation.duration = 1
         rotationAnimation.repeatCount = Float.infinity
 
-        imageView.layer.add(rotationAnimation, forKey: "rotationAnimation")
+        loadingIndicatorView.layer.add(rotationAnimation, forKey: "rotationAnimation")
     }
 }
 
