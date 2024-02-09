@@ -490,6 +490,11 @@ class SearchModalErrorBoundary extends Component<{children: ReactNode}> {
  * should work, it's observable through (at times) inconsistent means, and
  * lacks any customization.
  *
+ * Note that this only applies to the iOS Safari web browser! In our native
+ * mobile app we use different tricks to handle the software keyboard. Namely,
+ * we disable WebKit's keyboard handling and add our own that supports custom
+ * animations and such.
+ *
  * Proper keyboard support for our product requires a couple arcane tricks.
  *
  * Two excellent blog posts document the issues with the iOS Safari keyboard.
@@ -565,8 +570,6 @@ class SearchModalErrorBoundary extends Component<{children: ReactNode}> {
  * [2]: https://medium.com/@krutilin.sergey.ks/fixing-the-safari-mobile-resizing-bug-a-developers-guide-6568f933cde0
  * [3]: https://developer.mozilla.org/en-US/docs/Web/CSS/overscroll-behavior
  */
-// NOCOMMIT: Native should support fluid keyboard opening animations. Document
-// how we made that work.
 function useMobileWebKitKeyboardSupport() {
     const [resizedWindowHeightForMobileWebKit, setResizedWindowHeightForMobileWebKit] = useState<
         number | null
@@ -624,7 +627,8 @@ function useMobileWebKitKeyboardSupport() {
             }
         };
 
-        // NOCOMMIT: Should scroll up chat when opened
+        // NOCOMMIT: Should scroll up chat when opened. Can we have this hook into
+        // `NativeMobileBridge.subscribeToScrollMainContent()` support?
 
         const overflowYParentCache = new WeakMap<
             Node,

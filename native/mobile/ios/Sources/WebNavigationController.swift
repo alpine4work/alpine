@@ -147,8 +147,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webConfiguration.userContentController.add(self, name: "NativeMobileBridge")
 
-        // NOCOMMIT: Stop navigation out of `/sign-in` routes.
-
         let webView = WKWebView(frame: view.bounds, configuration: webConfiguration)
         self.webView = webView
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -901,7 +899,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             webBottomBarViewState.withLock { [self] (completionHandler) in
                 webView.evaluateJavaScript(
                     // NOCOMMIT: Wait until after React hydrate. This is confusing the server-side
-                    // renderer.
+                    // renderer. We should show a loading spinner until this can run as well.
                     #"document.getElementById("\#(webBottomBarViewState.id)").style.transform = "translateY(\#(translateY)px)""#,
                     completionHandler: { (_, _) in completionHandler() }
                 )
