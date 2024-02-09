@@ -43,6 +43,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
     private var webScrollViews = [UIScrollView: UIScrollViewDelegateForwarder]()
+
+    /// Bottom bars are HTML elements which we optimistially translate in native
+    /// code along with native UI like the tab bar or software keyboard for fluid
+    /// animations. For an HTML element to be a bottom bar it must:
+    ///
+    /// 1. Set an `id` that starts with `NativeMobileBottomBar-`.
+    /// 2. Set the CSS `will-change: transform` property. (This creates a new
+    ///    browser compositing layer which is necessary for our native code to
+    ///    separate out the bottom bar element.)
+    /// 3. NOT set the CSS `transform` property since native code will set that
+    ///    property.
+    /// 4. Set the React `suppressHydrationWarning={true}` prop since our native
+    ///    code may update the `transform` property before React hydration
+    ///    finishes.
+    ///
+    /// `<MessageInput>` is an example of a component that meets these criteria.
     private var webBottomBarViews = [UIView: WebBottomBarViewState]()
 
     private class WebBottomBarViewState {
@@ -902,8 +918,6 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // update `layer.transform`.
             webBottomBarViewState.withLock { [self] (completionHandler) in
                 webView.evaluateJavaScript(
-                    // NOCOMMIT: Wait until after React hydrate. This is confusing the server-side
-                    // renderer. We should show a loading spinner until this can run as well.
                     #"document.getElementById("\#(webBottomBarViewState.id)").style.transform = "translateY(\#(translateY)px)""#,
                     completionHandler: { (_, _) in completionHandler() }
                 )

@@ -427,6 +427,14 @@ export default function Root() {
                     name="robots"
                     content="noindex"
                 />
+                <meta
+                    // Don't automatically detect format of various text bits on iOS. If we want
+                    // format detection we'll manually add it ourselves. Format detection doesn't
+                    // play nicely with React server rendering.
+                    // https://nextjs.org/docs/messages/react-hydration-error#common-ios-issues
+                    name="format-detection"
+                    content="telephone=no, date=no, email=no, address=no"
+                />
                 <Meta />
                 <Links />
                 <InitializeColorSchemeScript />

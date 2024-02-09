@@ -326,6 +326,10 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                 // [2]: https://github.com/WebKit/WebKit/blob/b3b7144bd152111660f81e9aecb76b0a4a8642ab/Source/WebCore/rendering/style/WillChangeData.cpp#L158
                 willChange: clientInfo.isNativeMobile ? "transform" : undefined,
             }}
+            // Suppress React hydration warnings in our native mobile app. The native
+            // mobile app sets the `transform` property on this element. Sometimes before
+            // React finishes hydrating. This is expected, React can ignore the difference.
+            suppressHydrationWarning={clientInfo.isNativeMobile ? true : undefined}
         >
             {replyingToMessage &&
                 (() => {
