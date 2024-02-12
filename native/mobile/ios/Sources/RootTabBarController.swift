@@ -223,6 +223,7 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         if scrollOffset == self.lastScrollOffset { return }
 
         let scrollHeight = round(scrollView.contentSize.height)
+        let clientHeight = round(scrollView.frame.height)
 
         // Immediately finish any animations when scrolling begins.
         tabBar.layer.removeAllAnimations()
@@ -294,19 +295,34 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
         self.scrollDebounceTimeout = nil
 
         // We only need a timeout to run our reveal/hide animation if the navigation
-        // bar isn't completely scrolled in or completely scrolled out.
-        if navigationBarScrollOffset != 0 && navigationBarScrollOffset != navigationBarHeight {
+        // bar:
+        //
+        // - Isn't completely scrolled in or completely scrolled out; OR
+        // - Is completely scrolled to the bottom
+        if navigationBarScrollOffset != 0
+            && (navigationBarScrollOffset != navigationBarHeight
+                || scrollOffset >= scrollHeight - clientHeight)
+        {
             let scrollDebounceTimeout = Timer(
                 timeInterval: navigationBarTransitionDebounceScrollTimeoutSeconds,
                 repeats: false
             ) { [self] (_) in
                 self.scrollDebounceTimeout = nil
 
-                // In web, scroll offset is an integer. In native, scroll offset is a float.
-                // `round()` to try and make sure we have the same value on web and native.
+                // Reveal the navigation bar if:
+                //
+                // - We pass the visible height threshold; OR
+                // - We've completely scrolled to the bottom
+                //
+                // We always show the navigation bar at the bottom since we assume the user has
+                // completed reading the page and they're ready to take action. The only scroll
+                // action they could make is to scroll up which would reveal the tab bar. This
+                // also means, in our native mobile app, we're not showing extra safe area at
+                // the bottom of the page.
                 var navigationBarTopOffset: Double
                 if navigationBarHeight - navigationBarScrollOffset
                     >= navigationBarVisibleHeightThresholdForReveal
+                    || scrollOffset >= scrollHeight - clientHeight
                 {
                     navigationBarTopOffset = scrollOffset
                 } else {

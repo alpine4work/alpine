@@ -386,7 +386,7 @@ function NavigationBar({
                     // the reason, ignore scroll events that repeat a scroll offset.
                     if (scrollOffset === lastScrollOffsetRef.current) return;
 
-                    const scrollHeight = element.scrollHeight;
+                    const {scrollHeight, clientHeight} = element;
 
                     // Immediately finish any animations when scrolling begins.
                     if (animationControlsRef.current) {
@@ -632,21 +632,37 @@ function NavigationBar({
                     scrollDebounceTimeout = null;
 
                     // We only need a timeout to run our reveal/hide animation if the navigation
-                    // bar isn't completely scrolled in or completely scrolled out.
+                    // bar:
+                    //
+                    // - Isn't completely scrolled in or completely scrolled out; OR
+                    // - Is completely scrolled to the bottom (native mobile app only)
                     if (
                         navigationBarScrollOffset !== 0 &&
-                        navigationBarScrollOffset !== navigationBarHeight
+                        (navigationBarScrollOffset !== navigationBarHeight ||
+                            (NativeMobileBridge && scrollOffset >= scrollHeight - clientHeight))
                     ) {
                         scrollDebounceTimeout = createTimeout(() => {
                             // Precaution: Make sure native runs its timeout at the same time as we run ours
                             // so our animations are synced.
                             NativeMobileBridge?.navigationBar.runScrollDebounceTimeout();
 
+                            const remPx = getRemPxWithoutListening();
+
+                            // Reveal the navigation bar if:
+                            //
+                            // - We pass the visible height threshold; OR
+                            // - We've completely scrolled to the bottom (native mobile app only)
+                            //
+                            // We always show the navigation bar at the bottom since we assume the user has
+                            // completed reading the page and they're ready to take action. The only scroll
+                            // action they could make is to scroll up which would reveal the tab bar. This
+                            // also means, in our native mobile app, we're not showing extra safe area at
+                            // the bottom of the page.
                             let navigationBarTopOffset: number;
                             if (
                                 navigationBarHeight - navigationBarScrollOffset >=
-                                navigationBarVisibleHeightThresholdForRevealRem *
-                                    getRemPxWithoutListening()
+                                    navigationBarVisibleHeightThresholdForRevealRem * remPx ||
+                                scrollOffset >= scrollHeight - clientHeight
                             ) {
                                 navigationBarTopOffset = scrollOffset;
                             } else {
