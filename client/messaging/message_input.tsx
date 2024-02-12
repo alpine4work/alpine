@@ -291,9 +291,17 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
 
     const id = useId();
 
+    // Extra slop that extends beneath the bottom of the message input. This is
+    // always cut off on desktop. However, it matters in our native mobile app.
+    // When we animate the message input with the keyboard, their translations
+    // aren't perfectly in sync (even though the timing is in sync). So there are
+    // moments in the animation where the content may be revealed between the
+    // message input and the keyboard. To fix this, we just make them message input
+    // bigger so it can cover content below while animating. To debug this turn on
+    // slow animations in an iOS emulator and open the keyboard.
+    const backgroundSlopBottom = spacing["24"];
+
     return (
-        // NOCOMMIT: Extend space below box for some number of pixels for covering
-        // content during keyboard animation.
         <Box
             data-testid={dataTestId}
             id={clientInfo.isNativeMobile ? `NativeMobileBottomBar-${id}` : id}
@@ -308,7 +316,11 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
                     : `calc(${messageInputMinHeight} + var(--window-safe-area-inset-bottom, 0px))`,
                 // Remove one pixel from top to make space for a border.
                 paddingTop: `calc(${spacing["3"]} - 1px)`,
-                paddingBottom: `calc(${spacing["3"]} + var(--window-safe-area-inset-bottom, 0px))`,
+                paddingBottom: `calc(${addRemLengths(
+                    spacing["3"],
+                    backgroundSlopBottom,
+                )} + var(--window-safe-area-inset-bottom, 0px))`,
+                marginBottom: `-${backgroundSlopBottom}`,
                 // Our native mobile wrapper looks for compositing layers created from an
                 // element with an ID that starts with `NativeMobileBottomBar-` and ties their
                 // position to the tab bar and software keyboard. So we get smooth animations
