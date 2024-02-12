@@ -26,7 +26,7 @@ import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {ToastContextProvider} from "~/client/design/toast.js";
 import {TooltipCoordinationContextProvider} from "~/client/design/tooltip.js";
 import {
-    InitializeColorSchemeScript,
+    ColorSchemeManager,
     getColorSchemeWithoutListeningIfBrowser,
 } from "~/client/helpers/color_scheme.js";
 import {GlobalKeyDownRootContextProvider} from "~/client/helpers/global_key_down_event.js";
@@ -444,7 +444,7 @@ export default function Root() {
                 />
                 <Meta />
                 <Links />
-                <InitializeColorSchemeScript />
+                <ColorSchemeManager />
             </head>
             <body>
                 {wrappedChildren}
