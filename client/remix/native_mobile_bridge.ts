@@ -8,6 +8,40 @@
 // of our app whereas `client/helpers` should be more generic.
 export const NativeMobileBridge: {
     /**
+     * Our native mobile app requires careful coordination between native code and
+     * web code to create an app that feels native. For that coordination to work
+     * web code has to actually be running. Given web code has many failure states
+     * (from server 500s to infinite `while` loops) these health methods allow web
+     * code to report everything's normal to native code. If native code detects
+     * that web code has become unhealthy it will show the user an error message.
+     */
+    readonly health: {
+        /**
+         * Once all HTML has finished loading from this server, web code calls
+         * this method so native code can remove any spinners and paint to the
+         * screen.
+         *
+         * We call this function before React hydration to immediately present
+         * server rendered HTML to the user.
+         */
+        ready(): void;
+
+        /**
+         * Web code is expected to send a ping to native code every 500ms. If native
+         * code detects no ping for over 1s it shows an error to the user and hard
+         * reloads the web view. Assuming the web view has entered a bad state
+         * (e.g. an infinite while loop).
+         *
+         * This is worst case, unexpected, error handling. If web code and native code
+         * are out-of-sync then all kinds of things can get wonky. That break the
+         * illusion our app is built with platform technologies. Like navigation bars
+         * not properly sticking to the top of the view. So instead of letting that
+         * happen we eagerly show an error to the user.
+         */
+        ping(): void;
+    };
+
+    /**
      * Properly managing navigation for our native mobile apps is a challenging
      * problem. Since navigation responsibilities are shared between web code and
      * native code. Native code is responsible for animating between routes and

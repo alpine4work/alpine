@@ -227,7 +227,7 @@ export default function Root() {
     }, []);
 
     const outletContainerStyle = {
-        // minHeight: "100svh",
+        minHeight: "100svh",
     };
 
     if (!nativeMobileRouterState) {
@@ -450,6 +450,18 @@ export default function Root() {
                 {wrappedChildren}
                 <ScrollRestoration />
                 {loaderData?.devServerPort && <LiveReload port={loaderData.devServerPort} />}
+                <script
+                    // Let our native app know we're ready once the server render has finished.
+                    // This script intentionally runs before React hydration since we can
+                    // immediately show the server rendered HTML to the user.
+                    //
+                    // Inline implementation of `scheduleAfterNextBrowserPaint()`. We want to let
+                    // native know we're ready after the browser paints so we don't have a flash of
+                    // unstyled content.
+                    dangerouslySetInnerHTML={{
+                        __html: "if (window.__NativeMobileBridge) { const channel = new MessageChannel(); channel.port1.onmessage = () => window.__NativeMobileBridge.health.ready(); channel.port2.postMessage(undefined) }",
+                    }}
+                />
                 <Scripts />
             </body>
         </html>

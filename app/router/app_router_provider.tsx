@@ -2,6 +2,7 @@ import {RouterState} from "@remix-run/router";
 import {
     startTransition,
     useCallback,
+    useEffect,
     useInsertionEffect,
     useLayoutEffect,
     useMemo,
@@ -19,6 +20,7 @@ import {
 } from "react-router";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {NativeMobileBridge} from "~/client/remix/native_mobile_bridge.js";
+import {createInterval} from "~/shared/helpers/async/interval.js";
 
 /**
  * This is a fork of the [`<RouterProvider>` component in `react-router`][1].
@@ -33,6 +35,21 @@ export function AppRouterProvider({
     router,
     future,
 }: RouterProviderProps): React.ReactElement {
+    // In our native mobile app, we send a ping every 500ms to native to let it
+    // know our React component is still up and running. If React crashes we want
+    // to let the user know and show them an error message.
+    useEffect(() => {
+        if (!NativeMobileBridge) return;
+
+        const interval = createInterval(() => {
+            NativeMobileBridge!.health.ping();
+        }, 500);
+
+        return () => {
+            interval.clear();
+        };
+    }, []);
+
     // Need to use a layout effect here so we are subscribed early enough to
     // pick up on any render-driven redirects/navigations (useEffect/<Navigate>)
     const [state, setStateImpl] = useState(router.state);

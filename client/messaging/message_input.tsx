@@ -292,6 +292,8 @@ export function MessageInput<RoomKey extends string, Message extends MessageMode
     const id = useId();
 
     return (
+        // NOCOMMIT: Extend space below box for some number of pixels for covering
+        // content during keyboard animation.
         <Box
             data-testid={dataTestId}
             id={clientInfo.isNativeMobile ? `NativeMobileBottomBar-${id}` : id}

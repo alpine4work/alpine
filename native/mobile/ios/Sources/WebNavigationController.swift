@@ -1,5 +1,11 @@
+import OSLog
 import UIKit
 import WebKit
+
+private let logger = Logger(
+    subsystem: Bundle.main.bundleIdentifier!,
+    category: "WebNavigationController"
+)
 
 @objc protocol WebNavigationControllerDelegate {
     @objc optional func webNavigationController(
@@ -43,6 +49,37 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     private var hasInitialWebViewNavigationCommit = false
     private var windowSafeAreaInsets: UIEdgeInsets = .zero
     private var webScrollViews = [UIScrollView: UIScrollViewDelegateForwarder]()
+
+    private var webViewHealthState = WebViewHealthState(
+        readyTime: nil,
+        lastPingTime: nil,
+        provisionalNavigation: nil,
+        isHealthy: true
+    ) {
+        didSet {
+            let newValue = webViewHealthState
+
+            if (oldValue.isLoading || oldValue.isHealthy)
+                != (newValue.isLoading || newValue.isHealthy) && !newValue.isHealthy
+            {
+                logger.error(
+                    "Web view is unhealthy after not receiving a ping for \(newValue.lastPingTime?.distance(to: DispatchTime.now()).toSeconds() ?? Double.nan)s"
+                )
+            }
+
+            if oldValue.isLoading != newValue.isLoading || oldValue.isHealthy != newValue.isHealthy
+            {
+
+                (topViewController as! WebNavigationEntryController)
+                    .moveWebViewIntoIfHealthyOrElseReplaceWithSnapshotView(
+                        webView,
+                        healthState: newValue
+                    )
+            }
+        }
+    }
+
+    private var webViewHealthTimer: Timer!
 
     /// Bottom bars are HTML elements which we optimistially translate in native
     /// code along with native UI like the tab bar or software keyboard for fluid
@@ -170,6 +207,94 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
         webConfiguration.userContentController.add(self, name: "NativeMobileBridge")
 
+        initWebView()
+
+        // Tested this with:
+        //
+        // - Showing the keyboard
+        // - Hiding the keyboard
+        // - Switching the keyboard to emoji keyboard (different height)
+        //
+        // May still need to handle `keyboardWillChangeFrameNotification` but at the
+        // moment it seems duplicative.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShow(notification:)),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide(notification:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardDidHide(notification:)),
+            name: UIResponder.keyboardDidHideNotification,
+            object: nil
+        )
+
+        let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
+        let request = URLRequest(url: url)
+        webView.load(request)
+
+        let rootViewController = WebNavigationEntryController(
+            url: url,
+            webView: webView,
+            healthState: webViewHealthState
+        )
+        viewControllers = [rootViewController]
+
+        // If we haven't received a ping from the web view in 1s then we consider the
+        // web view unhealthy and ask the user to reload. If we aren't getting pings it
+        // means our JavaScript code or React code has crashed. We should receive a
+        // ping from our web view every 0.5s.
+        webViewHealthTimer = Timer(timeInterval: 0.5, repeats: true) { [self] (_) in
+            if let lastPingTime = webViewHealthState.lastPingTime {
+                if lastPingTime.distance(to: DispatchTime.now()).toSeconds() > 1 {
+                    webViewHealthState.isHealthy = false
+                }
+            } else if let readyTime = webViewHealthState.readyTime {
+                if readyTime.distance(to: DispatchTime.now()).toSeconds() > 5 {
+                    webViewHealthState.isHealthy = false
+                }
+            }
+        }
+
+        // Tolerance to reduce energy impact of timer. The maximium time it will take
+        // to detect an unhealthy web view is 1.6s (`timeInterval * 3 + tolerance`).
+        webViewHealthTimer.tolerance = 0.1
+
+        // We need to add our timer to the common run loop mode so it can execute
+        // even while a gesture is occuring.
+        //
+        // For more information about run loops:
+        // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
+        RunLoop.current.add(webViewHealthTimer, forMode: .common)
+    }
+
+    required init(coder: NSCoder) { fatalError("Unimplemented") }
+
+    deinit {
+        webViewHealthTimer.invalidate()
+
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+    }
+
+    private func initWebView() {
+        guard self.webView == nil else { fatalError("`webView` already exists") }
+
         let webView = WKWebView(frame: view.bounds, configuration: webConfiguration)
         self.webView = webView
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -232,55 +357,38 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         #endif
 
         webViewTreeObserver = UIViewTreeObserver(delegate: self, rootView: webView)
-
-        // Tested this with:
-        //
-        // - Showing the keyboard
-        // - Hiding the keyboard
-        // - Switching the keyboard to emoji keyboard (different height)
-        //
-        // May still need to handle `keyboardWillChangeFrameNotification` but at the
-        // moment it seems duplicative.
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(keyboardWillShow(notification:)),
-            name: UIResponder.keyboardWillShowNotification,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(keyboardWillHide(notification:)),
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil
-        )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(keyboardDidHide(notification:)),
-            name: UIResponder.keyboardDidHideNotification,
-            object: nil
-        )
-
-        let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
-        let request = URLRequest(url: url)
-        webView.load(request)
-
-        let rootViewController = WebNavigationEntryController(url: url, webView: webView)
-        viewControllers = [rootViewController]
     }
 
-    required init(coder: NSCoder) { fatalError("Unimplemented") }
+    /// Force reload our web view. If the web view is completely unresponsive (e.g.
+    /// the main JavaScript thread is blocked) then we need to completely destroy
+    /// our `WKWebView` instance and create a new one.
+    ///
+    /// Calling `webView.reload()` when the JavaScript thread is blocked doesn't
+    /// seem to work.
+    fileprivate func forceReloadWebView() {
+        logger.info("Force reloading")
 
-    deinit {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillShowNotification,
-            object: nil
+        let url = webView.url
+
+        webView.removeFromSuperview()
+        webView.navigationDelegate = nil
+        webView.uiDelegate = nil
+        hasInitialWebViewNavigationCommit = false
+        webScrollViews = [:]
+        webBottomBarViews = [:]
+        webViewTreeObserver = nil
+        webView = nil
+
+        initWebView()
+
+        webViewHealthState = WebViewHealthState(
+            readyTime: nil,
+            lastPingTime: nil,
+            provisionalNavigation: nil,
+            isHealthy: true
         )
-        NotificationCenter.default.removeObserver(
-            self,
-            name: UIResponder.keyboardWillHideNotification,
-            object: nil
-        )
+
+        if let url = url { webView.load(URLRequest(url: url)) }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async
@@ -299,7 +407,24 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         return .allow
     }
 
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        logger.info("Started navigation to: \(webView.url?.absoluteString ?? "nil")")
+
+        webViewHealthState.provisionalNavigation = navigation
+    }
+
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        logger.info("Committed navigation to: \(webView.url?.absoluteString ?? "nil")")
+
+        if webViewHealthState.provisionalNavigation === navigation {
+            // Reset health state now that we have a new navigation.
+            webViewHealthState.readyTime = nil
+            webViewHealthState.lastPingTime = nil
+            webViewHealthState.isHealthy = true
+
+            webViewHealthState.provisionalNavigation = nil
+        }
+
         hasInitialWebViewNavigationCommit = true
 
         // We need to execute the JavaScript to set the CSS safe area inset variables
@@ -314,6 +439,9 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         defaultText: String?,
         initiatedByFrame frame: WKFrameInfo
     ) async -> String? {
+        // Ignore messages from an unhealthy web view.
+        if webViewHealthState.isLoading || !webViewHealthState.isHealthy { return nil }
+
         // We use triple `%` to signal to our native app that we have a command.
         // Prompts that don't start with triple `%` should use default prompt handling.
         // Picked triple `%` since it should be very uncommon as the start of
@@ -337,7 +465,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // to promptly call `NativeMobileBridge.navigation.push()`. But what if
             // JavaScript code crashes? We need some recovery mechanisms to unfreeze
             // the app.
-            (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
+            (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
             return nil
         } else if prompt == "%%%navigation.preparePop" {
             // TODO(calebmer): If `NativeMobileBridge.navigation.pop()` is never called
@@ -345,7 +473,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             // to promptly call `NativeMobileBridge.navigation.push()`. But what if
             // JavaScript code crashes? We need some recovery mechanisms to unfreeze
             // the app.
-            (topViewController! as! WebNavigationEntryController).replaceSubviewsWithSnapshotView()
+            (topViewController! as! WebNavigationEntryController).replaceWebViewWithSnapshotView()
             return nil
         } else {
             // Unrecognized prompt command. Do nothing.
@@ -360,17 +488,27 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         if message.name == "NativeMobileBridge", let messageBody = message.body as? NSString {
             let messageBody: String = messageBody as String
 
+            // Ignore messages from an unhealthy web view.
+            if (webViewHealthState.isLoading || !webViewHealthState.isHealthy)
+                && messageBody != "health.ready"
+            {
+                return
+            }
+
             if messageBody.starts(with: "navigation.push:") {
                 let urlString = messageBody.suffix(
                     from: messageBody.index(messageBody.startIndex, offsetBy: 16)
                 )
                 let url = URL(string: String(urlString))!
 
-                let viewController = WebNavigationEntryController(url: url, webView: webView)
+                let viewController = WebNavigationEntryController(
+                    url: url,
+                    webView: webView,
+                    healthState: webViewHealthState
+                )
                 super.pushViewController(viewController, animated: true)
             } else if messageBody == "navigation.finishExternalPop" {
-                (topViewController! as! WebNavigationEntryController)
-                    .replaceSubviewsWithWebView(webView)
+                (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
             } else if messageBody.starts(with: "navigation.pop:") {
                 let urlString = messageBody.suffix(
                     from: messageBody.index(messageBody.startIndex, offsetBy: 15)
@@ -383,8 +521,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 })
 
                 if let viewController = viewController {
-                    (viewController as! WebNavigationEntryController)
-                        .replaceSubviewsWithWebView(webView)
+                    (viewController as! WebNavigationEntryController).moveWebViewInto(webView)
 
                     // Important to call `super.popToViewController()` since we don't want our
                     // class's override to start an external pop.
@@ -397,8 +534,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     // the best default if it does, though. If we find a valid use case where this
                     // branch is executed then reconsider this behavior.
                     (topViewController! as! WebNavigationEntryController).url = url
-                    (topViewController! as! WebNavigationEntryController)
-                        .replaceSubviewsWithWebView(webView)
+                    (topViewController! as! WebNavigationEntryController).moveWebViewInto(webView)
                 }
             } else if messageBody.starts(with: "navigation.replace:") {
                 let urlString = messageBody.suffix(
@@ -409,6 +545,10 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                 (topViewController! as! WebNavigationEntryController).url = url
             } else if messageBody == "navigationBar.runScrollDebounceTimeout" {
                 webDelegate?.webNavigationController?(runScrollDebounceTimeout: self)
+            } else if messageBody == "health.ready" {
+                webViewHealthState.readyTime = DispatchTime.now()
+            } else if messageBody == "health.ping" {
+                webViewHealthState.lastPingTime = DispatchTime.now()
             }
         }
     }
@@ -822,7 +962,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // certainly possible for an external pop to take a while (e.g. we need to load
         // new data from the network). But if JavaScript code crashes the app will be
         // frozen forever. We need some recovery mechanisms to unfreeze the app.
-        lastTopViewController.replaceSubviewsWithSnapshotView()
+        lastTopViewController.replaceWebViewWithSnapshotView()
 
         let url = (topViewController! as! WebNavigationEntryController).url
 
@@ -839,7 +979,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
                     // navigation happened.)
                     if context.isCancelled {
                         if webView.superview == nil {
-                            lastTopViewController.replaceSubviewsWithWebView(webView)
+                            lastTopViewController.moveWebViewInto(webView)
                         }
                     } else {
                         callNavigationExternalPopListeners(delta: delta, url: url)
@@ -945,17 +1085,23 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
     }
 }
 
+private struct WebViewHealthState {
+    var readyTime: DispatchTime?
+    var lastPingTime: DispatchTime?
+    var provisionalNavigation: WKNavigation?
+    var isHealthy: Bool
+
+    var isLoading: Bool { self.provisionalNavigation != nil || self.readyTime == nil }
+}
+
 private class WebNavigationEntryController: UIViewController {
     var url: URL
     private var loadingIndicatorTimer: Timer?
     private var loadingIndicatorTimerGeneration: Int = 0
     private var hasViewAppeared: Bool = false
+    private var shouldPresentLoadingIndicator = false
 
-    private let snapshotViewTag = 1
-    private let blurEffectViewTag = 2
-    private let loadingIndicatorViewTag = 3
-
-    init(url: URL, webView: WKWebView) {
+    init(url: URL, webView: WKWebView, healthState: WebViewHealthState) {
         self.url = url
 
         super.init(nibName: nil, bundle: nil)
@@ -967,27 +1113,71 @@ private class WebNavigationEntryController: UIViewController {
         // isn't hidden by opaque bars in web code.
         extendedLayoutIncludesOpaqueBars = true
 
-        replaceSubviewsWithWebView(webView)
+        moveWebViewIntoIfHealthyOrElseReplaceWithSnapshotView(webView, healthState: healthState)
     }
 
     required init(coder: NSCoder) { fatalError("Unimplemented") }
 
-    func replaceSubviewsWithSnapshotView() {
-        let snapshotView = view.snapshotView(afterScreenUpdates: false)!
-        snapshotView.tag = snapshotViewTag
+    func moveWebViewIntoIfHealthyOrElseReplaceWithSnapshotView(
+        _ webView: WKWebView,
+        healthState: WebViewHealthState
+    ) {
+        // We may become unhealthy while loading as WebKit stops executing JavaScript.
+        // So if `isLoading` is true then don't show the unhealthy alert.
+        if healthState.isLoading {
+            replaceWebViewWithSnapshotView()
 
+            // If there's currently stuff in our view then immediately show a loading
+            // indicator. If there's nothing in our view then the loading indicator timer
+            // set by `replaceWebViewWithSnapshotView()` will eventually show the loading
+            // indicator.
+            if view.subviews.count > 0 {
+                clearLoadingIndicatorTimer()
+                presentLoadingIndicator()
+            }
+        } else if !healthState.isHealthy {
+            replaceWebViewWithSnapshotView()
+            clearLoadingIndicatorTimer()
+            presentUnhealthyAlert()
+        } else {
+            moveWebViewInto(webView)
+        }
+    }
+
+    func replaceWebViewWithSnapshotView() {
+        // Only replace with snapshot view if there's a web view.
+        let webView = view.subviews.first(where: { (view) in view is WKWebView })
+        guard let webView = webView else {
+            resetLoadingIndicatorTimer()
+            return
+        }
+
+        let snapshotView = webView.snapshotView(afterScreenUpdates: false)!
+
+        dismiss(animated: false)
         for subview in view.subviews { subview.removeFromSuperview() }
+
         view.addSubview(snapshotView)
 
         resetLoadingIndicatorTimer()
     }
 
-    func replaceSubviewsWithWebView(_ webView: WKWebView) {
-        // If we are initializing with a web view, the web view should have already
-        // been removed from its super view, but just in case perform the remove again.
-        webView.removeFromSuperview()
+    func moveWebViewInto(_ webView: WKWebView) {
+        dismiss(animated: false)
 
-        for subview in view.subviews { subview.removeFromSuperview() }
+        var hasWebView = false
+        for subview in view.subviews {
+            if subview === webView {
+                hasWebView = true
+                continue
+            }
+            subview.removeFromSuperview()
+        }
+
+        if hasWebView {
+            resetLoadingIndicatorTimer()
+            return
+        }
 
         // NOTE(calebmer, 2023-01-18): My old coworker [Sean Keenan][1] invented the
         // technique of snapshotting a web view to get iOS native animations with web
@@ -1012,59 +1202,61 @@ private class WebNavigationEntryController: UIViewController {
         // [1]: https://www.linkedin.com/in/sean9keenan
         webView.frame = view.bounds
 
+        // If we are initializing with a web view, the web view should have already
+        // been removed from its super view, but just in case perform the remove again.
+        webView.removeFromSuperview()
+
         view.addSubview(webView)
 
         resetLoadingIndicatorTimer()
     }
 
     override func viewWillLayoutSubviews() {
-        for subview in view.subviews {
-            // Web view should always be size of view controller.
-            if subview is WKWebView {
-                subview.frame = view.bounds
-            }
-            // Blur effect from `addLoadingIndicatorSubviews()` should always be size of
-            // view controller.
-            else if subview.tag == blurEffectViewTag {
-                subview.frame = view.bounds
-            }
-            // Loading indicator from `addLoadingIndicatorSubviews()` should always be in
-            // the center of view controller.
-            else if subview.tag == loadingIndicatorViewTag {
-                subview.center = view.center
-            }
-            // We don't currently resize snapshot views. It would likely look quite odd.
-            // Better to leave snapshots at the origin.
-            else if subview.tag == snapshotViewTag {
-                // Noop
-            }
-        }
+        let webView = view.subviews.first(where: { $0 is WKWebView })
+        webView?.frame = view.bounds
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         hasViewAppeared = true
-        resetLoadingIndicatorTimer()
+
+        if shouldPresentLoadingIndicator {
+            shouldPresentLoadingIndicator = false
+            clearLoadingIndicatorTimer()
+            presentLoadingIndicator()
+        } else {
+            resetLoadingIndicatorTimer()
+        }
     }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         hasViewAppeared = false
-        resetLoadingIndicatorTimer()
+        clearLoadingIndicatorTimer()
+
+        shouldPresentLoadingIndicator = presentedViewController != nil
+        dismiss(animated: false)
     }
 
-    private func resetLoadingIndicatorTimer() {
-        let hasLoadingIndicator =
-            view.subviews.first(where: { (view) in view.tag == loadingIndicatorViewTag }) != nil
-
-        // We're already showing the loading indicator.
-        if hasLoadingIndicator { return }
-
-        let hasWebView = view.subviews.first(where: { (view) in view is WKWebView }) != nil
-
+    private func clearLoadingIndicatorTimer() {
         loadingIndicatorTimer?.invalidate()
         loadingIndicatorTimer = nil
         loadingIndicatorTimerGeneration += 1
+    }
+
+    /// If we present a navigation entry to the user that's just a snapshot, wait a
+    /// bit and then show a loading indicator instead of showing a frozen UI which
+    /// feels broken.
+    ///
+    /// The loading indicator blurs the snapshot and adds an animated loading
+    /// spinner in the center.
+    private func resetLoadingIndicatorTimer() {
+        // Loading indicator already presented...
+        if presentedViewController != nil { return }
+
+        let hasWebView = view.subviews.first(where: { (view) in view is WKWebView }) != nil
+
+        clearLoadingIndicatorTimer()
         let currentLoadingIndicatorTimerGeneration = loadingIndicatorTimerGeneration
 
         // Don't show loading indicator if we have a web view.
@@ -1098,37 +1290,77 @@ private class WebNavigationEntryController: UIViewController {
         loadingIndicatorTimer = Timer.scheduledTimer(
             withTimeInterval: delayScreenTransitionLoadingIndicatorLimitSeconds,
             repeats: false
-        ) { [self] timer in addLoadingIndicatorSubviews() }
+        ) { [self] timer in
+            loadingIndicatorTimer = nil
+            presentLoadingIndicator()
+        }
 
         // Add some tolerance to reduce timer energy impact.
         loadingIndicatorTimer?.tolerance = 0.1
     }
 
-    /// If we present a navigation entry to the user that's just a snapshot, wait a
-    /// bit and then show a loading indicator instead of showing a frozen UI which
-    /// feels broken.
-    ///
-    /// The loading indicator blurs the snapshot and adds an animated loading
-    /// spinner in the center.
-    private func addLoadingIndicatorSubviews() {
-        let hasLoadingIndicator =
-            view.subviews.first(where: { (view) in view.tag == loadingIndicatorViewTag }) != nil
+    private func presentLoadingIndicator() {
+        if !hasViewAppeared {
+            shouldPresentLoadingIndicator = true
+            return
+        }
 
-        // We're already showing the loading indicator.
-        if hasLoadingIndicator { return }
+        // If we're already presenting, noop. This should be an idempotent function.
+        if presentedViewController != nil { return }
 
-        // Blur only if we have a web subview or snapshot subview. If there's nothing
-        // underneath don't blur since it'll change the background color.
-        if view.subviews.count > 0 {
+        let loadingIndicator = WebLoadingIndicatorController()
+
+        // Only blur if there's stuff in our view. On initial load there will be
+        // no stuff.
+        loadingIndicator.withBlur = view.subviews.count > 0
+
+        present(loadingIndicator, animated: false)
+    }
+
+    // NOCOMMIT: I want a button in the "More" tab for developers that debugs
+    // unhealthy.
+    private func presentUnhealthyAlert() {
+        let alert = UIAlertController(
+            title: "Couldn’t respond",
+            // This message is copied from `error_display_message_renderer.tsx`. If we update
+            // the message here then we should update it there as well.
+            message:
+                "An unexpected error occurred, please try again. If the problem continues, let us know at support@cyberworlds.dev",
+            preferredStyle: .alert
+        )
+
+        alert.addAction(
+            UIAlertAction(
+                title: "Retry",
+                style: .default,
+                handler: { [self] (_) in (parent as? WebNavigationController)!.forceReloadWebView()
+                }
+            )
+        )
+
+        present(alert, animated: true)
+    }
+}
+
+private class WebLoadingIndicatorController: UIViewController {
+    var withBlur = true
+
+    override var modalPresentationStyle: UIModalPresentationStyle {
+        get { .overFullScreen }
+        set {}
+    }
+
+    private var blurEffectView: UIVisualEffectView?
+    private var loadingIndicatorView: UIImageView?
+
+    override func viewDidLoad() {
+        if withBlur {
             let blurEffectView = UIVisualEffectView()
-            blurEffectView.tag = blurEffectViewTag
+            self.blurEffectView = blurEffectView
             blurEffectView.frame = view.bounds
             blurEffectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            view.addSubview(blurEffectView)
 
-            UIView.animate(withDuration: 0.2) {
-                blurEffectView.effect = UIBlurEffect(style: .systemUltraThinMaterial)
-            }
+            view.addSubview(blurEffectView)
         }
 
         let loadingIndicatorView = UIImageView(
@@ -1136,7 +1368,7 @@ private class WebNavigationEntryController: UIViewController {
                 // Must use template rendering mode for `tintColor` to have any effect.
                 .withRenderingMode(.alwaysTemplate)
         )
-        loadingIndicatorView.tag = loadingIndicatorViewTag
+        self.loadingIndicatorView = loadingIndicatorView
 
         // The equivalent of size `spacing["6"]` which is used for peek loading
         // indicators. `spacing["6"]` is 1.5rem and the mobile rem size is 20px.
@@ -1144,20 +1376,36 @@ private class WebNavigationEntryController: UIViewController {
         loadingIndicatorView.frame.size.width = 30
         loadingIndicatorView.frame.size.height = 30
 
+        loadingIndicatorView.center = view.center
+
         loadingIndicatorView.tintColor = UIColor(named: "grey-70")!
 
         view.addSubview(loadingIndicatorView)
-        loadingIndicatorView.center = view.center
+    }
 
-        let rotationAnimation = CABasicAnimation(keyPath: "transform.rotation")
+    override func viewDidAppear(_ animated: Bool) {
+        if let blurEffectView = blurEffectView {
+            UIView.animate(withDuration: 0.2) {
+                blurEffectView.effect = UIBlurEffect(style: .systemUltraThinMaterial)
+            }
+        }
 
-        // Same rotation animation as `spinAnimationClassName`. 1s infinite repeat.
-        rotationAnimation.fromValue = 0.0
-        rotationAnimation.toValue = Float.pi * 2.0
-        rotationAnimation.duration = 1
-        rotationAnimation.repeatCount = Float.infinity
+        if let loadingIndicatorView = loadingIndicatorView {
+            let rotationAnimation = CABasicAnimation(keyPath: "transform.rotation")
 
-        loadingIndicatorView.layer.add(rotationAnimation, forKey: "rotationAnimation")
+            // Same rotation animation as `spinAnimationClassName`. 1s infinite repeat.
+            rotationAnimation.fromValue = 0.0
+            rotationAnimation.toValue = Float.pi * 2.0
+            rotationAnimation.duration = 1
+            rotationAnimation.repeatCount = Float.infinity
+
+            loadingIndicatorView.layer.add(rotationAnimation, forKey: "rotationAnimation")
+        }
+    }
+
+    override func viewWillLayoutSubviews() {
+        blurEffectView?.frame = view.bounds
+        loadingIndicatorView?.center = view.center
     }
 }
 
@@ -1167,6 +1415,14 @@ private let bridgeSource = """
         const keyboardScrollMainContentListeners = new Set();
 
         const NativeMobileBridge = {
+            health: {
+                ready: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ready");
+                },
+                ping: () => {
+                    window.webkit.messageHandlers.NativeMobileBridge.postMessage("health.ping");
+                },
+            },
             navigation: {
                 preparePush: () => {
                     prompt("%%%navigation.preparePush");

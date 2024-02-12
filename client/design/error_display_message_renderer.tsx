@@ -12,6 +12,9 @@ import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {startsWithSafeUrlProtocol} from "~/shared/helpers/string/starts_with_safe_url_protocol.js";
 import {contentSchemaStyles} from "~/shared/styles/styles.js";
 
+// The same default error message is copied in
+// `WebNavigationController.swift`'s `showUnhealthyAlert()` function. If we
+// update the message here, we should update it there as well.
 const defaultErrorDisplayMessage = errorDisplayMessage`An unexpected error occurred, please try again. If the problem continues, let us know at ${errorDisplayMessage.supportLink}`;
 
 const isBrowserRuntime = typeof window !== "undefined";
