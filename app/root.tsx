@@ -1,6 +1,5 @@
 import {
     Links,
-    LiveReload,
     Meta,
     Outlet,
     UNSAFE_RemixContext as RemixContext,
@@ -16,6 +15,7 @@ import {
     isRouteErrorResponse,
     useRouteError,
 } from "react-router";
+import {AppLiveReload} from "~/app/router/app_live_reload.js";
 import {NativeMobileOutlet} from "~/app/router/native_mobile_outlet.js";
 import {isNativeMobileRouterState} from "~/app/router/native_mobile_router.js";
 import {AccountClientStoreContextProvider} from "~/client/accounts/account_client_store_context_provider.js";
@@ -449,7 +449,7 @@ export default function Root() {
             <body>
                 {wrappedChildren}
                 <ScrollRestoration />
-                {loaderData?.devServerPort && <LiveReload port={loaderData.devServerPort} />}
+                {loaderData?.devServerPort && <AppLiveReload port={loaderData.devServerPort} />}
                 <script
                     // Let our native app know we're ready once the server render has finished.
                     // This script intentionally runs before React hydration since we can

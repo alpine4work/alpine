@@ -182,6 +182,15 @@ export const fontStyles = {
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
     },
+    "truncate-code": {
+        fontFamily: firaCodeFontFamily,
+        fontWeight: 400,
+        fontStyle: "normal",
+        fontFeatureSettings: '"calt" off',
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
 } as const;
 
 export const fontSizesByPlatform = {
