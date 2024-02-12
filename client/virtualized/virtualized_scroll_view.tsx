@@ -1699,7 +1699,7 @@ function VirtualizedScrollView(
                 // set the scroll position before the first browser render but after other
                 // elements in the DOM have been lain out.
                 <ScriptBeforeAppInitialRender
-                    script={safe`var element = document.currentScript.previousElementSibling; requestAnimationFrame(function () { element.scrollTop = element.scrollHeight - element.clientHeight; })`}
+                    script={safe`const element = document.currentScript.previousElementSibling; requestAnimationFrame(() => { element.scrollTop = element.scrollHeight - element.clientHeight })`}
                 />
             )}
         </>

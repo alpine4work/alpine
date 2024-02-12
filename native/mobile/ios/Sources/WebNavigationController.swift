@@ -357,6 +357,17 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         #endif
 
         webViewTreeObserver = UIViewTreeObserver(delegate: self, rootView: webView)
+
+        // When we initialize the web view, it's a child of our navigation controller
+        // but hidden. It's revealed when we add it to a navigation stack entry. The
+        // web view needs to be in our window for `requestAnimationFrame()` to run.
+        // Otherwise the web view is considered backgrounded. `requestAnimationFrame()`
+        // must run because we use it to initialize the UI (e.g. the `<script>` in
+        // `<VirtualizedScrollView>`). Importantly `NativeMobileBridge.health.ready()`
+        // is called in a `requestAnimationFrame()`. We won't hide the loading spinner
+        // until `NativeMobileBridge.health.ready()` is called.
+        webView.isHidden = true
+        view.addSubview(webView)
     }
 
     /// Force reload our web view. If the web view is completely unresponsive (e.g.
@@ -1130,7 +1141,7 @@ private class WebNavigationEntryController: UIViewController {
             // If there's currently stuff in our view then immediately show a loading
             // indicator. If there's nothing in our view then the loading indicator timer
             // set by `replaceWebViewWithSnapshotView()` will eventually show the loading
-            // indicator.
+            // indicator after a delay.
             if view.subviews.count > 0 {
                 clearLoadingIndicatorTimer()
                 presentLoadingIndicator()
@@ -1155,7 +1166,16 @@ private class WebNavigationEntryController: UIViewController {
         let snapshotView = webView.snapshotView(afterScreenUpdates: false)!
 
         dismiss(animated: false)
-        for subview in view.subviews { subview.removeFromSuperview() }
+        for subview in view.subviews {
+            subview.removeFromSuperview()
+
+            // Add the web view back, as hidden, to our navigation controller so it can
+            // continue receiving `requestAnimationFrame()` events.
+            if subview === webView {
+                webView.isHidden = true
+                navigationController!.view.addSubview(webView)
+            }
+        }
 
         view.addSubview(snapshotView)
 
@@ -1167,10 +1187,12 @@ private class WebNavigationEntryController: UIViewController {
 
         var hasWebView = false
         for subview in view.subviews {
+            // If we already have the web view, this is a noop.
             if subview === webView {
                 hasWebView = true
                 continue
             }
+
             subview.removeFromSuperview()
         }
 
@@ -1178,6 +1200,9 @@ private class WebNavigationEntryController: UIViewController {
             resetLoadingIndicatorTimer()
             return
         }
+
+        // The web view is hidden when initialized, make sure it's visible.
+        webView.isHidden = false
 
         // NOTE(calebmer, 2023-01-18): My old coworker [Sean Keenan][1] invented the
         // technique of snapshotting a web view to get iOS native animations with web
