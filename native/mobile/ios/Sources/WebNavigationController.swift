@@ -363,9 +363,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // web view needs to be in our window for `requestAnimationFrame()` to run.
         // Otherwise the web view is considered backgrounded. `requestAnimationFrame()`
         // must run because we use it to initialize the UI (e.g. the `<script>` in
-        // `<VirtualizedScrollView>`). Importantly `NativeMobileBridge.health.ready()`
-        // is called in a `requestAnimationFrame()`. We won't hide the loading spinner
-        // until `NativeMobileBridge.health.ready()` is called.
+        // `<VirtualizedScrollView>`).
         webView.isHidden = true
         view.addSubview(webView)
     }
