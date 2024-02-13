@@ -38,27 +38,14 @@ import {clamp} from "~/shared/helpers/number/clamp.js";
 import {navigationBarStyles, tasksStyles} from "~/shared/styles/styles.js";
 
 const {
+    navigationBarHeight,
     navigationBarBackgroundFadeOutAnimationClassName,
     navigationBarTitleFadeOutAnimationClassName,
 } = navigationBarStyles;
 const {pointerEventsNoneNotInheritedClassName} = tasksStyles;
 
-type ScrollDirectionState = {
-    readonly scrollDirection: "Up" | "Down";
-    readonly navigationBarTopOffset: number;
-    readonly animateNavigationBarTranslateY: number;
-};
+export {navigationBarHeight};
 
-const initialScrollDirectionState: ScrollDirectionState = {
-    scrollDirection: "Down",
-    navigationBarTopOffset: 0,
-    animateNavigationBarTranslateY: 0,
-};
-
-/**
- * The height of our navigation bar.
- */
-export const navigationBarHeight = "14";
 const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]);
 
 {
@@ -72,6 +59,18 @@ const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]
 
     assert(mobileNavigationBarHeight === navigationBarHeightRem * remPxByPlatform.mobile);
 }
+
+type ScrollDirectionState = {
+    readonly scrollDirection: "Up" | "Down";
+    readonly navigationBarTopOffset: number;
+    readonly animateNavigationBarTranslateY: number;
+};
+
+const initialScrollDirectionState: ScrollDirectionState = {
+    scrollDirection: "Down",
+    navigationBarTopOffset: 0,
+    animateNavigationBarTranslateY: 0,
+};
 
 /**
  * After the user has stopped scrolling then this timeout elapses, we will

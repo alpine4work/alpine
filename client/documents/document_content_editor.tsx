@@ -12,6 +12,7 @@ import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
+import {useNavigationBar} from "~/client/design/use_navigation_bar.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
     DocumentCommentThreadListView,
@@ -732,6 +733,25 @@ function DocumentContentEditorStateful({
         ],
     ];
 
+    const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        menuActions: [
+            [
+                {
+                    label: "Copy link",
+                    pressErrorTitle: "Couldn’t copy document link",
+                    onPress: async () => {
+                        const url = new URL(
+                            `/s/${spaceId}/documents/${documentId}`,
+                            window.location.href,
+                        );
+                        await writeTextToClipboard(url.toString());
+                    },
+                },
+            ],
+            ...contextMenuActions,
+        ],
+    });
+
     return (
         <ContextMenuActions actions={contextMenuActions}>
             <Box
@@ -745,7 +765,11 @@ function DocumentContentEditorStateful({
                 backgroundColor="grey-0"
             >
                 <Box
-                    ref={useMergedRefs(editorContainerRef, useScrollbar())}
+                    ref={useMergedRefs<HTMLDivElement>(
+                        editorContainerRef,
+                        useScrollbar({insetTop: scrollbarInsetTop}),
+                        scrollViewRef,
+                    )}
                     id={editorContainerId}
                     className={
                         withMobileLayout
@@ -766,69 +790,82 @@ function DocumentContentEditorStateful({
                     }}
                 >
                     <OverlayScopeContextProvider>
-                        <ContentEditor
-                            ref={editorRef}
-                            state={editorState}
-                            onChange={(state, transaction) => {
-                                onChangeEditorState(state);
+                        <Box position="relative">
+                            <ContentEditor
+                                ref={editorRef}
+                                state={editorState}
+                                onChange={(state, transaction) => {
+                                    onChangeEditorState(state);
 
-                                const createCommentThread: {
-                                    commentThreadId: DocumentCommentThreadId;
-                                    initialCommentContent: MessageContentWithReferences;
-                                    openCommentThreadPromiseRef: {
-                                        current: Promise<void> | null;
-                                    };
-                                } | null = transaction.getMeta(createCommentThreadMetaKey) ?? null;
-                                if (
-                                    createCommentThread &&
-                                    sidebarState.isOpen &&
-                                    sidebarState.animationState !== "Closing"
-                                ) {
-                                    // `<ContentEditorCommentInput>` will wait on this promise before closing after
-                                    // creating a comment thread when it exists. If the sidebar is not already open
-                                    // then we rely on our document's global loading indicator to tell us when
-                                    // comments have successfully saved.
-                                    createCommentThread.openCommentThreadPromiseRef.current =
-                                        openCommentThread(createCommentThread.commentThreadId);
-                                }
+                                    const createCommentThread: {
+                                        commentThreadId: DocumentCommentThreadId;
+                                        initialCommentContent: MessageContentWithReferences;
+                                        openCommentThreadPromiseRef: {
+                                            current: Promise<void> | null;
+                                        };
+                                    } | null =
+                                        transaction.getMeta(createCommentThreadMetaKey) ?? null;
+                                    if (
+                                        createCommentThread &&
+                                        sidebarState.isOpen &&
+                                        sidebarState.animationState !== "Closing"
+                                    ) {
+                                        // `<ContentEditorCommentInput>` will wait on this promise before closing after
+                                        // creating a comment thread when it exists. If the sidebar is not already open
+                                        // then we rely on our document's global loading indicator to tell us when
+                                        // comments have successfully saved.
+                                        createCommentThread.openCommentThreadPromiseRef.current =
+                                            openCommentThread(createCommentThread.commentThreadId);
+                                    }
 
-                                if (transaction.docChanged) {
-                                    onContentLocalChange?.();
-                                }
-                            }}
-                            aria-label="Document"
-                            placeholder="Share your ideas…"
-                            className={documentContentClassName}
-                            phantomSelections={phantomSelections}
-                            openCommentThread={openCommentThread}
-                            onCommentThreadPressedChange={(commentThreadId, isHovered) => {
-                                setPressedCommentThreadId(pressedCommentThreadId => {
-                                    if (isHovered) return commentThreadId;
-                                    if (!isHovered && pressedCommentThreadId === commentThreadId)
-                                        return null;
-                                    return pressedCommentThreadId;
-                                });
-                            }}
-                        />
-                        {useMemo(
-                            // Memoize side decorations since it can be an expensive component
-                            // to re-render. Especially during animations.
-                            () => (
-                                <DocumentContentEditorSideDecorations
-                                    editorContainerWidth={editorContainerWidth}
-                                    contentReferences={content.references}
-                                    decorations={decorations}
-                                    openCommentThread={openCommentThread}
-                                />
-                            ),
-                            [
-                                content.references,
-                                decorations,
-                                editorContainerWidth,
-                                openCommentThread,
-                            ],
-                        )}
+                                    if (transaction.docChanged) {
+                                        onContentLocalChange?.();
+                                    }
+                                }}
+                                aria-label="Document"
+                                placeholder="Share your ideas…"
+                                className={documentContentClassName}
+                                phantomSelections={phantomSelections}
+                                openCommentThread={openCommentThread}
+                                onCommentThreadPressedChange={(commentThreadId, isHovered) => {
+                                    setPressedCommentThreadId(pressedCommentThreadId => {
+                                        if (isHovered) return commentThreadId;
+                                        if (
+                                            !isHovered &&
+                                            pressedCommentThreadId === commentThreadId
+                                        )
+                                            return null;
+                                        return pressedCommentThreadId;
+                                    });
+                                }}
+                            />
+                            {
+                                // IMPORTANT: It's important that this element is below `<ContentEditor>` so
+                                // that `<ContentEditor>` is first in the tab order! This matters when
+                                // auto-focusing a document peek when we open it up.
+                                navigationBar
+                            }
+                            {useMemo(
+                                // Memoize side decorations since it can be an expensive component
+                                // to re-render. Especially during animations.
+                                () => (
+                                    <DocumentContentEditorSideDecorations
+                                        editorContainerWidth={editorContainerWidth}
+                                        contentReferences={content.references}
+                                        decorations={decorations}
+                                        openCommentThread={openCommentThread}
+                                    />
+                                ),
+                                [
+                                    content.references,
+                                    decorations,
+                                    editorContainerWidth,
+                                    openCommentThread,
+                                ],
+                            )}
+                        </Box>
                     </OverlayScopeContextProvider>
+                    {/* NOCOMMIT: Comment??
                     <Box
                         // IMPORTANT: It's important that this element is below `<ContentEditor>` so
                         // that `<ContentEditor>` is first in the tab order! This matters when
@@ -886,7 +923,7 @@ function DocumentContentEditorStateful({
                                 <DotsThree />
                             </IconButton>
                         </MenuButton>
-                    </Box>
+                    </Box> */}
                 </Box>
                 {sidebarState.isOpen && (
                     <Box

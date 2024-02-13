@@ -36,6 +36,7 @@ import {
     printRawColor,
 } from "~/shared/styles/internal/helpers/raw_color.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
+import {navigationBarHeight} from "~/shared/styles/internal/navigation_bar.css.js";
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //
@@ -101,8 +102,8 @@ const blockStyles = {
     marginRight: "auto",
 };
 
-export const desktopTitlePaddingTop = spacing["24"];
-export const mobileTitlePaddingTop = spacing["12"];
+export const desktopTitlePaddingTop = addRemLengths(spacing["10"], spacing[navigationBarHeight]);
+export const mobileTitlePaddingTop = addRemLengths(spacing["3"], spacing[navigationBarHeight]);
 
 export const titleFontSize = fontSizes["800"];
 
@@ -110,22 +111,22 @@ export const titleClassName = style({
     ...blockStyles,
     ...fontStyles["bold"],
     ...titleFontSize,
-    paddingTop: desktopTitlePaddingTop,
+    paddingTop: `calc(${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
     // Make sure this node always takes up space even if it is empty. Important
     // when we are rendering placeholders in `<ContentView>`.
     minHeight: `calc(${titleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
-    marginBottom: paragraphMargin,
+    marginBottom: spacing["3"],
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
     "@media": {
         [mobilePlatformMediaQuery]: {
-            paddingTop: mobileTitlePaddingTop,
+            paddingTop: `calc(${mobileTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
             minHeight: `calc(${titleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
         },
     },
     selectors: {
         [`${docMobileLayoutContainerClassName} &`]: {
-            paddingTop: mobileTitlePaddingTop,
+            paddingTop: `calc(${mobileTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
             minHeight: `calc(${titleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
         },
     },

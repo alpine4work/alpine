@@ -16,12 +16,12 @@ export const blobsClassName = style({
     width: "100%",
     "@media": {
         [mobilePlatformMediaQuery]: {
-            top: `calc(${mobileTitlePaddingTop} - ${desktopTitlePaddingTop})`,
+            top: `calc(${mobileTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
         },
     },
     selectors: {
         [`${docMobileLayoutContainerClassName} &`]: {
-            top: `calc(${mobileTitlePaddingTop} - ${desktopTitlePaddingTop})`,
+            top: `calc(${mobileTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
         },
     },
 });

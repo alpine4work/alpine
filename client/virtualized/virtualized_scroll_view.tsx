@@ -413,14 +413,16 @@ export type VirtualizedScrollViewRenderItem = Memo<(index: number) => Virtualize
 function VirtualizedScrollView(
     {
         itemCount,
-        renderItem: _renderItem,
-        bufferedItemHeight: _bufferedItemHeight,
+        renderItem: renderItemProp,
+        bufferedItemHeight: bufferedItemHeightProp,
         initialScrollOffset = "top",
         initialViewHeight,
         onRenderedRangeChange,
         onRenderedRangeLayoutChange,
         onScroll,
-        elementRef,
+        // `elementRef` is a common variable name in this component so let's
+        // disambiguate the name.
+        elementRef: elementRefProp,
         stateKey,
         alwaysRenderAdditionalItemIndexes,
         scrollbarInsetTopItemIndex,
@@ -584,7 +586,7 @@ function VirtualizedScrollView(
             originalMinHeight: RemLength | number;
         } =>
             getOrSetDefaultMapValue(itemByIndex, index, () => {
-                const item = _renderItem(index);
+                const item = renderItemProp(index);
                 return {
                     ...item,
                     minHeight:
@@ -594,14 +596,14 @@ function VirtualizedScrollView(
                     originalMinHeight: item.minHeight,
                 };
             });
-    }, [_renderItem, remPx]);
+    }, [renderItemProp, remPx]);
 
     const bufferedItemHeight = useMemo(
         () =>
-            typeof _bufferedItemHeight === "string"
-                ? convertRemLengthToPx(_bufferedItemHeight, remPx)
-                : _bufferedItemHeight,
-        [_bufferedItemHeight, remPx],
+            typeof bufferedItemHeightProp === "string"
+                ? convertRemLengthToPx(bufferedItemHeightProp, remPx)
+                : bufferedItemHeightProp,
+        [bufferedItemHeightProp, remPx],
     );
 
     const initializeState = (): VirtualizedScrollViewActualState => {
@@ -1626,7 +1628,7 @@ function VirtualizedScrollView(
                     useScrollbar(
                         scrollbarInsetTop !== undefined ? {insetTop: scrollbarInsetTop} : undefined,
                     ),
-                    elementRef,
+                    elementRefProp,
                 )}
                 className={sprinkles({
                     flexGrow: "1",

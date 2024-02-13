@@ -1,10 +1,10 @@
-/// The same value as `navigationBarHeight` in `use_navigation_bar.tsx`.
+/// The same value as `navigationBarHeight` in `navigation_bar.css.ts`.
 /// So our behavior to automatically hide the tab bar (implemented in native
 /// code) is the same as our behavior to automatically hide the navigation bar
 /// (implemented in web code).
 ///
 /// This is measured in points. Whereas `navigationBarHeight` in
-/// `use_navigation_bar.tsx` is a `Spacing` value. We use mobile sizes for
+/// `navigation_bar.css.ts` is a `Spacing` value. We use mobile sizes for
 /// `Spacing` since this is the code for our native mobile app.
 let navigationBarHeight = 70.0
 
