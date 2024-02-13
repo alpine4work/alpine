@@ -193,185 +193,189 @@ export const fontStyles = {
     },
 } as const;
 
+/**
+ * Font scale computed with the following:
+ * https://www.desmos.com/calculator/rewoqdxtac
+ */
 export const fontSizesByPlatform = {
     "50": {
         desktop: {
             fontSize: 11,
-            letterSpacing: "0.005em",
+            letterSpacing: "0.0048em",
             lineHeight: "0.875rem",
         },
         mobile: {
-            fontSize: 13,
-            letterSpacing: "-0.0025em",
+            fontSize: 14,
+            letterSpacing: "-0.0062em",
             lineHeight: "0.875rem",
         },
     },
     "75": {
         desktop: {
             fontSize: 12,
-            letterSpacing: "0em",
+            letterSpacing: "0.0005em",
             lineHeight: "1rem",
         },
         mobile: {
             fontSize: 15,
-            letterSpacing: "-0.009em",
+            letterSpacing: "-0.0088em",
             lineHeight: "1rem",
         },
     },
     "100": {
         desktop: {
             fontSize: 14,
-            letterSpacing: "-0.006em",
-            lineHeight: "1.125rem",
+            letterSpacing: "-0.0062em",
+            lineHeight: "1.25rem",
         },
         mobile: {
-            fontSize: 17,
-            letterSpacing: "-0.013em",
-            lineHeight: "1.125rem",
+            fontSize: 18,
+            letterSpacing: "-0.0143em",
+            lineHeight: "1.25rem",
         },
     },
     "200": {
         desktop: {
             fontSize: 16,
             letterSpacing: "-0.011em",
-            lineHeight: "1.25rem",
+            lineHeight: "1.5rem",
         },
         mobile: {
-            fontSize: 19,
-            letterSpacing: "-0.016em",
-            lineHeight: "1.25rem",
+            fontSize: 20,
+            letterSpacing: "-0.0167em",
+            lineHeight: "1.5rem",
         },
     },
     "300": {
         desktop: {
             fontSize: 18,
-            letterSpacing: "-0.014em",
-            lineHeight: "1.5rem",
+            letterSpacing: "-0.0143em",
+            lineHeight: "1.625rem",
         },
         mobile: {
             fontSize: 22,
-            letterSpacing: "-0.018em",
-            lineHeight: "1.5rem",
+            letterSpacing: "-0.0183em",
+            lineHeight: "1.625rem",
         },
     },
     "400": {
         desktop: {
             fontSize: 20,
-            letterSpacing: "-0.017em",
-            lineHeight: "1.625rem",
+            letterSpacing: "-0.0167em",
+            lineHeight: "1.75rem",
         },
         mobile: {
-            fontSize: 24,
-            letterSpacing: "-0.019em",
-            lineHeight: "1.625rem",
+            fontSize: 25,
+            letterSpacing: "-0.0199em",
+            lineHeight: "1.75rem",
         },
     },
     "500": {
         desktop: {
             fontSize: 22,
-            letterSpacing: "-0.018em",
-            lineHeight: "1.75rem",
+            letterSpacing: "-0.0183em",
+            lineHeight: "1.875rem",
         },
         mobile: {
-            fontSize: 27,
-            letterSpacing: "-0.021em",
-            lineHeight: "1.75rem",
+            fontSize: 28,
+            letterSpacing: "-0.0209em",
+            lineHeight: "1.875rem",
         },
     },
     "600": {
         desktop: {
             fontSize: 25,
-            letterSpacing: "-0.02em",
-            lineHeight: "2rem",
+            letterSpacing: "-0.0199em",
+            lineHeight: "2.125rem",
         },
         mobile: {
             fontSize: 31,
-            letterSpacing: "-0.021em",
-            lineHeight: "2rem",
+            letterSpacing: "-0.0215em",
+            lineHeight: "2.125rem",
         },
     },
     "700": {
         desktop: {
             fontSize: 28,
-            letterSpacing: "-0.021em",
+            letterSpacing: "-0.0209em",
             lineHeight: "2.25rem",
         },
         mobile: {
-            fontSize: 34,
-            letterSpacing: "-0.022em",
+            fontSize: 35,
+            letterSpacing: "-0.0219em",
             lineHeight: "2.25rem",
         },
     },
     "800": {
         desktop: {
             fontSize: 32,
-            letterSpacing: "-0.022em",
-            lineHeight: "2.625rem",
+            letterSpacing: "-0.0216em",
+            lineHeight: "2.5rem",
         },
         mobile: {
-            fontSize: 39,
-            letterSpacing: "-0.022em",
-            lineHeight: "2.625rem",
+            fontSize: 40,
+            letterSpacing: "-0.0221em",
+            lineHeight: "2.5rem",
         },
     },
     "900": {
         desktop: {
             fontSize: 36,
             letterSpacing: "-0.022em",
-            lineHeight: "2.875rem",
+            lineHeight: "2.75rem",
         },
         mobile: {
-            fontSize: 44,
-            letterSpacing: "-0.022em",
-            lineHeight: "2.875rem",
+            fontSize: 45,
+            letterSpacing: "-0.0222em",
+            lineHeight: "2.75rem",
         },
     },
     "1000": {
         desktop: {
             fontSize: 40,
-            letterSpacing: "-0.022em",
-            lineHeight: "3.25rem",
+            letterSpacing: "-0.0221em",
+            lineHeight: "3rem",
         },
         mobile: {
-            fontSize: 49,
-            letterSpacing: "-0.022em",
-            lineHeight: "3.25rem",
+            fontSize: 50,
+            letterSpacing: "-0.0223em",
+            lineHeight: "3rem",
         },
     },
     "1100": {
         desktop: {
             fontSize: 45,
-            letterSpacing: "-0.022em",
-            lineHeight: "3.625rem",
+            letterSpacing: "-0.0222em",
+            lineHeight: "3.375rem",
         },
         mobile: {
-            fontSize: 55,
-            letterSpacing: "-0.022em",
-            lineHeight: "3.625rem",
+            fontSize: 56,
+            letterSpacing: "-0.0223em",
+            lineHeight: "3.375rem",
         },
     },
     "1200": {
         desktop: {
             fontSize: 50,
-            letterSpacing: "-0.022em",
-            lineHeight: "4.125rem",
+            letterSpacing: "-0.0223em",
+            lineHeight: "3.75rem",
         },
         mobile: {
             fontSize: 62,
-            letterSpacing: "-0.022em",
-            lineHeight: "4.125rem",
+            letterSpacing: "-0.0223em",
+            lineHeight: "3.75rem",
         },
     },
     "1300": {
         desktop: {
             fontSize: 60,
-            letterSpacing: "-0.022em",
-            lineHeight: "4.875rem",
+            letterSpacing: "-0.0223em",
+            lineHeight: "4.5rem",
         },
         mobile: {
-            fontSize: 70,
-            letterSpacing: "-0.022em",
-            lineHeight: "4.875rem",
+            fontSize: 75,
+            letterSpacing: "-0.0223em",
+            lineHeight: "4.5rem",
         },
     },
 } as const;
