@@ -1,5 +1,5 @@
 import {AnimationControls, spring, timeline} from "motion";
-import {CaretDown, CaretUp, DotsThree, SpinnerGap, X} from "phosphor-react";
+import {CaretDown, CaretUp, SpinnerGap, X} from "phosphor-react";
 import {redo, undo} from "prosemirror-history";
 import {Memo, Ref, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {ContentEditor, ContentEditorRef} from "~/client/content/content_editor.js";
@@ -8,7 +8,7 @@ import {Box} from "~/client/design/box.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
-import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
+import {MenuAction} from "~/client/design/menu_button.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
@@ -36,6 +36,7 @@ import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvent} from "~/client/helpers/lifecycle/use_event.js";
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
+import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {useMergedRefs} from "~/client/helpers/refs/use_merged_refs.js";
 import {MemoObject} from "~/client/helpers/types/memo_object.js";
 import {usePromise} from "~/client/helpers/use_promise.js";
@@ -43,13 +44,7 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
-import {
-    addRemLengths,
-    convertRemLengthToPx,
-    spacing,
-    subtractRemLengths,
-} from "~/shared/design/spacing.js";
+import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
     DocumentContent,
@@ -59,6 +54,7 @@ import {
     DocumentCommentModel,
     DocumentCommentThreadModel,
     DocumentModel,
+    getDocumentContentTitle,
 } from "~/shared/documents/document_model.js";
 import {filterMapArray} from "~/shared/helpers/array/filter_map_array.js";
 import {PromiseImmediate} from "~/shared/helpers/async/promise_immediate.js";
@@ -175,7 +171,6 @@ function DocumentContentEditorStateful({
 
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice} = useClientInfo();
-    const isMobile = useIsMobile();
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -733,7 +728,33 @@ function DocumentContentEditorStateful({
         ],
     ];
 
+    const titleBoundaryRef = useRef<HTMLElement | null>(null);
+
+    const queryTitleBoundaryRef = useLifecycleRef(
+        useCallback(
+            (element: HTMLElement) => {
+                // Don't query for the title element on initial render. We'll get the title
+                // element from a read-only `<ContentView>` instead of the element rendered by
+                // ProseMirror.
+                if (isInitialAppRender) return;
+
+                const titleBoundaryElement = assertExists(
+                    element.querySelector(`.${contentSchemaStyles.titleClassName}`),
+                );
+                assert(titleBoundaryElement instanceof HTMLElement);
+
+                titleBoundaryRef.current = titleBoundaryElement;
+                return () => {
+                    titleBoundaryRef.current = null;
+                };
+            },
+            [isInitialAppRender],
+        ),
+    );
+
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        title: getDocumentContentTitle(content.doc),
+        titleBoundaryRef,
         menuActions: [
             [
                 {
@@ -769,6 +790,7 @@ function DocumentContentEditorStateful({
                         editorContainerRef,
                         useScrollbar({insetTop: scrollbarInsetTop}),
                         scrollViewRef,
+                        queryTitleBoundaryRef,
                     )}
                     id={editorContainerId}
                     className={
@@ -865,65 +887,6 @@ function DocumentContentEditorStateful({
                             )}
                         </Box>
                     </OverlayScopeContextProvider>
-                    {/* NOCOMMIT: Comment??
-                    <Box
-                        // IMPORTANT: It's important that this element is below `<ContentEditor>` so
-                        // that `<ContentEditor>` is first in the tab order! This matters when
-                        // auto-focusing a document peek when we open it up.
-                        position="absolute"
-                        top="3"
-                        zIndex="10"
-                        style={{
-                            right: subtractRemLengths(
-                                addRemLengths(
-                                    spacing[documentPaddingX],
-                                    contentSchemaStyles.blockPaddingX,
-                                ),
-                                spacing["2"],
-                            ),
-                        }}
-                    >
-                        <MenuButton
-                            // TODO(calebmer): This more button has some design issues:
-                            //
-                            // 1. It's not sticky, it doesn't stay around when you scroll
-                            // 2. It's misaligned with the document comment sidebar
-                            //
-                            // However, it is aligned with the post more button and task more button which
-                            // looks great in surfaces like search.
-                            //
-                            // I presume there will eventually need to be more stuff we add to document
-                            // headers. Reconsider the design of this button at that time.
-                            //
-                            // Also worth noting that I'd like to add the same design touch as Notion where
-                            // as you're typing all chrome UI fades away so you can focus on the content.
-                            // When you wiggle your mouse the chrome UI returns.
-                            actions={[
-                                [
-                                    {
-                                        label: "Copy link",
-                                        pressErrorTitle: "Couldn’t copy document link",
-                                        onPress: async () => {
-                                            const url = new URL(
-                                                `/s/${spaceId}/documents/${documentId}`,
-                                                window.location.href,
-                                            );
-                                            await writeTextToClipboard(url.toString());
-                                        },
-                                    },
-                                ],
-                                ...contextMenuActions,
-                            ]}
-                        >
-                            <IconButton
-                                size={isMobile ? "base" : "md"}
-                                description="More"
-                                withoutTooltip={true}
-                            >
-                                <DotsThree />
-                            </IconButton>
-                        </MenuButton>
-                    </Box> */}
                 </Box>
                 {sidebarState.isOpen && (
                     <Box

@@ -167,7 +167,7 @@ assert(navigationBarTransitionDebounceScrollTimeoutMs === scrollbarVisibleAfterS
  * Our native mobile apps implement tab bar UI which uses the same logic as our
  * web code navigation bar. As the user scrolls down, the tab bar disappears.
  */
-export function useNavigationBar({
+export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     title = null,
     titleBoundaryRef,
     menuActions = [],
@@ -185,7 +185,7 @@ export function useNavigationBar({
      * The title only displays once the user has scrolled past this element. When
      * crossing this boundary the title animates in/out.
      */
-    titleBoundaryRef?: RefObject<HTMLDivElement>;
+    titleBoundaryRef?: RefObject<TitleBoundaryElement>;
 
     /**
      * Actions that are made available to the user in a menu button at the right of
@@ -312,7 +312,7 @@ export function useNavigationBar({
     };
 }
 
-function NavigationBar({
+function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     handleRef,
     scrollViewSize,
     title,
@@ -326,7 +326,7 @@ function NavigationBar({
     } | null>;
     scrollViewSize: {width: number; height: number} | null;
     title: ReactNode;
-    titleBoundaryRef: RefObject<HTMLDivElement> | undefined;
+    titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     desktopControls: ReactNode;
 }) {
@@ -504,7 +504,7 @@ function NavigationBar({
                         // Compute the title boundary scroll offset...
                         let titleBoundaryOffset: number | null = null;
                         if (titleBoundaryRef?.current) {
-                            let titleBoundaryParentElement: HTMLElement = titleBoundaryRef?.current;
+                            let titleBoundaryParentElement: HTMLElement = titleBoundaryRef.current;
 
                             titleBoundaryOffset =
                                 titleBoundaryParentElement.offsetTop +
