@@ -79,7 +79,7 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         }
     }
 
-    private var webViewHealthTimer: Timer!
+    private var webViewHealthTimer: Timer?
 
     /// Bottom bars are HTML elements which we optimistially translate in native
     /// code along with native UI like the tab bar or software keyboard for fluid
@@ -150,6 +150,8 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
 
     private var tabBarScrollOffset = 0.0
     private var keyboardOffset = 0.0
+
+    private var lastApplicationDidBecomeActiveNotificationTime: DispatchTime?
 
     init(initialPath: String, websiteDataStore: WKWebsiteDataStore) {
         self.initialPath = initialPath
@@ -236,6 +238,20 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
             object: nil
         )
 
+        // We stop making health checks when the application is backgrounded.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationWillResignActive(notification:)),
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidBecomeActive(notification:)),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+
         let url = URL(string: initialPath, relativeTo: WebNavigationController.baseUrl)!
         let request = URLRequest(url: url)
         webView.load(request)
@@ -247,38 +263,14 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         )
         viewControllers = [rootViewController]
 
-        // If we haven't received a ping from the web view in 1s then we consider the
-        // web view unhealthy and ask the user to reload. If we aren't getting pings it
-        // means our JavaScript code or React code has crashed. We should receive a
-        // ping from our web view every 0.5s.
-        webViewHealthTimer = Timer(timeInterval: 0.5, repeats: true) { [self] (_) in
-            if let lastPingTime = webViewHealthState.lastPingTime {
-                if lastPingTime.distance(to: DispatchTime.now()).toSeconds() > 1 {
-                    webViewHealthState.isHealthy = false
-                }
-            } else if let readyTime = webViewHealthState.readyTime {
-                if readyTime.distance(to: DispatchTime.now()).toSeconds() > 5 {
-                    webViewHealthState.isHealthy = false
-                }
-            }
-        }
-
-        // Tolerance to reduce energy impact of timer. The maximium time it will take
-        // to detect an unhealthy web view is 1.6s (`timeInterval * 3 + tolerance`).
-        webViewHealthTimer.tolerance = 0.1
-
-        // We need to add our timer to the common run loop mode so it can execute
-        // even while a gesture is occuring.
-        //
-        // For more information about run loops:
-        // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
-        RunLoop.current.add(webViewHealthTimer, forMode: .common)
+        initWebViewHealthTimer()
     }
 
     required init(coder: NSCoder) { fatalError("Unimplemented") }
 
     deinit {
-        webViewHealthTimer.invalidate()
+        webViewHealthTimer?.invalidate()
+        webViewHealthTimer = nil
 
         NotificationCenter.default.removeObserver(
             self,
@@ -288,6 +280,22 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         NotificationCenter.default.removeObserver(
             self,
             name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIResponder.keyboardDidHideNotification,
+            object: nil
+        )
+
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIApplication.willResignActiveNotification,
+            object: nil
+        )
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
     }
@@ -366,6 +374,52 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         // `<VirtualizedScrollView>`).
         webView.isHidden = true
         view.addSubview(webView)
+    }
+
+    private func initWebViewHealthTimer() {
+        self.webViewHealthTimer?.invalidate()
+        self.webViewHealthTimer = nil
+
+        // If we haven't received a ping from the web view in 1s then we consider the
+        // web view unhealthy and ask the user to reload. If we aren't getting pings it
+        // means our JavaScript code or React code has crashed. We should receive a
+        // ping from our web view every 0.5s.
+        let webViewHealthTimer = Timer(timeInterval: 0.5, repeats: true) { [self] (_) in
+            if let lastPingTime = webViewHealthState.lastPingTime {
+                if lastPingTime.distance(to: DispatchTime.now()).toSeconds() > 1 {
+                    webViewHealthState.isHealthy = false
+                }
+            } else if let readyTime = webViewHealthState.readyTime {
+                let currentTime = DispatchTime.now()
+
+                let hasReadyTimeExpired = readyTime.distance(to: currentTime).toSeconds() > 5
+
+                // When backgrounded we may stop receiving pings from the web view. So when our
+                // application becomes active again, wait a bit for pings from the web view to
+                // resume.
+                let hasApplicationRecentlyBecameActive =
+                    if let notificationTime = lastApplicationDidBecomeActiveNotificationTime {
+                        notificationTime > readyTime
+                            && notificationTime.distance(to: currentTime).toSeconds() <= 2
+                    } else { false }
+
+                if hasReadyTimeExpired && !hasApplicationRecentlyBecameActive {
+                    webViewHealthState.isHealthy = false
+                }
+            }
+        }
+        self.webViewHealthTimer = webViewHealthTimer
+
+        // Tolerance to reduce energy impact of timer. The maximium time it will take
+        // to detect an unhealthy web view is 1.6s (`timeInterval * 3 + tolerance`).
+        webViewHealthTimer.tolerance = 0.1
+
+        // We need to add our timer to the common run loop mode so it can execute
+        // even while a gesture is occuring.
+        //
+        // For more information about run loops:
+        // https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/Multithreading/RunLoopManagement/RunLoopManagement.html
+        RunLoop.current.add(webViewHealthTimer, forMode: .common)
     }
 
     /// Force reload our web view. If the web view is completely unresponsive (e.g.
@@ -772,6 +826,16 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         updateWebViewSafeAreaInsets()
     }
 
+    @objc private func applicationWillResignActive(notification: NSNotification) {
+        webViewHealthTimer?.invalidate()
+        webViewHealthTimer = nil
+    }
+
+    @objc private func applicationDidBecomeActive(notification: NSNotification) {
+        lastApplicationDidBecomeActiveNotificationTime = DispatchTime.now()
+        initWebViewHealthTimer()
+    }
+
     private func getSafeAreaInsets() -> UIEdgeInsets {
         let safeAreaInsetTop = windowSafeAreaInsets.top
 
@@ -1161,7 +1225,13 @@ private class WebNavigationEntryController: UIViewController {
             return
         }
 
-        let snapshotView = webView.snapshotView(afterScreenUpdates: false)!
+        let snapshotView = webView.snapshotView(
+            // Snapshotting a view that is not in a visible window requires
+            // `afterScreenUpdates: true`. `false` the rest of the time because I
+            // assume `true` is potentially expensive? It may force the screen to
+            // paint.
+            afterScreenUpdates: !(webView.window?.isHidden ?? true)
+        )!
 
         dismiss(animated: false)
         for subview in view.subviews {
