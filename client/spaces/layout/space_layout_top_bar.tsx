@@ -31,18 +31,13 @@ export function SpaceLayoutTopBar({
             borderBottom="grey-10"
             position="relative"
             zIndex="10"
-            height="10"
+            height="12"
+            paddingX="3"
             display="flex"
             alignItems="center"
+            gap="2"
         >
-            <Box
-                width="48"
-                display="flex"
-                justifyContent="flex-start"
-                alignItems="center"
-                gap="2"
-                paddingX="2"
-            >
+            <Box width="48" display="flex" justifyContent="flex-start" alignItems="center" gap="2">
                 <Box
                     backgroundColor="grey-30-const"
                     width="6"
@@ -66,14 +61,7 @@ export function SpaceLayoutTopBar({
                 </Box>
             </Box>
             <SpaceLayoutTopBarSearchInput space={space} onPress={onSearchInputPress} />
-            <Box
-                width="48"
-                display="flex"
-                justifyContent="flex-end"
-                alignItems="center"
-                gap="1"
-                paddingX="2"
-            >
+            <Box width="48" display="flex" justifyContent="flex-end" alignItems="center" gap="1">
                 <SpaceLayoutTopBarCreateButton />
                 <SpaceLayoutTopBarInboxButton initialInbox={initialInbox} />
                 <Box paddingLeft="1">

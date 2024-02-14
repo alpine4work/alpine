@@ -132,7 +132,7 @@ if (process.env.NODE_ENV !== "development") {
                                 // Navigation bar height on mobile, space top layout bar height on desktop. We
                                 // aren't importing those component's constants to make sure they're
                                 // not included in this file's bundle.
-                                height={{mobile: "16", desktop: "10"}}
+                                height={{mobile: "16", desktop: "12"}}
                                 paddingX="5"
                                 display="flex"
                                 justifyContent="center"
