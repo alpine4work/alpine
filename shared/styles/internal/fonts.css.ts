@@ -229,8 +229,12 @@ export const fontSizesByPlatform = {
             lineHeight: "1.25rem",
         },
         mobile: {
-            fontSize: 18,
-            letterSpacing: "-0.0143em",
+            // 17px is the default size for text on iOS according to the [Human Interface
+            // Guidelines][1].
+            //
+            // [1]: https://developer.apple.com/design/human-interface-guidelines/typography#Specifications
+            fontSize: 17,
+            letterSpacing: "-0.0128em",
             lineHeight: "1.25rem",
         },
     },
@@ -255,6 +259,21 @@ export const fontSizesByPlatform = {
         mobile: {
             fontSize: 22,
             letterSpacing: "-0.0183em",
+            lineHeight: "1.625rem",
+        },
+    },
+    // Font size in between 300 and 400 used for our heading scale on mobile.
+    // Should only be used for mobile headings, not considered a part of our
+    // general typography scale.
+    "mobile-heading-350": {
+        desktop: {
+            fontSize: 19,
+            letterSpacing: "-0.0156em",
+            lineHeight: "1.625rem",
+        },
+        mobile: {
+            fontSize: 23,
+            letterSpacing: "-0.019em",
             lineHeight: "1.625rem",
         },
     },

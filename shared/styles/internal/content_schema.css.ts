@@ -1,4 +1,4 @@
-import {createVar, globalStyle, style} from "@vanilla-extract/css";
+import {assignVars, createGlobalTheme, createVar, globalStyle, style} from "@vanilla-extract/css";
 import Color from "color";
 import {colors} from "~/shared/design/colors.js";
 import {colorByHighlightColor} from "~/shared/design/highlight_color.js";
@@ -102,36 +102,6 @@ const blockStyles = {
     marginRight: "auto",
 };
 
-export const desktopTitlePaddingTop = addRemLengths(spacing["10"], spacing[navigationBarHeight]);
-export const mobileTitlePaddingTop = addRemLengths(spacing["3"], spacing[navigationBarHeight]);
-
-export const titleFontSize = fontSizes["800"];
-
-export const titleClassName = style({
-    ...blockStyles,
-    ...fontStyles["bold"],
-    ...titleFontSize,
-    paddingTop: `calc(${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
-    // Make sure this node always takes up space even if it is empty. Important
-    // when we are rendering placeholders in `<ContentView>`.
-    minHeight: `calc(${titleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
-    marginBottom: spacing["3"],
-    // Allow contextual alternate glyphs in regular text content.
-    fontFeatureSettings: '"calt" on',
-    "@media": {
-        [mobilePlatformMediaQuery]: {
-            paddingTop: `calc(${mobileTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
-            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
-        },
-    },
-    selectors: {
-        [`${docMobileLayoutContainerClassName} &`]: {
-            paddingTop: `calc(${mobileTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
-            minHeight: `calc(${titleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
-        },
-    },
-});
-
 export const paragraphFontSize: {
     fontSize: string;
     letterSpacing: string;
@@ -154,68 +124,143 @@ export const paragraphClassName = style({
     fontFeatureSettings: '"calt" on',
 });
 
-const heading1TopMargin = spacing["10"];
-const heading2TopMargin = spacing["8"];
-const heading3TopMargin = spacing["6"];
-const heading4TopMargin = spacing["4"];
+// Header sizes are smaller on mobile than desktop because mobile has less
+// horizontal space than desktop. So we want to fit more header on a
+// single line.
+const desktopTitleFontSize = fontSizes["800"];
+const mobileTitleFontSize = fontSizes["700"];
 
-export const headingLevel1FontSize = fontSizes["600"];
+const desktopHeadingLevel1FontSize = fontSizes["600"];
+const mobileHeadingLevel1FontSize = fontSizes["500"];
+
+const desktopHeadingLevel2FontSize = fontSizes["400"];
+const mobileHeadingLevel2FontSize = fontSizes["mobile-heading-350"];
+
+const desktopHeadingLevel3FontSize = fontSizes["200"];
+const mobileHeadingLevel3FontSize = fontSizes["200"];
+
+const desktopHeading1TopMargin = spacing["10"];
+const mobileHeading1TopMargin = spacing["8"];
+
+const desktopHeading2TopMargin = spacing["8"];
+const mobileHeading2TopMargin = spacing["6"];
+
+const desktopHeading3TopMargin = spacing["6"];
+const mobileHeading3TopMargin = spacing["5"];
+
+const desktopHeading4TopMargin = spacing["4"];
+const mobileHeading4TopMargin = spacing["4"];
+
+const headingMarginVars = createGlobalTheme(":root", {
+    heading1TopMargin: desktopHeading1TopMargin,
+    heading2TopMargin: desktopHeading2TopMargin,
+    heading3TopMargin: desktopHeading3TopMargin,
+    heading4TopMargin: desktopHeading4TopMargin,
+});
+
+globalStyle(docMobileLayoutContainerClassName, {
+    vars: assignVars(headingMarginVars, {
+        heading1TopMargin: mobileHeading1TopMargin,
+        heading2TopMargin: mobileHeading2TopMargin,
+        heading3TopMargin: mobileHeading3TopMargin,
+        heading4TopMargin: mobileHeading4TopMargin,
+    }),
+});
+
+globalStyle(`:root`, {
+    "@media": {
+        [mobilePlatformMediaQuery]: {
+            vars: assignVars(headingMarginVars, {
+                heading1TopMargin: mobileHeading1TopMargin,
+                heading2TopMargin: mobileHeading2TopMargin,
+                heading3TopMargin: mobileHeading3TopMargin,
+                heading4TopMargin: mobileHeading4TopMargin,
+            }),
+        },
+    },
+});
+
+export const desktopTitlePaddingTop = addRemLengths(spacing["10"], spacing[navigationBarHeight]);
+export const mobileTitlePaddingTop = addRemLengths(spacing["3"], spacing[navigationBarHeight]);
+
+export const titleClassName = style({
+    ...blockStyles,
+    ...fontStyles["bold"],
+    ...desktopTitleFontSize,
+    paddingTop: `calc(${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
+    // Make sure this node always takes up space even if it is empty. Important
+    // when we are rendering placeholders in `<ContentView>`.
+    minHeight: `calc(${desktopTitleFontSize.lineHeight} + ${desktopTitlePaddingTop})`,
+    marginBottom: paragraphMargin,
+    // Allow contextual alternate glyphs in regular text content.
+    fontFeatureSettings: '"calt" on',
+    "@media": {
+        [mobilePlatformMediaQuery]: {
+            ...mobileTitleFontSize,
+            paddingTop: `calc(${mobileTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
+            minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
+        },
+    },
+    selectors: {
+        [`${docMobileLayoutContainerClassName} &`]: {
+            ...mobileTitleFontSize,
+            paddingTop: `calc(${mobileTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
+            minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
+        },
+    },
+});
 
 export const headingLevel1ClassName = style({
     ...blockStyles,
     ...fontStyles["bold"],
-    ...headingLevel1FontSize,
-    marginTop: heading1TopMargin,
+    ...desktopHeadingLevel1FontSize,
+    marginTop: headingMarginVars.heading1TopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
+    "@media": {
+        [mobilePlatformMediaQuery]: {...mobileHeadingLevel1FontSize},
+    },
     selectors: {
-        [`${titleClassName} + &`]: {
-            marginTop: heading2TopMargin,
-        },
+        [`${docMobileLayoutContainerClassName} &`]: {...mobileHeadingLevel1FontSize},
+        [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
     },
 });
-
-export const headingLevel2FontSize = fontSizes["400"];
 
 export const headingLevel2ClassName = style({
     ...blockStyles,
     ...fontStyles["bold"],
-    ...headingLevel2FontSize,
-    marginTop: heading2TopMargin,
+    ...desktopHeadingLevel2FontSize,
+    marginTop: headingMarginVars.heading2TopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
+    "@media": {
+        [mobilePlatformMediaQuery]: {...mobileHeadingLevel2FontSize},
+    },
     selectors: {
-        [`${titleClassName} + &`]: {
-            marginTop: heading3TopMargin,
-        },
-        [`${headingLevel1ClassName} + &`]: {
-            marginTop: heading3TopMargin,
-        },
+        [`${docMobileLayoutContainerClassName} &`]: {...mobileHeadingLevel2FontSize},
+        [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
+        [`${headingLevel1ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
     },
 });
-
-export const headingLevel3FontSize = fontSizes["200"];
 
 export const headingLevel3ClassName = style({
     ...blockStyles,
     ...fontStyles["bold"],
-    ...headingLevel3FontSize,
-    marginTop: heading3TopMargin,
+    ...desktopHeadingLevel3FontSize,
+    marginTop: headingMarginVars.heading3TopMargin,
     marginBottom: paragraphMargin,
     // Allow contextual alternate glyphs in regular text content.
     fontFeatureSettings: '"calt" on',
+    "@media": {
+        [mobilePlatformMediaQuery]: {...mobileHeadingLevel3FontSize},
+    },
     selectors: {
-        [`${titleClassName} + &`]: {
-            marginTop: heading4TopMargin,
-        },
-        [`${headingLevel1ClassName} + &`]: {
-            marginTop: heading4TopMargin,
-        },
-        [`${headingLevel2ClassName} + &`]: {
-            marginTop: heading4TopMargin,
-        },
+        [`${docMobileLayoutContainerClassName} &`]: {...mobileHeadingLevel3FontSize},
+        [`${titleClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
+        [`${headingLevel1ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
+        [`${headingLevel2ClassName} + &`]: {marginTop: headingMarginVars.heading4TopMargin},
     },
 });
 
@@ -412,9 +457,21 @@ export const dividerClassName = style({
     maxWidth: blockMaxWidthWithoutPadding,
     paddingLeft: 0,
     paddingRight: 0,
-    marginTop: heading1TopMargin,
-    marginBottom: heading1TopMargin,
+    marginTop: desktopHeading1TopMargin,
+    marginBottom: desktopHeading1TopMargin,
     borderColor: colorSchemeVars["grey-10"],
+    "@media": {
+        [mobilePlatformMediaQuery]: {
+            marginTop: mobileHeading1TopMargin,
+            marginBottom: mobileHeading1TopMargin,
+        },
+    },
+    selectors: {
+        [`${docMobileLayoutContainerClassName} &`]: {
+            marginTop: mobileHeading1TopMargin,
+            marginBottom: mobileHeading1TopMargin,
+        },
+    },
 });
 
 // Our code doesn't have a background color! This is an intentional design
