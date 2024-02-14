@@ -19,8 +19,9 @@ import {
     DocumentCommentThreadListViewRef,
 } from "~/client/documents/document_comment_thread_list_view.js";
 import {
+    desktopDocumentPaddingX,
     documentContentClassName,
-    documentPaddingX,
+    mobileDocumentPaddingX,
 } from "~/client/documents/document_content_view.js";
 import {
     DocumentContentEditorSideDecoration,
@@ -44,6 +45,7 @@ import {useResizeObserver} from "~/client/helpers/use_resize_observer.js";
 import {writeTextToClipboard} from "~/client/helpers/write_text_to_clipboard.js";
 import {getInitialLoadMessageCount} from "~/client/messaging/messaging_view.js";
 import {getClientInfoWithoutListening, useClientInfo} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {addRemLengths, convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
 import {DocumentContentWithReferences} from "~/shared/documents/document_content_references.js";
 import {
@@ -74,6 +76,7 @@ import {OptimisticMessageModel} from "~/shared/messaging/message_model.js";
 import {createProsemirrorIncrementalReducer} from "~/shared/prosemirror/prosemirror_incremental_reducer.js";
 import {
     colorSchemeVars,
+    contentEditorStyles,
     contentSchemaStyles,
     spinAnimationClassName,
 } from "~/shared/styles/styles.js";
@@ -171,6 +174,7 @@ function DocumentContentEditorStateful({
 
     const isInitialAppRender = useIsInitialAppRender();
     const {isAppleDevice} = useClientInfo();
+    const isMobile = useIsMobile();
     const editorRef = useRef<ContentEditorRef>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -259,7 +263,11 @@ function DocumentContentEditorStateful({
 
         const remPx = getRemPxWithoutListening();
         const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
-        const paddingX = convertRemLengthToPx(spacing[documentPaddingX], remPx) * 2;
+        const paddingX =
+            convertRemLengthToPx(
+                spacing[isMobile ? mobileDocumentPaddingX : desktopDocumentPaddingX],
+                remPx,
+            ) * 2;
         const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
         const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
@@ -308,7 +316,7 @@ function DocumentContentEditorStateful({
         });
 
         sidebarAnimationInRef.current = animation;
-    }, [sidebarState]);
+    }, [isMobile, sidebarState]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!(sidebarState.isOpen && sidebarState.animationState === "Closing")) {
@@ -325,7 +333,11 @@ function DocumentContentEditorStateful({
 
         const remPx = getRemPxWithoutListening();
         const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
-        const paddingX = convertRemLengthToPx(spacing[documentPaddingX], remPx) * 2;
+        const paddingX =
+            convertRemLengthToPx(
+                spacing[isMobile ? mobileDocumentPaddingX : desktopDocumentPaddingX],
+                remPx,
+            ) * 2;
         const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
         const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
@@ -373,7 +385,7 @@ function DocumentContentEditorStateful({
         });
 
         sidebarAnimationOutRef.current = animation;
-    }, [sidebarState]);
+    }, [isMobile, sidebarState]);
 
     const [pressedCommentThreadId, setPressedCommentThreadId] =
         useState<DocumentCommentThreadId | null>(null);

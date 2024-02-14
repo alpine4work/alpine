@@ -5,11 +5,12 @@ import {sprinkles} from "~/shared/styles/styles.js";
 
 // TODO(calebmer): Get side decorations for comments working here.
 
-export const documentPaddingX: Spacing = "3";
+export const desktopDocumentPaddingX: Spacing = "3";
+export const mobileDocumentPaddingX: Spacing = "2";
 
 export const documentContentClassName = sprinkles({
     paddingBottom: "24",
-    paddingX: documentPaddingX,
+    paddingX: {desktop: desktopDocumentPaddingX, mobile: mobileDocumentPaddingX},
     backgroundColor: "grey-0",
 });
 
