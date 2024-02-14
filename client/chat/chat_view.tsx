@@ -1,5 +1,6 @@
 import {Memo, useCallback, useEffect, useRef} from "react";
 import {AccountAvatarPile} from "~/client/accounts/account_avatar_pile.js";
+import {useAccountModel} from "~/client/accounts/account_client_store_context_provider.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
@@ -11,6 +12,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {VirtualizedScrollViewItem} from "~/client/virtualized/virtualized_scroll_view.js";
 import {useWebSocket} from "~/client/web_socket/use_web_socket.js";
+import {AccountModel} from "~/shared/accounts/account_model.js";
 import {ChatMessageModel, ChatModel} from "~/shared/chat/chat_model.js";
 import {ChatRealtimeProtocol} from "~/shared/chat/chat_realtime_protocol.js";
 import {Spacing, spacing} from "~/shared/design/spacing.js";
@@ -89,15 +91,23 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
                         fontSize: "200",
                     })}
                 >
-                    <PrettyConjunctionList
-                        list={otherChatAccounts.map(account => (
-                            <AccountShortName key={account.id} account={account} />
-                        ))}
-                    />
+                    {otherChatAccounts.length === 1 ? (
+                        <AccountFullName account={otherChatAccounts[0]!} />
+                    ) : (
+                        <PrettyConjunctionList
+                            list={otherChatAccounts.map(account => (
+                                <AccountShortName key={account.id} account={account} />
+                            ))}
+                        />
+                    )}
                 </h1>
             </Box>
         </Box>
     );
+}
+
+function AccountFullName({account}: {account: AccountModel}) {
+    return <>{useAccountModel(account).name}</>;
 }
 
 /**
