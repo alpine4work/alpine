@@ -5,7 +5,7 @@ import {keyframes, style} from "@vanilla-extract/css";
  */
 // This constant is exported from `use_navigation_bar.tsx` for convenience.
 // Generally you'll import from there unless you need this constant in CSS.
-export const navigationBarHeight = "14";
+export const navigationBarHeight = "16";
 
 const navigationBarBackgroundFadeOutKeyframes = keyframes({
     from: {opacity: 1},

@@ -425,6 +425,8 @@ globalStyle(":root", {
     },
 });
 
+export type FontSize = keyof typeof fontSizesByPlatform;
+
 /**
  * The font scale for our product. A couple details on how this is constructed:
  *

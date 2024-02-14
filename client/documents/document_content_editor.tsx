@@ -783,6 +783,9 @@ function DocumentContentEditorStateful({
             ],
             ...contextMenuActions,
         ],
+        desktopTitleMaxWidth: contentSchemaStyles.blockMaxWidthWithoutPadding,
+        desktopTitleFontSize: "400",
+        desktopTitleFontWeight: "bold",
     });
 
     return (

@@ -6,7 +6,7 @@
 /// This is measured in points. Whereas `navigationBarHeight` in
 /// `navigation_bar.css.ts` is a `Spacing` value. We use mobile sizes for
 /// `Spacing` since this is the code for our native mobile app.
-let navigationBarHeight = 70.0
+let navigationBarHeight = 80.0
 
 /// The same value as `navigationBarTransitionDebounceScrollTimeoutMs` in
 /// `use_navigation_bar.tsx`. So our behavior to automatically hide the tab bar

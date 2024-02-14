@@ -26,7 +26,9 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     RemLength,
+    Spacing,
     addRemLengths,
+    isSpacing,
     parseRemLengthNumber,
     remPxByPlatform,
     spacing,
@@ -35,7 +37,12 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {navigationBarStyles, tasksStyles} from "~/shared/styles/styles.js";
+import {
+    FontSize,
+    colorSchemeVars,
+    navigationBarStyles,
+    tasksStyles,
+} from "~/shared/styles/styles.js";
 
 const {
     navigationBarHeight,
@@ -55,7 +62,7 @@ const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]
     // We have an assertion below to make sure this value always equals the
     // navigation bar's pixel height on mobile devices. After converting `Spacing`
     // to an actual value and applying the rem pixel count.
-    const mobileNavigationBarHeight = 70;
+    const mobileNavigationBarHeight = 80;
 
     assert(mobileNavigationBarHeight === navigationBarHeightRem * remPxByPlatform.mobile);
 }
@@ -172,6 +179,9 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     titleBoundaryRef,
     menuActions = [],
     desktopControls = null,
+    desktopTitleMaxWidth,
+    desktopTitleFontSize = "200",
+    desktopTitleFontWeight = "semi-bold",
 }: {
     /**
      * The title to display in the navigation bar. It will be truncated based
@@ -206,6 +216,22 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * also a part of the navigation bar.
      */
     desktopControls?: ReactNode;
+
+    /**
+     * The amount of space the title can occupy on desktop. This also has the
+     * effect of centering the title container (of this width) when set.
+     */
+    desktopTitleMaxWidth?: Spacing | RemLength;
+
+    /**
+     * Font size to use for the title on desktop.
+     */
+    desktopTitleFontSize?: FontSize;
+
+    /**
+     * Font weight to use for the title on desktop.
+     */
+    desktopTitleFontWeight?: "semi-bold" | "bold";
 } = {}): {
     /**
      * (Required) Attach this ref to the scroll view the navigation bar renders
@@ -302,6 +328,9 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
             titleBoundaryRef={titleBoundaryRef}
             menuActions={menuActions}
             desktopControls={desktopControls}
+            desktopTitleMaxWidth={desktopTitleMaxWidth}
+            desktopTitleFontSize={desktopTitleFontSize}
+            desktopTitleFontWeight={desktopTitleFontWeight}
         />
     );
 
@@ -319,6 +348,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     titleBoundaryRef,
     menuActions,
     desktopControls,
+    desktopTitleMaxWidth: desktopTitleMaxWidthProp,
+    desktopTitleFontSize,
+    desktopTitleFontWeight,
 }: {
     handleRef: MutableRefObject<{
         initialize: (element: HTMLElement) => void;
@@ -329,6 +361,9 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
     desktopControls: ReactNode;
+    desktopTitleMaxWidth: Spacing | RemLength | undefined;
+    desktopTitleFontSize: FontSize;
+    desktopTitleFontWeight: "semi-bold" | "bold";
 }) {
     const isMobile = useIsMobile();
     const navigate = useNavigate();
@@ -745,7 +780,15 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         spacing[edgeButtonSize],
         spacing[gap],
         spacing[edgeButtonSize],
+        spacing[gap],
     );
+
+    const desktopTitleMaxWidth =
+        desktopTitleMaxWidthProp !== undefined
+            ? isSpacing(desktopTitleMaxWidthProp)
+                ? spacing[desktopTitleMaxWidthProp]
+                : desktopTitleMaxWidthProp
+            : undefined;
 
     return (
         <div
@@ -822,11 +865,10 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             height={navigationBarHeight}
                             overflow="hidden"
                             display="flex"
-                            gap={gap}
                             paddingLeft={isMobile ? gap : "5"}
-                            paddingRight={isMobile ? gap : "4"}
+                            paddingRight={isMobile ? gap : "5"}
                         >
-                            {isMobile && (
+                            {isMobile ? (
                                 <Box
                                     flexShrink="0"
                                     height={navigationBarHeight}
@@ -847,15 +889,30 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                         <CaretLeft />
                                     </IconButton>
                                 </Box>
+                            ) : (
+                                desktopTitleMaxWidth !== undefined && (
+                                    <Box
+                                        flexGrow="0"
+                                        flexShrink="0"
+                                        style={{
+                                            width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2)`,
+                                        }}
+                                    />
+                                )
                             )}
                             <Box
                                 flexGrow="1"
+                                flexShrink="1"
+                                width="full"
                                 height={navigationBarHeight}
                                 overflow="hidden"
                                 display="flex"
                                 justifyContent={isMobile ? "center" : "flex-start"}
                                 alignItems="center"
                                 gap={gap}
+                                style={{
+                                    maxWidth: desktopTitleMaxWidth,
+                                }}
                             >
                                 {!isMobile && desktopControls && (
                                     <Box
@@ -868,8 +925,12 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 <Box
                                     ref={navigationBarTitleRef}
                                     // We have less space on mobile so use a smaller font size.
-                                    fontSize={isMobile ? "100" : "200"}
-                                    fontStyle="truncate-semi-bold"
+                                    fontSize={isMobile ? "100" : desktopTitleFontSize}
+                                    fontStyle={
+                                        isMobile
+                                            ? "truncate-semi-bold"
+                                            : `truncate-${desktopTitleFontWeight}`
+                                    }
                                     userSelect={!isMobile ? "text" : undefined}
                                     // Initial opacity is 0. Our code will update the opacity.
                                     opacity="0"
@@ -878,6 +939,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 </Box>
                             </Box>
                             <Box
+                                flexGrow={!isMobile ? "1" : undefined}
                                 flexShrink="0"
                                 height={navigationBarHeight}
                                 style={{width: edgeButtonsWidth}}
