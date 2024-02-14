@@ -35,15 +35,25 @@ import {backgroundFontSizePercentage} from "~/shared/styles/internal/fonts.css.j
 // to `flex-grow: 1` gets `docClassName` to grow when its height is less than
 // 100% of `containerClassName`'s parent. The best answer on the StackOverflow
 // question does something similar but with `display: table`.
+//
+// `containerClassName` may also be nested in another `containerClassName` if
+// necessary. Useful if you need another wrapper element for some reason (like
+// in `<DocumentContentEditor>` which needs a `position: relative` wrapper).
 export const containerClassName = style({
     minHeight: "100%",
     display: "flex",
     flexDirection: "column",
 });
 
-globalStyle(`${containerClassName} > ${docClassName}`, {
-    flexGrow: 1,
-});
+globalStyle(
+    [
+        `${containerClassName} > ${docClassName}`,
+        `${containerClassName} > ${containerClassName}`,
+    ].join(", "),
+    {
+        flexGrow: 1,
+    },
+);
 
 /**
  * When applying a background color to some selected text, we want the

@@ -812,7 +812,7 @@ function DocumentContentEditorStateful({
                     }}
                 >
                     <OverlayScopeContextProvider>
-                        <Box position="relative">
+                        <Box position="relative" className={contentEditorStyles.containerClassName}>
                             <ContentEditor
                                 ref={editorRef}
                                 state={editorState}
