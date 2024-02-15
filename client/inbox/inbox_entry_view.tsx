@@ -156,7 +156,7 @@ export function InboxEntryView({
             }}
         >
             <Box
-                paddingX="3"
+                paddingX="4"
                 borderRadius="md"
                 backgroundColor={
                     isPressed && withinOverlay ? "grey-10" : isSelected ? "grey-5" : undefined
@@ -431,7 +431,7 @@ function InboxDocumentNewCommentThreadsEntryView({
             loudNotificationCount={entry.loudNotificationCount}
         >
             <Box>
-                New {entry.commentThreadCount > 1 ? "threads" : "thread"} on “
+                New {entry.commentThreadCount > 1 ? "comments" : "comment"} on “
                 {truncateDocumentTitle(entry.document.getTitle())}” by{" "}
                 {!secondAccount ? (
                     <span className={boldClassName}>
@@ -493,7 +493,7 @@ function InboxEntryViewBase({
 }) {
     return (
         <>
-            <Box flexShrink="0" width="10" paddingY="3">
+            <Box flexShrink="0" width="10" paddingY="4">
                 <Box
                     position="relative"
                     width="10"
@@ -529,7 +529,7 @@ function InboxEntryViewBase({
                     )}
                 </Box>
             </Box>
-            <Box paddingY="3" flexGrow="1" fontSize="75" overflow="hidden">
+            <Box paddingY="4" flexGrow="1" fontSize="75" overflow="hidden">
                 {children}
             </Box>
         </>

@@ -259,7 +259,18 @@ export default function SpaceLayoutRoute() {
     if (!nativeMobileRouterState) {
         nodes.push(
             <div key={nodeKey++} className={outletContainerClassName} style={outletContainerStyle}>
-                {!isMobile && <SpaceLayoutSideBar space={space} initialInbox={inbox} />}
+                {!isMobile && (
+                    <SpaceLayoutSideBar
+                        space={space}
+                        initialInbox={inbox}
+                        onSearchPress={() => {
+                            setSearchState(searchState => {
+                                if (searchState) return searchState;
+                                return {initialQueryText: ""};
+                            });
+                        }}
+                    />
+                )}
                 {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
                 {/* NOCOMMIT: {!isMobile && (
                     <SpaceLayoutTopBar

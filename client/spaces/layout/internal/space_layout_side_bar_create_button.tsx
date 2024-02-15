@@ -116,13 +116,7 @@ export function SpaceLayoutSideBarCreateButton() {
                 },
             ]}
         >
-            <IconButton
-                size="base"
-                description="Create"
-                // The notification bell does not have a tooltip. It opens up an inbox preview
-                // on hover. It's weird if the buttons around it have tooltips.
-                withoutTooltip={true}
-            >
+            <IconButton size="lg" description="Create" tooltipPlacement="right">
                 <Plus />
             </IconButton>
         </MenuButton>

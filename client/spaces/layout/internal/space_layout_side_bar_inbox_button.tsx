@@ -15,9 +15,9 @@ import {LoudNotificationBadge} from "~/client/inbox/loud_notification_badge.js";
 import {useCurrentTimeRoundedToHour} from "~/client/remix/use_current_time_rounded_to_hour.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
-    SpaceLayoutTopBarInboxOverlay,
-    spaceLayoutTopBarInboxOverlayHeight,
-} from "~/client/spaces/layout/internal/space_layout_top_bar_inbox_overlay.js";
+    SpaceLayoutSideBarInboxOverlay,
+    spaceLayoutSideBarInboxOverlayHeight,
+} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_overlay.js";
 import {useMyAccountWebSocket, useSpaceContext} from "~/client/spaces/space_context.js";
 import {getVirtualizationWindowHeight} from "~/client/virtualized/virtualized_scroll_view_state.js";
 import {convertRemLengthToPx, spacing} from "~/shared/design/spacing.js";
@@ -44,7 +44,7 @@ import {
     overlayFadeOutAnimationDurationMs,
 } from "~/shared/styles/styles.js";
 
-export function SpaceLayoutTopBarInboxButton({
+export function SpaceLayoutSideBarInboxButton({
     initialInbox,
 }: {
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
@@ -120,7 +120,7 @@ export function SpaceLayoutTopBarInboxButton({
     // gives the user a bit of space to scroll.
     const initialEntriesLimit = Math.ceil(
         getVirtualizationWindowHeight(
-            convertRemLengthToPx(spacing[spaceLayoutTopBarInboxOverlayHeight], remPx),
+            convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeight], remPx),
         ) / convertRemLengthToPx(inboxEntryViewMinHeight, remPx),
     );
 
@@ -277,7 +277,7 @@ export function SpaceLayoutTopBarInboxButton({
                     {x: event.clientX, y: event.clientY},
                     {x: pointerTrajectoryState.startX, y: pointerTrajectoryState.startY},
                     {x: rect.left, y: rect.top},
-                    {x: rect.right, y: rect.top},
+                    {x: rect.left, y: rect.bottom},
                 )
             ) {
                 setPointerTrajectoryState({isPointerWithinTrajectoryTriangle: false});
@@ -305,15 +305,15 @@ export function SpaceLayoutTopBarInboxButton({
         <Box position="relative" zIndex="0">
             <Overlay
                 isVisible={isOverlayVisible}
-                placement="bottom-end"
+                placement="right-start"
                 offset={defaultTooltipOffset}
-                offsetAlong="8"
+                offsetAlong="-8"
                 overlay={
                     <Box className={overlayAnimateContainerClassName}>
                         <Box
                             ref={overlayRef}
                             width={inboxEntryWidth}
-                            height={spaceLayoutTopBarInboxOverlayHeight}
+                            height={spaceLayoutSideBarInboxOverlayHeight}
                             borderRadius="md"
                             backgroundColor="grey-0"
                             boxShadow="elevation-20"
@@ -331,7 +331,7 @@ export function SpaceLayoutTopBarInboxButton({
                             onPointerLeave={() => setIsOverlayHovered(false)}
                         >
                             {overlayState.isVisible && (
-                                <SpaceLayoutTopBarInboxOverlay
+                                <SpaceLayoutSideBarInboxOverlay
                                     // Remount when the filter changes...
                                     key={overlayState.filter}
                                     filter={overlayState.filter}
@@ -386,7 +386,7 @@ export function SpaceLayoutTopBarInboxButton({
                 }
             >
                 <IconButton
-                    size="md"
+                    size="lg"
                     description="Notifications"
                     // When you hover over the notification bell we open a notification preview.
                     withoutTooltip={true}
@@ -430,8 +430,8 @@ export function SpaceLayoutTopBarInboxButton({
                     <Bell />
                     {inbox.model.loudNotificationCount > 0 ? (
                         <LoudNotificationBadge
-                            top="-0.0625rem"
-                            right="0.5rem"
+                            top="0.1875rem"
+                            right="0.6875rem"
                             loudNotificationCount={inbox.model.loudNotificationCount}
                         />
                     ) : // If the inbox has entries then we want to render a subtle dot on top of our
@@ -455,8 +455,8 @@ export function SpaceLayoutTopBarInboxButton({
                             width="1"
                             height="1"
                             style={{
-                                top: "0.3125rem",
-                                right: "0.4375rem",
+                                top: "0.5rem",
+                                right: "0.625rem",
                                 backgroundColor: "currentcolor",
                                 // On high pixel density displays we want 1.3px should to round up to 1.5px and
                                 // on low pixel density displays we want 1.3px to round down to 1px.

@@ -23,11 +23,11 @@ import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {InboxEntryModel} from "~/shared/notifications/inbox_model.js";
 import {colorSchemeVars, spinAnimationClassName} from "~/shared/styles/styles.js";
 
-const spaceLayoutTopBarInboxOverlayHeaderHeight: Spacing = "9";
+const spaceLayoutSideBarInboxOverlayHeaderHeight: Spacing = "9";
 
-export const spaceLayoutTopBarInboxOverlayHeight: Spacing = "128";
+export const spaceLayoutSideBarInboxOverlayHeight: Spacing = "128";
 
-export function SpaceLayoutTopBarInboxOverlay({
+export function SpaceLayoutSideBarInboxOverlay({
     filter,
     initialEntriesResultPromise,
     onNewPress,
@@ -48,7 +48,7 @@ export function SpaceLayoutTopBarInboxOverlay({
         <>
             <Box
                 flexShrink="0"
-                height={spaceLayoutTopBarInboxOverlayHeaderHeight}
+                height={spaceLayoutSideBarInboxOverlayHeaderHeight}
                 borderBottom="grey-10"
                 display="flex"
                 alignItems="center"
@@ -143,8 +143,8 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
     const itemCount = query.getItemCount();
 
     const virtualizedViewHeight =
-        convertRemLengthToPx(spacing[spaceLayoutTopBarInboxOverlayHeight], remPx) -
-        convertRemLengthToPx(spacing[spaceLayoutTopBarInboxOverlayHeaderHeight], remPx);
+        convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeight], remPx) -
+        convertRemLengthToPx(spacing[spaceLayoutSideBarInboxOverlayHeaderHeight], remPx);
 
     return (
         <VirtualizedScrollView
@@ -159,6 +159,7 @@ function SpaceLayoutTopBarInboxOverlayEntriesInner({
             renderItem={useCallback(
                 index => {
                     const item = query.getItem(index);
+
                     switch (item.type) {
                         case "Loaded": {
                             return {

@@ -1,17 +1,21 @@
 import {Action} from "@remix-run/router";
 import GraphemeSplitter from "grapheme-splitter";
-import {ArrowLeft, ArrowRight, Bell, House, IconContext, MagnifyingGlass} from "phosphor-react";
-import {ReactNode, useEffect, useMemo, useState} from "react";
+import {ArrowLeft, ArrowRight, House, MagnifyingGlass} from "phosphor-react";
+import {useEffect, useMemo, useState} from "react";
 import {useLocation, useNavigationType} from "react-router";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
-import {useNavigate} from "~/client/remix/use_navigate.js";
+import {useShowToast} from "~/client/design/toast.js";
+import {useNavigate, useRootNavigate} from "~/client/remix/use_navigate.js";
+import {usePreloadAffinitiveSearchEntities} from "~/client/search/search_modal.js";
 import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
+import {SpaceLayoutSideBarInboxButton} from "~/client/spaces/layout/internal/space_layout_side_bar_inbox_button.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
-import {spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
+import {UnimplementedError} from "~/shared/error/error.js";
+import {errorDisplayMessage} from "~/shared/error/error_display_message.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {Schema} from "~/shared/schema/schema.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
@@ -19,10 +23,20 @@ import {SpaceModel} from "~/shared/spaces/space_model.js";
 export function SpaceLayoutSideBar({
     space,
     initialInbox,
+    onSearchPress,
 }: {
     space: SpaceModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
+    onSearchPress: () => void;
 }) {
+    const rootNavigate = useRootNavigate();
+    const showToast = useShowToast();
+
+    // Preload affinitive search entities so they're ready when the search modal
+    // opens. We expect search to be the primary way users navigate around the
+    // product.
+    usePreloadAffinitiveSearchEntities();
+
     return (
         <Box
             flexShrink="0"
@@ -33,34 +47,61 @@ export function SpaceLayoutSideBar({
             borderRight="grey-10"
             style={{width: "4.5rem"}}
         >
-            <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="5">
-                <Box display="flex" flexDirection="column" alignItems="center" gap="3">
-                    <Box
-                        backgroundColor="grey-30-const"
-                        width="8"
-                        height="8"
-                        borderRadius="base"
-                        display="flex"
-                        justifyContent="center"
-                        alignItems="center"
-                        color="grey-80-const"
-                    >
-                        <Box
-                            fontSize="75"
-                            style={{transform: `scale(${8 / 8})`}}
-                            aria-hidden="true"
-                        >
-                            {useMemo(() => {
-                                const splitter = new GraphemeSplitter();
-                                const graphemes = splitter.iterateGraphemes(space.name);
-                                return graphemes.next().value;
-                            }, [space.name])}
-                        </Box>
+            <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="4">
+                <Box
+                    backgroundColor="grey-30-const"
+                    width="8"
+                    height="8"
+                    borderRadius="base"
+                    display="flex"
+                    justifyContent="center"
+                    alignItems="center"
+                    color="grey-80-const"
+                >
+                    <Box fontSize="75" style={{transform: `scale(${8 / 8})`}} aria-hidden="true">
+                        {useMemo(() => {
+                            const splitter = new GraphemeSplitter();
+                            const graphemes = splitter.iterateGraphemes(space.name);
+                            return graphemes.next().value;
+                        }, [space.name])}
                     </Box>
                 </Box>
-                <SpaceLayoutSideBarButton icon={<House />} label="Home" />
-                <SpaceLayoutSideBarButton icon={<MagnifyingGlass />} label="Search" />
-                <SpaceLayoutSideBarButton icon={<Bell />} label="Inbox" />
+                <IconButton
+                    size="lg"
+                    description="Home"
+                    tooltipPlacement="right"
+                    pressErrorTitle="Couldn’t open home page"
+                    onPress={async () => {
+                        if (space.alphaAccessDefaultChannelId) {
+                            await rootNavigate(
+                                `/s/${space.id}/channels/${space.alphaAccessDefaultChannelId}`,
+                            );
+                        } else {
+                            showToast({
+                                type: "Error",
+                                title: "Can’t open the home page",
+                                error: new UnimplementedError(
+                                    "The home page hasn't been implemented yet",
+                                    {
+                                        displayMessage: errorDisplayMessage`The home page hasn’t been implemented yet.`,
+                                    },
+                                ),
+                            });
+                        }
+                    }}
+                >
+                    <House />
+                </IconButton>
+                <IconButton
+                    size="lg"
+                    description="Search"
+                    tooltipPlacement="right"
+                    keyboardShortcutHint="shift+shift"
+                    onPress={onSearchPress}
+                >
+                    <MagnifyingGlass />
+                </IconButton>
+                <SpaceLayoutSideBarInboxButton initialInbox={initialInbox} />
                 <SpaceLayoutSideBarCreateButton />
             </Box>
             <Box flexGrow="1" />
@@ -73,26 +114,6 @@ export function SpaceLayoutSideBar({
             >
                 <SpaceLayoutSideBarAccountButton />
                 <SpaceLayoutSideBarNavigationButtons />
-            </Box>
-        </Box>
-    );
-}
-
-// NOCOMMIT
-function SpaceLayoutSideBarButton({icon, label}: {icon: ReactNode; label: string}) {
-    return (
-        <Box display="flex" flexDirection="column" alignItems="center" gap="0.5" color="grey-70">
-            <Box
-                width="7"
-                height="7"
-                borderRadius="full"
-                display="flex"
-                justifyContent="center"
-                alignItems="center"
-            >
-                <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
-                    {icon}
-                </IconContext.Provider>
             </Box>
         </Box>
     );
