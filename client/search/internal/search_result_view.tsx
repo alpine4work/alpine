@@ -34,7 +34,7 @@ import {
 const minSearchBodyTextSnippetLineCount = 2;
 const minSearchBodyTextSnippetLineCountWithTitle = 0;
 
-const paddingY = "3";
+const paddingY = "4";
 const searchTypeDisplayNameFontSize = "50";
 const searchBodyTextSnippetFontSize = "75";
 const searchTitleFontSize = "100";
@@ -108,7 +108,7 @@ export function SearchResultView({
         >
             <Box
                 position="relative"
-                paddingX="3"
+                paddingX="4"
                 borderRadius="md"
                 backgroundColor={isSelected ? "grey-5" : undefined}
                 style={{
@@ -291,7 +291,7 @@ function getSearchEntityTypeDisplay(type: SearchEntityIdObject["type"]): {
             return {
                 name: "Post",
                 icon: <EnvelopeSimpleOpen />,
-                isAccountMediaAuthor: false,
+                isAccountMediaAuthor: true,
             };
         }
         case "PostComment": {
