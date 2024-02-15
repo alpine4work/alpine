@@ -197,7 +197,7 @@ export default function InboxRoute() {
 
                     // Silently update the URL without telling Remix so our component doesn't
                     // re-render unnecessarily.
-                    window.history.replaceState(null, "", url);
+                    window.history.replaceState(window.history.state, "", url);
                 }}
             />
             {isInitialAppRender &&

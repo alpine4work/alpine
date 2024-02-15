@@ -1561,7 +1561,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                         >
                             <IconButton
                                 size="xs"
-                                description="Back"
+                                description="Go back"
                                 tooltipPlacement="top"
                                 isDisabled={!(historyPosition.index > 0)}
                                 onPress={() => entry.history.go(-1)}
@@ -1570,7 +1570,7 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                             </IconButton>
                             <IconButton
                                 size="xs"
-                                description="Forwards"
+                                description="Go forwards"
                                 tooltipPlacement="top"
                                 isDisabled={
                                     !(historyPosition.index < historyPosition.entriesLength - 1)

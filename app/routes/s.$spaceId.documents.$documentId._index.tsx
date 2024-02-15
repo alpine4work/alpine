@@ -175,7 +175,7 @@ export default function DocumentRoute({withMobileLayout = false}: {withMobileLay
                 // TODO(calebmer): Globally replacing the URL doesn't work in peeks! Eventually
                 // migrate this to `useSearchParams()` + `shouldRevalidate` to avoid a server
                 // fetch.
-                window.history.replaceState(null, "", url);
+                window.history.replaceState(window.history.state, "", url);
             }}
         />
     );

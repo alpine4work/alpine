@@ -926,7 +926,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 >
                                     <IconButton
                                         size="base"
-                                        description="Back"
+                                        description="Go back"
                                         withoutTooltip={true}
                                         onPress={() => navigate(-1)}
                                     >

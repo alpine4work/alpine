@@ -117,7 +117,7 @@ export function SearchModal({
 
         // Silently update the URL without telling Remix so our components don't
         // re-render unnecessarily.
-        window.history.replaceState(null, "", url);
+        window.history.replaceState(window.history.state, "", url);
     }, [queryText]);
 
     // When this component unmounts, remove the `search` URL parameter.
@@ -128,7 +128,7 @@ export function SearchModal({
 
             // Silently update the URL without telling Remix so our components don't
             // re-render unnecessarily.
-            window.history.replaceState(null, "", url);
+            window.history.replaceState(window.history.state, "", url);
         };
     }, []);
 
@@ -741,7 +741,7 @@ function SearchModalPeekContent({
                     >
                         <IconButton
                             size="xs"
-                            description="Back"
+                            description="Go back"
                             tooltipPlacement="top"
                             isDisabled={!(historyPosition.index > 0)}
                             onPress={() => peek.history.go(-1)}
@@ -750,7 +750,7 @@ function SearchModalPeekContent({
                         </IconButton>
                         <IconButton
                             size="xs"
-                            description="Forwards"
+                            description="Go forwards"
                             tooltipPlacement="top"
                             isDisabled={
                                 !(historyPosition.index < historyPosition.entriesLength - 1)
