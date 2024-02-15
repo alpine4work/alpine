@@ -4,6 +4,7 @@ import {useStableValue} from "~/client/helpers/use_stable_value.js";
 import {ErrorSchema} from "~/shared/error/error_schema.js";
 import {sprinkles} from "~/shared/styles/styles.js";
 
+// NOCOMMIT: Error renderer with white background
 export function SpaceRouteErrorRenderer({error: _error}: {error: unknown}) {
     // It appears that Remix does not `useMemo()` its error object. So stabilize
     // the object reference here. Our error rendering components use referential

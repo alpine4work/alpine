@@ -9,10 +9,10 @@ import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction} from "~/client/design/menu_button.js";
+import {useNavigationBar} from "~/client/design/navigation_bar.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {useScrollbar} from "~/client/design/scrollbar.js";
 import {delayScreenTransitionLoadingIndicatorLimitMs} from "~/client/design/timing_constants.js";
-import {useNavigationBar} from "~/client/design/use_navigation_bar.js";
 import {useDevConsoleTool} from "~/client/dev/dev_console.js";
 import {
     DocumentCommentThreadListView,
@@ -182,6 +182,8 @@ function DocumentContentEditorStateful({
     const editorContainerId = useId();
     const [containerResizeRef, containerSize] = useResizeObserver();
 
+    const paddingX = isMobile ? mobileDocumentPaddingX : desktopDocumentPaddingX;
+
     const {
         isConnected,
         editorState,
@@ -263,21 +265,17 @@ function DocumentContentEditorStateful({
 
         const remPx = getRemPxWithoutListening();
         const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
-        const paddingX =
-            convertRemLengthToPx(
-                spacing[isMobile ? mobileDocumentPaddingX : desktopDocumentPaddingX],
-                remPx,
-            ) * 2;
+        const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
         const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
         const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
         const oldContentOffset = Math.max(
             0,
-            (editorContainerElement.clientWidth - paddingX + sidebarWidth - blockMaxWidth) / 2,
+            (editorContainerElement.clientWidth - paddingXPx + sidebarWidth - blockMaxWidth) / 2,
         );
         const newContentOffset = Math.max(
             0,
-            (editorContainerElement.clientWidth - paddingX - blockMaxWidth) / 2,
+            (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
         );
 
         const animation = timeline(
@@ -316,7 +314,7 @@ function DocumentContentEditorStateful({
         });
 
         sidebarAnimationInRef.current = animation;
-    }, [isMobile, sidebarState]);
+    }, [paddingX, sidebarState]);
 
     useLayoutEffectWithoutServerSideWarning(() => {
         if (!(sidebarState.isOpen && sidebarState.animationState === "Closing")) {
@@ -333,21 +331,17 @@ function DocumentContentEditorStateful({
 
         const remPx = getRemPxWithoutListening();
         const blockMaxWidth = convertRemLengthToPx(contentSchemaStyles.blockMaxWidth, remPx);
-        const paddingX =
-            convertRemLengthToPx(
-                spacing[isMobile ? mobileDocumentPaddingX : desktopDocumentPaddingX],
-                remPx,
-            ) * 2;
+        const paddingXPx = convertRemLengthToPx(spacing[paddingX], remPx) * 2;
         const sidebarWidth = convertRemLengthToPx(documentContentEditorSidebarWidth, remPx);
         const sidebarOffscreenBufferWidth = convertRemLengthToPx(spacing["10"], remPx);
 
         const oldContentOffset = Math.max(
             0,
-            (editorContainerElement.clientWidth - paddingX - sidebarWidth - blockMaxWidth) / 2,
+            (editorContainerElement.clientWidth - paddingXPx - sidebarWidth - blockMaxWidth) / 2,
         );
         const newContentOffset = Math.max(
             0,
-            (editorContainerElement.clientWidth - paddingX - blockMaxWidth) / 2,
+            (editorContainerElement.clientWidth - paddingXPx - blockMaxWidth) / 2,
         );
 
         const animation = timeline(
@@ -385,7 +379,7 @@ function DocumentContentEditorStateful({
         });
 
         sidebarAnimationOutRef.current = animation;
-    }, [isMobile, sidebarState]);
+    }, [paddingX, sidebarState]);
 
     const [pressedCommentThreadId, setPressedCommentThreadId] =
         useState<DocumentCommentThreadId | null>(null);
@@ -783,7 +777,11 @@ function DocumentContentEditorStateful({
             ],
             ...contextMenuActions,
         ],
-        desktopTitleMaxWidth: contentSchemaStyles.blockMaxWidthWithoutPadding,
+        desktopTitleMaxWidth: addRemLengths(
+            spacing[paddingX],
+            contentSchemaStyles.blockMaxWidth,
+            spacing[paddingX],
+        ),
         desktopTitleFontSize: "400",
         desktopTitleFontWeight: "bold",
     });

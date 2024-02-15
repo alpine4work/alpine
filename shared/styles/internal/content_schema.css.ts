@@ -36,7 +36,10 @@ import {
     printRawColor,
 } from "~/shared/styles/internal/helpers/raw_color.js";
 import {inputPlaceholderStyles} from "~/shared/styles/internal/input_placeholder.css.js";
-import {navigationBarHeight} from "~/shared/styles/internal/navigation_bar.css.js";
+import {
+    desktopNavigationBarHeight,
+    mobileNavigationBarHeight,
+} from "~/shared/styles/internal/navigation_bar.css.js";
 
 // TODO(calebmer): Running list of style tweaks to explore.
 //
@@ -180,8 +183,18 @@ globalStyle(`:root`, {
     },
 });
 
-export const desktopTitlePaddingTop = addRemLengths(spacing["10"], spacing[navigationBarHeight]);
-export const mobileTitlePaddingTop = addRemLengths(spacing["3"], spacing[navigationBarHeight]);
+export const desktopTitlePaddingTop = addRemLengths(
+    spacing["10"],
+    spacing[desktopNavigationBarHeight],
+);
+export const mobilePlatformTitlePaddingTop = addRemLengths(
+    spacing["3"],
+    spacing[mobileNavigationBarHeight],
+);
+export const mobileLayoutTitlePaddingTop = addRemLengths(
+    spacing["3"],
+    spacing[desktopNavigationBarHeight],
+);
 
 export const titleClassName = style({
     ...blockStyles,
@@ -197,15 +210,22 @@ export const titleClassName = style({
     "@media": {
         [mobilePlatformMediaQuery]: {
             ...mobileTitleFontSize,
-            paddingTop: `calc(${mobileTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
-            minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
+            paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
+            minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
+            selectors: {
+                [`${docMobileLayoutContainerClassName} &`]: {
+                    ...mobileTitleFontSize,
+                    paddingTop: `calc(${mobilePlatformTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
+                    minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobilePlatformTitlePaddingTop})`,
+                },
+            },
         },
     },
     selectors: {
         [`${docMobileLayoutContainerClassName} &`]: {
             ...mobileTitleFontSize,
-            paddingTop: `calc(${mobileTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
-            minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileTitlePaddingTop})`,
+            paddingTop: `calc(${mobileLayoutTitlePaddingTop} + var(--safe-area-inset-top, 0px))`,
+            minHeight: `calc(${mobileTitleFontSize.lineHeight} + ${mobileLayoutTitlePaddingTop})`,
         },
     },
 });

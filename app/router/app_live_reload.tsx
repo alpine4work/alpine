@@ -6,6 +6,7 @@ import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycl
 import {spacing} from "~/shared/design/spacing.js";
 import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
+import {navigationBarStyles} from "~/shared/styles/styles.js";
 
 /**
  * This is a fork of the [`<LiveReload>` component in `@remix-run/react`][1].
@@ -129,14 +130,17 @@ if (process.env.NODE_ENV !== "development") {
                         >
                             <Box
                                 overflow="hidden"
-                                // Navigation bar height on mobile, space top layout bar height on desktop. We
-                                // aren't importing those component's constants to make sure they're
-                                // not included in this file's bundle.
-                                height={{mobile: "16", desktop: "12"}}
                                 paddingX="5"
                                 display="flex"
                                 justifyContent="center"
                                 alignItems="center"
+                                // We don't want to import `navigation_bar.tsx` to avoid including that
+                                // file in this bundle. Instead use `navigationBarStyles` since the CSS is
+                                // available in every bundle.
+                                height={{
+                                    desktop: navigationBarStyles.desktopNavigationBarHeight,
+                                    mobile: navigationBarStyles.mobileNavigationBarHeight,
+                                }}
                             >
                                 <Box fontStyle="truncate-code">{messageState.message}</Box>
                             </Box>

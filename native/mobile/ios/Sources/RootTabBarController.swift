@@ -189,12 +189,12 @@ class RootTabBarController: UITabBarController, SceneDelegateRootController,
     ) {
         guard self.mainScrollView === scrollView else { return }
 
-        // We implement the same logic here as in `use_navigation_bar.tsx` for
+        // We implement the same logic here as in `navigation_bar.tsx` for
         // revealing/hiding our tab bar as the user scrolls. By implementing identical
-        // logic to `use_navigation_bar.tsx` the app feels cohesive.
+        // logic to `navigation_bar.tsx` the app feels cohesive.
         //
         // Ideally, we'd only consider scroll events on scroll views
-        // `use_navigation_bar.tsx` is initialized on. However, we can't really
+        // `navigation_bar.tsx` is initialized on. However, we can't really
         // associate `UIScrollView`s with WebKit DOM nodes from here. Instead we make
         // assumptions. Like assuming there's only one `useNavigationBar()` scroll view
         // on the page at a time.

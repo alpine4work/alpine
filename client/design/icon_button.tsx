@@ -43,13 +43,23 @@ export type IconButtonVariant =
     | "quiet-above-grey-5-background"
     | "quiet-above-grey-5-dark-background";
 
-export type IconButtonSize = "base" | "md" | "sm" | "xs";
+export type IconButtonSize = "lg" | "base" | "md" | "sm" | "xs";
 
 /**
  * A button represented by a single icon.
  *
  * There's a lot that goes into building a great button component. See the
  * `react-aria` blog post on [press events][1].
+ *
+ * Design guideline: Don't use icon buttons unless the action is:
+ *
+ * 1. Brutally obvious; OR
+ * 2. Incredibly common
+ *
+ * While icon buttons without a label may look nice, they can confuse users!
+ * You should only use icon buttons when they're not confusing or if using an
+ * icon button without a label is for some reason very convenient for the end
+ * user (e.g. it fits nicely in some space).
  *
  * [1]: https://react-spectrum.adobe.com/blog/building-a-button-part-1.html
  */
@@ -342,6 +352,7 @@ function IconButton(
 
     const {buttonSize, iconSize} = (
         {
+            lg: {buttonSize: "8", iconSize: "5"},
             base: {buttonSize: "7", iconSize: "5"},
             md: {buttonSize: "6", iconSize: "4"},
             sm: {buttonSize: "5", iconSize: "4"},

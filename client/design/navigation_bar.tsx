@@ -1,5 +1,5 @@
 import {AnimationControls, timeline} from "motion";
-import {CaretLeft, DotsThree} from "phosphor-react";
+import {ArrowLeft, DotsThreeVertical} from "phosphor-react";
 import {
     MutableRefObject,
     ReactNode,
@@ -14,7 +14,10 @@ import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
-import {scrollbarVisibleAfterScrollDurationMs} from "~/client/design/scrollbar.js";
+import {
+    ScrollbarInsetDynamic,
+    scrollbarVisibleAfterScrollDurationMs,
+} from "~/client/design/scrollbar.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
@@ -37,23 +40,25 @@ import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {clamp} from "~/shared/helpers/number/clamp.js";
-import {
-    FontSize,
-    colorSchemeVars,
-    navigationBarStyles,
-    tasksStyles,
-} from "~/shared/styles/styles.js";
+import {FontSize, navigationBarStyles, tasksStyles} from "~/shared/styles/styles.js";
 
 const {
-    navigationBarHeight,
+    desktopNavigationBarHeight,
+    mobileNavigationBarHeight,
     navigationBarBackgroundFadeOutAnimationClassName,
     navigationBarTitleFadeOutAnimationClassName,
 } = navigationBarStyles;
 const {pointerEventsNoneNotInheritedClassName} = tasksStyles;
 
-export {navigationBarHeight};
+export {desktopNavigationBarHeight, mobileNavigationBarHeight};
 
-const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]);
+export const navigationBarHeight = {
+    desktop: desktopNavigationBarHeight,
+    mobile: mobileNavigationBarHeight,
+} as const;
+
+const desktopNavigationBarHeightRem = parseRemLengthNumber(spacing[desktopNavigationBarHeight]);
+const mobileNavigationBarHeightRem = parseRemLengthNumber(spacing[mobileNavigationBarHeight]);
 
 {
     // IMPORTANT: If you change this value, you must also change
@@ -62,9 +67,9 @@ const navigationBarHeightRem = parseRemLengthNumber(spacing[navigationBarHeight]
     // We have an assertion below to make sure this value always equals the
     // navigation bar's pixel height on mobile devices. After converting `Spacing`
     // to an actual value and applying the rem pixel count.
-    const mobileNavigationBarHeight = 80;
+    const mobileNavigationBarHeight = 70;
 
-    assert(mobileNavigationBarHeight === navigationBarHeightRem * remPxByPlatform.mobile);
+    assert(mobileNavigationBarHeight === mobileNavigationBarHeightRem * remPxByPlatform.mobile);
 }
 
 type ScrollDirectionState = {
@@ -135,6 +140,16 @@ const navigationBarRevealOrHideAnimationDurationMs = 200;
 // want to clearly document that when the navigation bar duration changes, we
 // need to update native mobile code as well.
 assert(navigationBarTransitionDebounceScrollTimeoutMs === scrollbarVisibleAfterScrollDurationMs);
+
+const desktopNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = [
+    spacing[desktopNavigationBarHeight],
+    {withSafeArea: true},
+];
+
+const mobileNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = [
+    spacing[mobileNavigationBarHeight],
+    {withSafeArea: true},
+];
 
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! //
 //                                 IMPORTANT                                 //
@@ -274,8 +289,10 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * custom scrollbar may sometimes overlap the header which looks weird. You are
      * expected to pass this to `useScrollbar()`.
      */
-    scrollbarInsetTop?: RemLength;
+    scrollbarInsetTop?: ScrollbarInsetDynamic;
 } {
+    const isMobile = useIsMobile();
+
     const navigationBarRef = useRef<{
         initialize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
@@ -322,6 +339,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
 
     const navigationBar = (
         <NavigationBar
+            isMobile={isMobile}
             handleRef={navigationBarRef}
             scrollViewSize={scrollViewSize}
             title={title}
@@ -337,11 +355,14 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     return {
         scrollViewRef,
         navigationBar,
-        scrollbarInsetTop: spacing[navigationBarHeight],
+        scrollbarInsetTop: isMobile
+            ? mobileNavigationBarScrollbarInsetTop
+            : desktopNavigationBarScrollbarInsetTop,
     };
 }
 
 function NavigationBar<TitleBoundaryElement extends HTMLElement>({
+    isMobile,
     handleRef,
     scrollViewSize,
     title,
@@ -352,6 +373,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontSize,
     desktopTitleFontWeight,
 }: {
+    isMobile: boolean;
     handleRef: MutableRefObject<{
         initialize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
@@ -365,8 +387,11 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     desktopTitleFontSize: FontSize;
     desktopTitleFontWeight: "semi-bold" | "bold";
 }) {
-    const isMobile = useIsMobile();
     const navigate = useNavigate();
+
+    const navigationBarHeightRem = isMobile
+        ? mobileNavigationBarHeightRem
+        : desktopNavigationBarHeightRem;
 
     const navigationBarRef = useRef<HTMLDivElement>(null);
     const navigationBarBackgroundRef = useRef<HTMLDivElement>(null);
@@ -568,15 +593,17 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                         navigationBarContentElement.clientHeight;
                                 }
 
-                                // Let a bit of the title boundary element show before hiding the title.
-                                titleBoundaryOffset -= 0.75 * remPx;
+                                // Hide the title a bit before the title is actually in view.
+                                titleBoundaryOffset += 0.75 * remPx;
                             }
                         }
 
                         const isNavigationBarTitleVisible =
                             isNavigationBarOpaque &&
                             (titleBoundaryOffset === null ||
-                                scrollOffset >= titleBoundaryOffset - navigationBarHeight);
+                                scrollOffset >= titleBoundaryOffset - navigationBarHeight) &&
+                            (navigationBarScrollOffset >= navigationBarHeight ||
+                                lastIsNavigationBarTitleVisible);
 
                         lastIsNavigationBarOpaqueRef.current = isNavigationBarOpaque;
                         lastIsNavigationBarTitleVisibleRef.current = isNavigationBarTitleVisible;
@@ -606,7 +633,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             );
 
                             navigationBarContentElement.style.opacity = `${
-                                1 - navigationBarScrollPercentage
+                                1 - Math.min(1, navigationBarScrollPercentage * 2)
                             }`;
                         }
 
@@ -721,7 +748,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                 },
             };
         },
-        [titleBoundaryRef],
+        [navigationBarHeightRem, titleBoundaryRef],
     );
 
     const lastAnimatedScrollDirectionStateRef = useRef(scrollDirectionState);
@@ -847,6 +874,8 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                         position="relative"
                         zIndex="0"
                         overflow="hidden"
+                        display="flex"
+                        justifyContent="center"
                         style={{paddingTop: "var(--safe-area-inset-top)"}}
                     >
                         <Box
@@ -854,10 +883,25 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             position="absolute"
                             inset="0"
                             backgroundColor="grey-0"
-                            borderBottom="grey-10"
+                            borderBottom={isMobile ? "grey-10" : undefined}
+                            display="flex"
+                            justifyContent="center"
                             // Initial opacity is 0. Our code will update the opacity.
                             opacity="0"
-                        />
+                        >
+                            {!isMobile && (
+                                <Box
+                                    position="absolute"
+                                    top="0"
+                                    bottom="0"
+                                    width="full"
+                                    borderBottom="grey-10"
+                                    style={{
+                                        maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
+                                    }}
+                                />
+                            )}
+                        </Box>
                         <Box
                             ref={navigationBarContentRef}
                             position="relative"
@@ -886,7 +930,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                         withoutTooltip={true}
                                         onPress={() => navigate(-1)}
                                     >
-                                        <CaretLeft />
+                                        <ArrowLeft />
                                     </IconButton>
                                 </Box>
                             ) : (
@@ -895,7 +939,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                         flexGrow="0"
                                         flexShrink="0"
                                         style={{
-                                            width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2)`,
+                                            width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2 + ${spacing["5"]})`,
                                         }}
                                     />
                                 )
@@ -911,7 +955,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                 alignItems="center"
                                 gap={gap}
                                 style={{
-                                    maxWidth: desktopTitleMaxWidth,
+                                    maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
                                 }}
                             >
                                 {!isMobile && desktopControls && (
@@ -957,7 +1001,7 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                                             description="More"
                                             withoutTooltip={true}
                                         >
-                                            <DotsThree
+                                            <DotsThreeVertical
                                             // Vertical dots create better visual balance on mobile because:
                                             //
                                             // 1. On mobile we have a back button on the left and we want this button to

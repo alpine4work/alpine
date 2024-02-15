@@ -31,7 +31,7 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RootNavigationContextProvider} from "~/client/remix/use_navigate.js";
 import {useUpdateMetaTitle} from "~/client/remix/use_update_meta_title.js";
 import {SearchModal} from "~/client/search/search_modal.js";
-import {SpaceLayoutTopBar} from "~/client/spaces/layout/space_layout_top_bar.js";
+import {SpaceLayoutSideBar} from "~/client/spaces/layout/space_layout_side_bar.js";
 import {SpaceContextProvider} from "~/client/spaces/space_context.js";
 import {SpaceRouteErrorRenderer} from "~/client/spaces/space_route_error_renderer.js";
 import {TaskRealtimeClientContextProvider} from "~/client/tasks/task_realtime_client_context_provider.js";
@@ -238,7 +238,7 @@ export default function SpaceLayoutRoute() {
 
     const outletContainerClassName = sprinkles({
         display: "flex",
-        flexDirection: "column",
+        flexDirection: "row",
         overflow: "hidden",
         position: "relative",
         zIndex: "0",
@@ -259,7 +259,9 @@ export default function SpaceLayoutRoute() {
     if (!nativeMobileRouterState) {
         nodes.push(
             <div key={nodeKey++} className={outletContainerClassName} style={outletContainerStyle}>
-                {!isMobile && (
+                {!isMobile && <SpaceLayoutSideBar space={space} initialInbox={inbox} />}
+                {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
+                {/* NOCOMMIT: {!isMobile && (
                     <SpaceLayoutTopBar
                         space={space}
                         initialInbox={inbox}
@@ -273,8 +275,7 @@ export default function SpaceLayoutRoute() {
                             });
                         }}
                     />
-                )}
-                {error !== undefined ? <SpaceRouteErrorRenderer error={error} /> : <Outlet />}
+                )} */}
             </div>,
         );
     } else {

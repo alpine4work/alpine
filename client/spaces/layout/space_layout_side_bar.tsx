@@ -1,53 +1,47 @@
 import GraphemeSplitter from "grapheme-splitter";
-import {useMemo} from "react";
+import {Bell, House, IconContext, MagnifyingGlass} from "phosphor-react";
+import {ReactNode, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {Box} from "~/client/design/box.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuButton} from "~/client/design/menu_button.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
-import {SpaceLayoutTopBarCreateButton} from "~/client/spaces/layout/internal/space_layout_top_bar_create_button.js";
-import {SpaceLayoutTopBarInboxButton} from "~/client/spaces/layout/internal/space_layout_top_bar_inbox_button.js";
-import {SpaceLayoutTopBarSearchInput} from "~/client/spaces/layout/internal/space_layout_top_bar_search_input.js";
+import {SpaceLayoutSideBarCreateButton} from "~/client/spaces/layout/internal/space_layout_side_bar_create_button.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
+import {spacing} from "~/shared/design/spacing.js";
 import {DynamoGeneralRealtimeItem} from "~/shared/dynamo/dynamo_general_realtime_types.js";
 import {InboxModel} from "~/shared/notifications/inbox_model.js";
 import {SpaceModel} from "~/shared/spaces/space_model.js";
 
-// TODO(calebmer): Keyboard shortcuts for everything in top bar
-
-export function SpaceLayoutTopBar({
+export function SpaceLayoutSideBar({
     space,
     initialInbox,
-    onSearchInputPress,
 }: {
     space: SpaceModel;
     initialInbox: DynamoGeneralRealtimeItem<InboxModel>;
-    onSearchInputPress: () => void;
 }) {
     return (
         <Box
             flexShrink="0"
-            backgroundColor="grey-0"
-            position="relative"
-            zIndex="10"
-            height="10"
-            paddingX="2"
             display="flex"
+            flexDirection="column"
             alignItems="center"
-            gap="2"
+            backgroundColor="grey-0"
+            borderRight="grey-10"
+            style={{width: "4.5rem"}}
         >
-            <Box width="48" display="flex" justifyContent="flex-start" alignItems="center" gap="2">
+            <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="5">
                 <Box
                     backgroundColor="grey-30-const"
-                    width="6"
-                    height="6"
+                    width="8"
+                    height="8"
                     borderRadius="base"
                     display="flex"
                     justifyContent="center"
                     alignItems="center"
                     color="grey-80-const"
                 >
-                    <Box fontSize="75" style={{transform: `scale(${6 / 8})`}} aria-hidden="true">
+                    <Box fontSize="75" style={{transform: `scale(${8 / 8})`}} aria-hidden="true">
                         {useMemo(() => {
                             const splitter = new GraphemeSplitter();
                             const graphemes = splitter.iterateGraphemes(space.name);
@@ -55,23 +49,41 @@ export function SpaceLayoutTopBar({
                         }, [space.name])}
                     </Box>
                 </Box>
-                <Box fontSize="100" fontStyle="truncate-semi-bold">
-                    {space.name}
-                </Box>
+                <SpaceLayoutSideBarButton icon={<House />} label="Home" />
+                <SpaceLayoutSideBarButton icon={<MagnifyingGlass />} label="Search" />
+                <SpaceLayoutSideBarButton icon={<Bell />} label="Inbox" />
+                <SpaceLayoutSideBarCreateButton />
             </Box>
-            <SpaceLayoutTopBarSearchInput space={space} onPress={onSearchInputPress} />
-            <Box width="48" display="flex" justifyContent="flex-end" alignItems="center" gap="1">
-                <SpaceLayoutTopBarCreateButton />
-                <SpaceLayoutTopBarInboxButton initialInbox={initialInbox} />
-                <Box paddingLeft="1">
-                    <SpaceLayoutTopBarAccountButton />
-                </Box>
+            <Box flexGrow="1" />
+            <Box paddingBottom="5">
+                <SpaceLayoutSideBarAccountButton />
             </Box>
         </Box>
     );
 }
 
-function SpaceLayoutTopBarAccountButton() {
+// NOCOMMIT
+function SpaceLayoutSideBarButton({icon, label}: {icon: ReactNode; label: string}) {
+    return (
+        <Box display="flex" flexDirection="column" alignItems="center" gap="0.5" color="grey-70">
+            <Box
+                width="7"
+                height="7"
+                borderRadius="full"
+                display="flex"
+                justifyContent="center"
+                alignItems="center"
+            >
+                <IconContext.Provider value={{color: "currentColor", size: spacing["5"]}}>
+                    {icon}
+                </IconContext.Provider>
+            </Box>
+        </Box>
+    );
+}
+
+// NOCOMMIT: Real buttons!
+function SpaceLayoutSideBarAccountButton() {
     const navigate = useNavigate();
     const {currentAccount} = useSpaceContext();
 
@@ -86,14 +98,14 @@ function SpaceLayoutTopBarAccountButton() {
             ]}
         >
             <IconButton
-                size="md"
+                size="lg"
                 variant="accent"
                 description="Account"
                 // The notification bell does not have a tooltip. It opens up an inbox preview
                 // on hover. It's weird if the buttons around it have tooltips.
                 withoutTooltip={true}
             >
-                <AccountAvatar account={currentAccount} size="6" />
+                <AccountAvatar account={currentAccount} size="8" />
             </IconButton>
         </MenuButton>
     );

@@ -1,15 +1,20 @@
 import {assignInlineVars} from "@vanilla-extract/dynamic";
 import classNames from "classnames";
-import {ArrowLeft, ArrowRight, Lightbulb, MagnifyingGlass, SpinnerGap} from "phosphor-react";
+import {
+    ArrowLeft,
+    ArrowRight,
+    ArrowsOutSimple,
+    MagnifyingGlass,
+    Sparkle,
+    SpinnerGap,
+    X,
+} from "phosphor-react";
 import {Memo, Ref, forwardRef, useCallback, useEffect, useId, useRef, useState} from "react";
-import {PressEvent} from "react-aria";
 import {To, createPath} from "react-router";
 import {Box} from "~/client/design/box.js";
-import {Button} from "~/client/design/button.js";
 import {ErrorBodyRenderer} from "~/client/design/error_body_renderer.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {Modal} from "~/client/design/modal.js";
-import {Tooltip} from "~/client/design/tooltip.js";
 import {useDelayLoadingIndicator} from "~/client/design/use_delay_loading_indicator.js";
 import {isTextInputElement} from "~/client/helpers/elements/is_text_input_element.js";
 import {isModifiedKeyboardEvent} from "~/client/helpers/events/is_modified_keyboard_event.js";
@@ -34,13 +39,11 @@ import {
     VirtualizedScrollView,
     VirtualizedScrollViewRef,
 } from "~/client/virtualized/virtualized_scroll_view.js";
-import {Spacing, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {Spacing, addRemLengths, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
 import {InternalError} from "~/shared/error/error.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {exhaustive} from "~/shared/helpers/control/exhaustive.js";
 import {isDeepEqual} from "~/shared/helpers/control/is_deep_equal.js";
-import {noop} from "~/shared/helpers/control/noop.js";
-import {MaybePromise} from "~/shared/helpers/types/maybe_promise.js";
 import {SpaceId} from "~/shared/id/types/id_types.js";
 import {convertPeekPathToSpacePath} from "~/shared/remix/peek_path_helpers.js";
 import {SearchEntityIdOrSearchAffinityId} from "~/shared/search/search_entity_affinity_id.js";
@@ -50,9 +53,20 @@ import {SearchResult} from "~/shared/search/search_result.js";
 import {
     colorSchemeVars,
     contentSchemaStyles,
+    inputPlaceholderStyles,
     spinAnimationClassName,
     sprinkles,
 } from "~/shared/styles/styles.js";
+
+const searchModalInputHeight = "16";
+const searchModalPeekContentMaxHeight = "160";
+
+const searchModalMaxHeight = addRemLengths(
+    spacing[searchModalInputHeight],
+    spacing[searchModalPeekContentMaxHeight],
+);
+
+const searchModalPeekControlsHeight = "6";
 
 // Export the preload hook from our internal folder so it can be used by code
 // depending on `//client/search`.
@@ -138,7 +152,7 @@ export function SearchModal({
             aria-label="Search"
             maxWidth="256"
             height="full"
-            maxHeight="192"
+            maxHeight={searchModalMaxHeight}
             borderRadius="lg"
             withoutCloseButton={true}
             // Don't animate the search modal open. The search modal is generally opened by
@@ -364,6 +378,7 @@ export function SearchModal({
                                     peek={activePeek}
                                     onClose={onClose}
                                     pushPeekStack={pushPeekStack}
+                                    switchPeek={switchPeek}
                                 />
                             ) : (
                                 <Box
@@ -376,20 +391,21 @@ export function SearchModal({
                                     alignItems="center"
                                 >
                                     <Box
-                                        width="full"
                                         padding="10"
                                         fontSize="100"
                                         userSelect="text"
                                         color="grey-40"
+                                        width="full"
+                                        style={{fontWeight: inputPlaceholderStyles.fontWeight}}
                                     >
                                         <Box
                                             display="flex"
                                             alignItems="center"
-                                            gap="1"
-                                            paddingBottom="4"
+                                            gap="2"
+                                            paddingBottom="3"
                                         >
-                                            <Lightbulb size={spacing["4"]} />
-                                            <Box>Tip: Try advanced searches like…</Box>
+                                            <Sparkle size={spacing["4"]} />
+                                            <Box>Try advanced searches like…</Box>
                                         </Box>
                                         <Box>
                                             {[
@@ -417,14 +433,6 @@ export function SearchModal({
                                             ))}
                                         </Box>
                                     </Box>
-                                    <SearchModalPeekContentBottomBar
-                                        isBackDisabled={true}
-                                        onBackPress={noop}
-                                        isForwardsDisabled={true}
-                                        onForwardsPress={noop}
-                                        isOpenDisabled={true}
-                                        onOpenPress={noop}
-                                    />
                                 </Box>
                             )}
                         </Box>
@@ -449,12 +457,13 @@ const SearchModalInput = forwardRef(function SearchModalInput(
 ) {
     const {space} = useSpaceContext();
 
-    const height: Spacing = "12";
-    const paddingXWithIcon: Spacing = "10";
-    const iconSize: Spacing = "4";
+    const paddingXWithIcon: Spacing = "12";
+    const leftIconOffsetLeft: Spacing = "1";
+    const iconSize: Spacing = "5";
 
-    const heightRem = parseRemLengthNumber(spacing[height]);
+    const heightRem = parseRemLengthNumber(spacing[searchModalInputHeight]);
     const paddingXWithIconRem = parseRemLengthNumber(spacing[paddingXWithIcon]);
+    const leftIconOffsetLeftRem = parseRemLengthNumber(spacing[leftIconOffsetLeft]);
     const iconSizeRem = parseRemLengthNumber(spacing[iconSize]);
 
     return (
@@ -468,7 +477,7 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                 })}
                 style={{
                     top: `${(heightRem - iconSizeRem) / 2}rem`,
-                    left: `${(paddingXWithIconRem - iconSizeRem) / 2}rem`,
+                    left: `${(paddingXWithIconRem - iconSizeRem) / 2 + leftIconOffsetLeftRem}rem`,
                 }}
             />
             <input
@@ -479,7 +488,7 @@ const SearchModalInput = forwardRef(function SearchModalInput(
                 className={sprinkles({
                     display: "block",
                     width: "full",
-                    height,
+                    height: searchModalInputHeight,
                     paddingLeft: paddingXWithIcon,
                     paddingRight: shouldShowLoadingIndicator ? paddingXWithIcon : "2",
                     fontSize: "400",
@@ -653,10 +662,19 @@ function SearchModalPeekContent({
     peek,
     onClose,
     pushPeekStack,
+    switchPeek,
 }: {
     peek: PeekSwitcherStatePeek<{entityId: SearchEntityIdOrSearchAffinityId}>;
     onClose: () => void;
     pushPeekStack: (to: To, options?: {focus?: boolean}) => Promise<void>;
+    switchPeek: Memo<
+        (
+            peekData: {
+                spacePath: string;
+                extra: {entityId: SearchEntityIdOrSearchAffinityId};
+            } | null,
+        ) => Promise<void>
+    >;
 }) {
     const navigate = useNavigate();
     const routerResult = usePromise(peek.routerPromise);
@@ -687,139 +705,141 @@ function SearchModalPeekContent({
     }, [peek.history, routerResult.isPending, routerResult.value]);
 
     return (
-        <Box width="full" height="full" overflow="hidden" display="flex" flexDirection="column">
-            <Box
-                flexGrow="1"
-                width="full"
-                height="full"
-                overflow="hidden"
-                display="flex"
-                flexDirection="column"
-            >
-                {!routerResult.isPending ? (
-                    <PeekRemixEmbed
-                        peekId={peek.id}
-                        withMobileLayout={true}
-                        // Don't record view interactions when looking at a search entity in the search
-                        // modal. The user is discovering an entity to open so may have pretty low
-                        // intent when looking at an entity.
-                        //
-                        // This also means the "last opened" time we show for affinitive search entities
-                        // won't change.
-                        withoutSearchEntityViewAffinityInteraction={true}
-                        router={routerResult.value}
-                        onGoBackOverflow={onClose}
-                    />
-                ) : (
-                    <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
-                        <SpinnerGap
-                            className={spinAnimationClassName}
-                            color={colorSchemeVars["grey-70"]}
-                            size={spacing["6"]}
-                        />
-                    </Box>
-                )}
-            </Box>
-            <SearchModalPeekContentBottomBar
-                isBackDisabled={!(historyPosition.index > 0)}
-                onBackPress={() => peek.history.go(-1)}
-                isForwardsDisabled={!(historyPosition.index < historyPosition.entriesLength - 1)}
-                onForwardsPress={() => peek.history.go(1)}
-                isOpenDisabled={false}
-                onOpenPress={async event => {
-                    const spacePath = convertPeekPathToSpacePath(peek.history.location);
-                    if (!spacePath) throw new InternalError("Can only expand peek routes");
-
-                    if (
-                        isOpenLinkInSeparateTabPointerEvent(event, getClientInfoWithoutListening())
-                    ) {
-                        window.open(
-                            createPath(spacePath),
-                            "_blank",
-                            // Important security measure. See:
-                            // https://mathiasbynens.github.io/rel-noopener
-                            "noopener noreferrer",
-                        );
-                    } else if (event.shiftKey) {
-                        await pushPeekStack(spacePath).finally(onClose);
-                    } else {
-                        await navigate(spacePath);
-                    }
-                }}
-            />
-        </Box>
-    );
-}
-
-// NOTE(calebmer): Design-wise I'd love to not have this bottom bar at all. But
-// it provides important system functionality for operating the preview. These
-// are all non-essential tertiary actions. Which is why they're on the bottom
-// Most of the time I hope people are hitting enter on their keyboard to expand
-// or double clicking search items.
-function SearchModalPeekContentBottomBar({
-    isBackDisabled,
-    onBackPress,
-    isForwardsDisabled,
-    onForwardsPress,
-    isOpenDisabled,
-    onOpenPress,
-}: {
-    isBackDisabled: boolean;
-    onBackPress: () => void;
-    isForwardsDisabled: boolean;
-    onForwardsPress: () => void;
-    isOpenDisabled: boolean;
-    onOpenPress: (event: PressEvent) => MaybePromise<void>;
-}) {
-    return (
         <Box
-            flexShrink="0"
+            position="relative"
+            zIndex="0"
             width="full"
-            height="8"
-            borderTop="grey-10"
+            height="full"
+            overflow="hidden"
             display="flex"
-            alignItems="center"
+            flexDirection="column"
+            style={{
+                // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
+                // like it.
+                "--safe-area-inset-top": spacing[searchModalPeekControlsHeight],
+            }}
         >
-            <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                <IconButton
-                    size="xs"
-                    description="Back"
-                    tooltipPlacement="top"
-                    isDisabled={isBackDisabled}
-                    onPress={onBackPress}
+            {!routerResult.isPending && (
+                <Box
+                    position="absolute"
+                    top="0"
+                    left="0"
+                    right="0"
+                    // Render over overlays at `zIndex="50"`
+                    zIndex="60"
+                    height={searchModalPeekControlsHeight}
+                    display="flex"
+                    alignItems="center"
                 >
-                    <ArrowLeft />
-                </IconButton>
-                <IconButton
-                    size="xs"
-                    description="Forwards"
-                    tooltipPlacement="top"
-                    isDisabled={isForwardsDisabled}
-                    onPress={onForwardsPress}
-                >
-                    <ArrowRight />
-                </IconButton>
-            </Box>
-            <Box flexGrow="1" />
-            <Box paddingRight="1">
-                <Tooltip
-                    // TODO(calebmer): I think this is the only place in the product we name the
-                    // peek concept. For now, I'm calling it "preview". We should make sure
-                    // documentation, marketing, and other copy in the product align with this name.
-                    // If we decide to call it something else publicly, this needs to be renamed.
-                    content="Shift-click to open preview"
-                >
-                    <Button
-                        height="5"
-                        paddingX="2"
-                        isDisabled={isOpenDisabled}
-                        pressErrorTitle="Couldn’t open"
-                        onPress={onOpenPress}
+                    <Box
+                        flexShrink="0"
+                        paddingX="1"
+                        display="flex"
+                        justifyContent="flex-start"
+                        alignItems="center"
+                        gap="1"
                     >
-                        Open
-                    </Button>
-                </Tooltip>
-            </Box>
+                        <IconButton
+                            size="xs"
+                            description="Back"
+                            tooltipPlacement="top"
+                            isDisabled={!(historyPosition.index > 0)}
+                            onPress={() => peek.history.go(-1)}
+                        >
+                            <ArrowLeft />
+                        </IconButton>
+                        <IconButton
+                            size="xs"
+                            description="Forwards"
+                            tooltipPlacement="top"
+                            isDisabled={
+                                !(historyPosition.index < historyPosition.entriesLength - 1)
+                            }
+                            onPress={() => peek.history.go(1)}
+                        >
+                            <ArrowRight />
+                        </IconButton>
+                    </Box>
+                    <Box flexGrow="1" />
+                    <Box
+                        flexShrink="0"
+                        paddingX="1"
+                        display="flex"
+                        justifyContent="flex-start"
+                        alignItems="center"
+                        gap="1"
+                    >
+                        <IconButton
+                            size="xs"
+                            description="Expand"
+                            // TODO(calebmer): I think this is the only place in the product we name the
+                            // peek concept. For now, I'm calling it "preview". We should make sure
+                            // documentation, marketing, and other copy in the product align with this name.
+                            // If we decide to call it something else publicly, this needs to be renamed.
+                            tooltipContentOverride="Shift-click to open preview"
+                            pressErrorTitle="Couldn’t expand"
+                            onPress={async event => {
+                                const spacePath = convertPeekPathToSpacePath(peek.history.location);
+                                if (!spacePath)
+                                    throw new InternalError("Can only expand peek routes");
+
+                                if (
+                                    isOpenLinkInSeparateTabPointerEvent(
+                                        event,
+                                        getClientInfoWithoutListening(),
+                                    )
+                                ) {
+                                    window.open(
+                                        createPath(spacePath),
+                                        "_blank",
+                                        // Important security measure. See:
+                                        // https://mathiasbynens.github.io/rel-noopener
+                                        "noopener noreferrer",
+                                    );
+                                } else if (event.shiftKey) {
+                                    await pushPeekStack(spacePath).finally(onClose);
+                                } else {
+                                    await navigate(spacePath);
+                                }
+                            }}
+                        >
+                            <ArrowsOutSimple />
+                        </IconButton>
+                        <IconButton
+                            size="xs"
+                            description="Dismiss"
+                            withoutTooltip={true}
+                            pressErrorTitle="Couldn’t dismiss"
+                            onPress={() => switchPeek(null)}
+                        >
+                            <X />
+                        </IconButton>
+                    </Box>
+                </Box>
+            )}
+            {!routerResult.isPending ? (
+                <PeekRemixEmbed
+                    peekId={peek.id}
+                    withMobileLayout={true}
+                    // Don't record view interactions when looking at a search entity in the search
+                    // modal. The user is discovering an entity to open so may have pretty low
+                    // intent when looking at an entity.
+                    //
+                    // This also means the "last opened" time we show for affinitive search entities
+                    // won't change.
+                    withoutSearchEntityViewAffinityInteraction={true}
+                    router={routerResult.value}
+                    onGoBackOverflow={onClose}
+                />
+            ) : (
+                <Box flexGrow="1" display="flex" justifyContent="center" alignItems="center">
+                    <SpinnerGap
+                        className={spinAnimationClassName}
+                        color={colorSchemeVars["grey-70"]}
+                        size={spacing["6"]}
+                    />
+                </Box>
+            )}
         </Box>
     );
 }

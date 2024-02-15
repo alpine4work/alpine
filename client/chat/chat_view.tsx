@@ -4,8 +4,8 @@ import {useAccountModel} from "~/client/accounts/account_client_store_context_pr
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
 import {useAppContext} from "~/client/context/app_context.js";
 import {Box} from "~/client/design/box.js";
+import {navigationBarHeight} from "~/client/design/navigation_bar.js";
 import {PrettyConjunctionList} from "~/client/design/pretty_conjunction_list.js";
-import {navigationBarHeight} from "~/client/design/use_navigation_bar.js";
 import {messageViewMarginY} from "~/client/messaging/message_view.js";
 import {MessagingView, MessagingViewRef} from "~/client/messaging/messaging_view.js";
 import {useIsMobile} from "~/client/remix/use_is_mobile.js";
@@ -69,14 +69,18 @@ function ChatViewTopBar({chat}: {chat: ChatModel}) {
             flexShrink="0"
             display="flex"
             alignItems="center"
-            paddingX={paddingX}
-            borderBottom="grey-10"
             style={{
-                height: `calc(${spacing[navigationBarHeight]} + var(--safe-area-inset-top, 0px))`,
                 paddingTop: "var(--safe-area-inset-top, 0px)",
             }}
         >
-            <Box height="6" display="flex" alignItems="center" gap="2">
+            <Box
+                height={navigationBarHeight}
+                paddingX={paddingX}
+                borderBottom="grey-10"
+                display="flex"
+                alignItems="center"
+                gap="2"
+            >
                 <Box paddingX="0.5">
                     <AccountAvatarPile
                         size="6"

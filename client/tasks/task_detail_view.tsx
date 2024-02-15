@@ -22,9 +22,9 @@ import {Button} from "~/client/design/button.js";
 import {ContextMenuActions} from "~/client/design/context_menu.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {MenuAction} from "~/client/design/menu_button.js";
+import {navigationBarHeight, useNavigationBar} from "~/client/design/navigation_bar.js";
 import {Spacer} from "~/client/design/spacer.js";
 import {Tooltip} from "~/client/design/tooltip.js";
-import {navigationBarHeight, useNavigationBar} from "~/client/design/use_navigation_bar.js";
 import {GlobalKeyDownEvent} from "~/client/helpers/global_key_down_event.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
@@ -977,10 +977,10 @@ function TaskDetailViewMain(
 
     return (
         <>
-            {isMobile && (
+            <Box
                 // NOCOMMIT: How does this look with the read-only bar?
-                <Box style={{height: "var(--safe-area-inset-top)"}} />
-            )}
+                style={{height: "var(--safe-area-inset-top)"}}
+            />
             {readOnlyReason && (
                 // TODO(calebmer): This should really be a sticky header. We should probably
                 // have a sticky header for the task title too.

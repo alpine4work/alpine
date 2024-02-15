@@ -11,14 +11,7 @@ import {
     resolvePath,
 } from "@remix-run/router";
 import {animate, spring} from "motion";
-import {
-    ArrowLeft,
-    ArrowRight,
-    ArrowsOutSimple,
-    DotsSixVertical,
-    SpinnerGap,
-    X,
-} from "phosphor-react";
+import {ArrowLeft, ArrowRight, ArrowsOutSimple, SpinnerGap, X} from "phosphor-react";
 import {
     MutableRefObject,
     ReactNode,
@@ -46,7 +39,6 @@ import {
     useNavigationType,
 } from "react-router";
 import {Box} from "~/client/design/box.js";
-import {FocusRing} from "~/client/design/focus_ring.js";
 import {getNextFocusableElementIfExists} from "~/client/design/helpers/get_next_focusable_element.js";
 import {useOutsideInteraction} from "~/client/design/helpers/use_outside_interaction.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
@@ -101,7 +93,6 @@ import {
     colorSchemeVars,
     greyElevated1ClassName,
     spinAnimationClassName,
-    sprinkles,
     wiggleAnimation,
     wiggleAnimationDuration,
 } from "~/shared/styles/styles.js";
@@ -111,6 +102,8 @@ const peekHeight = spacing["160"];
 const peekRightOffset = spacing["12"];
 const peekBottomBuffer = spacing["8"];
 const peekUnderlayOffset = spacing["2"];
+
+const peekControlsHeight = "6";
 
 type PeekStackEntry = {
     readonly id: PeekId;
@@ -1540,15 +1533,32 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                             event.stopPropagation();
                         }
                     }}
+                    style={{
+                        // @ts-expect-error: This sets the CSS variable but TypeScript doesn't
+                        // like it.
+                        "--safe-area-inset-top": spacing[peekControlsHeight],
+                    }}
                 >
                     <Box
+                        position="absolute"
+                        top="0"
+                        left="0"
+                        right="0"
+                        // Render over overlays at `zIndex="50"`
+                        zIndex="60"
+                        height={peekControlsHeight}
                         flexShrink="0"
-                        height="8"
-                        borderBottom="grey-10"
                         display="flex"
                         alignItems="center"
                     >
-                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
+                        <Box
+                            flexShrink="0"
+                            paddingX="1"
+                            display="flex"
+                            justifyContent="flex-start"
+                            alignItems="center"
+                            gap="1"
+                        >
                             <IconButton
                                 size="xs"
                                 description="Back"
@@ -1573,27 +1583,25 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                         <Box
                             flexGrow="1"
                             height="full"
+                            display="flex"
+                            justifyContent="center"
+                            alignItems="center"
                             // As a convenience, allow dragging to start by clicking anywhere on the peek overlay header. This
                             // is not accessible the only accessible way to drag is the drag handle.
-                            onPointerDown={draggableListeners?.onPointerDown as any}
+                            onPointerDown={event => {
+                                if (event.target === event.currentTarget) {
+                                    draggableListeners?.onPointerDown?.(event);
+                                }
+                            }}
                         />
-                        <Box flexShrink="0" paddingX="1.5" display="flex" gap="1">
-                            <FocusRing>
-                                <button
-                                    className={sprinkles({
-                                        width: "4",
-                                        height: "4",
-                                        padding: "0.5",
-                                        borderRadius: "full",
-                                        cursor: "grab",
-                                        backgroundColor: isKeyboardDragging ? "grey-10" : undefined,
-                                    })}
-                                    {...draggableAttributes}
-                                    {...draggableListeners}
-                                >
-                                    <DotsSixVertical size={spacing["3"]} />
-                                </button>
-                            </FocusRing>
+                        <Box
+                            flexShrink="0"
+                            paddingX="1"
+                            display="flex"
+                            justifyContent="flex-end"
+                            alignItems="center"
+                            gap="1"
+                        >
                             <IconButton
                                 size="xs"
                                 // TODO(calebmer): Give expand a global keyboard shortcut.
@@ -1647,26 +1655,33 @@ const PeekOverlayContent = forwardRef(function PeekOverlayContent(
                             </IconButton>
                         </Box>
                     </Box>
-                    {!routerResult.isPending ? (
-                        <PeekRemixEmbed
-                            peekId={entry.id}
-                            withMobileLayout={true}
-                            router={routerResult.value}
-                            onGoBackOverflow={() => dispatch({type: "Pop"})}
-                        />
-                    ) : (
-                        <Box
-                            flexGrow="1"
-                            display="flex"
-                            justifyContent="center"
-                            alignItems="center"
-                        >
-                            <SpinnerGap
-                                className={spinAnimationClassName}
-                                color={colorSchemeVars["grey-70"]}
-                                size={spacing["6"]}
-                            />
-                        </Box>
+                    {useMemo(
+                        // While dragging there may be many re-renders. Since re-rendering the peek is
+                        // expensive, `useMemo()` short-circuits React updates that don't affect the
+                        // peek content.
+                        () =>
+                            !routerResult.isPending ? (
+                                <PeekRemixEmbed
+                                    peekId={entry.id}
+                                    withMobileLayout={true}
+                                    router={routerResult.value}
+                                    onGoBackOverflow={() => dispatch({type: "Pop"})}
+                                />
+                            ) : (
+                                <Box
+                                    flexGrow="1"
+                                    display="flex"
+                                    justifyContent="center"
+                                    alignItems="center"
+                                >
+                                    <SpinnerGap
+                                        className={spinAnimationClassName}
+                                        color={colorSchemeVars["grey-70"]}
+                                        size={spacing["6"]}
+                                    />
+                                </Box>
+                            ),
+                        [dispatch, entry.id, routerResult.isPending, routerResult.value],
                     )}
                 </Box>
             </GlobalKeyDownEvent>

@@ -6,9 +6,8 @@ import {
     addResizeListenerForElement,
     removeResizeListenerForElement,
 } from "~/client/helpers/use_resize_observer.js";
-import {useClientInfo} from "~/client/remix/client_info_context.js";
-import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {RemLength, parseRemLengthNumber, spacing} from "~/shared/design/spacing.js";
+import {InternalError} from "~/shared/error/error.js";
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {scrollbarStyles, sprinkles} from "~/shared/styles/styles.js";
@@ -39,6 +38,12 @@ const minScrollbarThumbHeightRem = parseRemLengthNumber(spacing[minScrollbarThum
 const scrollbarThumbHitWidthRem =
     scrollbarThumbInteractiveMarginRem + scrollbarThumbWidthRem + scrollbarThumbMarginRem;
 
+export type ScrollbarInset = RemLength | number;
+
+export type ScrollbarInsetDynamic =
+    | ScrollbarInset
+    | readonly [ScrollbarInset, {readonly withSafeArea?: boolean}];
+
 /**
  * Duration after scrolling before the scrollbar disappears. We also use this to
  * determine when our navigation bar should animate to fully hidden or fully
@@ -63,15 +68,12 @@ export function useScrollbar<T extends HTMLElement>({
     insetBottom,
     insetRight,
 }: {
-    inset?: RemLength | number;
-    insetY?: RemLength | number;
-    insetTop?: RemLength | number;
-    insetBottom?: RemLength | number;
-    insetRight?: RemLength | number;
+    inset?: ScrollbarInset;
+    insetY?: ScrollbarInset;
+    insetTop?: ScrollbarInsetDynamic;
+    insetBottom?: ScrollbarInset;
+    insetRight?: ScrollbarInset;
 } = {}): RefCallback<T> {
-    const isMobile = useIsMobile();
-    const {isAppleDevice} = useClientInfo();
-
     insetTop = insetTop ?? insetY ?? inset;
     insetBottom = insetBottom ?? insetY ?? inset;
     insetRight = insetRight ?? inset;
@@ -80,13 +82,11 @@ export function useScrollbar<T extends HTMLElement>({
         useCallback(
             element =>
                 initializeScrollbar(element, {
-                    isMobile,
-                    isAppleDevice,
                     insetTop,
                     insetBottom,
                     insetRight,
                 }),
-            [insetBottom, insetRight, insetTop, isAppleDevice, isMobile],
+            [insetBottom, insetRight, insetTop],
         ),
     );
 }
@@ -385,19 +385,18 @@ const appleIosMobilePlatforms = new Set(["iPhone Simulator", "iPod Simulator", "
 export function initializeScrollbar(
     element: HTMLElement,
     {
-        isMobile,
-        isAppleDevice,
         insetTop = 0,
         insetBottom = 0,
         insetRight = 0,
     }: {
-        isMobile: boolean;
-        isAppleDevice: boolean;
-        insetTop?: RemLength | number;
-        insetBottom?: RemLength | number;
-        insetRight?: RemLength | number;
+        insetTop?: ScrollbarInsetDynamic;
+        insetBottom?: ScrollbarInset;
+        insetRight?: ScrollbarInset;
     },
 ): () => void {
+    const insetTopNumber = typeof insetTop === "object" ? insetTop[0] : insetTop;
+    const insetTopOptions = typeof insetTop === "object" ? insetTop[1] : undefined;
+
     {
         const {position} = getComputedStyle(element);
 
@@ -611,7 +610,10 @@ export function initializeScrollbar(
         const remPx = getRemPxWithoutListening();
 
         const insetTopPx =
-            typeof insetTop === "string" ? parseRemLengthNumber(insetTop) * remPx : insetTop;
+            (typeof insetTopNumber === "string"
+                ? parseRemLengthNumber(insetTopNumber) * remPx
+                : insetTopNumber) +
+            (insetTopOptions?.withSafeArea ? getElementSafeAreaInsetTopPx(element) : 0);
 
         const insetBottomPx =
             typeof insetBottom === "string"
@@ -649,7 +651,7 @@ export function initializeScrollbar(
                 scrollbarThumbMarginRem * undoTrackScaleY
             }rem`;
 
-        if (insetTop !== 0) {
+        if (insetTopPx !== 0) {
             scrollbarThumbStickyElement.style.paddingTop = `${
                 (insetTopPx + scrollbarThumbMarginRem * remPx) * undoTrackScaleY
             }px`;
@@ -1198,4 +1200,17 @@ export function installScrollbarAuditorInDev() {
             element,
         );
     }
+}
+
+function getElementSafeAreaInsetTopPx(element: Element): number {
+    const safeAreaInsetTop = getComputedStyle(element).getPropertyValue("--safe-area-inset-top");
+    if (!safeAreaInsetTop) return 0;
+
+    const safeAreaInsetTopNumber = parseFloat(safeAreaInsetTop);
+
+    if (safeAreaInsetTop.endsWith("px")) return safeAreaInsetTopNumber;
+    if (safeAreaInsetTop.endsWith("rem"))
+        return safeAreaInsetTopNumber * getRemPxWithoutListening();
+
+    throw new InternalError("Unrecognized unit for CSS variable `--safe-area-inset-top`");
 }

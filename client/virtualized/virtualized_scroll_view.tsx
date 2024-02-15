@@ -22,7 +22,7 @@ import {
 } from "scheduler";
 import {getRemPxWithoutListening, useRemPx} from "~/client/design/helpers/use_rem_px.js";
 import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
-import {useScrollbar} from "~/client/design/scrollbar.js";
+import {ScrollbarInsetDynamic, useScrollbar} from "~/client/design/scrollbar.js";
 import {isMobileWebKit} from "~/client/helpers/browser/is_mobile_web_kit.js";
 import {ScriptBeforeAppInitialRender} from "~/client/helpers/lifecycle/script_before_initial_app_render.js";
 import {useEvents} from "~/client/helpers/lifecycle/use_event.js";
@@ -542,7 +542,7 @@ function VirtualizedScrollView(
          * Inset the scrollbar by this many pixels. If both `insetScrollbarItemIndex`
          * and `scrollbarInsetTop` are set then `scrollbarInsetTop` wins.
          */
-        scrollbarInsetTop?: RemLength | number;
+        scrollbarInsetTop?: ScrollbarInsetDynamic;
 
         /**
          * Extra children to always render in our virtualized scroll view. Useful if
@@ -1612,7 +1612,7 @@ function VirtualizedScrollView(
         [],
     );
 
-    let scrollbarInsetTop: RemLength | number | undefined;
+    let scrollbarInsetTop: ScrollbarInsetDynamic | undefined;
     if (actualScrollbarInsetTop !== undefined) {
         scrollbarInsetTop = actualScrollbarInsetTop;
     } else if (scrollbarInsetTopItemIndex !== undefined) {

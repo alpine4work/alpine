@@ -2,11 +2,12 @@ import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {Spacing} from "~/shared/design/spacing.js";
 
 export const desktopTouchSlopBySpacing: {
-    [Key in "4" | "5" | "6" | "7"]: {
+    [Key in "4" | "5" | "6" | "7" | "8"]: {
         readonly slop: Spacing;
         readonly sizeWithSlop: Spacing;
     };
 } = {
+    "8": {slop: "0", sizeWithSlop: "8"},
     "7": {slop: "0", sizeWithSlop: "7"},
     "6": {slop: "0", sizeWithSlop: "6"},
     "5": {slop: "0", sizeWithSlop: "5"},
@@ -14,11 +15,12 @@ export const desktopTouchSlopBySpacing: {
 };
 
 export const mobileTouchSlopBySpacing: {
-    [Key in "4" | "5" | "6" | "7"]: {
+    [Key in "4" | "5" | "6" | "7" | "8"]: {
         readonly slop: Spacing;
         readonly sizeWithSlop: Spacing;
     };
 } = {
+    "8": {slop: "0.5", sizeWithSlop: "9"},
     "7": {slop: "1", sizeWithSlop: "9"},
     "6": {slop: "1.5", sizeWithSlop: "9"},
     "5": {slop: "0", sizeWithSlop: "5"},
@@ -38,7 +40,7 @@ export const mobileTouchSlopBySpacing: {
  *
  * [1]: https://developer.apple.com/design/human-interface-guidelines/buttons#Best-practices
  */
-export function useTouchSlop(spacing: "4" | "5" | "6" | "7"): {
+export function useTouchSlop(spacing: "4" | "5" | "6" | "7" | "8"): {
     slop: Spacing;
     sizeWithSlop: Spacing;
 } {

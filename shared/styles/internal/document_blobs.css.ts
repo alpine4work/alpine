@@ -3,7 +3,8 @@ import {mobilePlatformMediaQuery} from "~/shared/design/spacing.js";
 import {
     desktopTitlePaddingTop,
     docMobileLayoutContainerClassName,
-    mobileTitlePaddingTop,
+    mobileLayoutTitlePaddingTop,
+    mobilePlatformTitlePaddingTop,
 } from "~/shared/styles/internal/content_schema.css.js";
 
 export const blobsClassName = style({
@@ -16,12 +17,17 @@ export const blobsClassName = style({
     width: "100%",
     "@media": {
         [mobilePlatformMediaQuery]: {
-            top: `calc(${mobileTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
+            top: `calc(${mobilePlatformTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
+            selectors: {
+                [`${docMobileLayoutContainerClassName} &`]: {
+                    top: `calc(${mobilePlatformTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
+                },
+            },
         },
     },
     selectors: {
         [`${docMobileLayoutContainerClassName} &`]: {
-            top: `calc(${mobileTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
+            top: `calc(${mobileLayoutTitlePaddingTop} - ${desktopTitlePaddingTop} + var(--safe-area-inset-top, 0px)))`,
         },
     },
 });

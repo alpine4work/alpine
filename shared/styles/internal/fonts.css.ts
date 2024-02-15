@@ -198,6 +198,18 @@ export const fontStyles = {
  * https://www.desmos.com/calculator/rewoqdxtac
  */
 export const fontSizesByPlatform = {
+    "25": {
+        desktop: {
+            fontSize: 10,
+            letterSpacing: "0.01em",
+            lineHeight: "0.75rem",
+        },
+        mobile: {
+            fontSize: 13,
+            letterSpacing: "-0.0032em",
+            lineHeight: "0.75rem",
+        },
+    },
     "50": {
         desktop: {
             fontSize: 11,

@@ -8,8 +8,10 @@ const spacerClassName = sprinkles({flexShrink: "0", display: "block"});
  *
  * [1]: https://www.joshwcomeau.com/react/modern-spacer-gif/
  */
-export function Spacer({space}: {space: Spacing}) {
-    return (
+export function Spacer({space}: {space: Spacing | {desktop: Spacing; mobile: Spacing}}) {
+    return typeof space === "object" ? (
+        <span className={`${spacerClassName} ${sprinkles({width: space, height: space})}`} />
+    ) : (
         <span className={spacerClassName} style={{width: spacing[space], height: spacing[space]}} />
     );
 }
