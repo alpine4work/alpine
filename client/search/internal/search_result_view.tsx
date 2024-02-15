@@ -1,5 +1,4 @@
 import escapeHtml from "escape-html";
-import {ChatCircle, EnvelopeSimpleOpen, File, IconContext, ListChecks, User} from "phosphor-react";
 import {Fragment, ReactNode, useMemo} from "react";
 import {AccountAvatar} from "~/client/accounts/account_avatar.js";
 import {AccountShortName} from "~/client/accounts/account_short_name.js";
@@ -144,14 +143,6 @@ export function SearchResultView({
                                 alignItems="center"
                                 gap="1"
                             >
-                                <IconContext.Provider
-                                    value={{
-                                        size: spacing["3"],
-                                        color: "currentColor",
-                                    }}
-                                >
-                                    {typeDisplay.icon}
-                                </IconContext.Provider>
                                 <Box>{typeDisplay.name}</Box>
                             </Box>
                             {result.title !== null && (
@@ -255,77 +246,66 @@ export function SearchResultView({
  */
 function getSearchEntityTypeDisplay(type: SearchEntityIdObject["type"]): {
     name: string;
-    icon: ReactNode;
     isAccountMediaAuthor: boolean;
 } {
     switch (type) {
         case "Account": {
             return {
                 name: "Person",
-                icon: <User />,
                 isAccountMediaAuthor: false,
             };
         }
         case "Document": {
             return {
                 name: "Document",
-                icon: <File />,
                 isAccountMediaAuthor: false,
             };
         }
         case "DocumentComment": {
             return {
                 name: "Document comment",
-                icon: <File />,
                 isAccountMediaAuthor: true,
             };
         }
         case "Channel": {
             return {
                 name: "Channel",
-                icon: <EnvelopeSimpleOpen />,
                 isAccountMediaAuthor: false,
             };
         }
         case "Post": {
             return {
                 name: "Post",
-                icon: <EnvelopeSimpleOpen />,
                 isAccountMediaAuthor: true,
             };
         }
         case "PostComment": {
             return {
                 name: "Post comment",
-                icon: <EnvelopeSimpleOpen />,
                 isAccountMediaAuthor: true,
             };
         }
         case "Chat": {
             return {
                 name: "Chat",
-                icon: <ChatCircle />,
                 isAccountMediaAuthor: false,
             };
         }
         case "ChatMessage": {
             return {
                 name: "Chat message",
-                icon: <ChatCircle />,
                 isAccountMediaAuthor: true,
             };
         }
         case "Task": {
             return {
                 name: "Task",
-                icon: <ListChecks />,
                 isAccountMediaAuthor: false,
             };
         }
         case "TaskCollection": {
             return {
                 name: "Task collection",
-                icon: <ListChecks />,
                 isAccountMediaAuthor: false,
             };
         }
