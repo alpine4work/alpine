@@ -37,12 +37,11 @@ export function SpaceLayoutSideBarCreateButton() {
                     onPress: async () => {
                         await peekStackContext.push(`/s/${space.id}/chat/new`, {focus: true});
                     },
-                    render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
-                        <SpaceLayoutTopBarCreateButtonItem
+                    render: ({isPressed, shouldShowPendingSpinner}) => (
+                        <SpaceLayoutSideBarCreateButtonItem
                             icon={<ChatsCircle />}
                             label="Send a chat message"
                             description="Start a conversation with anyone"
-                            isHovered={isHovered}
                             isPressed={isPressed}
                             shouldShowPendingSpinner={shouldShowPendingSpinner}
                         />
@@ -69,12 +68,11 @@ export function SpaceLayoutSideBarCreateButton() {
                             });
                         }
                     },
-                    render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
-                        <SpaceLayoutTopBarCreateButtonItem
+                    render: ({isPressed, shouldShowPendingSpinner}) => (
+                        <SpaceLayoutSideBarCreateButtonItem
                             icon={<EnvelopeOpen />}
                             label="Post in a channel"
                             description="Share your ideas with everyone"
-                            isHovered={isHovered}
                             isPressed={isPressed}
                             shouldShowPendingSpinner={shouldShowPendingSpinner}
                         />
@@ -90,12 +88,11 @@ export function SpaceLayoutSideBarCreateButton() {
                             {focus: true},
                         );
                     },
-                    render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
-                        <SpaceLayoutTopBarCreateButtonItem
+                    render: ({isPressed, shouldShowPendingSpinner}) => (
+                        <SpaceLayoutSideBarCreateButtonItem
                             icon={<FileText />}
                             label="Create a document"
                             description="Write what’s on your mind"
-                            isHovered={isHovered}
                             isPressed={isPressed}
                             shouldShowPendingSpinner={shouldShowPendingSpinner}
                         />
@@ -107,12 +104,11 @@ export function SpaceLayoutSideBarCreateButton() {
                     onPress: async () => {
                         await peekStackContext.push(`/s/${space.id}/tasks`);
                     },
-                    render: ({isHovered, isPressed, shouldShowPendingSpinner}) => (
-                        <SpaceLayoutTopBarCreateButtonItem
+                    render: ({isPressed, shouldShowPendingSpinner}) => (
+                        <SpaceLayoutSideBarCreateButtonItem
                             icon={<ListChecks />}
                             label="Create a task"
                             description="Keep track of work to do later"
-                            isHovered={isHovered}
                             isPressed={isPressed}
                             shouldShowPendingSpinner={shouldShowPendingSpinner}
                         />
@@ -133,44 +129,31 @@ export function SpaceLayoutSideBarCreateButton() {
     );
 }
 
-function SpaceLayoutTopBarCreateButtonItem({
+function SpaceLayoutSideBarCreateButtonItem({
     icon,
     label,
     description,
-    isHovered,
     isPressed,
     shouldShowPendingSpinner,
 }: {
     icon: ReactNode;
     label: string;
     description: string;
-    isHovered: boolean;
     isPressed: boolean;
     shouldShowPendingSpinner: boolean;
 }) {
     return (
         <Box
-            paddingLeft="3"
-            paddingRight="3"
+            position="relative"
+            paddingLeft="4"
+            paddingRight="4"
             paddingY="3"
             display="flex"
             alignItems="center"
-            gap="3"
+            gap="4"
             aria-label={label}
         >
-            <Box
-                flexShrink="0"
-                padding="2"
-                backgroundColor={
-                    isPressed
-                        ? {light: "grey-20", dark: "grey-30"}
-                        : isHovered
-                        ? {light: "grey-10", dark: "grey-20"}
-                        : {light: "grey-5", dark: "grey-10"}
-                }
-                color={isPressed ? "grey-90" : {light: "grey-70", dark: "grey-80"}}
-                borderRadius="full"
-            >
+            <Box flexShrink="0" color={isPressed ? "grey-90" : "grey-70"}>
                 <IconContext.Provider
                     value={{
                         size: spacing["6"],
