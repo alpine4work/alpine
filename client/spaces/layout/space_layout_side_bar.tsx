@@ -34,7 +34,7 @@ export function SpaceLayoutSideBar({
             style={{width: "4.5rem"}}
         >
             <Box paddingTop="5" display="flex" flexDirection="column" alignItems="center" gap="5">
-                <Box display="flex" flexDirection="column" alignItems="center" gap="2">
+                <Box display="flex" flexDirection="column" alignItems="center" gap="3">
                     <Box
                         backgroundColor="grey-30-const"
                         width="8"
@@ -57,7 +57,6 @@ export function SpaceLayoutSideBar({
                             }, [space.name])}
                         </Box>
                     </Box>
-                    <SpaceLayoutSideBarNavigationButtons />
                 </Box>
                 <SpaceLayoutSideBarButton icon={<House />} label="Home" />
                 <SpaceLayoutSideBarButton icon={<MagnifyingGlass />} label="Search" />
@@ -65,8 +64,15 @@ export function SpaceLayoutSideBar({
                 <SpaceLayoutSideBarCreateButton />
             </Box>
             <Box flexGrow="1" />
-            <Box paddingBottom="5">
+            <Box
+                paddingBottom="5"
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                gap="4"
+            >
                 <SpaceLayoutSideBarAccountButton />
+                <SpaceLayoutSideBarNavigationButtons />
             </Box>
         </Box>
     );
@@ -103,6 +109,7 @@ const NavigationStateSchema = Schema.object({
 function SpaceLayoutSideBarNavigationButtons() {
     const location = useLocation();
     const navigationType = useNavigationType();
+    const navigate = useNavigate();
 
     const [navigationState, setNavigationState] = useState<{
         initialLocationKey: string;
@@ -157,7 +164,8 @@ function SpaceLayoutSideBarNavigationButtons() {
                 description="Go back"
                 tooltipPlacement="top"
                 isDisabled={!navigationState.hasPreviousLocation}
-                onPress={() => window.history.back()}
+                pressErrorTitle="Couldn’t go back"
+                onPress={() => navigate(-1)}
             >
                 <ArrowLeft />
             </IconButton>
@@ -166,7 +174,8 @@ function SpaceLayoutSideBarNavigationButtons() {
                 description="Go forwards"
                 tooltipPlacement="top"
                 isDisabled={!navigationState.hasNextLocation}
-                onPress={() => window.history.forward()}
+                pressErrorTitle="Couldn’t go forwards"
+                onPress={() => navigate(1)}
             >
                 <ArrowRight />
             </IconButton>
