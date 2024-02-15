@@ -23,6 +23,7 @@ export * as contentEditorStyles from "~/shared/styles/internal/content_editor.cs
 export * as contentSchemaStyles from "~/shared/styles/internal/content_schema.css.js";
 export * as contentViewStyles from "~/shared/styles/internal/content_view.css.js";
 export * as documentBlobsStyles from "~/shared/styles/internal/document_blobs.css.js";
+export * from "~/shared/styles/internal/elevation.css.js";
 export * from "~/shared/styles/internal/fonts.css.js";
 export * from "~/shared/styles/internal/input_placeholder.css.js";
 export * as modalStyles from "~/shared/styles/internal/modal.css.js";

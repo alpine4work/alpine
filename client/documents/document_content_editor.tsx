@@ -759,6 +759,7 @@ function DocumentContentEditorStateful({
     );
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        withMobileLayout,
         title: getDocumentContentTitle(content.doc),
         titleBoundaryRef,
         menuActions: [
@@ -777,6 +778,7 @@ function DocumentContentEditorStateful({
             ],
             ...contextMenuActions,
         ],
+        shareButton: {},
         desktopTitleMaxWidth: addRemLengths(
             spacing[paddingX],
             contentSchemaStyles.blockMaxWidth,

@@ -14,10 +14,13 @@ import {Box} from "~/client/design/box.js";
 import {getRemPxWithoutListening} from "~/client/design/helpers/use_rem_px.js";
 import {IconButton} from "~/client/design/icon_button.js";
 import {MenuAction, MenuButton} from "~/client/design/menu_button.js";
+import {OverlayScopeContextProvider} from "~/client/design/overlay.js";
 import {
     ScrollbarInsetDynamic,
     scrollbarVisibleAfterScrollDurationMs,
 } from "~/client/design/scrollbar.js";
+import {ShareButton, createShareMenuItem} from "~/client/design/share_button.js";
+import {useShowToast} from "~/client/design/toast.js";
 import {useLayoutEffectWithoutServerSideWarning} from "~/client/helpers/lifecycle/use_layout_effect_without_server_side_warning.js";
 import {useLifecycleRef} from "~/client/helpers/refs/use_lifecycle_ref.js";
 import {
@@ -30,7 +33,6 @@ import {useNavigate} from "~/client/remix/use_navigate.js";
 import {
     RemLength,
     Spacing,
-    addRemLengths,
     isSpacing,
     parseRemLengthNumber,
     remPxByPlatform,
@@ -190,14 +192,26 @@ const mobileNavigationBarScrollbarInsetTop: ScrollbarInsetDynamic = [
  * web code navigation bar. As the user scrolls down, the tab bar disappears.
  */
 export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
+    withMobileLayout,
     title = null,
     titleBoundaryRef,
     menuActions = [],
+    shareButton,
     desktopControls = null,
     desktopTitleMaxWidth,
     desktopTitleFontSize = "200",
     desktopTitleFontWeight = "semi-bold",
 }: {
+    /**
+     * Should the navigation bar use a mobile layout even while on desktop? This is
+     * typically set to true in peeks. Peeks are visible on desktop but need a
+     * mobile-like layout.
+     *
+     * We use a mobile layout when in mobile mode regardless of whether this is
+     * true or not.
+     */
+    withMobileLayout: boolean;
+
     /**
      * The title to display in the navigation bar. It will be truncated based
      * on how much room is in the navigation bar.
@@ -218,6 +232,15 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * doesn't make sense to give them their own screen space.
      */
     menuActions?: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+
+    /**
+     * Configures the behavior of the share button in the navigation bar. If not
+     * provided then there's no share button in the navigation bar.
+     */
+    // TODO(calebmer): Currently the share button is unimplemented. When we add
+    // implementation this object will configure updating share properties
+    // and such.
+    shareButton?: {};
 
     /**
      * Only rendered on desktop (not mobile).
@@ -247,7 +270,7 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
      * Font weight to use for the title on desktop.
      */
     desktopTitleFontWeight?: "semi-bold" | "bold";
-} = {}): {
+}): {
     /**
      * (Required) Attach this ref to the scroll view the navigation bar renders
      * on top of.
@@ -340,11 +363,13 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
     const navigationBar = (
         <NavigationBar
             isMobile={isMobile}
+            withMobileLayout={withMobileLayout || isMobile}
             handleRef={navigationBarRef}
             scrollViewSize={scrollViewSize}
             title={title}
             titleBoundaryRef={titleBoundaryRef}
             menuActions={menuActions}
+            shareButton={shareButton}
             desktopControls={desktopControls}
             desktopTitleMaxWidth={desktopTitleMaxWidth}
             desktopTitleFontSize={desktopTitleFontSize}
@@ -363,17 +388,20 @@ export function useNavigationBar<TitleBoundaryElement extends HTMLElement>({
 
 function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     isMobile,
+    withMobileLayout,
     handleRef,
     scrollViewSize,
     title,
     titleBoundaryRef,
     menuActions,
+    shareButton,
     desktopControls,
     desktopTitleMaxWidth: desktopTitleMaxWidthProp,
     desktopTitleFontSize,
     desktopTitleFontWeight,
 }: {
     isMobile: boolean;
+    withMobileLayout: boolean;
     handleRef: MutableRefObject<{
         initialize: (element: HTMLElement) => void;
         onScroll: (element: HTMLElement) => void;
@@ -382,12 +410,14 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
     title: ReactNode;
     titleBoundaryRef: RefObject<TitleBoundaryElement> | undefined;
     menuActions: ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>;
+    shareButton: {} | undefined;
     desktopControls: ReactNode;
     desktopTitleMaxWidth: Spacing | RemLength | undefined;
     desktopTitleFontSize: FontSize;
     desktopTitleFontWeight: "semi-bold" | "bold";
 }) {
     const navigate = useNavigate();
+    const showToast = useShowToast();
 
     const navigationBarHeightRem = isMobile
         ? mobileNavigationBarHeightRem
@@ -799,17 +829,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
         });
     }, [scrollDirectionState]);
 
-    const gap = "3";
-    const edgeButtonSize = isMobile ? "7" : "6";
-
-    // Allocate enough space on the edge for two buttons.
-    const edgeButtonsWidth = addRemLengths(
-        spacing[edgeButtonSize],
-        spacing[gap],
-        spacing[edgeButtonSize],
-        spacing[gap],
-    );
-
     const desktopTitleMaxWidth =
         desktopTitleMaxWidthProp !== undefined
             ? isSpacing(desktopTitleMaxWidthProp)
@@ -873,7 +892,6 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                     <Box
                         position="relative"
                         zIndex="0"
-                        overflow="hidden"
                         display="flex"
                         justifyContent="center"
                         style={{paddingTop: "var(--safe-area-inset-top)"}}
@@ -883,136 +901,142 @@ function NavigationBar<TitleBoundaryElement extends HTMLElement>({
                             position="absolute"
                             inset="0"
                             backgroundColor="grey-0"
-                            borderBottom={isMobile ? "grey-10" : undefined}
+                            borderBottom="grey-10"
                             display="flex"
                             justifyContent="center"
                             // Initial opacity is 0. Our code will update the opacity.
                             opacity="0"
-                        >
-                            {!isMobile && (
-                                <Box
-                                    position="absolute"
-                                    top="0"
-                                    bottom="0"
-                                    width="full"
-                                    borderBottom="grey-10"
-                                    style={{
-                                        maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
-                                    }}
-                                />
-                            )}
-                        </Box>
+                        />
                         <Box
                             ref={navigationBarContentRef}
                             position="relative"
+                            zIndex="0"
                             width="full"
                             height={navigationBarHeight}
-                            overflow="hidden"
                             display="flex"
-                            paddingLeft={isMobile ? gap : "5"}
-                            paddingRight={isMobile ? gap : "5"}
+                            gap="5"
                         >
-                            {isMobile ? (
-                                <Box
-                                    flexShrink="0"
-                                    height={navigationBarHeight}
-                                    style={{width: edgeButtonsWidth}}
-                                    display="flex"
-                                    justifyContent="flex-start"
-                                    alignItems="center"
-                                    gap={gap}
-                                    // Gives children `pointer-events: initial` so the user can interact with them.
-                                    className={pointerEventsNoneNotInheritedClassName}
-                                >
-                                    <IconButton
-                                        size="base"
-                                        description="Go back"
-                                        withoutTooltip={true}
-                                        onPress={() => navigate(-1)}
-                                    >
-                                        <ArrowLeft />
-                                    </IconButton>
-                                </Box>
-                            ) : (
-                                desktopTitleMaxWidth !== undefined && (
+                            <OverlayScopeContextProvider>
+                                {isMobile ? (
                                     <Box
-                                        flexGrow="0"
+                                        flexGrow="1"
                                         flexShrink="0"
-                                        style={{
-                                            width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2 + ${spacing["5"]})`,
-                                        }}
-                                    />
-                                )
-                            )}
-                            <Box
-                                flexGrow="1"
-                                flexShrink="1"
-                                width="full"
-                                height={navigationBarHeight}
-                                overflow="hidden"
-                                display="flex"
-                                justifyContent={isMobile ? "center" : "flex-start"}
-                                alignItems="center"
-                                gap={gap}
-                                style={{
-                                    maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
-                                }}
-                            >
-                                {!isMobile && desktopControls && (
-                                    <Box
+                                        height={navigationBarHeight}
+                                        paddingLeft="3"
+                                        display="flex"
+                                        justifyContent="flex-start"
+                                        alignItems="center"
                                         // Gives children `pointer-events: initial` so the user can interact with them.
                                         className={pointerEventsNoneNotInheritedClassName}
                                     >
-                                        {desktopControls}
+                                        <IconButton
+                                            size="base"
+                                            description="Go back"
+                                            withoutTooltip={true}
+                                            onPress={() => navigate(-1)}
+                                        >
+                                            <ArrowLeft />
+                                        </IconButton>
                                     </Box>
+                                ) : (
+                                    desktopTitleMaxWidth !== undefined && (
+                                        <Box
+                                            flexGrow="0"
+                                            flexShrink="0"
+                                            style={{
+                                                width: `max(0px, (100% - ${desktopTitleMaxWidth}) / 2)`,
+                                            }}
+                                        />
+                                    )
                                 )}
                                 <Box
-                                    ref={navigationBarTitleRef}
-                                    // We have less space on mobile so use a smaller font size.
-                                    fontSize={isMobile ? "100" : desktopTitleFontSize}
-                                    fontStyle={
-                                        isMobile
-                                            ? "truncate-semi-bold"
-                                            : `truncate-${desktopTitleFontWeight}`
+                                    flexGrow="1"
+                                    flexShrink="1"
+                                    height={navigationBarHeight}
+                                    paddingLeft={
+                                        desktopTitleMaxWidth === undefined && !isMobile
+                                            ? "5"
+                                            : undefined
                                     }
-                                    userSelect={!isMobile ? "text" : undefined}
-                                    // Initial opacity is 0. Our code will update the opacity.
-                                    opacity="0"
+                                    overflow="hidden"
+                                    display="flex"
+                                    justifyContent={isMobile ? "center" : "flex-start"}
+                                    alignItems="center"
+                                    gap="3"
+                                    style={{
+                                        maxWidth: !isMobile ? desktopTitleMaxWidth : undefined,
+                                    }}
                                 >
-                                    {title}
-                                </Box>
-                            </Box>
-                            <Box
-                                flexGrow={!isMobile ? "1" : undefined}
-                                flexShrink="0"
-                                height={navigationBarHeight}
-                                style={{width: edgeButtonsWidth}}
-                                display="flex"
-                                justifyContent="flex-end"
-                                alignItems="center"
-                                gap={gap}
-                                // Gives children `pointer-events: initial` so the user can interact with them.
-                                className={pointerEventsNoneNotInheritedClassName}
-                            >
-                                {menuActions.length > 0 && (
-                                    <MenuButton actions={menuActions}>
-                                        <IconButton
-                                            size={isMobile ? "base" : "md"}
-                                            description="More"
-                                            withoutTooltip={true}
+                                    {!isMobile && desktopControls && (
+                                        <Box
+                                            // Gives children `pointer-events: initial` so the user can interact with them.
+                                            className={pointerEventsNoneNotInheritedClassName}
                                         >
-                                            <DotsThreeVertical
-                                            // Vertical dots create better visual balance on mobile because:
-                                            //
-                                            // 1. On mobile we have a back button on the left and we want this button to
-                                            //    look aligned with that
-                                            // 2. The title might be truncated with ellipsis which looks like horizontal
-                                            //    dots
-                                            />
-                                        </IconButton>
-                                    </MenuButton>
-                                )}
-                            </Box>
+                                            {desktopControls}
+                                        </Box>
+                                    )}
+                                    <Box
+                                        ref={navigationBarTitleRef}
+                                        // We have less space on mobile so use a smaller font size.
+                                        fontSize={isMobile ? "100" : desktopTitleFontSize}
+                                        fontStyle={
+                                            isMobile
+                                                ? "truncate-semi-bold"
+                                                : `truncate-${desktopTitleFontWeight}`
+                                        }
+                                        userSelect={!isMobile ? "text" : undefined}
+                                        // Initial opacity is 0. Our code will update the opacity.
+                                        opacity="0"
+                                    >
+                                        {title}
+                                    </Box>
+                                </Box>
+                                <Box
+                                    flexGrow="1"
+                                    flexShrink="0"
+                                    height={navigationBarHeight}
+                                    paddingRight={isMobile ? "3" : "5"}
+                                    display="flex"
+                                    justifyContent="flex-end"
+                                    alignItems="center"
+                                    gap={isMobile ? "0.5" : "2"}
+                                    // Gives children `pointer-events: initial` so the user can interact with them.
+                                    className={pointerEventsNoneNotInheritedClassName}
+                                >
+                                    {shareButton && !withMobileLayout && (
+                                        <Box paddingRight="3">
+                                            <ShareButton />
+                                        </Box>
+                                    )}
+                                    {menuActions.length > 0 && (
+                                        <MenuButton
+                                            actions={
+                                                shareButton && withMobileLayout
+                                                    ? [
+                                                          [createShareMenuItem({showToast})],
+                                                          ...menuActions,
+                                                      ]
+                                                    : menuActions
+                                            }
+                                        >
+                                            <IconButton
+                                                size={isMobile ? "base" : "md"}
+                                                description="More"
+                                                withoutTooltip={true}
+                                            >
+                                                <DotsThreeVertical
+                                                // Vertical dots create better visual balance on mobile because:
+                                                //
+                                                // 1. On mobile we have a back button on the left and we want this button to
+                                                //    look aligned with that
+                                                // 2. The title might be truncated with ellipsis which looks like horizontal
+                                                //    dots
+                                                />
+                                            </IconButton>
+                                        </MenuButton>
+                                    )}
+                                </Box>
+                            </OverlayScopeContextProvider>
                         </Box>
                     </Box>
                 </div>

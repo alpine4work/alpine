@@ -143,7 +143,7 @@ export async function clientLoader({
     clientLoaderTaskStoreLoaderData(spaceId, data);
 }
 
-export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolean}) {
+export default function TaskRoute({withMobileLayout = false}: {withMobileLayout?: boolean}) {
     const {taskId} = useParams();
     assert(taskId && isId<TaskId>(taskId));
 
@@ -216,6 +216,7 @@ export default function TaskRoute({withMobileLayout}: {withMobileLayout?: boolea
                     <TaskDetailView
                         // Remount when the `TaskId` changes.
                         key={taskSubscription.taskId}
+                        withMobileLayout={withMobileLayout}
                         taskSubscription={taskSubscription}
                         childrenQuery={childrenQuery}
                         affinityManager={affinityManager}

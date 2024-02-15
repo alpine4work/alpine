@@ -221,6 +221,8 @@ export const menuSizeConstants: {
     },
 };
 
+type MenuActions = ReadonlyArray<MenuAction | ReadonlyArray<MenuAction>>;
+
 /**
  * A menu button is a button which opens a menu overlay. The menu overlay
  * contains a list of actions which may be selected by the user.
@@ -247,10 +249,7 @@ export function MenuButton({
      * If you have nested arrays then each sub-array will form a section with a
      * divider between sections.
      */
-    actions:
-        | ReadonlyArray<MenuAction>
-        | ReadonlyArray<ReadonlyArray<MenuAction>>
-        | (() => ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>);
+    actions: MenuActions | (() => MenuActions);
 
     /**
      * Where should the menu overlay be placed relative to the target element?
@@ -348,9 +347,7 @@ export const Menu = forwardRef(function Menu(
         shouldNotCloseAfterActionPress,
     }: {
         size?: MenuSize;
-        actions:
-            | (ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>)
-            | (() => ReadonlyArray<MenuAction> | ReadonlyArray<ReadonlyArray<MenuAction>>);
+        actions: MenuActions | (() => MenuActions);
         placement?: OverlayPlacement;
         maxHeight?: MenuMaxHeight;
         onCloseWithAnimation: () => void;

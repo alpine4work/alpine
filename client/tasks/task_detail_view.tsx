@@ -103,6 +103,7 @@ import {TaskTitleUpdate} from "~/shared/tasks/task_title.js";
 export const taskDetailViewMaxWidth: Spacing = "160";
 
 export function TaskDetailView({
+    withMobileLayout,
     taskSubscription,
     childrenQuery,
     affinityManager,
@@ -111,6 +112,7 @@ export function TaskDetailView({
     initialNotesVersion,
     initialNotesContent,
 }: {
+    withMobileLayout: boolean;
     taskSubscription: TaskClientTaskSubscription;
     childrenQuery: TaskClientQuery;
     affinityManager: TaskClientStoreSearchEntityAffinityManager;
@@ -626,6 +628,7 @@ export function TaskDetailView({
     ]);
 
     const {scrollViewRef, navigationBar, scrollbarInsetTop} = useNavigationBar({
+        withMobileLayout,
         title: <TaskDetailViewNavigationBarTitle taskSubscription={taskSubscription} />,
         titleBoundaryRef: titleInputElementRef,
         menuActions: contextMenuActions,

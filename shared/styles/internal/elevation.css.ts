@@ -17,7 +17,7 @@ import {
  *
  * [1]: https://twitter.com/jamesm/status/1622702890912456704
  */
-const elevation = {
+export const elevation = {
     "elevation-5": createElevation({
         lightBorderColor: "rgb(0 0 0 / 0.05)",
         darkBorderColor: "grey-80",
