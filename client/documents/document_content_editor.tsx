@@ -530,6 +530,9 @@ function DocumentContentEditorStateful({
         // `coordsAtPos()`.
         if (isInitialAppRender) return;
 
+        // We don't show side decorations on mobile.
+        if (isMobile) return;
+
         // Recompute our decorations whenever the editor width changes.
         // eslint-disable-next-line @typescript-eslint/no-unused-expressions
         editorContainerWidth;
@@ -556,7 +559,14 @@ function DocumentContentEditorStateful({
 
             return decorationByMarkTop;
         });
-    }, [editorContainerRef, content.doc, editorRef, isInitialAppRender, editorContainerWidth]);
+    }, [
+        editorContainerRef,
+        content.doc,
+        editorRef,
+        isInitialAppRender,
+        editorContainerWidth,
+        isMobile,
+    ]);
 
     const decorations = useMemo(
         () =>
@@ -885,18 +895,20 @@ function DocumentContentEditorStateful({
                             {useMemo(
                                 // Memoize side decorations since it can be an expensive component
                                 // to re-render. Especially during animations.
-                                () => (
-                                    <DocumentContentEditorSideDecorations
-                                        editorContainerWidth={editorContainerWidth}
-                                        contentReferences={content.references}
-                                        decorations={decorations}
-                                        openCommentThread={openCommentThread}
-                                    />
-                                ),
+                                () =>
+                                    !isMobile && (
+                                        <DocumentContentEditorSideDecorations
+                                            editorContainerWidth={editorContainerWidth}
+                                            contentReferences={content.references}
+                                            decorations={decorations}
+                                            openCommentThread={openCommentThread}
+                                        />
+                                    ),
                                 [
                                     content.references,
                                     decorations,
                                     editorContainerWidth,
+                                    isMobile,
                                     openCommentThread,
                                 ],
                             )}

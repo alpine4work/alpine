@@ -27,6 +27,7 @@ import {
     useRef,
     useState,
 } from "react";
+import {flushSync} from "react-dom";
 import {getAccountClientStoreForClient} from "~/client/accounts/account_client_store_context_provider.js";
 import {
     ContentEditorState,
@@ -51,6 +52,7 @@ import {isVirtualKeyboardEvent} from "~/client/helpers/events/is_virtual_keyboar
 import {useIsInitialAppRender} from "~/client/helpers/lifecycle/use_is_initial_app_render.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.js";
+import {useIsMobile} from "~/client/remix/use_is_mobile.js";
 import {useNavigate} from "~/client/remix/use_navigate.js";
 import {useSpaceContext} from "~/client/spaces/space_context.js";
 import {useExpensivelyPreloadAllSpaceAccounts} from "~/client/spaces/use_expensively_load_all_space_accounts.js";
@@ -60,6 +62,7 @@ import {isContentBodyEmpty, isContentTitleEmpty} from "~/shared/content/is_conte
 import {ThemeColor} from "~/shared/design/theme_colors.js";
 import {documentFallbackTitle} from "~/shared/documents/document_fallback_title.js";
 import {UnimplementedError} from "~/shared/error/error.js";
+import {createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 import {assertExists} from "~/shared/helpers/control/assert_exists.js";
 import {Lazy} from "~/shared/helpers/control/lazy.js";
@@ -404,6 +407,35 @@ function ContentEditor<Content extends ContentWithReferences>(
         phantomSelections,
     } = props;
 
+    const navigate = useNavigate();
+    const isMobile = useIsMobile();
+
+    // We choose our interaction mode based on whether the device's primary input
+    // can hover. This is true on a laptop (e.g. MacOS) and false on a phone (e.g.
+    // iOS). Haven't tested this with an iPad. Ideally it's true when a hardware
+    // trackpad is connected and false when it's not.
+    const [canPrimaryInputHover, setCanPrimaryInputHover] = useState(
+        () => !window.matchMedia("(hover: none)").matches,
+    );
+
+    useEffect(() => {
+        const mediaQuery = window.matchMedia("(hover: none)");
+
+        const handleChange = () => {
+            setCanPrimaryInputHover(!mediaQuery.matches);
+        };
+
+        // In case media query changed since initial render.
+        handleChange();
+
+        mediaQuery.addEventListener("change", handleChange);
+        return () => {
+            mediaQuery.removeEventListener("change", handleChange);
+        };
+    }, []);
+
+    const isDualModality = !canPrimaryInputHover;
+
     // The props for the current React commit. We are integrating with a stateful
     // component (ProseMirror's `EditorView`) so we need to be able to
     // imperatively access props.
@@ -415,7 +447,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     // Please avoid using `propsRef` unless you can thoroughly reason through why
     // it's safe!
     const propsRef = useRef(props);
-    const navigate = useNavigate();
+    const isDualModalityRef = useRef(isDualModality);
     const navigateRef = useRef(navigate);
     // Don't get the current account when running in a unit test so we don't need
     // to render a space context when testing this component.
@@ -425,6 +457,7 @@ function ContentEditor<Content extends ContentWithReferences>(
     const currentAccountRef = useRef(currentAccount);
     useInsertionEffect(() => {
         propsRef.current = props;
+        isDualModalityRef.current = isDualModality;
         navigateRef.current = navigate;
         currentAccountRef.current = currentAccount;
     });
@@ -529,8 +562,16 @@ function ContentEditor<Content extends ContentWithReferences>(
         const initialState = unwrap(propsRef.current.state);
         const schema = initialState.doc.type.schema;
 
+        const initialIsDualModality = isDualModalityRef.current;
+
         const view = new EditorView(rootElement, {
             state: initialState,
+
+            // On mobile devices we implement dual interaction modality. Before any
+            // interaction the content is read-only. Tapping on links follows the link
+            // instead of editing the content. Tapping on text switches to an editing
+            // modality where tapping on a link instead edits the text.
+            editable: () => !initialIsDualModality,
 
             attributes: {
                 // Native spellcheck is often more distracting then it's worth. It puts a red
@@ -760,12 +801,118 @@ function ContentEditor<Content extends ContentWithReferences>(
             },
         });
 
+        let touchTapState: {
+            finish: (event: TouchEvent) => void;
+            cancel: () => void;
+        } | null = null;
+
+        // TODO(calebmer): Probably also need to support focusing in dual modality mode
+        // with mouse events. For example, an iPad user with a hardware trackpad.
+        // Does the browser give us touch events or mouse events?
+        view.dom.addEventListener("touchstart", event => {
+            touchTapState?.cancel();
+            touchTapState = null;
+
+            // If we're not on mobile the document is always editable.
+            if (!isDualModalityRef.current) return;
+
+            // Only support a single touch.
+            if (event.touches.length !== 1) return;
+            const touch = event.touches[0]!;
+
+            // If there's a focused element this tap dismisses the focus. It doesn't make
+            // the editor editable.
+            if (document.activeElement && document.activeElement !== document.body) return;
+
+            // If there's a selection this tap dismisses the selection. It doesn't make the
+            // editor editable.
+            const selection = window.getSelection();
+            const hasSelection =
+                selection &&
+                (selection.anchorNode !== selection.focusNode ||
+                    selection.anchorOffset !== selection.focusOffset);
+            if (hasSelection) return;
+
+            // Long press touch selects text instead of starts editing. 0.5 seconds is the
+            // default press duration used by iOS's long press gesture recognizer.
+            // https://developer.apple.com/documentation/uikit/uilongpressgesturerecognizer/1616423-minimumpressduration
+            const longPressTimeout = createTimeout(() => {
+                touchTapState?.cancel();
+                touchTapState = null;
+            }, 500);
+
+            touchTapState = {
+                finish: event => {
+                    longPressTimeout.clear();
+
+                    const posResult = view.posAtCoords({left: touch.clientX, top: touch.clientY});
+                    if (!posResult) return;
+
+                    // By default, iOS will move the selection to the end of the word you touched.
+                    // We instead want focus moved to the selection specified in our
+                    // `setSelection()` call.
+                    event.preventDefault();
+
+                    // This may seem strange. Shouldn't `setIsFocused(true)` be set from an event
+                    // handler after `focus()` is called? Well in this case our editor is not
+                    // editable if we are in dual modality state and `isFocused` is false. When our
+                    // editor is not editable it's also not focusable. So we need to set `isFocused`
+                    // to true to be able to focus!
+                    //
+                    // We must call `focus()` during the `touchend` event since iOS won't open the
+                    // software keyboard unless focus happens in a user-initiated event. So we call
+                    // `flushSync()` to make sure `isFocused` is updated synchronously so we can
+                    // call `focus()` synchronously.
+                    flushSync(() => setIsFocused(true));
+                    view.focus();
+
+                    view.dispatch(
+                        view.state.tr.setSelection(
+                            new TextSelection(view.state.doc.resolve(posResult.pos)),
+                        ),
+                    );
+                },
+                cancel: () => {
+                    longPressTimeout.clear();
+                },
+            };
+        });
+
+        view.dom.addEventListener("touchmove", () => {
+            // Touch move turns into a scroll or drag gesture.
+            touchTapState?.cancel();
+            touchTapState = null;
+        });
+
+        view.dom.addEventListener("touchend", event => {
+            // If our tap state hasn't been cancelled we actually successfully received
+            // a tap!
+            touchTapState?.finish(event);
+            touchTapState = null;
+        });
+
+        view.dom.addEventListener("touchcancel", () => {
+            touchTapState?.cancel();
+            touchTapState = null;
+        });
+
+        const handleSelectionChange = () => {
+            // After a long press, iOS selects text. If we see the selection change during
+            // a tap we no longer have a tap gesture and instead we have a long press
+            // gesture.
+            touchTapState?.cancel();
+            touchTapState = null;
+        };
+
+        document.addEventListener("selectionchange", handleSelectionChange);
+
         // Stash the editor view instance on the DOM node for debugging and tests.
         (rootElement as any)[internalEditorViewKey] = view;
 
         viewRef.current = view;
 
         return () => {
+            document.removeEventListener("selectionchange", handleSelectionChange);
             view.destroy();
         };
 
@@ -792,10 +939,10 @@ function ContentEditor<Content extends ContentWithReferences>(
 
         const newState = unwrap(state);
 
-        assert(viewRef.current);
-        const oldState = viewRef.current.state;
+        const view = assertExists(viewRef.current);
+        const oldState = view.state;
         if (oldState !== newState) {
-            viewRef.current.updateState(newState);
+            view.updateState(newState);
             onStateChange(oldState, newState, null);
         }
 
@@ -807,10 +954,11 @@ function ContentEditor<Content extends ContentWithReferences>(
     >(() => new Set());
 
     useLayoutEffect(() => {
-        assert(viewRef.current);
-        const view = viewRef.current;
+        const view = assertExists(viewRef.current);
 
         view.setProps({
+            editable: () => !isDualModality || isFocused,
+
             decorations: state => {
                 let decorationSet = DecorationSet.empty;
 
@@ -823,7 +971,7 @@ function ContentEditor<Content extends ContentWithReferences>(
                 return decorationSet;
             },
         });
-    }, [decorationCallbacks]);
+    }, [decorationCallbacks, isDualModality, isFocused]);
 
     // Apply `className`s from our `className` prop. Take care to make sure class
     // names added by ProseMirror or other effects continue to be applied.
@@ -1024,8 +1172,6 @@ function ContentEditor<Content extends ContentWithReferences>(
                 default:
                     return decorationSet;
             }
-
-            return decorationSet;
         };
 
         const handleFocus = () => {
@@ -1228,6 +1374,7 @@ function ContentEditor<Content extends ContentWithReferences>(
             }}
         >
             <ContentEditorFloater
+                isMobile={isMobile}
                 state={unwrap(state)}
                 viewRef={viewRef}
                 floaterState={floaterState}

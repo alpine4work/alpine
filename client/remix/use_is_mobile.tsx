@@ -1,5 +1,4 @@
 import {ReactNode, createContext, useContext, useEffect, useState} from "react";
-import {Box} from "~/client/design/box.js";
 import {runWithImmediatePriority} from "~/client/helpers/run_with_immediate_priority.js";
 import {useClientInfo} from "~/client/remix/client_info_context.js";
 import {mobileMaxScreenWidth, mobilePlatformMediaQuery} from "~/shared/design/spacing.js";

@@ -108,6 +108,7 @@ export type ContentEditorFloaterState =
 export const initialContentEditorFloaterState: ContentEditorFloaterState = {type: "PointerToolbar"};
 
 export function ContentEditorFloater({
+    isMobile,
     state,
     viewRef,
     floaterState,
@@ -115,6 +116,7 @@ export function ContentEditorFloater({
     isFocused,
     lastSelectionChangeTransactionTime,
 }: {
+    isMobile: boolean;
     state: EditorState & {schema: ContentProsemirrorSchema};
     viewRef: RefObject<EditorView | null>;
     floaterState: ContentEditorFloaterState;
@@ -124,6 +126,9 @@ export function ContentEditorFloater({
 }) {
     switch (floaterState.type) {
         case "PointerToolbar": {
+            // The pointer toolbar never opens on mobile devices.
+            if (isMobile) return null;
+
             return (
                 <ContentEditorPointerToolbar
                     state={state}

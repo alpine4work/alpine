@@ -460,10 +460,12 @@ class WebNavigationController: UINavigationController, WKNavigationDelegate, WKU
         let requestUrl = navigationAction.request.url!
         let requestUrlAbsoluteString = requestUrl.absoluteString
 
-        // Don't allow requests outside of our `baseUrl`.
+        // Always open URLs outside of `baseUrl` with the app signed up to handle
+        // the URL. (`https://` URLs typically open in Safari.)
         if !requestUrlAbsoluteString.starts(
             with: WebNavigationController.baseUrlAbsoluteStringWithTrailingSlash
         ) && requestUrlAbsoluteString != WebNavigationController.baseUrl.absoluteString {
+            await UIApplication.shared.open(requestUrl)
             return .cancel
         }
 

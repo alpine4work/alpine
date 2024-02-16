@@ -55,6 +55,16 @@ globalStyle(
     },
 );
 
+globalStyle(`${containerClassName} > ${docClassName}`, {
+    // Always use a text cursor when in an editor. This matters when
+    // `contenteditable="false"`. For instance on initial render or on mobile. On
+    // mobile `contenteditable="false"` but tapping switches the editor to
+    // editable. While typically there's no mouse so no hover state on mobile, in
+    // case the user has made the screen tiny (developers, at least, do this often
+    // while debugging) let's give them the text cursor affordance.
+    cursor: "text",
+});
+
 /**
  * When applying a background color to some selected text, we want the
  * background to cover the entire line height, not just the size of the inline

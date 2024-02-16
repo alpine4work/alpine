@@ -9,6 +9,8 @@ import {getClientInfoWithoutListening} from "~/client/remix/client_info_context.
 import {Timeout, createTimeout} from "~/shared/helpers/async/timeout.js";
 import {assert} from "~/shared/helpers/control/assert.js";
 
+// NOCOMMIT: Link press visual state
+
 /**
  * Opens the link when the node is clicked instead of selecting text. We're
  * optimizing for reading content here over writing.
